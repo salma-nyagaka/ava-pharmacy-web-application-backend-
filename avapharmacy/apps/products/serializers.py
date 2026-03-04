@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Category, Brand, Product, ProductImage, ProductReview, Wishlist, Banner, Promotion
+from .services import calculate_product_pricing
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -7,18 +8,18 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ('id', 'name', 'slug', 'icon', 'subcategories')
+        fields = ('id', 'name', 'slug', 'description', 'icon', 'is_active', 'subcategories')
 
     def get_subcategories(self, obj):
         if obj.parent is None:
-            return CategorySerializer(obj.subcategories.all(), many=True).data
+            return CategorySerializer(obj.subcategories.filter(is_active=True), many=True).data
         return []
 
 
 class BrandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand
-        fields = ('id', 'name', 'slug', 'logo')
+        fields = ('id', 'name', 'slug', 'logo', 'description', 'is_active')
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -48,6 +49,12 @@ class ProductListSerializer(serializers.ModelSerializer):
     category_slug = serializers.ReadOnlyField(source='category.slug')
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
+    inventory_status = serializers.ReadOnlyField()
+    available_quantity = serializers.ReadOnlyField()
+    can_purchase = serializers.ReadOnlyField()
+    final_price = serializers.SerializerMethodField()
+    discount_total = serializers.SerializerMethodField()
+    active_promotions = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -56,8 +63,26 @@ class ProductListSerializer(serializers.ModelSerializer):
             'category_name', 'category_slug', 'price', 'original_price',
             'image', 'badge', 'stock_source', 'stock_quantity',
             'short_description', 'average_rating', 'review_count',
-            'requires_prescription', 'is_active'
+            'requires_prescription', 'inventory_status', 'available_quantity',
+            'can_purchase', 'final_price', 'discount_total', 'active_promotions',
+            'is_featured', 'is_active'
         )
+
+    def _pricing(self, obj):
+        pricing = getattr(obj, '_pricing_cache', None)
+        if pricing is None:
+            pricing = calculate_product_pricing(obj, promotions=self.context.get('active_promotions'))
+            obj._pricing_cache = pricing
+        return pricing
+
+    def get_final_price(self, obj):
+        return self._pricing(obj)['final_price']
+
+    def get_discount_total(self, obj):
+        return self._pricing(obj)['discount_total']
+
+    def get_active_promotions(self, obj):
+        return self._pricing(obj)['promotions']
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -72,17 +97,41 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     gallery = ProductImageSerializer(many=True, read_only=True)
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
+    inventory_status = serializers.ReadOnlyField()
+    available_quantity = serializers.ReadOnlyField()
+    can_purchase = serializers.ReadOnlyField()
+    final_price = serializers.SerializerMethodField()
+    discount_total = serializers.SerializerMethodField()
+    active_promotions = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = (
             'id', 'sku', 'slug', 'name', 'brand', 'brand_id', 'category', 'category_id',
             'price', 'original_price', 'image', 'gallery', 'badge', 'stock_source',
-            'stock_quantity', 'short_description', 'description', 'features',
-            'directions', 'warnings', 'requires_prescription', 'is_active',
+            'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
+            'short_description', 'description', 'features', 'directions', 'warnings',
+            'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
+            'final_price', 'discount_total', 'active_promotions', 'is_featured', 'is_active',
             'average_rating', 'review_count', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def _pricing(self, obj):
+        pricing = getattr(obj, '_pricing_cache', None)
+        if pricing is None:
+            pricing = calculate_product_pricing(obj, promotions=self.context.get('active_promotions'))
+            obj._pricing_cache = pricing
+        return pricing
+
+    def get_final_price(self, obj):
+        return self._pricing(obj)['final_price']
+
+    def get_discount_total(self, obj):
+        return self._pricing(obj)['discount_total']
+
+    def get_active_promotions(self, obj):
+        return self._pricing(obj)['promotions']
 
 
 class WishlistSerializer(serializers.ModelSerializer):
@@ -100,15 +149,22 @@ class WishlistSerializer(serializers.ModelSerializer):
 class BannerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Banner
-        fields = ('id', 'message', 'link', 'status', 'created_at', 'updated_at')
+        fields = (
+            'id', 'title', 'message', 'link', 'image', 'placement', 'sort_order',
+            'status', 'created_at', 'updated_at'
+        )
         read_only_fields = ('id', 'created_at', 'updated_at')
 
 
 class PromotionSerializer(serializers.ModelSerializer):
+    is_currently_active = serializers.ReadOnlyField()
+
     class Meta:
         model = Promotion
         fields = (
-            'id', 'title', 'type', 'value', 'scope', 'targets', 'badge',
-            'start_date', 'end_date', 'status', 'created_at', 'updated_at'
+            'id', 'title', 'code', 'description', 'type', 'value', 'scope', 'targets', 'badge',
+            'priority', 'is_stackable', 'minimum_order_amount',
+            'start_date', 'end_date', 'status', 'is_currently_active',
+            'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')

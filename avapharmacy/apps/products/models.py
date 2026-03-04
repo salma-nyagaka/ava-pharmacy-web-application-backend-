@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django.db import models
+from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -8,7 +11,9 @@ class Category(models.Model):
     parent = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='subcategories'
     )
+    description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -28,6 +33,8 @@ class Brand(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     logo = models.ImageField(upload_to='brands/', null=True, blank=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -70,13 +77,23 @@ class Product(models.Model):
     badge = models.CharField(max_length=50, blank=True)
     stock_source = models.CharField(max_length=20, choices=STOCK_CHOICES, default=STOCK_BRANCH)
     stock_quantity = models.PositiveIntegerField(default=0)
+    low_stock_threshold = models.PositiveIntegerField(default=5)
+    allow_backorder = models.BooleanField(default=False)
+    max_backorder_quantity = models.PositiveIntegerField(default=0)
     requires_prescription = models.BooleanField(default=False)
+    is_featured = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_active', 'created_at']),
+            models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['brand', 'is_active']),
+            models.Index(fields=['stock_source', 'is_active']),
+        ]
 
     def __str__(self):
         return self.name
@@ -84,9 +101,31 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
-        if self.stock_quantity == 0:
+        if self.stock_quantity == 0 and not self.allow_backorder:
             self.stock_source = self.STOCK_OUT
+        elif self.stock_quantity > 0 and self.stock_source == self.STOCK_OUT:
+            self.stock_source = self.STOCK_BRANCH
         super().save(*args, **kwargs)
+
+    @property
+    def inventory_status(self):
+        if not self.is_active:
+            return 'inactive'
+        if self.stock_quantity == 0:
+            return 'backorder' if self.allow_backorder else 'out_of_stock'
+        if self.stock_quantity <= self.low_stock_threshold:
+            return 'low_stock'
+        return 'in_stock'
+
+    @property
+    def available_quantity(self):
+        if self.allow_backorder:
+            return self.stock_quantity + self.max_backorder_quantity
+        return self.stock_quantity
+
+    @property
+    def can_purchase(self):
+        return self.is_active and self.available_quantity > 0
 
     @property
     def average_rating(self):
@@ -145,8 +184,12 @@ class Wishlist(models.Model):
 
 
 class Banner(models.Model):
+    title = models.CharField(max_length=120, blank=True)
     message = models.TextField()
     link = models.URLField(blank=True)
+    image = models.ImageField(upload_to='banners/', blank=True)
+    placement = models.CharField(max_length=50, default='home_hero')
+    sort_order = models.PositiveIntegerField(default=0)
     status = models.CharField(
         max_length=20,
         choices=[('active', 'Active'), ('inactive', 'Inactive')],
@@ -156,7 +199,7 @@ class Banner(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['sort_order', '-created_at']
 
     def __str__(self):
         return self.message[:60]
@@ -189,11 +232,16 @@ class Promotion(models.Model):
     ]
 
     title = models.CharField(max_length=200)
+    code = models.CharField(max_length=40, blank=True, null=True, unique=True)
+    description = models.TextField(blank=True)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_PERCENTAGE)
     value = models.DecimalField(max_digits=10, decimal_places=2)
     scope = models.CharField(max_length=20, choices=SCOPE_CHOICES, default=SCOPE_ALL)
     targets = models.JSONField(default=list)
     badge = models.CharField(max_length=50, blank=True)
+    priority = models.PositiveIntegerField(default=0)
+    is_stackable = models.BooleanField(default=False)
+    minimum_order_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     start_date = models.DateField()
     end_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
@@ -201,7 +249,42 @@ class Promotion(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['-priority', '-created_at']
+        indexes = [
+            models.Index(fields=['status', 'start_date', 'end_date']),
+            models.Index(fields=['scope', 'status']),
+        ]
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_currently_active(self):
+        today = timezone.now().date()
+        return (
+            self.status == self.STATUS_ACTIVE
+            and self.start_date <= today <= self.end_date
+        )
+
+    def applies_to_product(self, product):
+        if self.scope == self.SCOPE_ALL:
+            return True
+
+        targets = {str(value) for value in self.targets}
+        if self.scope == self.SCOPE_CATEGORY and product.category:
+            return str(product.category_id) in targets or product.category.slug in targets
+        if self.scope == self.SCOPE_BRAND and product.brand:
+            return str(product.brand_id) in targets or product.brand.slug in targets
+        if self.scope == self.SCOPE_PRODUCT:
+            return str(product.id) in targets or product.slug in targets or product.sku in targets
+        return False
+
+    def calculate_discount(self, amount):
+        amount = Decimal(amount)
+        if amount <= 0:
+            return Decimal('0.00')
+        if self.type == self.TYPE_PERCENTAGE:
+            discount = (amount * self.value) / Decimal('100')
+        else:
+            discount = self.value
+        return min(discount, amount)

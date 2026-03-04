@@ -1,6 +1,7 @@
 # AvaPharma API — Usage Examples
 
 All examples use `curl`. Replace `<token>` with your JWT access token.
+The versioned ecommerce contract is available under `/api/v1/`.
 
 ---
 
@@ -8,7 +9,7 @@ All examples use `curl`. Replace `<token>` with your JWT access token.
 
 ### Register
 ```bash
-curl -X POST http://localhost:8000/api/auth/register/ \
+curl -X POST http://localhost:8000/api/v1/auth/register/ \
   -H "Content-Type: application/json" \
   -d '{
     "email": "john@example.com",
@@ -23,7 +24,7 @@ curl -X POST http://localhost:8000/api/auth/register/ \
 
 ### Login
 ```bash
-curl -X POST http://localhost:8000/api/auth/login/ \
+curl -X POST http://localhost:8000/api/v1/auth/login/ \
   -H "Content-Type: application/json" \
   -d '{"email": "john@example.com", "password": "SecurePass123!"}'
 ```
@@ -42,12 +43,12 @@ Response:
 
 ### Browse products with filters
 ```bash
-curl "http://localhost:8000/api/products/?category=health-wellness&min_price=100&max_price=2000&search=vitamin"
+curl "http://localhost:8000/api/v1/products/?category=health-wellness&min_price=100&max_price=2000&search=vitamin"
 ```
 
 ### Get product detail
 ```bash
-curl "http://localhost:8000/api/products/centrum-multivitamin-60-tablets/"
+curl "http://localhost:8000/api/v1/products/centrum-multivitamin-60-tablets/"
 ```
 
 ---
@@ -56,15 +57,23 @@ curl "http://localhost:8000/api/products/centrum-multivitamin-60-tablets/"
 
 ### Add item to cart
 ```bash
-curl -X POST http://localhost:8000/api/cart/items/ \
+curl -X POST http://localhost:8000/api/v1/cart/items/ \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"product_id": 5, "quantity": 2}'
 ```
 
-### Checkout
+### Apply coupon
 ```bash
-curl -X POST http://localhost:8000/api/checkout/ \
+curl -X POST http://localhost:8000/api/v1/cart/coupon/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"code": "WELCOME10"}'
+```
+
+### Create checkout draft
+```bash
+curl -X POST http://localhost:8000/api/v1/checkout/draft/ \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -75,8 +84,27 @@ curl -X POST http://localhost:8000/api/checkout/ \
     "street": "123 Kenyatta Avenue",
     "city": "Nairobi",
     "county": "Nairobi",
-    "payment_method": "mpesa_stk"
+    "payment_method": "mpesa_stk",
+    "delivery_method": "standard"
   }'
+```
+
+### Create payment intent for draft order
+```bash
+curl -X POST http://localhost:8000/api/v1/payments/intents/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_id": 12,
+    "provider": "mpesa",
+    "phone": "0712345678"
+  }'
+```
+
+### Finalize order after payment confirmation
+```bash
+curl -X POST http://localhost:8000/api/v1/checkout/12/finalize/ \
+  -H "Authorization: Bearer <token>"
 ```
 
 ---
@@ -95,7 +123,7 @@ curl -X POST http://localhost:8000/api/prescriptions/upload/ \
 
 ### Pharmacist approves prescription
 ```bash
-curl -X PATCH http://localhost:8000/api/prescriptions/1/update/ \
+curl -X PATCH http://localhost:8000/api/v1/prescriptions/1/update/ \
   -H "Authorization: Bearer <pharmacist_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -113,7 +141,7 @@ curl -X PATCH http://localhost:8000/api/prescriptions/1/update/ \
 
 ### Book a lab test
 ```bash
-curl -X POST http://localhost:8000/api/lab/requests/ \
+curl -X POST http://localhost:8000/api/v1/lab/requests/ \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -127,7 +155,7 @@ curl -X POST http://localhost:8000/api/lab/requests/ \
 
 ### Upload lab result (lab technician)
 ```bash
-curl -X POST http://localhost:8000/api/lab/requests/1/results/ \
+curl -X POST http://localhost:8000/api/v1/lab/requests/1/results/ \
   -H "Authorization: Bearer <lab_tech_token>" \
   -F "summary=All values within normal range" \
   -F "is_abnormal=false" \
@@ -139,10 +167,23 @@ curl -X POST http://localhost:8000/api/lab/requests/1/results/ \
 ## Admin: Update Order Status
 
 ```bash
-curl -X PATCH http://localhost:8000/api/admin/orders/1/ \
+curl -X PATCH http://localhost:8000/api/v1/admin/orders/1/ \
   -H "Authorization: Bearer <admin_token>" \
   -H "Content-Type: application/json" \
   -d '{"status": "shipped", "payment_status": "paid"}'
+```
+
+## Returns
+
+### Create return request
+```bash
+curl -X POST http://localhost:8000/api/v1/returns/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_id": 12,
+    "reason": "Received damaged item"
+  }'
 ```
 
 ---

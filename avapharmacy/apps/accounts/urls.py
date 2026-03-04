@@ -17,4 +17,5 @@ urlpatterns = [
     path('admin/users/<int:pk>/suspend/', views.AdminUserSuspendView.as_view(), name='admin-user-suspend'),
     path('admin/users/<int:pk>/activate/', views.AdminUserActivateView.as_view(), name='admin-user-activate'),
     path('admin/users/<int:pk>/notes/', views.UserNoteListCreateView.as_view(), name='admin-user-notes'),
+    path('admin/audit-logs/', views.AdminAuditLogListView.as_view(), name='admin-audit-logs'),
 ]

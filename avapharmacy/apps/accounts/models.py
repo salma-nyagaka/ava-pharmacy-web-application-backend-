@@ -70,6 +70,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.email})"
 
+    def save(self, *args, **kwargs):
+        if self.role == self.ADMIN:
+            self.is_staff = True
+        super().save(*args, **kwargs)
+
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
@@ -116,3 +121,21 @@ class UserNote(models.Model):
 
     def __str__(self):
         return f"Note for {self.user.full_name} at {self.created_at}"
+
+
+class AdminAuditLog(models.Model):
+    actor = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name='admin_audit_logs'
+    )
+    action = models.CharField(max_length=80)
+    entity_type = models.CharField(max_length=80)
+    entity_id = models.CharField(max_length=80, blank=True)
+    message = models.CharField(max_length=255)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.action} - {self.entity_type}"

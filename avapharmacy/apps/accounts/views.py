@@ -14,13 +14,14 @@ class LoginRateThrottle(AnonRateThrottle):
 class RegisterRateThrottle(AnonRateThrottle):
     scope = 'register'
 
-from .models import User, Address, UserNote
+from .models import AdminAuditLog, User, Address, UserNote
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer, UserUpdateSerializer,
     AdminUserSerializer, AdminUserCreateSerializer, AddressSerializer,
-    UserNoteSerializer, PasswordChangeSerializer
+    UserNoteSerializer, PasswordChangeSerializer, AdminAuditLogSerializer
 )
 from .permissions import IsAdminUser
+from .utils import log_admin_action
 
 
 class RegisterView(generics.CreateAPIView):
@@ -113,22 +114,44 @@ class AdminUserListCreateView(generics.ListCreateAPIView):
     ordering = ['-date_joined']
 
     def get_queryset(self):
-        return User.objects.all().select_related('pharmacist_profile')
+        return User.objects.all().select_related('pharmacist_profile').prefetch_related('addresses', 'orders')
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return AdminUserCreateSerializer
         return AdminUserSerializer
 
+    def perform_create(self, serializer):
+        user = serializer.save()
+        log_admin_action(
+            self.request.user,
+            action='user_created',
+            entity_type='user',
+            entity_id=user.id,
+            message=f'Created user {user.email}',
+            metadata={'role': user.role},
+        )
+
 
 class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminUser]
-    queryset = User.objects.all().select_related('pharmacist_profile')
+    queryset = User.objects.all().select_related('pharmacist_profile').prefetch_related('addresses', 'orders')
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
             return AdminUserCreateSerializer
         return AdminUserSerializer
+
+    def perform_update(self, serializer):
+        user = serializer.save()
+        log_admin_action(
+            self.request.user,
+            action='user_updated',
+            entity_type='user',
+            entity_id=user.id,
+            message=f'Updated user {user.email}',
+            metadata={'role': user.role, 'status': user.status},
+        )
 
 
 class AdminUserSuspendView(APIView):
@@ -142,6 +165,13 @@ class AdminUserSuspendView(APIView):
         user.status = User.STATUS_SUSPENDED
         user.is_active = False
         user.save()
+        log_admin_action(
+            request.user,
+            action='user_suspended',
+            entity_type='user',
+            entity_id=user.id,
+            message=f'Suspended user {user.email}',
+        )
         return Response({'detail': 'User suspended.'})
 
 
@@ -156,6 +186,13 @@ class AdminUserActivateView(APIView):
         user.status = User.STATUS_ACTIVE
         user.is_active = True
         user.save()
+        log_admin_action(
+            request.user,
+            action='user_activated',
+            entity_type='user',
+            entity_id=user.id,
+            message=f'Activated user {user.email}',
+        )
         return Response({'detail': 'User activated.'})
 
 
@@ -179,6 +216,11 @@ class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return Address.objects.filter(user=self.request.user)
 
+    def perform_update(self, serializer):
+        if serializer.validated_data.get('is_default'):
+            Address.objects.filter(user=self.request.user).exclude(pk=self.get_object().pk).update(is_default=False)
+        serializer.save()
+
 
 class UserNoteListCreateView(generics.ListCreateAPIView):
     serializer_class = UserNoteSerializer
@@ -189,3 +231,13 @@ class UserNoteListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user_id=self.kwargs['pk'], created_by=self.request.user)
+
+
+class AdminAuditLogListView(generics.ListAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = AdminAuditLogSerializer
+    filterset_fields = ['action', 'entity_type']
+    search_fields = ['message', 'entity_id', 'actor__email']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+    queryset = AdminAuditLog.objects.all().select_related('actor')

@@ -2,6 +2,14 @@ from rest_framework.permissions import BasePermission
 from .models import User
 
 
+INTERNAL_STAFF_ROLES = {
+    User.ADMIN,
+    User.PHARMACIST,
+    User.LAB_TECHNICIAN,
+    User.INVENTORY_STAFF,
+}
+
+
 class IsAdminUser(BasePermission):
     def has_permission(self, request, view):
         return bool(
@@ -52,4 +60,20 @@ class IsLabTechOrAdmin(BasePermission):
         return bool(
             request.user and request.user.is_authenticated
             and request.user.role in [User.LAB_TECHNICIAN, User.ADMIN]
+        )
+
+
+class IsStaffUser(BasePermission):
+    def has_permission(self, request, view):
+        return bool(
+            request.user and request.user.is_authenticated
+            and request.user.role in INTERNAL_STAFF_ROLES
+        )
+
+
+class IsAdminOrInventoryStaff(BasePermission):
+    def has_permission(self, request, view):
+        return bool(
+            request.user and request.user.is_authenticated
+            and request.user.role in [User.ADMIN, User.INVENTORY_STAFF]
         )

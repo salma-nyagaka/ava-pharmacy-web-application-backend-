@@ -176,6 +176,7 @@ ALLOWED_DOCUMENT_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 # ─── Business Logic ───────────────────────────────────────────────────────────
 FREE_SHIPPING_THRESHOLD = 3000
 SHIPPING_FEE = 300
+PAYMENT_WEBHOOK_SECRET = config('PAYMENT_WEBHOOK_SECRET', default='')
 
 # ─── Admins (error emails) ────────────────────────────────────────────────────
 ADMINS = [
