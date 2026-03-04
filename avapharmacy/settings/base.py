@@ -194,5 +194,21 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@avapharmacy.com')
 
+# ─── Notifications ────────────────────────────────────────────────────────────
+SMS_BACKEND = config('SMS_BACKEND', default='console')
+SMS_WEBHOOK_URL = config('SMS_WEBHOOK_URL', default='')
+SMS_WEBHOOK_TOKEN = config('SMS_WEBHOOK_TOKEN', default='')
+SMS_FROM = config('SMS_FROM', default='AvaPharma')
+
+# ─── M-Pesa / Daraja ──────────────────────────────────────────────────────────
+MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')
+MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY', default='')
+MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
+MPESA_SHORTCODE = config('MPESA_SHORTCODE', default='')
+MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
+MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='')
+MPESA_TRANSACTION_TYPE = config('MPESA_TRANSACTION_TYPE', default='CustomerPayBillOnline')
+MPESA_TIMEOUT_SECONDS = config('MPESA_TIMEOUT_SECONDS', default=30, cast=int)
+
 # ─── Custom exception handler ─────────────────────────────────────────────────
 REST_FRAMEWORK_EXCEPTION_HANDLER = 'avapharmacy.exception_handler.custom_exception_handler'

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, PharmacistProfile, Address, UserNote
+from .models import AdminAuditLog, User, PharmacistProfile, Address, UserNote
 
 
 @admin.register(User)
@@ -38,3 +38,10 @@ class AddressAdmin(admin.ModelAdmin):
 class UserNoteAdmin(admin.ModelAdmin):
     list_display = ('user', 'content', 'created_by', 'created_at')
     list_filter = ('created_at',)
+
+
+@admin.register(AdminAuditLog)
+class AdminAuditLogAdmin(admin.ModelAdmin):
+    list_display = ('actor', 'action', 'entity_type', 'entity_id', 'created_at')
+    list_filter = ('action', 'entity_type')
+    search_fields = ('actor__email', 'entity_id', 'message')

@@ -1,15 +1,25 @@
+import json
 import logging
+from urllib import error, request
+
 from asgiref.sync import async_to_sync
+from django.conf import settings
+from django.core.mail import send_mail
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
-def create_notification(recipient, notification_type, title, message, data=None):
-    """
-    Create a Notification record and push it via WebSocket.
-    Gracefully degrades if channel layer is unavailable.
-    Returns the Notification instance or None if recipient is None.
-    """
+def get_notification_preferences(user):
+    from .models import NotificationPreference
+
+    if not user:
+        return None
+    preferences, _ = NotificationPreference.objects.get_or_create(user=user)
+    return preferences
+
+
+def create_notification(recipient, notification_type, title, message, data=None, send_email=False, send_sms=False):
     from .models import Notification
     from .serializers import NotificationSerializer
 
@@ -25,14 +35,124 @@ def create_notification(recipient, notification_type, title, message, data=None)
             data=data or {},
         )
         _push_to_websocket(recipient.id, NotificationSerializer(notification).data)
+
+        preferences = get_notification_preferences(recipient)
+        if send_email and preferences and preferences.email_enabled:
+            deliver_email(notification, recipient.email, title, message)
+        if send_sms and preferences and preferences.sms_enabled and recipient.phone:
+            deliver_sms(notification, recipient.phone, message)
         return notification
-    except Exception as e:
-        logger.error(f"Failed to create notification for user {getattr(recipient, 'id', '?')}: {e}")
+    except Exception as exc:
+        logger.error("Failed to create notification for user %s: %s", getattr(recipient, 'id', '?'), exc)
         return None
 
 
+def record_delivery(notification, recipient, channel, destination, subject='', message='', provider='', metadata=None):
+    from .models import NotificationDelivery
+
+    return NotificationDelivery.objects.create(
+        notification=notification,
+        recipient=recipient,
+        channel=channel,
+        destination=destination,
+        subject=subject,
+        message=message,
+        provider=provider,
+        metadata=metadata or {},
+    )
+
+
+def mark_delivery_sent(delivery, provider_reference=''):
+    delivery.status = delivery.STATUS_SENT
+    delivery.provider_reference = provider_reference
+    delivery.sent_at = timezone.now()
+    delivery.error_message = ''
+    delivery.save(update_fields=['status', 'provider_reference', 'sent_at', 'error_message'])
+
+
+def mark_delivery_failed(delivery, error_message):
+    delivery.status = delivery.STATUS_FAILED
+    delivery.error_message = str(error_message)[:255]
+    delivery.save(update_fields=['status', 'error_message'])
+
+
+def deliver_email(notification, destination, subject, message):
+    if not destination:
+        return None
+
+    delivery = record_delivery(
+        notification=notification,
+        recipient=notification.recipient,
+        channel='email',
+        destination=destination,
+        subject=subject,
+        message=message,
+        provider='django_email',
+    )
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[destination],
+            fail_silently=False,
+        )
+        mark_delivery_sent(delivery)
+    except Exception as exc:
+        logger.error("Email delivery failed: %s", exc)
+        mark_delivery_failed(delivery, exc)
+    return delivery
+
+
+def deliver_sms(notification, destination, message):
+    if not destination:
+        return None
+
+    backend = getattr(settings, 'SMS_BACKEND', 'console')
+    delivery = record_delivery(
+        notification=notification,
+        recipient=notification.recipient,
+        channel='sms',
+        destination=destination,
+        subject='',
+        message=message,
+        provider=backend,
+    )
+    try:
+        if backend == 'console':
+            logger.info("SMS to %s: %s", destination, message)
+            mark_delivery_sent(delivery, provider_reference='console')
+            return delivery
+
+        if backend == 'webhook':
+            payload = json.dumps({
+                'to': destination,
+                'from': settings.SMS_FROM,
+                'message': message,
+            }).encode('utf-8')
+            req = request.Request(
+                settings.SMS_WEBHOOK_URL,
+                data=payload,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {settings.SMS_WEBHOOK_TOKEN}',
+                },
+                method='POST',
+            )
+            with request.urlopen(req, timeout=10) as response:
+                provider_payload = json.loads(response.read().decode('utf-8') or '{}')
+            provider_reference = provider_payload.get('reference', '')
+            mark_delivery_sent(delivery, provider_reference=provider_reference)
+            return delivery
+
+        raise ValueError(f'Unsupported SMS backend: {backend}')
+    except Exception as exc:
+        logger.error("SMS delivery failed: %s", exc)
+        mark_delivery_failed(delivery, exc)
+        return delivery
+
+
 def _push_to_websocket(user_id, notification_data):
-    """Push notification payload to the user's WebSocket group."""
     try:
         from channels.layers import get_channel_layer
         from apps.notifications.models import Notification
@@ -56,25 +176,26 @@ def _push_to_websocket(user_id, notification_data):
                 },
             },
         )
-    except Exception as e:
-        logger.warning(f"WebSocket push failed for user {user_id}: {e}")
+    except Exception as exc:
+        logger.warning("WebSocket push failed for user %s: %s", user_id, exc)
 
 
 def notify_order_status(order):
-    """Notify customer of an order status change."""
     if not order.customer:
         return
+    preferences = get_notification_preferences(order.customer)
     create_notification(
         recipient=order.customer,
         notification_type='order_status',
         title=f"Order {order.order_number} Updated",
         message=f"Your order status is now: {order.get_status_display()}",
         data={'url': f'/orders/{order.id}', 'reference': order.order_number, 'status': order.status},
+        send_email=bool(preferences and preferences.order_updates_email),
+        send_sms=bool(preferences and preferences.order_updates_sms),
     )
 
 
 def notify_prescription_status(prescription):
-    """Notify patient of a prescription status change."""
     if not prescription.patient:
         return
     create_notification(
@@ -83,11 +204,11 @@ def notify_prescription_status(prescription):
         title=f"Prescription {prescription.reference} Updated",
         message=f"Your prescription status is now: {prescription.get_status_display()}",
         data={'url': f'/prescriptions/{prescription.id}', 'reference': prescription.reference, 'status': prescription.status},
+        send_email=True,
     )
 
 
 def notify_lab_result_ready(lab_request):
-    """Notify patient their lab result is ready."""
     if not lab_request.patient:
         return
     create_notification(
@@ -96,11 +217,11 @@ def notify_lab_result_ready(lab_request):
         title="Lab Result Ready",
         message=f"Your result for {lab_request.reference} is ready.",
         data={'url': f'/lab/requests/{lab_request.id}', 'reference': lab_request.reference},
+        send_email=True,
     )
 
 
 def notify_new_consultation(doctor_user, consultation):
-    """Notify doctor of a new consultation request."""
     if not doctor_user:
         return
     create_notification(
@@ -109,11 +230,11 @@ def notify_new_consultation(doctor_user, consultation):
         title="New Consultation Request",
         message=f"New consultation from {consultation.patient_name}: {consultation.issue[:100]}",
         data={'url': f'/doctor/consultations/{consultation.id}', 'reference': consultation.reference},
+        send_email=True,
     )
 
 
 def notify_consultation_message(recipient, consultation, sender_name):
-    """Notify participant of a new message."""
     create_notification(
         recipient=recipient,
         notification_type='consultation_message',
@@ -124,7 +245,6 @@ def notify_consultation_message(recipient, consultation, sender_name):
 
 
 def notify_support_update(ticket):
-    """Notify customer of support ticket update."""
     if not ticket.customer:
         return
     create_notification(
@@ -133,11 +253,11 @@ def notify_support_update(ticket):
         title=f"Support Ticket {ticket.reference} Updated",
         message=f"Your ticket status is now: {ticket.get_status_display()}",
         data={'url': f'/support/tickets/{ticket.id}', 'reference': ticket.reference, 'status': ticket.status},
+        send_email=True,
     )
 
 
 def notify_payout_status(payout):
-    """Notify recipient of payout status change."""
     if not payout.recipient:
         return
     create_notification(
@@ -146,11 +266,11 @@ def notify_payout_status(payout):
         title=f"Payout {payout.reference} {payout.get_status_display()}",
         message=f"Your payout of KSh {payout.amount} is {payout.get_status_display().lower()}.",
         data={'reference': payout.reference, 'amount': str(payout.amount), 'status': payout.status},
+        send_email=True,
     )
 
 
 def notify_doctor_verified(doctor_profile):
-    """Notify doctor their profile was verified."""
     if not doctor_profile.user:
         return
     create_notification(
@@ -159,4 +279,5 @@ def notify_doctor_verified(doctor_profile):
         title="Profile Verified",
         message="Your doctor profile has been verified. You can now accept consultations.",
         data={'url': '/doctor/dashboard'},
+        send_email=True,
     )

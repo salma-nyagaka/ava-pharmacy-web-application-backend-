@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, ProductImage, ProductReview, Wishlist, Banner, Promotion
+from .models import Category, Brand, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Wishlist, Banner, Promotion
 from .services import calculate_product_pricing
 
 
@@ -26,6 +26,22 @@ class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
         fields = ('id', 'image', 'alt_text', 'order')
+
+
+class ProductVariantSerializer(serializers.ModelSerializer):
+    effective_price = serializers.ReadOnlyField()
+    inventory_status = serializers.ReadOnlyField()
+    available_quantity = serializers.ReadOnlyField()
+
+    class Meta:
+        model = ProductVariant
+        fields = (
+            'id', 'sku', 'name', 'attributes', 'price', 'original_price', 'effective_price',
+            'image', 'stock_source', 'stock_quantity', 'low_stock_threshold',
+            'allow_backorder', 'max_backorder_quantity', 'inventory_status',
+            'available_quantity', 'is_active', 'sort_order', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'effective_price', 'inventory_status', 'available_quantity')
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
@@ -55,6 +71,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     final_price = serializers.SerializerMethodField()
     discount_total = serializers.SerializerMethodField()
     active_promotions = serializers.SerializerMethodField()
+    has_variants = serializers.ReadOnlyField()
 
     class Meta:
         model = Product
@@ -65,7 +82,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'short_description', 'average_rating', 'review_count',
             'requires_prescription', 'inventory_status', 'available_quantity',
             'can_purchase', 'final_price', 'discount_total', 'active_promotions',
-            'is_featured', 'is_active'
+            'has_variants', 'is_featured', 'is_active'
         )
 
     def _pricing(self, obj):
@@ -95,6 +112,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
     )
     gallery = ProductImageSerializer(many=True, read_only=True)
+    variants = ProductVariantSerializer(many=True, read_only=True)
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
     inventory_status = serializers.ReadOnlyField()
@@ -108,11 +126,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         model = Product
         fields = (
             'id', 'sku', 'slug', 'name', 'brand', 'brand_id', 'category', 'category_id',
-            'price', 'original_price', 'image', 'gallery', 'badge', 'stock_source',
+            'price', 'original_price', 'image', 'gallery', 'variants', 'badge', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
             'short_description', 'description', 'features', 'directions', 'warnings',
             'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
-            'final_price', 'discount_total', 'active_promotions', 'is_featured', 'is_active',
+            'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_featured', 'is_active',
             'average_rating', 'review_count', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
@@ -165,6 +183,17 @@ class PromotionSerializer(serializers.ModelSerializer):
             'id', 'title', 'code', 'description', 'type', 'value', 'scope', 'targets', 'badge',
             'priority', 'is_stackable', 'minimum_order_amount',
             'start_date', 'end_date', 'status', 'is_currently_active',
+            'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+
+class CMSBlockSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CMSBlock
+        fields = (
+            'id', 'placement', 'key', 'title', 'subtitle', 'body', 'image',
+            'cta_label', 'cta_url', 'content', 'is_active', 'sort_order',
             'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')

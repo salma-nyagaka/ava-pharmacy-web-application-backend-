@@ -10,14 +10,17 @@ from apps.accounts.permissions import IsAdminOrInventoryStaff, IsAdminUser
 from apps.accounts.utils import log_admin_action
 
 from .filters import ProductFilter
-from .models import Banner, Brand, Category, Product, ProductReview, Promotion, Wishlist
+from .models import Banner, Brand, Category, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Promotion, Wishlist
 from .serializers import (
     BannerSerializer,
     BrandSerializer,
+    CMSBlockSerializer,
     CategorySerializer,
     ProductDetailSerializer,
+    ProductImageSerializer,
     ProductListSerializer,
     ProductReviewSerializer,
+    ProductVariantSerializer,
     PromotionSerializer,
     WishlistSerializer,
 )
@@ -58,7 +61,7 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
         return Product.objects.filter(
             Q(category__isnull=True) | Q(category__is_active=True),
             is_active=True,
-        ).select_related('brand', 'category')
+        ).select_related('brand', 'category').prefetch_related('variants')
 
 
 class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
@@ -66,7 +69,7 @@ class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
     serializer_class = ProductListSerializer
 
     def get_queryset(self):
-        return Product.objects.filter(is_active=True, is_featured=True).select_related('brand', 'category')
+        return Product.objects.filter(is_active=True, is_featured=True).select_related('brand', 'category').prefetch_related('variants')
 
 
 class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
@@ -75,7 +78,7 @@ class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
     lookup_field = 'slug'
 
     def get_queryset(self):
-        return Product.objects.filter(is_active=True).select_related('brand', 'category').prefetch_related('gallery')
+        return Product.objects.filter(is_active=True).select_related('brand', 'category').prefetch_related('gallery', 'variants')
 
 
 class AdminCategoryListCreateView(generics.ListCreateAPIView):
@@ -156,7 +159,7 @@ class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIVi
     ordering = ['-created_at']
 
     def get_queryset(self):
-        return Product.objects.all().select_related('brand', 'category')
+        return Product.objects.all().select_related('brand', 'category').prefetch_related('variants')
 
     def perform_create(self, serializer):
         product = serializer.save()
@@ -173,7 +176,7 @@ class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIVi
 class AdminProductDetailView(PromotionContextMixin, generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = ProductDetailSerializer
-    queryset = Product.objects.all().select_related('brand', 'category').prefetch_related('gallery')
+    queryset = Product.objects.all().select_related('brand', 'category').prefetch_related('gallery', 'variants')
 
     def perform_update(self, serializer):
         product = serializer.save()
@@ -234,6 +237,18 @@ class BannerListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Banner.objects.filter(status='active')
+        placement = self.request.query_params.get('placement')
+        if placement:
+            queryset = queryset.filter(placement=placement)
+        return queryset
+
+
+class CMSBlockListView(generics.ListAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = CMSBlockSerializer
+
+    def get_queryset(self):
+        queryset = CMSBlock.objects.filter(is_active=True)
         placement = self.request.query_params.get('placement')
         if placement:
             queryset = queryset.filter(placement=placement)
@@ -310,6 +325,95 @@ class AdminPromotionDetailView(generics.RetrieveUpdateDestroyAPIView):
             entity_type='promotion',
             entity_id=promotion.id,
             message=f'Updated promotion {promotion.title}',
+        )
+
+
+class AdminProductImageListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductImageSerializer
+
+    def get_queryset(self):
+        return ProductImage.objects.filter(product_id=self.kwargs['product_pk']).order_by('order', 'id')
+
+    def perform_create(self, serializer):
+        product = generics.get_object_or_404(Product, pk=self.kwargs['product_pk'])
+        image = serializer.save(product=product)
+        log_admin_action(
+            self.request.user,
+            action='product_image_created',
+            entity_type='product_image',
+            entity_id=image.id,
+            message=f'Added image to {product.name}',
+        )
+
+
+class AdminProductImageDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductImageSerializer
+
+    def get_queryset(self):
+        return ProductImage.objects.filter(product_id=self.kwargs['product_pk'])
+
+
+class AdminProductVariantListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductVariantSerializer
+
+    def get_queryset(self):
+        return ProductVariant.objects.filter(product_id=self.kwargs['product_pk']).order_by('sort_order', 'name')
+
+    def perform_create(self, serializer):
+        product = generics.get_object_or_404(Product, pk=self.kwargs['product_pk'])
+        variant = serializer.save(product=product)
+        log_admin_action(
+            self.request.user,
+            action='product_variant_created',
+            entity_type='product_variant',
+            entity_id=variant.id,
+            message=f'Created variant {variant.name} for {product.name}',
+            metadata={'sku': variant.sku},
+        )
+
+
+class AdminProductVariantDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductVariantSerializer
+
+    def get_queryset(self):
+        return ProductVariant.objects.filter(product_id=self.kwargs['product_pk'])
+
+
+class AdminCMSBlockListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = CMSBlockSerializer
+    queryset = CMSBlock.objects.all()
+    filterset_fields = ['placement', 'is_active']
+    search_fields = ['key', 'title', 'placement']
+
+    def perform_create(self, serializer):
+        block = serializer.save()
+        log_admin_action(
+            self.request.user,
+            action='cms_block_created',
+            entity_type='cms_block',
+            entity_id=block.id,
+            message=f'Created CMS block {block.key}',
+        )
+
+
+class AdminCMSBlockDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = CMSBlockSerializer
+    queryset = CMSBlock.objects.all()
+
+    def perform_update(self, serializer):
+        block = serializer.save()
+        log_admin_action(
+            self.request.user,
+            action='cms_block_updated',
+            entity_type='cms_block',
+            entity_id=block.id,
+            message=f'Updated CMS block {block.key}',
         )
 
 

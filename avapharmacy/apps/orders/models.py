@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
-from apps.products.models import Product
+from apps.products.models import Product, ProductVariant
 
 
 class Coupon(models.Model):
@@ -116,19 +116,54 @@ class Cart(models.Model):
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product_variant = models.ForeignKey(
+        ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name='cart_items'
+    )
     quantity = models.PositiveIntegerField(default=1)
     prescription_id = models.CharField(max_length=20, blank=True, null=True)
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('cart', 'product', 'prescription_id')
+        unique_together = ('cart', 'product', 'product_variant', 'prescription_id')
 
     def __str__(self):
-        return f"{self.product.name} x {self.quantity}"
+        label = self.product_variant.name if self.product_variant else self.product.name
+        return f"{label} x {self.quantity}"
 
     @property
     def subtotal(self):
-        return self.product.price * self.quantity
+        unit_price = self.product_variant.effective_price if self.product_variant else self.product.price
+        return unit_price * self.quantity
+
+    @property
+    def inventory_object(self):
+        return self.product_variant or self.product
+
+
+class ShippingMethod(models.Model):
+    code = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=255, blank=True)
+    fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    free_shipping_threshold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    estimated_delivery_window = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+    def calculate_fee(self, subtotal):
+        subtotal = Decimal(subtotal)
+        threshold = self.free_shipping_threshold
+        if threshold is not None and subtotal >= threshold:
+            return Decimal('0.00')
+        return self.fee
 
 
 class Order(models.Model):
@@ -192,6 +227,9 @@ class Order(models.Model):
     coupon_code = models.CharField(max_length=40, blank=True)
     delivery_method = models.CharField(max_length=30, default='standard')
     delivery_notes = models.TextField(blank=True)
+    shipping_method = models.ForeignKey(
+        ShippingMethod, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders'
+    )
 
     # Shipping info (denormalized snapshot)
     shipping_first_name = models.CharField(max_length=100)
@@ -236,8 +274,13 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
+    product_variant = models.ForeignKey(
+        ProductVariant, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_items'
+    )
     product_name = models.CharField(max_length=200)
     product_sku = models.CharField(max_length=50)
+    variant_name = models.CharField(max_length=120, blank=True)
+    variant_sku = models.CharField(max_length=60, blank=True)
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     prescription_id = models.CharField(max_length=20, blank=True, null=True)
@@ -295,10 +338,15 @@ class PaymentIntent(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     reference = models.CharField(max_length=64, unique=True, blank=True)
     provider_reference = models.CharField(max_length=120, blank=True)
+    external_reference = models.CharField(max_length=120, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
+    merchant_request_id = models.CharField(max_length=120, blank=True)
+    checkout_request_id = models.CharField(max_length=120, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=10, default='KES')
     client_secret = models.CharField(max_length=120, blank=True)
     payload = models.JSONField(default=dict, blank=True)
+    callback_payload = models.JSONField(default=dict, blank=True)
     last_error = models.CharField(max_length=255, blank=True)
     processed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -351,7 +399,16 @@ class ReturnRequest(models.Model):
     customer = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, related_name='return_requests'
     )
+    order_item = models.ForeignKey(
+        OrderItem, on_delete=models.SET_NULL, null=True, blank=True, related_name='return_requests'
+    )
+    request_type = models.CharField(
+        max_length=20,
+        choices=[('return', 'Return'), ('refund', 'Refund'), ('replacement', 'Replacement')],
+        default='return',
+    )
     reason = models.TextField()
+    requested_refund_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_REQUESTED)
     resolution_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

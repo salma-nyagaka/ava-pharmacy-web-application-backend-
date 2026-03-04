@@ -101,6 +101,9 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
+        if self.has_variants:
+            super().save(*args, **kwargs)
+            return
         if self.stock_quantity == 0 and not self.allow_backorder:
             self.stock_source = self.STOCK_OUT
         elif self.stock_quantity > 0 and self.stock_source == self.STOCK_OUT:
@@ -109,6 +112,16 @@ class Product(models.Model):
 
     @property
     def inventory_status(self):
+        if self.has_variants:
+            statuses = [variant.inventory_status for variant in self.variants.filter(is_active=True)]
+            if 'in_stock' in statuses:
+                return 'in_stock'
+            if 'low_stock' in statuses:
+                return 'low_stock'
+            if 'backorder' in statuses:
+                return 'backorder'
+            if statuses:
+                return 'out_of_stock'
         if not self.is_active:
             return 'inactive'
         if self.stock_quantity == 0:
@@ -119,6 +132,8 @@ class Product(models.Model):
 
     @property
     def available_quantity(self):
+        if self.has_variants:
+            return sum(variant.available_quantity for variant in self.variants.filter(is_active=True))
         if self.allow_backorder:
             return self.stock_quantity + self.max_backorder_quantity
         return self.stock_quantity
@@ -126,6 +141,12 @@ class Product(models.Model):
     @property
     def can_purchase(self):
         return self.is_active and self.available_quantity > 0
+
+    @property
+    def has_variants(self):
+        if hasattr(self, '_prefetched_objects_cache') and 'variants' in self._prefetched_objects_cache:
+            return any(variant.is_active for variant in self._prefetched_objects_cache['variants'])
+        return self.variants.filter(is_active=True).exists()
 
     @property
     def average_rating(self):
@@ -152,6 +173,62 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - Image {self.order}"
+
+
+class ProductVariant(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
+    sku = models.CharField(max_length=60, unique=True)
+    name = models.CharField(max_length=120)
+    attributes = models.JSONField(default=dict, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    image = models.ImageField(upload_to='products/variants/', blank=True)
+    stock_source = models.CharField(max_length=20, choices=Product.STOCK_CHOICES, default=Product.STOCK_BRANCH)
+    stock_quantity = models.PositiveIntegerField(default=0)
+    low_stock_threshold = models.PositiveIntegerField(default=5)
+    allow_backorder = models.BooleanField(default=False)
+    max_backorder_quantity = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        indexes = [
+            models.Index(fields=['product', 'is_active']),
+            models.Index(fields=['stock_source', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        if self.stock_quantity == 0 and not self.allow_backorder:
+            self.stock_source = Product.STOCK_OUT
+        elif self.stock_quantity > 0 and self.stock_source == Product.STOCK_OUT:
+            self.stock_source = Product.STOCK_BRANCH
+        super().save(*args, **kwargs)
+
+    @property
+    def effective_price(self):
+        return self.price if self.price is not None else self.product.price
+
+    @property
+    def inventory_status(self):
+        if not self.is_active:
+            return 'inactive'
+        if self.stock_quantity == 0:
+            return 'backorder' if self.allow_backorder else 'out_of_stock'
+        if self.stock_quantity <= self.low_stock_threshold:
+            return 'low_stock'
+        return 'in_stock'
+
+    @property
+    def available_quantity(self):
+        if self.allow_backorder:
+            return self.stock_quantity + self.max_backorder_quantity
+        return self.stock_quantity
 
 
 class ProductReview(models.Model):
@@ -288,3 +365,28 @@ class Promotion(models.Model):
         else:
             discount = self.value
         return min(discount, amount)
+
+
+class CMSBlock(models.Model):
+    placement = models.CharField(max_length=60)
+    key = models.CharField(max_length=80, unique=True)
+    title = models.CharField(max_length=180)
+    subtitle = models.CharField(max_length=255, blank=True)
+    body = models.TextField(blank=True)
+    image = models.ImageField(upload_to='cms/', blank=True)
+    cta_label = models.CharField(max_length=80, blank=True)
+    cta_url = models.URLField(blank=True)
+    content = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['placement', 'sort_order', 'title']
+        indexes = [
+            models.Index(fields=['placement', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.placement} - {self.key}"

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Brand, Product, ProductImage, ProductReview, Wishlist
+from .models import Banner, Brand, Category, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Promotion, Wishlist
 
 
 @admin.register(Category)
@@ -22,13 +22,18 @@ class ProductImageInline(admin.TabularInline):
     extra = 1
 
 
+class ProductVariantInline(admin.TabularInline):
+    model = ProductVariant
+    extra = 0
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'sku', 'brand', 'category', 'price', 'stock_source', 'stock_quantity', 'is_active')
     list_filter = ('brand', 'category', 'stock_source', 'is_active', 'requires_prescription')
     search_fields = ('name', 'sku', 'slug')
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [ProductImageInline]
+    inlines = [ProductImageInline, ProductVariantInline]
     readonly_fields = ('created_at', 'updated_at')
 
 
@@ -42,3 +47,24 @@ class ProductReviewAdmin(admin.ModelAdmin):
 @admin.register(Wishlist)
 class WishlistAdmin(admin.ModelAdmin):
     list_display = ('user', 'product', 'added_at')
+
+
+@admin.register(Banner)
+class BannerAdmin(admin.ModelAdmin):
+    list_display = ('title', 'placement', 'status', 'sort_order', 'updated_at')
+    list_filter = ('status', 'placement')
+    search_fields = ('title', 'message')
+
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'code', 'scope', 'type', 'value', 'status', 'priority')
+    list_filter = ('scope', 'type', 'status', 'is_stackable')
+    search_fields = ('title', 'code')
+
+
+@admin.register(CMSBlock)
+class CMSBlockAdmin(admin.ModelAdmin):
+    list_display = ('key', 'placement', 'title', 'is_active', 'sort_order')
+    list_filter = ('placement', 'is_active')
+    search_fields = ('key', 'title')

@@ -46,9 +46,28 @@ Response:
 curl "http://localhost:8000/api/v1/products/?category=health-wellness&min_price=100&max_price=2000&search=vitamin"
 ```
 
+### Get CMS blocks for the homepage
+```bash
+curl "http://localhost:8000/api/v1/cms/?placement=home_hero"
+```
+
 ### Get product detail
 ```bash
 curl "http://localhost:8000/api/v1/products/centrum-multivitamin-60-tablets/"
+```
+
+### Create a product variant (admin)
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/products/5/variants/ \
+  -H "Authorization: Bearer <admin_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sku": "HP-VIT-C-1000-30",
+    "name": "30 Tablets",
+    "attributes": {"pack_size": "30"},
+    "price": 750,
+    "stock_quantity": 40
+  }'
 ```
 
 ---
@@ -99,6 +118,19 @@ curl -X POST http://localhost:8000/api/v1/payments/intents/ \
     "provider": "mpesa",
     "phone": "0712345678"
   }'
+```
+
+### Sync M-Pesa payment status
+```bash
+curl -X POST http://localhost:8000/api/v1/payments/intents/18/sync/ \
+  -H "Authorization: Bearer <token>"
+```
+
+### M-Pesa callback endpoint
+```bash
+curl -X POST http://localhost:8000/api/v1/payments/mpesa/callback/ \
+  -H "Content-Type: application/json" \
+  -d '{"Body":{"stkCallback":{"MerchantRequestID":"12345","CheckoutRequestID":"ws_CO_12345","ResultCode":0,"ResultDesc":"Success","CallbackMetadata":{"Item":[{"Name":"MpesaReceiptNumber","Value":"QWE123XYZ"},{"Name":"Amount","Value":2500}]}}}}'
 ```
 
 ### Finalize order after payment confirmation
@@ -184,6 +216,38 @@ curl -X POST http://localhost:8000/api/v1/returns/ \
     "order_id": 12,
     "reason": "Received damaged item"
   }'
+```
+
+## Shipping
+
+### List active shipping methods
+```bash
+curl "http://localhost:8000/api/v1/shipping-methods/"
+```
+
+### Create shipping method (admin)
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/shipping-methods/ \
+  -H "Authorization: Bearer <admin_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "express",
+    "name": "Express Delivery",
+    "description": "Same day in Nairobi",
+    "fee": 450,
+    "free_shipping_threshold": 7000,
+    "estimated_delivery_window": "Same day"
+  }'
+```
+
+## Notifications
+
+### Update notification preferences
+```bash
+curl -X PATCH http://localhost:8000/api/v1/notifications/preferences/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"sms_enabled": true, "order_updates_sms": true}'
 ```
 
 ---

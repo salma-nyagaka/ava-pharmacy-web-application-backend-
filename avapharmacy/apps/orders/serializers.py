@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest
-from apps.products.serializers import ProductListSerializer
+from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from apps.products.serializers import ProductListSerializer, ProductVariantSerializer
 
 
 class CouponSerializer(serializers.ModelSerializer):
@@ -17,12 +17,14 @@ class CouponSerializer(serializers.ModelSerializer):
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductListSerializer(read_only=True)
     product_id = serializers.IntegerField(write_only=True)
+    product_variant = ProductVariantSerializer(read_only=True)
+    product_variant_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     subtotal = serializers.ReadOnlyField()
 
     class Meta:
         model = CartItem
         fields = (
-            'id', 'product', 'product_id', 'quantity', 'prescription_id',
+            'id', 'product', 'product_id', 'product_variant', 'product_variant_id', 'quantity', 'prescription_id',
             'subtotal', 'added_at'
         )
         read_only_fields = ('id', 'added_at')
@@ -47,12 +49,13 @@ class CartSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     subtotal = serializers.ReadOnlyField()
+    product_variant = ProductVariantSerializer(read_only=True)
 
     class Meta:
         model = OrderItem
         fields = (
-            'id', 'product_name', 'product_sku', 'quantity', 'unit_price',
-            'discount_total', 'prescription_id', 'subtotal'
+            'id', 'product_name', 'product_sku', 'product_variant', 'variant_name', 'variant_sku',
+            'quantity', 'unit_price', 'discount_total', 'prescription_id', 'subtotal'
         )
 
 
@@ -77,7 +80,8 @@ class PaymentIntentSerializer(serializers.ModelSerializer):
         model = PaymentIntent
         fields = (
             'id', 'provider', 'status', 'reference', 'provider_reference',
-            'amount', 'currency', 'client_secret', 'payload', 'last_error',
+            'external_reference', 'phone_number', 'merchant_request_id', 'checkout_request_id',
+            'amount', 'currency', 'client_secret', 'payload', 'callback_payload', 'last_error',
             'processed_at', 'created_at', 'updated_at'
         )
 
@@ -85,8 +89,20 @@ class PaymentIntentSerializer(serializers.ModelSerializer):
 class ReturnRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReturnRequest
-        fields = ('id', 'reason', 'status', 'resolution_notes', 'created_at', 'updated_at')
+        fields = (
+            'id', 'order', 'order_item', 'request_type', 'reason', 'requested_refund_amount',
+            'status', 'resolution_notes', 'created_at', 'updated_at'
+        )
         read_only_fields = ('id', 'status', 'resolution_notes', 'created_at', 'updated_at')
+
+
+class ShippingMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShippingMethod
+        fields = (
+            'id', 'code', 'name', 'description', 'fee', 'free_shipping_threshold',
+            'estimated_delivery_window', 'is_active', 'sort_order'
+        )
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -97,12 +113,13 @@ class OrderSerializer(serializers.ModelSerializer):
     return_requests = ReturnRequestSerializer(many=True, read_only=True)
     shipping_address = serializers.ReadOnlyField()
     coupon = CouponSerializer(read_only=True)
+    shipping_method = ShippingMethodSerializer(read_only=True)
 
     class Meta:
         model = Order
         fields = (
             'id', 'order_number', 'status', 'payment_method', 'payment_status',
-            'payment_reference', 'coupon', 'coupon_code', 'delivery_method', 'delivery_notes',
+            'payment_reference', 'coupon', 'coupon_code', 'delivery_method', 'delivery_notes', 'shipping_method',
             'shipping_first_name', 'shipping_last_name', 'shipping_email',
             'shipping_phone', 'shipping_street', 'shipping_city', 'shipping_county',
             'shipping_address', 'subtotal', 'discount_total', 'shipping_fee', 'total',
@@ -122,6 +139,7 @@ class CheckoutSerializer(serializers.Serializer):
     county = serializers.CharField(max_length=100)
     payment_method = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES)
     delivery_method = serializers.CharField(max_length=30, default='standard')
+    shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)
 
 
@@ -140,6 +158,7 @@ class AdminOrderSerializer(serializers.ModelSerializer):
     customer_phone = serializers.ReadOnlyField(source='customer.phone')
     shipping_address = serializers.ReadOnlyField()
     coupon = CouponSerializer(read_only=True)
+    shipping_method = ShippingMethodSerializer(read_only=True)
 
     class Meta:
         model = Order
@@ -147,7 +166,7 @@ class AdminOrderSerializer(serializers.ModelSerializer):
             'id', 'order_number', 'customer', 'customer_name', 'customer_email',
             'customer_phone', 'status', 'payment_method', 'payment_status',
             'payment_reference', 'coupon', 'coupon_code', 'delivery_method',
-            'delivery_notes', 'shipping_first_name', 'shipping_last_name',
+            'delivery_notes', 'shipping_method', 'shipping_first_name', 'shipping_last_name',
             'shipping_email', 'shipping_phone', 'shipping_street', 'shipping_city',
             'shipping_county', 'shipping_address', 'subtotal', 'discount_total',
             'shipping_fee', 'total', 'inventory_committed', 'items', 'notes', 'events', 'payment_intents',
@@ -162,7 +181,7 @@ class AdminOrderSerializer(serializers.ModelSerializer):
 class AdminOrderUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = ('status', 'payment_status', 'payment_reference', 'delivery_method', 'delivery_notes')
+        fields = ('status', 'payment_status', 'payment_reference', 'delivery_method', 'delivery_notes', 'shipping_method')
 
 
 class OrderNoteCreateSerializer(serializers.Serializer):
@@ -187,10 +206,10 @@ class PaymentWebhookSerializer(serializers.Serializer):
 class ReturnRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReturnRequest
-        fields = ('reason',)
+        fields = ('order_item', 'request_type', 'reason', 'requested_refund_amount')
 
 
 class ReturnRequestAdminUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReturnRequest
-        fields = ('status', 'resolution_notes')
+        fields = ('status', 'resolution_notes', 'requested_refund_amount')

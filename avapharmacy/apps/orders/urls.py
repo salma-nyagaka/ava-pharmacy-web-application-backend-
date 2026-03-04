@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('shipping-methods/', views.ShippingMethodListView.as_view(), name='shipping-methods'),
     path('cart/', views.CartView.as_view(), name='cart'),
     path('cart/items/', views.CartItemCreateView.as_view(), name='cart-items'),
     path('cart/items/<int:pk>/', views.CartItemUpdateView.as_view(), name='cart-item-update'),
@@ -12,6 +13,8 @@ urlpatterns = [
     path('checkout/draft/', views.CheckoutDraftView.as_view(), name='checkout-draft'),
     path('checkout/<int:pk>/finalize/', views.CheckoutFinalizeView.as_view(), name='checkout-finalize'),
     path('payments/intents/', views.PaymentIntentCreateView.as_view(), name='payment-intents'),
+    path('payments/intents/<int:pk>/sync/', views.PaymentIntentStatusSyncView.as_view(), name='payment-intent-sync'),
+    path('payments/mpesa/callback/', views.MpesaCallbackView.as_view(), name='payment-mpesa-callback'),
     path('payments/webhook/', views.PaymentWebhookView.as_view(), name='payment-webhook'),
     path('orders/', views.OrderListView.as_view(), name='orders'),
     path('orders/<int:pk>/', views.OrderDetailView.as_view(), name='order-detail'),
@@ -21,6 +24,8 @@ urlpatterns = [
     path('admin/orders/<int:pk>/', views.AdminOrderDetailView.as_view(), name='admin-order-detail'),
     path('admin/orders/<int:pk>/notes/', views.AdminOrderNoteView.as_view(), name='admin-order-notes'),
     path('admin/orders/<int:pk>/refund/', views.AdminOrderRefundView.as_view(), name='admin-order-refund'),
+    path('admin/shipping-methods/', views.AdminShippingMethodListCreateView.as_view(), name='admin-shipping-methods'),
+    path('admin/shipping-methods/<int:pk>/', views.AdminShippingMethodDetailView.as_view(), name='admin-shipping-method-detail'),
     path('admin/returns/', views.AdminReturnRequestListView.as_view(), name='admin-return-requests'),
     path('admin/returns/<int:pk>/', views.AdminReturnRequestDetailView.as_view(), name='admin-return-request-detail'),
     path('admin/reports/', views.AdminReportsView.as_view(), name='admin-reports'),
