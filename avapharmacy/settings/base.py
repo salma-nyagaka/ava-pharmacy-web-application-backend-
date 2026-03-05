@@ -1,3 +1,11 @@
+"""
+Base Django settings for the AvaPharma project.
+
+Shared across all environments. Environment-specific files (development,
+production) import from this module via ``from .base import *`` and override
+values as needed. Sensitive values are read from the environment using
+``python-decouple``.
+"""
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
@@ -106,6 +114,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ─── Django REST Framework ────────────────────────────────────────────────────
 REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': (
+        'avapharmacy.renderers.StandardizedJSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
@@ -199,6 +211,20 @@ SMS_BACKEND = config('SMS_BACKEND', default='console')
 SMS_WEBHOOK_URL = config('SMS_WEBHOOK_URL', default='')
 SMS_WEBHOOK_TOKEN = config('SMS_WEBHOOK_TOKEN', default='')
 SMS_FROM = config('SMS_FROM', default='AvaPharma')
+
+# ─── Frontend / Account Activation ────────────────────────────────────────────
+BACKEND_BASE_URL = config('BACKEND_BASE_URL', default='http://127.0.0.1:8000')
+FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:3000')
+FRONTEND_LOGIN_URL = config('FRONTEND_LOGIN_URL', default=f'{FRONTEND_BASE_URL}/login')
+FRONTEND_PHARMACIST_DASHBOARD_URL = config(
+    'FRONTEND_PHARMACIST_DASHBOARD_URL',
+    default=f'{FRONTEND_BASE_URL}/pharmacist/dashboard'
+)
+FRONTEND_PHARMACIST_ACTIVATION_PATH = config(
+    'FRONTEND_PHARMACIST_ACTIVATION_PATH',
+    default='/auth/pharmacist/activate'
+)
+PHARMACIST_ACTIVATION_TTL_HOURS = config('PHARMACIST_ACTIVATION_TTL_HOURS', default=24, cast=int)
 
 # ─── M-Pesa / Daraja ──────────────────────────────────────────────────────────
 MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')

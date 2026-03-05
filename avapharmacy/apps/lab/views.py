@@ -5,14 +5,20 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Count
 from django.utils import timezone
 
-from .models import LabPartner, LabTechnicianProfile, LabTest, LabRequest, LabAuditLog, LabResult
+from .models import LabPartner, LabTechnicianProfile, LabTechDocument, LabTest, LabRequest, LabAuditLog, LabResult
 from .serializers import (
     LabPartnerSerializer, LabPartnerCreateSerializer, LabPartnerUpdateSerializer,
-    LabTechnicianProfileSerializer,
+    LabPartnerRegistrationSerializer,
+    LabTechnicianProfileSerializer, LabTechnicianRegistrationSerializer,
     LabTestSerializer, LabRequestSerializer, LabRequestCreateSerializer,
     LabRequestUpdateSerializer, LabResultSerializer, LabResultCreateSerializer
 )
 from apps.accounts.permissions import IsAdminUser, IsLabTechOrAdmin
+from apps.accounts.utils import log_admin_action
+from apps.accounts.serializers import (
+    ProvisionLabPartnerAccountSerializer, ProvisionLabTechnicianAccountSerializer,
+    UserSerializer,
+)
 
 ALLOWED_RESULT_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 MAX_RESULT_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -37,7 +43,7 @@ class AdminLabPartnerListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        partner = serializer.save()
+        partner = serializer.save(created_by=request.user, updated_by=request.user)
         return Response(LabPartnerSerializer(partner).data, status=status.HTTP_201_CREATED)
 
 
@@ -59,7 +65,7 @@ class AdminLabPartnerDetailView(generics.RetrieveUpdateAPIView):
             from django.utils import timezone as tz
             instance.verified_at = tz.now()
             instance.save(update_fields=['verified_at'])
-        partner = serializer.save()
+        partner = serializer.save(updated_by=request.user)
         return Response(LabPartnerSerializer(partner).data)
 
 
@@ -70,10 +76,220 @@ class AdminLabTechnicianListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         return LabTechnicianProfile.objects.filter(
             partner_id=self.kwargs['partner_pk']
-        ).select_related('user')
+        ).select_related('user').prefetch_related('documents')
 
     def perform_create(self, serializer):
-        serializer.save(partner_id=self.kwargs['partner_pk'])
+        serializer.save(partner_id=self.kwargs['partner_pk'], created_by=self.request.user, updated_by=self.request.user)
+
+
+class AdminLabTechnicianDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = LabTechnicianProfileSerializer
+    queryset = LabTechnicianProfile.objects.all().select_related('user', 'partner').prefetch_related('documents')
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
+class AdminLabPartnerActionView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            partner = LabPartner.objects.get(pk=pk)
+        except LabPartner.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get('action')
+
+        if action == 'verify':
+            partner.status = LabPartner.STATUS_VERIFIED
+            partner.verified_at = timezone.now()
+            partner.status_note = ''
+            partner.rejection_note = ''
+            partner.updated_by = request.user
+            partner.save(update_fields=['status', 'verified_at', 'status_note', 'rejection_note', 'updated_by', 'updated_at'])
+            log_admin_action(request.user, 'lab_partner_verified', 'lab_partner', partner.id,
+                             f'Verified {partner.name}')
+
+        elif action == 'request_docs':
+            note = (request.data.get('note') or '').strip()
+            if not note:
+                return Response({'note': 'Reason is required when requesting additional documents.'}, status=status.HTTP_400_BAD_REQUEST)
+            partner.status = LabPartner.STATUS_PENDING
+            partner.status_note = note
+            partner.updated_by = request.user
+            partner.save(update_fields=['status', 'status_note', 'updated_by', 'updated_at'])
+            log_admin_action(request.user, 'lab_partner_docs_requested', 'lab_partner', partner.id,
+                             f'Requested more documents from {partner.name}')
+
+        elif action == 'reject':
+            note = (request.data.get('note') or '').strip()
+            if not note:
+                return Response({'note': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            partner.status = LabPartner.STATUS_SUSPENDED
+            partner.rejection_note = note
+            partner.updated_by = request.user
+            partner.save(update_fields=['status', 'rejection_note', 'updated_by', 'updated_at'])
+            log_admin_action(request.user, 'lab_partner_rejected', 'lab_partner', partner.id,
+                             f'Rejected {partner.name}')
+
+        elif action == 'suspend':
+            partner.status = LabPartner.STATUS_SUSPENDED
+            partner.updated_by = request.user
+            partner.save(update_fields=['status', 'updated_by', 'updated_at'])
+            log_admin_action(request.user, 'lab_partner_suspended', 'lab_partner', partner.id,
+                             f'Suspended {partner.name}')
+
+        else:
+            return Response(
+                {'detail': 'Invalid action. Use: verify, request_docs, reject, suspend.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(LabPartnerSerializer(partner).data)
+
+
+class AdminLabTechnicianActionView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            tech = LabTechnicianProfile.objects.get(pk=pk)
+        except LabTechnicianProfile.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get('action')
+
+        if action == 'approve':
+            tech.status = LabTechnicianProfile.STATUS_ACTIVE
+            tech.status_note = ''
+            tech.rejection_note = ''
+            tech.updated_by = request.user
+            tech.save(update_fields=['status', 'status_note', 'rejection_note', 'updated_by', 'updated_at'])
+            log_admin_action(request.user, 'lab_technician_approved', 'lab_technician', tech.id,
+                             f'Approved {tech.name}')
+        elif action == 'request_docs':
+            note = (request.data.get('note') or '').strip()
+            if not note:
+                return Response({'note': 'Reason is required when requesting additional documents.'}, status=status.HTTP_400_BAD_REQUEST)
+            tech.status = LabTechnicianProfile.STATUS_PENDING
+            tech.status_note = note
+            tech.updated_by = request.user
+            tech.save(update_fields=['status', 'status_note', 'updated_by', 'updated_at'])
+            log_admin_action(request.user, 'lab_technician_docs_requested', 'lab_technician', tech.id,
+                             f'Requested more documents from {tech.name}')
+        elif action == 'reject':
+            note = (request.data.get('note') or '').strip()
+            if not note:
+                return Response({'note': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            tech.status = LabTechnicianProfile.STATUS_SUSPENDED
+            tech.rejection_note = note
+            tech.updated_by = request.user
+            tech.save(update_fields=['status', 'rejection_note', 'updated_by', 'updated_at'])
+            log_admin_action(request.user, 'lab_technician_rejected', 'lab_technician', tech.id,
+                             f'Rejected {tech.name}')
+        else:
+            return Response(
+                {'detail': 'Invalid action. Use: approve, request_docs, reject.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(LabTechnicianProfileSerializer(tech).data)
+
+
+class AdminLabPartnerProvisionAccountView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            partner = LabPartner.objects.get(pk=pk)
+        except LabPartner.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ProvisionLabPartnerAccountSerializer(
+            data=request.data,
+            context={'partner': partner},
+        )
+        serializer.is_valid(raise_exception=True)
+        partner, user, temporary_password = serializer.save()
+
+        log_admin_action(
+            request.user,
+            'lab_partner_account_provisioned',
+            'lab_partner',
+            partner.id,
+            f'Provisioned login account for lab partner {partner.name}',
+            metadata={'user_id': user.id, 'role': user.role},
+        )
+
+        response_data = {
+            'detail': 'Professional account provisioned successfully.',
+            'application': LabPartnerSerializer(partner).data,
+            'user': UserSerializer(user).data,
+        }
+        if temporary_password:
+            response_data['temporary_password'] = temporary_password
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class AdminLabTechnicianProvisionAccountView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            tech = LabTechnicianProfile.objects.select_related('partner').get(pk=pk)
+        except LabTechnicianProfile.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ProvisionLabTechnicianAccountSerializer(
+            data=request.data,
+            context={'tech': tech},
+        )
+        serializer.is_valid(raise_exception=True)
+        tech, user, temporary_password = serializer.save()
+
+        log_admin_action(
+            request.user,
+            'lab_technician_account_provisioned',
+            'lab_technician',
+            tech.id,
+            f'Provisioned login account for lab technician {tech.name}',
+            metadata={'user_id': user.id, 'role': user.role},
+        )
+
+        response_data = {
+            'detail': 'Professional account provisioned successfully.',
+            'application': LabTechnicianProfileSerializer(tech).data,
+            'user': UserSerializer(user).data,
+        }
+        if temporary_password:
+            response_data['temporary_password'] = temporary_password
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+# ─── Public Professional Registration ────────────────────────────────────────
+
+class LabPartnerRegistrationView(APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = LabPartnerRegistrationSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        partner = serializer.save()
+        return Response(LabPartnerSerializer(partner).data, status=status.HTTP_201_CREATED)
+
+
+class LabTechnicianRegistrationView(APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = LabTechnicianRegistrationSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        tech = serializer.save()
+        return Response(LabTechnicianProfileSerializer(tech).data, status=status.HTTP_201_CREATED)
 
 
 # ─── Lab Tech Dashboard ───────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Database seeded successfully.'))
 
     def _seed_users(self):
-        from apps.accounts.models import User, PharmacistProfile
+        from apps.accounts.models import Customer, User, Pharmacist
         users = [
             {'email': 'admin@avapharmacy.com', 'first_name': 'Ava', 'last_name': 'Admin', 'role': 'admin', 'is_staff': True, 'is_superuser': True},
             {'email': 'pharmacist@avapharmacy.com', 'first_name': 'Jane', 'last_name': 'Mwangi', 'role': 'pharmacist'},
@@ -34,7 +34,9 @@ class Command(BaseCommand):
                 extra = {k: v for k, v in u.items() if k not in ('email',)}
                 user = User.objects.create_user(email=u['email'], password='Test@1234', **extra)
                 if user.role == 'pharmacist':
-                    PharmacistProfile.objects.get_or_create(user=user)
+                    Pharmacist.objects.get_or_create(user=user)
+                if user.role == 'customer':
+                    Customer.objects.get_or_create(user=user)
                 self.stdout.write(f'  Created user: {u["email"]}')
 
     def _seed_categories(self):
@@ -169,34 +171,43 @@ class Command(BaseCommand):
 
     def _seed_doctors(self):
         from apps.accounts.models import User
-        from apps.consultations.models import DoctorProfile
+        from apps.consultations.models import DoctorProfile, PediatricianProfile
         doctors = [
             {
-                'name': 'Dr. James Kariuki', 'type': 'doctor', 'specialty': 'General Practice',
+                'name': 'Dr. James Kariuki', 'specialty': 'General Practice',
                 'email': 'doctor@avapharmacy.com', 'phone': '0712345678',
                 'license_number': 'KMD-12345', 'facility': 'Aga Khan Hospital',
                 'availability': 'Mon-Fri 8am-6pm', 'languages': ['English', 'Swahili'],
                 'status': 'active', 'consult_fee': Decimal('500.00'), 'rating': Decimal('4.8'),
             },
             {
-                'name': 'Dr. Amina Hassan', 'type': 'pediatrician', 'specialty': 'Pediatrics',
-                'email': 'pediatrician@avapharmacy.com', 'phone': '0798765432',
-                'license_number': 'KMD-67890', 'facility': 'Nairobi Hospital',
-                'availability': 'Mon-Sat 9am-5pm', 'languages': ['English', 'Swahili', 'Somali'],
-                'status': 'active', 'consult_fee': Decimal('600.00'), 'rating': Decimal('4.9'),
-            },
-            {
-                'name': 'Dr. Peter Otieno', 'type': 'doctor', 'specialty': 'Cardiology',
+                'name': 'Dr. Peter Otieno', 'specialty': 'Cardiology',
                 'email': 'peter.otieno@avapharmacy.com', 'phone': '0734567890',
                 'license_number': 'KMD-11111', 'facility': 'Karen Hospital',
                 'availability': 'Tue-Thu 10am-4pm', 'languages': ['English', 'Luo'],
                 'status': 'active', 'consult_fee': Decimal('800.00'), 'rating': Decimal('4.7'),
             },
         ]
+        pediatricians = [
+            {
+                'name': 'Dr. Amina Hassan', 'specialty': 'Pediatrics',
+                'email': 'pediatrician@avapharmacy.com', 'phone': '0798765432',
+                'license_number': 'KMD-67890', 'facility': 'Nairobi Hospital',
+                'availability': 'Mon-Sat 9am-5pm', 'languages': ['English', 'Swahili', 'Somali'],
+                'status': 'active', 'consult_fee': Decimal('600.00'), 'rating': Decimal('4.9'),
+            },
+        ]
         for d in doctors:
             if not DoctorProfile.objects.filter(email=d['email']).exists():
                 user = User.objects.filter(email=d['email']).first()
                 profile = DoctorProfile.objects.create(**d)
+                if user:
+                    profile.user = user
+                    profile.save()
+        for d in pediatricians:
+            if not PediatricianProfile.objects.filter(email=d['email']).exists():
+                user = User.objects.filter(email=d['email']).first()
+                profile = PediatricianProfile.objects.create(**d)
                 if user:
                     profile.user = user
                     profile.save()

@@ -1,3 +1,10 @@
+"""
+API views for the products app.
+
+Provides public catalog endpoints (categories, brands, products, reviews,
+wishlist, banners, CMS blocks, promotions) and admin-only endpoints for full
+CRUD on all catalog entities, inventory adjustment, and CMS management.
+"""
 from django.db import models
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend

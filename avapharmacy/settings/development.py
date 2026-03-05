@@ -1,8 +1,17 @@
+"""
+Development settings for the AvaPharma project.
+
+Extends base settings with DEBUG=True, open ALLOWED_HOSTS, and verbose
+console/file logging. SQL query logging can be enabled by setting
+SHOW_SQL_DEBUG=True in the environment.
+"""
 from .base import *
 
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+
+SHOW_SQL_DEBUG = config('SHOW_SQL_DEBUG', default=False, cast=bool)
 
 LOGGING = {
     'version': 1,
@@ -55,7 +64,7 @@ LOGGING = {
         },
         'django.db.backends': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'DEBUG' if SHOW_SQL_DEBUG else 'WARNING',
             'propagate': False,
         },
         'avapharmacy': {

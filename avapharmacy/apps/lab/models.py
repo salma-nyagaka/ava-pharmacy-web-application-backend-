@@ -20,6 +20,10 @@ class LabPartner(models.Model):
     ]
 
     reference = models.CharField(max_length=20, unique=True, blank=True)
+    user = models.OneToOneField(
+        'accounts.User', on_delete=models.CASCADE, related_name='lab_partner_profile',
+        null=True, blank=True
+    )
     name = models.CharField(max_length=200)
     email = models.EmailField()
     phone = models.CharField(max_length=20)
@@ -31,11 +35,29 @@ class LabPartner(models.Model):
     id_number = models.CharField(max_length=50, blank=True)
     county = models.CharField(max_length=100, blank=True)
     address = models.TextField(blank=True)
+    years_in_operation = models.PositiveIntegerField(null=True, blank=True)
     payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
     payout_account = models.CharField(max_length=100, blank=True)
+    references = models.JSONField(default=list)
+    document_checklist = models.JSONField(default=list)
+    background_consent = models.BooleanField(default=False)
+    compliance_declaration = models.BooleanField(default=False)
+    agreed_to_terms = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status_note = models.TextField(blank=True)
+    rejection_note = models.TextField(blank=True)
     notes = models.TextField(blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_lab_partners'
+    )
+    updated_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='updated_lab_partners'
+    )
     verified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -61,21 +83,86 @@ class LabPartnerDocument(models.Model):
 
 
 class LabTechnicianProfile(models.Model):
+    STATUS_ACTIVE = 'active'
+    STATUS_PENDING = 'pending'
+    STATUS_SUSPENDED = 'suspended'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_SUSPENDED, 'Suspended'),
+    ]
+
+    PAYOUT_MPESA = 'mpesa'
+    PAYOUT_BANK = 'bank_transfer'
+    PAYOUT_CHOICES = [
+        (PAYOUT_MPESA, 'M-Pesa'),
+        (PAYOUT_BANK, 'Bank Transfer'),
+    ]
+
     user = models.OneToOneField(
         'accounts.User', on_delete=models.CASCADE, related_name='lab_tech_profile',
         null=True, blank=True
     )
     partner = models.ForeignKey(LabPartner, on_delete=models.SET_NULL, null=True, blank=True, related_name='technicians')
+    name = models.CharField(max_length=200, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=20, blank=True)
     specialty = models.CharField(max_length=200, blank=True)
     license_number = models.CharField(max_length=100, blank=True)
+    license_board = models.CharField(max_length=200, blank=True)
+    license_country = models.CharField(max_length=100, blank=True)
     license_expiry = models.DateField(null=True, blank=True)
     id_number = models.CharField(max_length=50, blank=True)
-    is_active = models.BooleanField(default=True)
+    availability = models.CharField(max_length=200, blank=True)
+    years_experience = models.PositiveIntegerField(null=True, blank=True)
+    county = models.CharField(max_length=100, blank=True)
+    address = models.TextField(blank=True)
+    bio = models.TextField(blank=True)
+    references = models.JSONField(default=list)
+    document_checklist = models.JSONField(default=list)
+    payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
+    payout_account = models.CharField(max_length=100, blank=True)
+    background_consent = models.BooleanField(default=False)
+    compliance_declaration = models.BooleanField(default=False)
+    agreed_to_terms = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    status_note = models.TextField(blank=True)
+    rejection_note = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_lab_technicians'
+    )
+    updated_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='updated_lab_technicians'
+    )
 
     def __str__(self):
-        name = self.user.full_name if self.user else 'Unknown'
-        return f"Lab Tech: {name}"
+        return f"Lab Tech: {self.name or (self.user.full_name if self.user else 'Unknown')}"
+
+
+class LabTechDocument(models.Model):
+    STATUS_SUBMITTED = 'submitted'
+    STATUS_VERIFIED = 'verified'
+    STATUS_MISSING = 'missing'
+    STATUS_CHOICES = [
+        (STATUS_SUBMITTED, 'Submitted'),
+        (STATUS_VERIFIED, 'Verified'),
+        (STATUS_MISSING, 'Missing'),
+    ]
+
+    tech = models.ForeignKey(LabTechnicianProfile, on_delete=models.CASCADE, related_name='documents')
+    name = models.CharField(max_length=200)
+    file = models.FileField(upload_to='lab_tech/documents/', null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SUBMITTED)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        tech_name = self.tech.name or 'Unknown'
+        return f"{tech_name} - {self.name}"
 
 
 class LabTest(models.Model):

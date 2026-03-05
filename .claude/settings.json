@@ -3,6 +3,9 @@
     "allow": [
       "Bash(git init)",
       "Bash(git checkout -b ft-buildadmin-module)"
+    ],
+    "additionalDirectories": [
+      "/Users/salmanyagaka/Documents/avapharmacy-backend/avapharmacy"
     ]
   }
 }

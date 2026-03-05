@@ -1,3 +1,9 @@
+"""
+Business-logic services for the products app.
+
+Provides functions for fetching active promotions and calculating per-product
+pricing with applied discounts.
+"""
 from decimal import Decimal
 
 from django.utils import timezone

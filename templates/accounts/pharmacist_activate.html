@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Activate Pharmacist Account</title>
+  <style>
+    :root {
+      --color-primary: #E81750;
+      --color-primary-dark: #c91444;
+      --color-secondary: #991b1f;
+      --color-text-primary: #031b4e;
+      --color-text-secondary: #8a91ac;
+      --color-bg: #f8f9fc;
+      --color-card: #ffffff;
+      --color-border: #e8e8ef;
+      --color-success: #10b981;
+      --color-error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, #fef5f7 0, var(--color-bg) 55%);
+      color: var(--color-text-primary);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 10px 22px rgba(3, 27, 78, 0.08);
+    }
+    .card__head {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: #fff;
+      padding: 18px 22px;
+    }
+    .card__head h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+    .card__body {
+      padding: 22px;
+    }
+    p { margin: 0 0 14px; line-height: 1.6; }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .password-field {
+      position: relative;
+      margin-bottom: 12px;
+    }
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 11px 44px 11px 12px;
+      font-size: 15px;
+      background: #fff;
+    }
+    .password-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-secondary);
+    }
+    .password-toggle:hover {
+      background: #f8f9fc;
+      color: var(--color-text-primary);
+    }
+    .password-toggle svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .password-toggle .icon-eye-off {
+      display: none;
+    }
+    .password-toggle[aria-pressed="true"] .icon-eye {
+      display: none;
+    }
+    .password-toggle[aria-pressed="true"] .icon-eye-off {
+      display: block;
+    }
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      background: var(--color-primary);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 11px 14px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+    .btn:hover { background: var(--color-primary-dark); }
+    .notice {
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    .notice--success { background: rgba(16,185,129,.1); color: #067647; border: 1px solid rgba(16,185,129,.35); }
+    .notice--error { background: rgba(239,68,68,.1); color: #9f1239; border: 1px solid rgba(239,68,68,.35); }
+    .links a {
+      color: var(--color-primary);
+      text-decoration: none;
+      font-weight: 600;
+      margin-right: 14px;
+      font-size: 14px;
+    }
+    .muted { color: var(--color-text-secondary); font-size: 14px; }
+    .rules {
+      margin: 6px 0 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: #f8f9fc;
+    }
+    .rules__title {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: 8px;
+    }
+    .rules__list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+    .rule__tick {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid #cfd5e6;
+      position: relative;
+      flex-shrink: 0;
+      background: #fff;
+    }
+    .rule--valid {
+      color: #067647;
+    }
+    .rule--valid .rule__tick {
+      border-color: var(--color-success);
+      background: rgba(16,185,129,.12);
+    }
+    .rule--valid .rule__tick::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 4px;
+      height: 8px;
+      border-right: 2px solid var(--color-success);
+      border-bottom: 2px solid var(--color-success);
+      transform: rotate(40deg);
+    }
+    .match-status {
+      font-size: 13px;
+      margin: 2px 0 14px;
+      min-height: 18px;
+      color: var(--color-text-secondary);
+    }
+    .match-status--ok { color: #067647; }
+    .match-status--bad { color: #9f1239; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <section class="card__head">
+      <h1>Activate Pharmacist Account</h1>
+    </section>
+    <section class="card__body">
+      {% if success %}
+        <div class="notice notice--success">Password set successfully. Your account is now active.</div>
+        <p>You can now sign in and access your pharmacist dashboard.</p>
+        <p class="muted">Account: {{ email }}</p>
+        <p class="links">
+          <a href="{{ login_url }}">Go to login</a>
+          <a href="{{ dashboard_url }}">Dashboard URL</a>
+        </p>
+      {% elif not token_valid %}
+        <div class="notice notice--error">This activation link is invalid or has expired.</div>
+        <p class="muted">Ask an admin to resend your account activation email.</p>
+      {% else %}
+        <p>Set your password to activate your AVA Pharmacy pharmacist account.</p>
+        {% if email %}<p class="muted">Account: {{ email }}</p>{% endif %}
+
+        {% if errors %}
+          <div class="notice notice--error">
+            {% for field, field_errors in errors.items %}
+              {% for err in field_errors %}
+                <div>{{ err }}</div>
+              {% endfor %}
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          <label for="new_password">New password</label>
+          <div class="password-field">
+            <input id="new_password" name="new_password" type="password" required minlength="8" autocomplete="new-password">
+            <button class="password-toggle" type="button" data-target="new_password" aria-label="Show password" aria-pressed="false">
+              <svg class="icon-eye" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg class="icon-eye-off" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-6 10-6c2.2 0 4 .6 5.5 1.5"></path>
+                <path d="M22 12s-3.5 6-10 6c-2.2 0-4-.6-5.5-1.5"></path>
+                <path d="M3 3l18 18"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div class="rules">
+            <div class="rules__title">Password must include:</div>
+            <ul class="rules__list">
+              <li class="rule" data-rule="length"><span class="rule__tick"></span>At least 8 characters</li>
+              <li class="rule" data-rule="upper"><span class="rule__tick"></span>At least 1 uppercase letter</li>
+              <li class="rule" data-rule="lower"><span class="rule__tick"></span>At least 1 lowercase letter</li>
+              <li class="rule" data-rule="number"><span class="rule__tick"></span>At least 1 number</li>
+              <li class="rule" data-rule="special"><span class="rule__tick"></span>At least 1 special character</li>
+            </ul>
+          </div>
+
+          <label for="new_password_confirm">Confirm new password</label>
+          <div class="password-field">
+            <input id="new_password_confirm" name="new_password_confirm" type="password" required minlength="8" autocomplete="new-password">
+            <button class="password-toggle" type="button" data-target="new_password_confirm" aria-label="Show password confirmation" aria-pressed="false">
+              <svg class="icon-eye" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg class="icon-eye-off" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-6 10-6c2.2 0 4 .6 5.5 1.5"></path>
+                <path d="M22 12s-3.5 6-10 6c-2.2 0-4-.6-5.5-1.5"></path>
+                <path d="M3 3l18 18"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="match_status" class="match-status" aria-live="polite"></div>
+
+          <button id="activate_submit" class="btn" type="submit" disabled>Activate Account</button>
+        </form>
+      {% endif %}
+    </section>
+  </main>
+  <script>
+    (function () {
+      var passwordInput = document.getElementById('new_password');
+      var confirmInput = document.getElementById('new_password_confirm');
+      var submitBtn = document.getElementById('activate_submit');
+      if (!passwordInput || !confirmInput || !submitBtn) return;
+
+      var ruleNodes = {
+        length: document.querySelector('[data-rule="length"]'),
+        upper: document.querySelector('[data-rule="upper"]'),
+        lower: document.querySelector('[data-rule="lower"]'),
+        number: document.querySelector('[data-rule="number"]'),
+        special: document.querySelector('[data-rule="special"]')
+      };
+      var matchStatus = document.getElementById('match_status');
+
+      function setRuleState(name, valid) {
+        if (!ruleNodes[name]) return;
+        ruleNodes[name].classList.toggle('rule--valid', !!valid);
+      }
+
+      function evaluateRules(value) {
+        var rules = {
+          length: value.length >= 8,
+          upper: /[A-Z]/.test(value),
+          lower: /[a-z]/.test(value),
+          number: /\d/.test(value),
+          special: /[^A-Za-z0-9]/.test(value)
+        };
+        setRuleState('length', rules.length);
+        setRuleState('upper', rules.upper);
+        setRuleState('lower', rules.lower);
+        setRuleState('number', rules.number);
+        setRuleState('special', rules.special);
+        return rules;
+      }
+
+      function updateFormState() {
+        var password = passwordInput.value;
+        var confirm = confirmInput.value;
+        var rules = evaluateRules(password);
+        var allRulesValid = rules.length && rules.upper && rules.lower && rules.number && rules.special;
+        var hasConfirm = confirm.length > 0;
+        var matches = hasConfirm && password === confirm;
+
+        if (!hasConfirm) {
+          matchStatus.textContent = '';
+          matchStatus.className = 'match-status';
+        } else if (matches) {
+          matchStatus.textContent = 'Passwords match.';
+          matchStatus.className = 'match-status match-status--ok';
+        } else {
+          matchStatus.textContent = 'Passwords do not match yet.';
+          matchStatus.className = 'match-status match-status--bad';
+        }
+
+        submitBtn.disabled = !(allRulesValid && matches);
+      }
+
+      document.querySelectorAll('.password-toggle').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var targetId = button.getAttribute('data-target');
+          var target = document.getElementById(targetId);
+          if (!target) return;
+          var showing = target.type === 'text';
+          target.type = showing ? 'password' : 'text';
+          button.setAttribute('aria-pressed', showing ? 'false' : 'true');
+        });
+      });
+
+      passwordInput.addEventListener('input', updateFormState);
+      confirmInput.addEventListener('input', updateFormState);
+      updateFormState();
+    })();
+  </script>
+</body>
+</html>

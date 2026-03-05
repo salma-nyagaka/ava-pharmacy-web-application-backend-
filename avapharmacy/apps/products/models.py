@@ -1,3 +1,9 @@
+"""
+Database models for the products app.
+
+Defines the product catalog: Category, Brand, Product, ProductImage,
+ProductVariant, ProductReview, Wishlist, Banner, Promotion, and CMSBlock.
+"""
 from decimal import Decimal
 
 from django.db import models
@@ -6,6 +12,8 @@ from django.utils.text import slugify
 
 
 class Category(models.Model):
+    """A product category, optionally nested under a parent category."""
+
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     parent = models.ForeignKey(
@@ -24,12 +32,15 @@ class Category(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        """Auto-generate slug from name if not already set."""
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
 
 class Brand(models.Model):
+    """A product brand (manufacturer or label)."""
+
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     logo = models.ImageField(upload_to='brands/', null=True, blank=True)
@@ -44,12 +55,20 @@ class Brand(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        """Auto-generate slug from name if not already set."""
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
 
 class Product(models.Model):
+    """A sellable product in the pharmacy catalog.
+
+    Tracks stock levels, prescription requirements, variants, reviews, and
+    promotional eligibility. Stock source is automatically updated based on
+    the stock quantity when the product is saved.
+    """
+
     STOCK_BRANCH = 'branch'
     STOCK_WAREHOUSE = 'warehouse'
     STOCK_OUT = 'out'
@@ -99,6 +118,7 @@ class Product(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        """Auto-generate slug and sync stock_source with stock_quantity."""
         if not self.slug:
             self.slug = slugify(self.name)
         if self.has_variants:
@@ -112,6 +132,14 @@ class Product(models.Model):
 
     @property
     def inventory_status(self):
+        """Return a human-readable inventory status string.
+
+        Aggregates variant statuses when variants exist; otherwise derives status
+        from stock_quantity and low_stock_threshold.
+
+        Returns:
+            str: One of 'in_stock', 'low_stock', 'backorder', 'out_of_stock', 'inactive'.
+        """
         if self.has_variants:
             statuses = [variant.inventory_status for variant in self.variants.filter(is_active=True)]
             if 'in_stock' in statuses:
@@ -132,6 +160,7 @@ class Product(models.Model):
 
     @property
     def available_quantity(self):
+        """Return the total purchasable quantity, including backorder allowance."""
         if self.has_variants:
             return sum(variant.available_quantity for variant in self.variants.filter(is_active=True))
         if self.allow_backorder:
@@ -140,16 +169,19 @@ class Product(models.Model):
 
     @property
     def can_purchase(self):
+        """Return True if the product is active and has available stock."""
         return self.is_active and self.available_quantity > 0
 
     @property
     def has_variants(self):
+        """Return True if the product has at least one active variant."""
         if hasattr(self, '_prefetched_objects_cache') and 'variants' in self._prefetched_objects_cache:
             return any(variant.is_active for variant in self._prefetched_objects_cache['variants'])
         return self.variants.filter(is_active=True).exists()
 
     @property
     def average_rating(self):
+        """Return the average rating from approved reviews, rounded to 1 decimal."""
         from django.db.models import Avg
         reviews = self.reviews.filter(is_approved=True)
         if reviews.exists():
@@ -159,10 +191,13 @@ class Product(models.Model):
 
     @property
     def review_count(self):
+        """Return the count of approved reviews for this product."""
         return self.reviews.filter(is_approved=True).count()
 
 
 class ProductImage(models.Model):
+    """An additional gallery image for a product."""
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='gallery')
     image = models.ImageField(upload_to='products/gallery/')
     alt_text = models.CharField(max_length=200, blank=True)
@@ -176,10 +211,16 @@ class ProductImage(models.Model):
 
 
 class ProductVariant(models.Model):
+    """A specific variant of a product (e.g. size, colour, strength).
+
+    Maintains its own SKU, price (falls back to parent product price if null),
+    stock levels, and inventory status.
+    """
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
     sku = models.CharField(max_length=60, unique=True)
     name = models.CharField(max_length=120)
-    attributes = models.JSONField(default=dict, blank=True)
+    attributes = models.JSONField(default=dict, blank=True)  # e.g. {"size": "500mg"}
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/variants/', blank=True)
@@ -204,6 +245,7 @@ class ProductVariant(models.Model):
         return f"{self.product.name} - {self.name}"
 
     def save(self, *args, **kwargs):
+        """Sync stock_source with stock_quantity on save."""
         if self.stock_quantity == 0 and not self.allow_backorder:
             self.stock_source = Product.STOCK_OUT
         elif self.stock_quantity > 0 and self.stock_source == Product.STOCK_OUT:
@@ -212,10 +254,16 @@ class ProductVariant(models.Model):
 
     @property
     def effective_price(self):
+        """Return this variant's price, falling back to the parent product's price."""
         return self.price if self.price is not None else self.product.price
 
     @property
     def inventory_status(self):
+        """Return the inventory status string for this variant.
+
+        Returns:
+            str: One of 'inactive', 'backorder', 'out_of_stock', 'low_stock', 'in_stock'.
+        """
         if not self.is_active:
             return 'inactive'
         if self.stock_quantity == 0:
@@ -226,12 +274,18 @@ class ProductVariant(models.Model):
 
     @property
     def available_quantity(self):
+        """Return purchasable quantity including backorder allowance."""
         if self.allow_backorder:
             return self.stock_quantity + self.max_backorder_quantity
         return self.stock_quantity
 
 
 class ProductReview(models.Model):
+    """A customer review (1-5 star rating) for a product.
+
+    One review per user per product (enforced by unique_together).
+    """
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='reviews')
     rating = models.PositiveSmallIntegerField()
@@ -248,6 +302,8 @@ class ProductReview(models.Model):
 
 
 class Wishlist(models.Model):
+    """A saved product on a user's wishlist."""
+
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='wishlist')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='wishlisted_by')
     added_at = models.DateTimeField(auto_now_add=True)
@@ -261,6 +317,8 @@ class Wishlist(models.Model):
 
 
 class Banner(models.Model):
+    """A promotional banner displayed on the storefront."""
+
     title = models.CharField(max_length=120, blank=True)
     message = models.TextField()
     link = models.URLField(blank=True)
@@ -283,6 +341,12 @@ class Banner(models.Model):
 
 
 class Promotion(models.Model):
+    """A discount promotion that can apply to all products, a category, brand, or specific product.
+
+    Supports percentage and fixed-amount discounts, stackable/non-stackable
+    behaviour, coupon codes, priority ordering, and date-range activation.
+    """
+
     TYPE_PERCENTAGE = 'percentage'
     TYPE_AMOUNT = 'amount'
     TYPE_CHOICES = [
@@ -314,7 +378,7 @@ class Promotion(models.Model):
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_PERCENTAGE)
     value = models.DecimalField(max_digits=10, decimal_places=2)
     scope = models.CharField(max_length=20, choices=SCOPE_CHOICES, default=SCOPE_ALL)
-    targets = models.JSONField(default=list)
+    targets = models.JSONField(default=list)  # IDs/slugs/SKUs of targeted entities
     badge = models.CharField(max_length=50, blank=True)
     priority = models.PositiveIntegerField(default=0)
     is_stackable = models.BooleanField(default=False)
@@ -337,6 +401,7 @@ class Promotion(models.Model):
 
     @property
     def is_currently_active(self):
+        """Return True if the promotion is active and within its date range."""
         today = timezone.now().date()
         return (
             self.status == self.STATUS_ACTIVE
@@ -344,6 +409,14 @@ class Promotion(models.Model):
         )
 
     def applies_to_product(self, product):
+        """Check whether this promotion applies to the given product.
+
+        Args:
+            product: A Product instance to test.
+
+        Returns:
+            bool: True if the promotion's scope and targets match the product.
+        """
         if self.scope == self.SCOPE_ALL:
             return True
 
@@ -357,6 +430,14 @@ class Promotion(models.Model):
         return False
 
     def calculate_discount(self, amount):
+        """Compute the discount amount for a given price.
+
+        Args:
+            amount: The base price to apply the discount to.
+
+        Returns:
+            Decimal: The discount value, capped at the full amount.
+        """
         amount = Decimal(amount)
         if amount <= 0:
             return Decimal('0.00')
@@ -368,7 +449,9 @@ class Promotion(models.Model):
 
 
 class CMSBlock(models.Model):
-    placement = models.CharField(max_length=60)
+    """A configurable content block used for dynamic storefront sections."""
+
+    placement = models.CharField(max_length=60)   # e.g. 'home_hero', 'sidebar'
     key = models.CharField(max_length=80, unique=True)
     title = models.CharField(max_length=180)
     subtitle = models.CharField(max_length=255, blank=True)
@@ -376,7 +459,7 @@ class CMSBlock(models.Model):
     image = models.ImageField(upload_to='cms/', blank=True)
     cta_label = models.CharField(max_length=80, blank=True)
     cta_url = models.URLField(blank=True)
-    content = models.JSONField(default=dict, blank=True)
+    content = models.JSONField(default=dict, blank=True)  # Arbitrary structured content
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

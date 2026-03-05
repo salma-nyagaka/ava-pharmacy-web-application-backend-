@@ -1,6 +1,12 @@
+"""
+Django admin registrations for the accounts app.
+
+Registers User, Customer, Pharmacist, PharmacistActivationToken, Address, UserNote, and AdminAuditLog
+with customised list displays, filters, and search configurations.
+"""
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import AdminAuditLog, User, PharmacistProfile, Address, UserNote
+from .models import AdminAuditLog, Customer, User, Pharmacist, PharmacistActivationToken, Address, UserNote
 
 
 @admin.register(User)
@@ -23,9 +29,22 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
-@admin.register(PharmacistProfile)
-class PharmacistProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'permissions')
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('user', 'created_at', 'updated_at')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name')
+
+
+@admin.register(Pharmacist)
+class PharmacistAdmin(admin.ModelAdmin):
+    list_display = ('user', 'permissions', 'created_at', 'updated_at')
+
+
+@admin.register(PharmacistActivationToken)
+class PharmacistActivationTokenAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'sent_to', 'expires_at', 'used_at', 'created_at')
+    list_filter = ('expires_at', 'used_at', 'created_at')
+    search_fields = ('user__email', 'sent_to')
 
 
 @admin.register(Address)

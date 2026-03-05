@@ -1,3 +1,10 @@
+"""
+URL patterns for the products app.
+
+Covers public catalog endpoints (categories, brands, products, reviews,
+wishlist, banners, CMS blocks, promotions) and admin endpoints for CRUD
+operations on all catalog entities and inventory management.
+"""
 from django.urls import path
 from . import views
 

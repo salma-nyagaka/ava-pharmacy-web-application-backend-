@@ -1,3 +1,10 @@
+"""
+django-filters FilterSet for the products app.
+
+Provides the ProductFilter class used by product list views to support
+price-range, category, brand, stock source, inventory status, and boolean
+field filtering.
+"""
 import django_filters
 from django.db import models
 from .models import Product

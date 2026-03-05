@@ -1,3 +1,11 @@
+"""
+Serializers for the products app.
+
+Covers Category, Brand, ProductImage, ProductVariant, ProductReview,
+ProductList/Detail, Wishlist, Banner, Promotion, and CMSBlock serializers.
+Pricing fields (final_price, discount_total, active_promotions) are computed
+via the calculate_product_pricing service.
+"""
 from rest_framework import serializers
 from .models import Category, Brand, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Wishlist, Banner, Promotion
 from .services import calculate_product_pricing

@@ -1,3 +1,10 @@
+"""
+Production settings for the AvaPharma project.
+
+Extends base settings with HTTPS redirects, HSTS, secure cookies, SMTP email
+backend, and stricter logging that emails ERROR-level events to the configured
+ADMINS list via AdminEmailHandler.
+"""
 from .base import *
 
 DEBUG = False

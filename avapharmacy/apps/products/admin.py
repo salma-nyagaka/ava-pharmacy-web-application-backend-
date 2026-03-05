@@ -1,3 +1,9 @@
+"""
+Django admin registrations for the products app.
+
+Registers Category, Brand, Product (with image and variant inlines),
+ProductReview, Wishlist, Banner, Promotion, and CMSBlock.
+"""
 from django.contrib import admin
 from .models import Banner, Brand, Category, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Promotion, Wishlist
 

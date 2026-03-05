@@ -1,3 +1,10 @@
+"""
+Root URL configuration for the AvaPharma backend.
+
+Registers the Django admin site, OpenAPI schema/docs endpoints, and includes
+all app URL modules under four base prefixes for frontend compatibility:
+``api/``, ``api/v1/``, ``avapharmacy/api/``, and ``avapharmacy/api/v1/``.
+"""
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -17,7 +24,7 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    # App routes
+    # App routes — registered under four prefixes so the frontend can hit any variant
     path('api/', include('apps.accounts.urls')),
     path('api/', include('apps.products.urls')),
     path('api/', include('apps.orders.urls')),
@@ -36,8 +43,27 @@ urlpatterns = [
     path('api/v1/', include('apps.support.urls')),
     path('api/v1/', include('apps.payouts.urls')),
     path('api/v1/', include('apps.notifications.urls')),
+    path('avapharmacy/api/', include('apps.accounts.urls')),
+    path('avapharmacy/api/', include('apps.products.urls')),
+    path('avapharmacy/api/', include('apps.orders.urls')),
+    path('avapharmacy/api/', include('apps.prescriptions.urls')),
+    path('avapharmacy/api/', include('apps.consultations.urls')),
+    path('avapharmacy/api/', include('apps.lab.urls')),
+    path('avapharmacy/api/', include('apps.support.urls')),
+    path('avapharmacy/api/', include('apps.payouts.urls')),
+    path('avapharmacy/api/', include('apps.notifications.urls')),
+    path('avapharmacy/api/v1/', include('apps.accounts.urls')),
+    path('avapharmacy/api/v1/', include('apps.products.urls')),
+    path('avapharmacy/api/v1/', include('apps.orders.urls')),
+    path('avapharmacy/api/v1/', include('apps.prescriptions.urls')),
+    path('avapharmacy/api/v1/', include('apps.consultations.urls')),
+    path('avapharmacy/api/v1/', include('apps.lab.urls')),
+    path('avapharmacy/api/v1/', include('apps.support.urls')),
+    path('avapharmacy/api/v1/', include('apps.payouts.urls')),
+    path('avapharmacy/api/v1/', include('apps.notifications.urls')),
 ]
 
+# Serve uploaded media and static files in debug mode
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

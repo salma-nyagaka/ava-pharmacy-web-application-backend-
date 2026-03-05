@@ -1,3 +1,14 @@
+"""
+Custom DRF exception handler for the AvaPharma project.
+
+Normalises all API error responses into a consistent JSON envelope::
+
+    {"detail": "<msg>", "data": null, "errors": {"code": "<code>", "details": ...}}
+
+Handles DRF exceptions, Django built-in exceptions (Http404, PermissionDenied,
+ValidationError, ObjectDoesNotExist), and falls back to HTTP 500 for any
+unhandled exception while logging it via the ``avapharmacy`` logger.
+"""
 import logging
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
@@ -9,28 +20,56 @@ logger = logging.getLogger('avapharmacy')
 
 
 def _build_error(code, message, details=None):
-    payload = {
-        'error': {
-            'code': code,
-            'message': message,
-        }
-    }
+    """Build the standard error response payload.
+
+    Args:
+        code: A short machine-readable error code string.
+        message: A human-readable error description.
+        details: Optional extra detail (list or dict); omitted when empty.
+
+    Returns:
+        dict: Error envelope payload.
+    """
+    error_obj = {'code': code}
     if details not in (None, {}, []):
-        payload['error']['details'] = details
-    return payload
+        error_obj['details'] = details
+    return {
+        'detail': message,
+        'data': None,
+        'errors': error_obj,
+    }
 
 
 def custom_exception_handler(exc, context):
+    """DRF exception handler that wraps all errors in the standard envelope.
+
+    First delegates to DRF's default handler so authentication / permission
+    exceptions are handled normally, then patches the response data into the
+    ``_build_error`` format. Unhandled Django exceptions are caught and mapped
+    to appropriate HTTP status codes.  Any remaining exception is logged and
+    returned as HTTP 500.
+
+    Args:
+        exc: The exception instance raised by the view.
+        context: A dict containing ``request`` and ``view``.
+
+    Returns:
+        Response: A DRF Response with the normalised error payload.
+    """
     response = exception_handler(exc, context)
 
     if response is not None:
         if isinstance(response.data, list):
             response.data = _build_error('validation_error', 'Request validation failed.', response.data)
         elif isinstance(response.data, dict):
+            if {'detail', 'data', 'errors'}.issubset(response.data.keys()):
+                return response
             if 'detail' in response.data and len(response.data) == 1:
                 response.data = _build_error('request_error', str(response.data['detail']))
             else:
                 response.data = _build_error('validation_error', 'Request validation failed.', response.data)
+        else:
+            response.data = _build_error('request_error', 'Request failed.')
         return response
 
     if isinstance(exc, Http404):
@@ -48,6 +87,7 @@ def custom_exception_handler(exc, context):
     if isinstance(exc, ObjectDoesNotExist):
         return Response(_build_error('not_found', 'Resource not found.'), status=status.HTTP_404_NOT_FOUND)
 
+    # Unhandled exception — log with full traceback and return 500
     request = context.get('request')
     view = context.get('view')
     logger.error(
