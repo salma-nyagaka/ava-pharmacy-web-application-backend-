@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Activate Pharmacist Account</title>
+  <title>Activate {{ account_role_label|default:"Professional" }} Account</title>
   <style>
     :root {
       --color-primary: #E81750;
@@ -208,12 +208,12 @@
 <body>
   <main class="card">
     <section class="card__head">
-      <h1>Activate Pharmacist Account</h1>
+      <h1>Activate {{ account_role_label|default:"Professional" }} Account</h1>
     </section>
     <section class="card__body">
       {% if success %}
         <div class="notice notice--success">Password set successfully. Your account is now active.</div>
-        <p>You can now sign in and access your pharmacist dashboard.</p>
+        <p>You can now sign in and access your {{ account_role_lower|default:"professional" }} dashboard.</p>
         <p class="muted">Account: {{ email }}</p>
         <p class="links">
           <a href="{{ login_url }}">Go to login</a>
@@ -223,7 +223,7 @@
         <div class="notice notice--error">This activation link is invalid or has expired.</div>
         <p class="muted">Ask an admin to resend your account activation email.</p>
       {% else %}
-        <p>Set your password to activate your AVA Pharmacy pharmacist account.</p>
+        <p>Set your password to activate your AVA Pharmacy {{ account_role_lower|default:"professional" }} account.</p>
         {% if email %}<p class="muted">Account: {{ email }}</p>{% endif %}
 
         {% if errors %}

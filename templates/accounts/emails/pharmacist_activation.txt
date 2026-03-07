@@ -1,8 +1,8 @@
-AVA Pharmacy - Pharmacist Account Activation
+AVA Pharmacy - {{ account_role_label|default:"Professional" }} Account Activation
 
 Hi {{ first_name }},
 
-Your pharmacist account has been created by {{ invited_by }}.
+Your {{ account_role_lower|default:"professional" }} account has been created by {{ invited_by }}.
 
 Activate your account by setting your password using this link:
 {{ activation_url }}

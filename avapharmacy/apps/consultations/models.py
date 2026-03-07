@@ -45,6 +45,7 @@ class DoctorProfile(models.Model):
     consult_modes = models.JSONField(default=list)
     years_experience = models.PositiveIntegerField(null=True, blank=True)
     county = models.CharField(max_length=100, blank=True)
+    address = models.TextField(blank=True)
     references = models.JSONField(default=list)
     document_checklist = models.JSONField(default=list)
     payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
@@ -60,7 +61,7 @@ class DoctorProfile(models.Model):
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
     verified_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
@@ -121,6 +122,7 @@ class PediatricianProfile(models.Model):
     consult_modes = models.JSONField(default=list)
     years_experience = models.PositiveIntegerField(null=True, blank=True)
     county = models.CharField(max_length=100, blank=True)
+    address = models.TextField(blank=True)
     references = models.JSONField(default=list)
     document_checklist = models.JSONField(default=list)
     payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
@@ -136,7 +138,7 @@ class PediatricianProfile(models.Model):
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
     verified_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,

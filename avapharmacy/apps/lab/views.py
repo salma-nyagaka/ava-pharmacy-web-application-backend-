@@ -209,10 +209,10 @@ class AdminLabPartnerProvisionAccountView(APIView):
 
         serializer = ProvisionLabPartnerAccountSerializer(
             data=request.data,
-            context={'partner': partner},
+            context={'partner': partner, 'request': request},
         )
         serializer.is_valid(raise_exception=True)
-        partner, user, temporary_password = serializer.save()
+        partner, user, _ = serializer.save()
 
         log_admin_action(
             request.user,
@@ -227,9 +227,8 @@ class AdminLabPartnerProvisionAccountView(APIView):
             'detail': 'Professional account provisioned successfully.',
             'application': LabPartnerSerializer(partner).data,
             'user': UserSerializer(user).data,
+            'activation_email': getattr(serializer, 'activation_email_meta', None),
         }
-        if temporary_password:
-            response_data['temporary_password'] = temporary_password
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -244,10 +243,10 @@ class AdminLabTechnicianProvisionAccountView(APIView):
 
         serializer = ProvisionLabTechnicianAccountSerializer(
             data=request.data,
-            context={'tech': tech},
+            context={'tech': tech, 'request': request},
         )
         serializer.is_valid(raise_exception=True)
-        tech, user, temporary_password = serializer.save()
+        tech, user, _ = serializer.save()
 
         log_admin_action(
             request.user,
@@ -262,9 +261,8 @@ class AdminLabTechnicianProvisionAccountView(APIView):
             'detail': 'Professional account provisioned successfully.',
             'application': LabTechnicianProfileSerializer(tech).data,
             'user': UserSerializer(user).data,
+            'activation_email': getattr(serializer, 'activation_email_meta', None),
         }
-        if temporary_password:
-            response_data['temporary_password'] = temporary_password
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 

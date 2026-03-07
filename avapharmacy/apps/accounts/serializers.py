@@ -20,7 +20,6 @@ from apps.lab.serializers import (
     LabTechnicianRegistrationSerializer, LabTechnicianProfileSerializer,
 )
 from .utils import (
-    build_temporary_password,
     consume_pharmacist_activation,
     get_valid_pharmacist_activation,
     issue_pharmacist_activation_token,
@@ -318,7 +317,7 @@ class PasswordChangeSerializer(serializers.Serializer):
 
 
 class PharmacistActivationSetPasswordSerializer(serializers.Serializer):
-    """Set password using one-time pharmacist activation token."""
+    """Set password using one-time staff activation token."""
 
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -553,6 +552,7 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
             'consult_fee': consult_fee,
             'years_experience': attrs.get('experience'),
             'county': attrs['county'].strip(),
+            'address': attrs['address'].strip(),
             'references': self._build_references(attrs),
             'document_checklist': attrs.get('docChecklist', []),
             'payout_method': attrs['payoutMethod'],
@@ -682,15 +682,14 @@ class PublicLabPartnerListSerializer(serializers.ModelSerializer):
 
 
 class ProvisionProfessionalAccountSerializer(serializers.Serializer):
+    # Kept optional for backward compatibility with older clients.
+    # Provisioning now always uses activation-email password setup.
     password = serializers.CharField(write_only=True, required=False, allow_blank=False, validators=[validate_password])
 
-    def _get_password(self):
-        password = self.validated_data.get('password')
-        generated = False
-        if not password:
-            password = build_temporary_password()
-            generated = True
-        return password, generated
+    def _get_actor(self):
+        request = self.context.get('request')
+        actor = getattr(request, 'user', None)
+        return actor if getattr(actor, 'is_authenticated', False) else None
 
     def _create_user(self, *, email, phone, full_name, role, address=''):
         if User.objects.filter(email=email).exists():
@@ -698,11 +697,10 @@ class ProvisionProfessionalAccountSerializer(serializers.Serializer):
         if phone and User.objects.filter(phone=phone).exists():
             raise serializers.ValidationError({'phone': 'A user with this phone number already exists.'})
 
-        password, generated = self._get_password()
         first_name, last_name = split_full_name(full_name)
         user = User.objects.create_user(
             email=email,
-            password=password,
+            password=None,
             first_name=first_name,
             last_name=last_name,
             phone=phone or '',
@@ -710,7 +708,24 @@ class ProvisionProfessionalAccountSerializer(serializers.Serializer):
             address=address or '',
             status=User.STATUS_ACTIVE,
         )
-        return user, password if generated else None
+        user.is_active = False
+        user.save(update_fields=['is_active', 'updated_at'])
+        return user
+
+    def _issue_activation(self, user):
+        actor = self._get_actor()
+        request = self.context.get('request')
+        token, raw_token = issue_pharmacist_activation_token(user, created_by=actor)
+        send_pharmacist_activation_email(
+            user=user,
+            raw_token=raw_token,
+            request=request,
+            invited_by=actor,
+        )
+        self.activation_email_meta = {
+            'sent_to': user.email,
+            'expires_at': token.expires_at,
+        }
 
 
 class ProvisionDoctorAccountSerializer(ProvisionProfessionalAccountSerializer):
@@ -724,16 +739,19 @@ class ProvisionDoctorAccountSerializer(ProvisionProfessionalAccountSerializer):
 
     def save(self, **kwargs):
         doctor = self.context['doctor']
-        user, temporary_password = self._create_user(
+        actor = self._get_actor()
+        user = self._create_user(
             email=doctor.email,
             phone=doctor.phone,
             full_name=doctor.name,
             role=User.DOCTOR,
-            address=doctor.county or '',
+            address=doctor.address or doctor.county or '',
         )
         doctor.user = user
-        doctor.save(update_fields=['user', 'updated_at'])
-        return doctor, user, temporary_password
+        doctor.updated_by = actor
+        doctor.save(update_fields=['user', 'updated_by', 'updated_at'])
+        self._issue_activation(user)
+        return doctor, user, None
 
 
 class ProvisionPediatricianAccountSerializer(ProvisionProfessionalAccountSerializer):
@@ -747,16 +765,19 @@ class ProvisionPediatricianAccountSerializer(ProvisionProfessionalAccountSeriali
 
     def save(self, **kwargs):
         pediatrician = self.context['pediatrician']
-        user, temporary_password = self._create_user(
+        actor = self._get_actor()
+        user = self._create_user(
             email=pediatrician.email,
             phone=pediatrician.phone,
             full_name=pediatrician.name,
             role=User.PEDIATRICIAN,
-            address=pediatrician.county or '',
+            address=pediatrician.address or pediatrician.county or '',
         )
         pediatrician.user = user
-        pediatrician.save(update_fields=['user', 'updated_at'])
-        return pediatrician, user, temporary_password
+        pediatrician.updated_by = actor
+        pediatrician.save(update_fields=['user', 'updated_by', 'updated_at'])
+        self._issue_activation(user)
+        return pediatrician, user, None
 
 
 class ProvisionLabPartnerAccountSerializer(ProvisionProfessionalAccountSerializer):
@@ -770,8 +791,9 @@ class ProvisionLabPartnerAccountSerializer(ProvisionProfessionalAccountSerialize
 
     def save(self, **kwargs):
         partner = self.context['partner']
+        actor = self._get_actor()
         full_name = partner.contact_name or partner.name
-        user, temporary_password = self._create_user(
+        user = self._create_user(
             email=partner.email,
             phone=partner.phone,
             full_name=full_name,
@@ -779,8 +801,10 @@ class ProvisionLabPartnerAccountSerializer(ProvisionProfessionalAccountSerialize
             address=partner.address or partner.location,
         )
         partner.user = user
-        partner.save(update_fields=['user'])
-        return partner, user, temporary_password
+        partner.updated_by = actor
+        partner.save(update_fields=['user', 'updated_by', 'updated_at'])
+        self._issue_activation(user)
+        return partner, user, None
 
 
 class ProvisionLabTechnicianAccountSerializer(ProvisionProfessionalAccountSerializer):
@@ -796,7 +820,8 @@ class ProvisionLabTechnicianAccountSerializer(ProvisionProfessionalAccountSerial
 
     def save(self, **kwargs):
         tech = self.context['tech']
-        user, temporary_password = self._create_user(
+        actor = self._get_actor()
+        user = self._create_user(
             email=tech.email,
             phone=tech.phone,
             full_name=tech.name,
@@ -804,5 +829,7 @@ class ProvisionLabTechnicianAccountSerializer(ProvisionProfessionalAccountSerial
             address=tech.address or tech.county,
         )
         tech.user = user
-        tech.save(update_fields=['user'])
-        return tech, user, temporary_password
+        tech.updated_by = actor
+        tech.save(update_fields=['user', 'updated_by', 'updated_at'])
+        self._issue_activation(user)
+        return tech, user, None

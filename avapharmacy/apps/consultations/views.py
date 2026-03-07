@@ -508,10 +508,10 @@ class AdminDoctorProvisionAccountView(APIView):
 
         serializer = ProvisionDoctorAccountSerializer(
             data=request.data,
-            context={'doctor': doctor},
+            context={'doctor': doctor, 'request': request},
         )
         serializer.is_valid(raise_exception=True)
-        doctor, user, temporary_password = serializer.save()
+        doctor, user, _ = serializer.save()
 
         log_admin_action(
             request.user,
@@ -526,14 +526,13 @@ class AdminDoctorProvisionAccountView(APIView):
             'detail': 'Professional account provisioned successfully.',
             'application': DoctorProfileSerializer(doctor).data,
             'user': UserSerializer(user).data,
+            'activation_email': getattr(serializer, 'activation_email_meta', None),
         }
         try:
             from apps.notifications.utils import notify_doctor_verified
             notify_doctor_verified(doctor)
         except Exception:
             pass
-        if temporary_password:
-            response_data['temporary_password'] = temporary_password
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -634,10 +633,10 @@ class AdminPediatricianProvisionAccountView(APIView):
 
         serializer = ProvisionPediatricianAccountSerializer(
             data=request.data,
-            context={'pediatrician': pediatrician},
+            context={'pediatrician': pediatrician, 'request': request},
         )
         serializer.is_valid(raise_exception=True)
-        pediatrician, user, temporary_password = serializer.save()
+        pediatrician, user, _ = serializer.save()
 
         log_admin_action(
             request.user,
@@ -652,14 +651,13 @@ class AdminPediatricianProvisionAccountView(APIView):
             'detail': 'Professional account provisioned successfully.',
             'application': PediatricianProfileSerializer(pediatrician).data,
             'user': UserSerializer(user).data,
+            'activation_email': getattr(serializer, 'activation_email_meta', None),
         }
         try:
             from apps.notifications.utils import notify_doctor_verified
             notify_doctor_verified(pediatrician)
         except Exception:
             pass
-        if temporary_password:
-            response_data['temporary_password'] = temporary_password
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 

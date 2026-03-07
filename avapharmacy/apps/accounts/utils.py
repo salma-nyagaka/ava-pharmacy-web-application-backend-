@@ -4,7 +4,7 @@ Utility helpers for the accounts app.
 Includes:
 - admin audit logging
 - helper functions for professional account provisioning
-- pharmacist activation token + email flow
+- activation token + email flow for pharmacist and professional staff
 """
 import hashlib
 import secrets
@@ -18,6 +18,43 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string
 
 from .models import AdminAuditLog, PharmacistActivationToken, User
+
+
+ACTIVATION_ELIGIBLE_ROLES = {
+    User.PHARMACIST,
+    User.DOCTOR,
+    User.PEDIATRICIAN,
+    User.LAB_PARTNER,
+    User.LAB_TECHNICIAN,
+    User.INVENTORY_STAFF,
+}
+
+
+ROLE_LABELS = {
+    User.PHARMACIST: 'Pharmacist',
+    User.DOCTOR: 'Doctor',
+    User.PEDIATRICIAN: 'Pediatrician',
+    User.LAB_PARTNER: 'Lab Partner',
+    User.LAB_TECHNICIAN: 'Lab Technician',
+    User.INVENTORY_STAFF: 'Inventory Staff',
+}
+
+
+def role_label(role):
+    return ROLE_LABELS.get(role, 'Professional')
+
+
+def dashboard_url_for_role(role):
+    frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
+    mapping = {
+        User.PHARMACIST: getattr(settings, 'FRONTEND_PHARMACIST_DASHBOARD_URL', f'{frontend_base}/pharmacist/dashboard'),
+        User.DOCTOR: getattr(settings, 'FRONTEND_DOCTOR_DASHBOARD_URL', f'{frontend_base}/doctor/dashboard'),
+        User.PEDIATRICIAN: getattr(settings, 'FRONTEND_PEDIATRICIAN_DASHBOARD_URL', f'{frontend_base}/pediatrician/dashboard'),
+        User.LAB_PARTNER: getattr(settings, 'FRONTEND_LAB_PARTNER_DASHBOARD_URL', f'{frontend_base}/laboratory/dashboard'),
+        User.LAB_TECHNICIAN: getattr(settings, 'FRONTEND_LAB_TECHNICIAN_DASHBOARD_URL', f'{frontend_base}/labaratory/dashboard'),
+        User.INVENTORY_STAFF: getattr(settings, 'FRONTEND_INVENTORY_DASHBOARD_URL', f'{frontend_base}/inventory/dashboard'),
+    }
+    return mapping.get(role, frontend_base)
 
 
 def log_admin_action(actor, action, entity_type, entity_id='', message='', metadata=None):
@@ -74,16 +111,16 @@ def hash_token(raw_token):
 def build_activation_url(raw_token, request=None):
     """Build absolute activation page URL used in invitation emails."""
     if request is not None:
-        return request.build_absolute_uri(f"/avapharmacy/api/v1/auth/pharmacist/activate/{raw_token}/")
+        return request.build_absolute_uri(f"/avapharmacy/api/v1/auth/professional/activate/{raw_token}/")
 
     backend_base = getattr(settings, 'BACKEND_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
-    return f"{backend_base}/avapharmacy/api/v1/auth/pharmacist/activate/{raw_token}/"
+    return f"{backend_base}/avapharmacy/api/v1/auth/professional/activate/{raw_token}/"
 
 
 def issue_pharmacist_activation_token(user, *, created_by=None, ttl_hours=None):
-    """Create and return a new one-time activation token for a pharmacist user."""
-    if user.role != User.PHARMACIST:
-        raise ValueError('Activation tokens can only be issued for pharmacists.')
+    """Create and return a new one-time activation token for eligible staff users."""
+    if user.role not in ACTIVATION_ELIGIBLE_ROLES:
+        raise ValueError('Activation tokens can only be issued for eligible staff users.')
 
     now = timezone.now()
     # Invalidate older pending tokens so only the newest link remains active.
@@ -92,7 +129,11 @@ def issue_pharmacist_activation_token(user, *, created_by=None, ttl_hours=None):
     ).update(used_at=now)
 
     raw_token = secrets.token_urlsafe(32)
-    ttl = ttl_hours or getattr(settings, 'PHARMACIST_ACTIVATION_TTL_HOURS', 24)
+    ttl = ttl_hours or getattr(
+        settings,
+        'STAFF_ACTIVATION_TTL_HOURS',
+        getattr(settings, 'PHARMACIST_ACTIVATION_TTL_HOURS', 24),
+    )
     token = PharmacistActivationToken.objects.create(
         user=user,
         token_hash=hash_token(raw_token),
@@ -112,7 +153,7 @@ def get_valid_pharmacist_activation(raw_token):
     token_hash = hash_token(raw_token)
     return (
         PharmacistActivationToken.objects.select_related('user')
-        .filter(token_hash=token_hash, used_at__isnull=True, expires_at__gt=now, user__role=User.PHARMACIST)
+        .filter(token_hash=token_hash, used_at__isnull=True, expires_at__gt=now, user__role__in=ACTIVATION_ELIGIBLE_ROLES)
         .first()
     )
 
@@ -133,19 +174,20 @@ def consume_pharmacist_activation(raw_token):
 
 
 def send_pharmacist_activation_email(*, user, raw_token, request=None, invited_by=None):
-    """Send pharmacist activation email with themed HTML and text fallback."""
+    """Send activation email with themed HTML and text fallback."""
     activation_url = build_activation_url(raw_token, request=request)
     frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
-    dashboard_url = getattr(
-        settings,
-        'FRONTEND_PHARMACIST_DASHBOARD_URL',
-        f'{frontend_base}/pharmacist/dashboard',
-    )
+    dashboard_url = dashboard_url_for_role(user.role)
     login_url = getattr(settings, 'FRONTEND_LOGIN_URL', f'{frontend_base}/login')
-    expires_hours = getattr(settings, 'PHARMACIST_ACTIVATION_TTL_HOURS', 24)
+    expires_hours = getattr(
+        settings,
+        'STAFF_ACTIVATION_TTL_HOURS',
+        getattr(settings, 'PHARMACIST_ACTIVATION_TTL_HOURS', 24),
+    )
+    role_name = role_label(user.role)
 
     context = {
-        'first_name': user.first_name or 'Pharmacist',
+        'first_name': user.first_name or 'Professional',
         'full_name': user.full_name or user.email,
         'email': user.email,
         'activation_url': activation_url,
@@ -154,9 +196,11 @@ def send_pharmacist_activation_email(*, user, raw_token, request=None, invited_b
         'expires_hours': expires_hours,
         'invited_by': invited_by.full_name if getattr(invited_by, 'is_authenticated', False) else 'AVA Pharmacy Admin',
         'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
+        'account_role_label': role_name,
+        'account_role_lower': role_name.lower(),
     }
 
-    subject = 'Activate your AVA Pharmacy pharmacist account'
+    subject = f'Activate your AVA Pharmacy {role_name.lower()} account'
     text_body = render_to_string('accounts/emails/pharmacist_activation.txt', context)
     html_body = render_to_string('accounts/emails/pharmacist_activation.html', context)
     send_mail(
@@ -172,6 +216,10 @@ def send_pharmacist_activation_email(*, user, raw_token, request=None, invited_b
 def build_frontend_set_password_url(raw_token):
     """Optional frontend route helper if SPA uses token-based set-password screen."""
     frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
-    activation_path = getattr(settings, 'FRONTEND_PHARMACIST_ACTIVATION_PATH', '/auth/pharmacist/activate')
+    activation_path = getattr(
+        settings,
+        'FRONTEND_PROFESSIONAL_ACTIVATION_PATH',
+        getattr(settings, 'FRONTEND_PHARMACIST_ACTIVATION_PATH', '/auth/professional/activate'),
+    )
     query = urlencode({'token': raw_token})
     return f'{frontend_base}{activation_path}?{query}'

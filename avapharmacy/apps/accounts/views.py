@@ -38,9 +38,12 @@ from .serializers import (
 )
 from .permissions import IsAdminUser
 from .utils import (
+    ACTIVATION_ELIGIBLE_ROLES,
+    dashboard_url_for_role,
     get_valid_pharmacist_activation,
     issue_pharmacist_activation_token,
     log_admin_action,
+    role_label,
     send_pharmacist_activation_email,
 )
 from apps.lab.models import LabPartner
@@ -179,7 +182,7 @@ class PasswordChangeView(APIView):
 
 
 class PharmacistActivationSetPasswordView(APIView):
-    """Public endpoint to set pharmacist password via one-time activation token."""
+    """Public endpoint to set staff password via one-time activation token."""
 
     permission_classes = [permissions.AllowAny]
     throttle_classes = [RegisterRateThrottle]
@@ -195,22 +198,24 @@ class PharmacistActivationSetPasswordView(APIView):
                 'email': user.email,
                 'role': user.role,
             },
-            'dashboard_url': getattr(settings, 'FRONTEND_PHARMACIST_DASHBOARD_URL', 'http://localhost:3000/pharmacist/dashboard'),
+            'dashboard_url': dashboard_url_for_role(user.role),
         })
 
 
 class PharmacistActivationPageView(View):
-    """Server-rendered fallback page for pharmacist password activation."""
+    """Server-rendered fallback page for staff password activation."""
 
     template_name = 'accounts/pharmacist_activate.html'
 
     def get(self, request, token):
         token_obj = get_valid_pharmacist_activation(token)
+        account_role = token_obj.user.role if token_obj else None
         context = {
             'token': token,
             'token_valid': token_obj is not None,
-            'dashboard_url': getattr(settings, 'FRONTEND_PHARMACIST_DASHBOARD_URL', 'http://localhost:3000/pharmacist/dashboard'),
+            'dashboard_url': dashboard_url_for_role(account_role),
             'login_url': getattr(settings, 'FRONTEND_LOGIN_URL', 'http://localhost:3000/login'),
+            'account_role_label': role_label(account_role),
         }
         if token_obj:
             context['email'] = token_obj.user.email
@@ -225,7 +230,6 @@ class PharmacistActivationPageView(View):
         context = {
             'token': token,
             'token_valid': True,
-            'dashboard_url': getattr(settings, 'FRONTEND_PHARMACIST_DASHBOARD_URL', 'http://localhost:3000/pharmacist/dashboard'),
             'login_url': getattr(settings, 'FRONTEND_LOGIN_URL', 'http://localhost:3000/login'),
         }
         if serializer.is_valid():
@@ -233,14 +237,26 @@ class PharmacistActivationPageView(View):
             context.update({
                 'success': True,
                 'email': user.email,
+                'dashboard_url': dashboard_url_for_role(user.role),
+                'account_role_label': role_label(user.role),
             })
             return render(request, self.template_name, context)
         context['errors'] = serializer.errors
         token_obj = get_valid_pharmacist_activation(token)
         context['token_valid'] = token_obj is not None
+        context['account_role_label'] = role_label(token_obj.user.role if token_obj else None)
+        context['dashboard_url'] = dashboard_url_for_role(token_obj.user.role if token_obj else None)
         if token_obj:
             context['email'] = token_obj.user.email
         return render(request, self.template_name, context)
+
+
+class ProfessionalActivationSetPasswordView(PharmacistActivationSetPasswordView):
+    """Alias endpoint for staff activation."""
+
+
+class ProfessionalActivationPageView(PharmacistActivationPageView):
+    """Alias endpoint for staff activation page."""
 
 
 class AdminUserListCreateView(generics.ListCreateAPIView):
@@ -363,7 +379,7 @@ class AdminUserActivateView(APIView):
 
 
 class AdminPharmacistActivationResendView(APIView):
-    """Admin endpoint to resend pharmacist activation email."""
+    """Admin endpoint to resend activation email for eligible staff roles."""
 
     permission_classes = [IsAdminUser]
 
@@ -373,12 +389,12 @@ class AdminPharmacistActivationResendView(APIView):
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if user.role != User.PHARMACIST:
-            return Response({'detail': 'Activation resend is only available for pharmacists.'}, status=status.HTTP_400_BAD_REQUEST)
+        if user.role not in ACTIVATION_ELIGIBLE_ROLES:
+            return Response({'detail': 'Activation resend is only available for staff accounts.'}, status=status.HTTP_400_BAD_REQUEST)
         if user.status == User.STATUS_SUSPENDED:
             return Response({'detail': 'Cannot resend activation for a suspended account.'}, status=status.HTTP_400_BAD_REQUEST)
         if user.is_active and user.has_usable_password():
-            return Response({'detail': 'This pharmacist account is already activated.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'This account is already activated.'}, status=status.HTTP_400_BAD_REQUEST)
 
         token, raw_token = issue_pharmacist_activation_token(user, created_by=request.user)
         send_pharmacist_activation_email(
@@ -389,11 +405,11 @@ class AdminPharmacistActivationResendView(APIView):
         )
         log_admin_action(
             request.user,
-            action='pharmacist_activation_resent',
+            action='staff_activation_resent',
             entity_type='user',
             entity_id=user.id,
-            message=f'Resent pharmacist activation email to {user.email}',
-            metadata={'expires_at': token.expires_at.isoformat()},
+            message=f'Resent activation email to {user.email}',
+            metadata={'expires_at': token.expires_at.isoformat(), 'role': user.role},
         )
         return Response({
             'detail': 'Activation email resent successfully.',

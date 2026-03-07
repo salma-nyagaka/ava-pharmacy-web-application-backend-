@@ -1,72 +1,54 @@
-# AVA Pharmacy Backend Registration Documentation
+# AVA Pharmacy Registration Implementation
 
-## 1. Current Scope Implemented
+This document reflects the current backend implementation as of March 5, 2026.
 
-This document covers what is implemented so far for:
-
-- Professional registration by profession.
-- Admin provisioning of approved professional applications into real user accounts.
-- Pharmacist registration by admin (separate pharmacist table).
-
-Base API prefix used in examples:
+Base URL used below:
 
 - `http://127.0.0.1:8000/avapharmacy/api/v1`
 
+## 1. What Is Implemented
 
-## 2. Standard API Response Format
+- Unified professional registration flow for:
+  - doctor
+  - pediatrician
+  - lab_partner
+  - lab_technician
+- Dedicated registration endpoints per profession.
+- Admin review endpoints to approve/request docs/reject (with rejection reason).
+- Admin provisioning of approved applications into real login users.
+- Admin pharmacist creation + activation email + resend activation.
+- Separate tables for customers and pharmacists.
+- Audit fields on registration/application tables (`created_at`, `updated_at`, `created_by`, `updated_by`).
 
-All non-callback JSON API responses are standardized to:
+## 2. Response Format (Current Behavior)
 
-```json
-{
-  "detail": "Request successful.",
-  "data": {},
-  "errors": null
-}
-```
+Responses are not yet globally wrapped in a single `detail/data/errors` envelope.
 
-Validation/error responses:
+- Professional unified registration returns:
+  - `detail`
+  - `registration_type`
+  - `registration_type_display`
+  - `application`
+  - `next_steps`
+- Other endpoints return either serializer objects directly or standard DRF validation errors.
 
-```json
-{
-  "detail": "Request validation failed.",
-  "data": null,
-  "errors": {
-    "code": "validation_error",
-    "details": {
-      "field_name": ["error message"]
-    }
-  }
-}
-```
+## 3. Public Registration Endpoints
 
+No token required.
 
-## 3. Public Professional Registration
+### 3.1 Unified professional registration
 
-## 3.1 Unified Endpoint (Recommended)
-
-- Method: `POST`
-- URL: `/avapharmacy/api/v1/professionals/register/`
-- Auth: No token required
+- `POST /professionals/register/`
 - Content-Type: `application/json` or `multipart/form-data`
 
-`type` controls profession:
+Allowed `type`:
 
 - `doctor`
-- `pediatrician` (also accepts `paediatrician`)
+- `pediatrician` (alias `paediatrician`)
 - `lab_partner`
 - `lab_technician`
 
-Core fields used across professions:
-
-- `type`, `name`, `email`, `phone`
-- `payoutMethod` (`mpesa` or `bank_transfer`)
-- `payoutAccount`
-- `backgroundConsent` (boolean)
-- `complianceDeclaration` (boolean)
-- `agreedToTerms` (boolean)
-
-### Doctor payload example
+Doctor example payload:
 
 ```json
 {
@@ -97,106 +79,70 @@ Core fields used across professions:
 }
 ```
 
-### Pediatrician payload example
+### 3.2 Dedicated registration endpoints
+
+- `POST /professionals/register/doctor/`
+- `POST /professionals/register/pediatrician/`
+- `POST /professionals/register/lab-partner/`
+- `POST /professionals/register/lab-technician/`
+
+### 3.3 Lab partner options for lab technician registration
+
+- `GET /professionals/lab-partners/`
+
+Returns verified lab partners for `labPartnerId` selection.
+
+## 4. Admin Review and Approval Flow
+
+Auth: Admin JWT (`Authorization: Bearer <access_token>`).
+
+### 4.1 List and detail
+
+- Doctors:
+  - `GET /admin/doctors/`
+  - `GET /admin/doctors/{id}/`
+- Pediatricians:
+  - `GET /admin/pediatricians/`
+  - `GET /admin/pediatricians/{id}/`
+- Lab partners:
+  - `GET /admin/lab/partners/`
+  - `GET /admin/lab/partners/{id}/`
+- Lab technicians:
+  - `GET /admin/lab/partners/{partner_id}/technicians/`
+  - `GET /admin/lab/technicians/{id}/`
+
+### 4.2 Action endpoints
+
+- Doctor: `POST /admin/doctors/{id}/action/`
+  - actions: `approve`, `request_docs`, `reject`
+- Pediatrician: `POST /admin/pediatricians/{id}/action/`
+  - actions: `approve`, `request_docs`, `reject`
+- Lab partner: `POST /admin/lab/partners/{id}/action/`
+  - actions: `verify`, `request_docs`, `reject`, `suspend`
+- Lab technician: `POST /admin/lab/technicians/{id}/action/`
+  - actions: `approve`, `request_docs`, `reject`
+
+Rejection payload:
 
 ```json
 {
-  "type": "pediatrician",
-  "name": "Dr. Amina Hassan",
-  "email": "pedi.aminah@example.com",
-  "phone": "0711003300",
-  "license": "KMPDC-67890",
-  "licenseBoard": "KMPDC",
-  "licenseCountry": "Kenya",
-  "licenseExpiry": "2028-05-30",
-  "idNumber": "98765432",
-  "specialty": "Pediatrics",
-  "facility": "Nairobi Hospital",
-  "experience": 8,
-  "availability": "Mon-Sat 9:00-16:00",
-  "fee": "1200.00",
-  "county": "Nairobi",
-  "address": "Children Wing",
-  "bio": "Pediatric specialist focused on early-child care.",
-  "languages": ["English", "Swahili"],
-  "consultModes": ["chat", "video"],
-  "payoutMethod": "mpesa",
-  "payoutAccount": "254711003300",
-  "backgroundConsent": true,
-  "complianceDeclaration": true,
-  "agreedToTerms": true
+  "action": "reject",
+  "note": "License document is expired."
 }
 ```
 
-### Lab Partner payload example
+`note` is required for `reject` (and for `request_docs` on lab endpoints).
 
-```json
-{
-  "type": "lab_partner",
-  "name": "Grace Njeri",
-  "email": "operations@citylab.co.ke",
-  "phone": "0711004400",
-  "labName": "City Lab Diagnostics",
-  "labLocation": "Nairobi CBD",
-  "labAccreditation": "KENAS-ACC-2291",
-  "license": "MOH-LAB-00991",
-  "experience": 11,
-  "county": "Nairobi",
-  "address": "Tom Mboya Street",
-  "bio": "ISO-certified diagnostics provider.",
-  "payoutMethod": "bank_transfer",
-  "payoutAccount": "01-2456789-00",
-  "backgroundConsent": true,
-  "complianceDeclaration": true,
-  "agreedToTerms": true
-}
-```
+## 5. Provision Approved Applications to Real User Accounts
 
-### Lab Technician payload example
+Auth: Admin JWT.
 
-```json
-{
-  "type": "lab_technician",
-  "name": "Kevin Omondi",
-  "email": "kevin.omondi@example.com",
-  "phone": "0711005500",
-  "labPartnerId": 1,
-  "license": "KMLTTB-22334",
-  "licenseBoard": "KMLTTB",
-  "licenseCountry": "Kenya",
-  "licenseExpiry": "2027-11-20",
-  "idNumber": "22334455",
-  "specialty": "Clinical Chemistry",
-  "experience": 4,
-  "availability": "Mon-Fri 8:00-17:00",
-  "county": "Nairobi",
-  "address": "Westlands",
-  "bio": "Experienced in hematology and chemistry.",
-  "payoutMethod": "mpesa",
-  "payoutAccount": "254711005500",
-  "backgroundConsent": true,
-  "complianceDeclaration": true,
-  "agreedToTerms": true
-}
-```
+- Doctor: `POST /admin/doctors/{id}/provision-account/`
+- Pediatrician: `POST /admin/pediatricians/{id}/provision-account/`
+- Lab partner: `POST /admin/lab/partners/{id}/provision-account/`
+- Lab technician: `POST /admin/lab/technicians/{id}/provision-account/`
 
-## 3.2 Optional Dedicated Registration Endpoints
-
-Also available:
-
-- `POST /avapharmacy/api/v1/professionals/register/doctor/`
-- `POST /avapharmacy/api/v1/professionals/register/pediatrician/`
-- `POST /avapharmacy/api/v1/professionals/register/lab-partner/`
-- `POST /avapharmacy/api/v1/professionals/register/lab-technician/`
-
-
-## 4. Admin Provisioning of Approved Professional Applications
-
-These endpoints create real `accounts_user` login records after application review.
-
-- Auth: Admin JWT required (`Authorization: Bearer <access_token>`)
-- Method: `POST`
-- Payload: optional password
+Payload (optional):
 
 ```json
 {
@@ -204,26 +150,16 @@ These endpoints create real `accounts_user` login records after application revi
 }
 ```
 
-If password is omitted, a temporary password is generated and returned.
+If `password` is omitted, a temporary password is generated and returned.
 
-### Endpoints
+## 6. Pharmacist Creation and Activation (Admin-Driven)
 
-- Doctor: `/avapharmacy/api/v1/admin/doctors/{id}/provision-account/`
-- Pediatrician: `/avapharmacy/api/v1/admin/pediatricians/{id}/provision-account/`
-- Lab partner: `/avapharmacy/api/v1/admin/lab/partners/{id}/provision-account/`
-- Lab technician: `/avapharmacy/api/v1/admin/lab/technicians/{id}/provision-account/`
+### 6.1 Create pharmacist
 
+- `POST /admin/users/`
+- role must be `pharmacist`
 
-## 5. Pharmacist Registration by Admin
-
-Pharmacists are created by admin using users endpoint with role `pharmacist`.
-When created, they are marked inactive until they set password from activation email.
-
-- Method: `POST`
-- URL: `/avapharmacy/api/v1/admin/users/`
-- Auth: Admin JWT required
-
-Payload example:
+Example:
 
 ```json
 {
@@ -241,28 +177,15 @@ Payload example:
 }
 ```
 
-Response includes activation email metadata (`sent_to`, `expires_at`) when email is sent.
+Pharmacist user is created inactive until activation.
 
-## 5.2 Pharmacist activation and resend flow
+### 6.2 Resend activation
 
-### Auto email on create
+- `POST /admin/users/{id}/resend-activation/`
 
-When admin creates pharmacist, backend sends activation email with a one-time link.
+### 6.3 Set password from activation token
 
-### Admin resend activation email
-
-- Method: `POST`
-- URL: `/avapharmacy/api/v1/admin/users/{id}/resend-activation/`
-- Auth: Admin JWT required
-- Body: empty JSON `{}` (or no body)
-
-This issues a fresh link and invalidates previous active links.
-
-### API endpoint to set password from token
-
-- Method: `POST`
-- URL: `/avapharmacy/api/v1/auth/pharmacist/activate/`
-- Auth: none
+- `POST /auth/pharmacist/activate/`
 
 ```json
 {
@@ -272,29 +195,48 @@ This issues a fresh link and invalidates previous active links.
 }
 ```
 
-### Browser fallback activation page
+Browser fallback page:
 
-- Method: `GET` then `POST`
-- URL: `/avapharmacy/api/v1/auth/pharmacist/activate/{token}/`
+- `GET/POST /auth/pharmacist/activate/{token}/`
 
-This is a themed server-rendered page for setting password directly from email link.
-After activation, pharmacist can access frontend dashboard:
+## 7. User Registration and Login Endpoints
 
-- `http://localhost:3000/pharmacist/dashboard`
+- Customer/self-registration: `POST /auth/register/`
+- Login: `POST /auth/login/`
+- Refresh token: `POST /auth/token/refresh/`
+- Logout: `POST /auth/logout/`
 
-## 5.1 Where pharmacist data is stored
+## 8. Database Tables (Registration Related)
 
-- Core account: `accounts_user`
-- Pharmacist-specific data: `accounts_pharmacist` (one-to-one with user)
+### 8.1 Core users and profiles
 
-This keeps pharmacists distinct from customers at database level.
+- `accounts_user` (all auth users)
+- `accounts_customer` (customer-only profile, 1:1 to user)
+- `accounts_pharmacist` (pharmacist-only profile, 1:1 to user)
 
+### 8.2 Professional applications
 
-## 6. Tables for Professional Applications
+- `consultations_doctorprofile`
+- `consultations_pediatricianprofile`
+- `lab_labpartner`
+- `lab_labtechnicianprofile`
 
-- Doctor applications: `consultations_doctorprofile`
-- Pediatrician applications: `consultations_pediatricianprofile`
-- Lab partner applications: `lab_labpartner`
-- Lab technician applications: `lab_labtechnicianprofile`
+These store onboarding applications before/while being linked to real user accounts.
 
-When provisioned, login users are created in `accounts_user` with role-specific role values.
+## 9. Audit Fields Added
+
+The following registration-related models now include audit ownership/timestamps:
+
+- `accounts.Pharmacist`
+- `accounts.Customer`
+- `consultations.DoctorProfile`
+- `consultations.PediatricianProfile`
+- `lab.LabPartner`
+- `lab.LabTechnicianProfile`
+
+Fields:
+
+- `created_at`
+- `updated_at`
+- `created_by` (nullable FK to `accounts_user`)
+- `updated_by` (nullable FK to `accounts_user`)
