@@ -14,8 +14,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.db import transaction
 from django.shortcuts import render
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.views import View
 
 
@@ -45,6 +49,8 @@ from .utils import (
     log_admin_action,
     role_label,
     send_pharmacist_activation_email,
+    send_customer_welcome_email,
+    send_password_reset_email,
 )
 from apps.lab.models import LabPartner
 
@@ -63,6 +69,8 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        if user.role == 'customer':
+            send_customer_welcome_email(user=user)
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
@@ -479,3 +487,120 @@ class AdminAuditLogListView(generics.ListAPIView):
     ordering_fields = ['created_at']
     ordering = ['-created_at']
     queryset = AdminAuditLog.objects.all().select_related('actor')
+
+
+class ForgotPasswordView(APIView):
+    """Send a password reset link to the user's email."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegisterRateThrottle]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        if not email:
+            return Response(
+                {'error': {'code': 'validation_error', 'message': 'Email address is required.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {'error': {'code': 'not_found', 'message': 'No account found with that email address.'}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_url = f"{getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000')}/reset-password?uid={uid}&token={token}"
+        send_password_reset_email(user=user, reset_url=reset_url)
+        response_data = {'message': 'A password reset link has been sent to your email.'}
+        if settings.DEBUG:
+            response_data['reset_url_debug'] = reset_url
+  
+        return Response(response_data)
+
+
+class ResetPasswordView(APIView):
+    """Set a new password using a uid+token from the reset email."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegisterRateThrottle]
+
+    def post(self, request):
+        uid = request.data.get('uid', '')
+        token = request.data.get('token', '')
+        new_password = request.data.get('new_password', '')
+
+        if not uid or not token or not new_password:
+            return Response(
+                {'error': {'code': 'validation_error', 'message': 'uid, token and new_password are required.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            user_pk = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_pk)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {'error': {'code': 'invalid_token', 'message': 'Reset link is invalid or has expired.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {'error': {'code': 'invalid_token', 'message': 'Reset link is invalid or has expired.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(new_password) < 8:
+            return Response(
+                {'error': {'code': 'validation_error', 'message': 'Password must be at least 8 characters.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.set_password(new_password)
+        user.save()
+        return Response({'message': 'Password reset successfully. You can now log in.'})
+
+
+class VerifyEmailView(APIView):
+    """Confirm the user's email using a token (stub — always succeeds in development)."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        return Response({'data': {'email_verified': True}, 'message': 'Email verified successfully.'})
+
+
+class ResendVerificationView(APIView):
+    """Resend the email verification link (stub — rate limited)."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegisterRateThrottle]
+
+    def post(self, request):
+        return Response({'message': 'Verification email resent if the address is registered.'})
+
+
+class AccountProfileView(generics.RetrieveUpdateAPIView):
+    """Retrieve or update the authenticated user's own profile (alias for MeView)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return UserUpdateSerializer
+        return UserSerializer
+
+
+class AccountDeleteView(APIView):
+    """Soft-delete the authenticated user's account."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        user.is_active = False
+        user.status = User.STATUS_SUSPENDED
+        user.email = f'deleted_{user.pk}_{user.email}'
+        user.save(update_fields=['is_active', 'status', 'email', 'updated_at'])
+        return Response({'message': 'Account deleted. Personal data will be anonymized within 30 days.'}, status=status.HTTP_200_OK)

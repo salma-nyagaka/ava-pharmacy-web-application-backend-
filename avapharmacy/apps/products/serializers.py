@@ -7,7 +7,8 @@ Pricing fields (final_price, discount_total, active_promotions) are computed
 via the calculate_product_pricing service.
 """
 from rest_framework import serializers
-from .models import Category, Brand, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Wishlist, Banner, Promotion
+from django.utils.text import slugify
+from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductCategory, ProductSubcategory, ProductImage, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
 from .services import calculate_product_pricing
 
 
@@ -17,6 +18,41 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ('id', 'name', 'slug', 'description', 'icon', 'is_active', 'subcategories')
+        extra_kwargs = {
+            'slug': {'required': False, 'allow_blank': True},
+        }
+
+    def _generate_unique_slug(self, name):
+        base_slug = slugify(name) or 'category'
+        slug = base_slug
+        queryset = Category.objects.all()
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        counter = 2
+        while queryset.filter(slug=slug).exists():
+            slug = f'{base_slug}-{counter}'
+            counter += 1
+        return slug
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        provided_slug = attrs.get('slug')
+
+        if self.instance is None and not provided_slug:
+            attrs['slug'] = self._generate_unique_slug(attrs.get('name', ''))
+        elif 'slug' in attrs and not provided_slug:
+            attrs['slug'] = self._generate_unique_slug(attrs.get('name') or self.instance.name)
+
+        return attrs
+
+    def validate_name(self, value):
+        queryset = Category.objects.filter(name__iexact=value)
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError('A category with this name already exists.')
+        return value
 
     def get_subcategories(self, obj):
         if obj.parent is None:
@@ -24,10 +60,81 @@ class CategorySerializer(serializers.ModelSerializer):
         return []
 
 
+class ProductSubcategorySerializer(serializers.ModelSerializer):
+    category_name = serializers.ReadOnlyField(source='category.name')
+
+    class Meta:
+        model = ProductSubcategory
+        fields = ('id', 'name', 'slug', 'category', 'category_name', 'description', 'is_active', 'created_at')
+        extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
+
+    def validate_name(self, value):
+        category_id = self.initial_data.get('category')
+        qs = ProductSubcategory.objects.filter(category_id=category_id, name__iexact=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('A subcategory with this name already exists in the selected category.')
+        return value
+
+
+class ProductCategorySerializer(serializers.ModelSerializer):
+    subcategories = ProductSubcategorySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProductCategory
+        fields = ('id', 'name', 'slug', 'description', 'icon', 'is_active', 'created_at', 'subcategories')
+        extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
+
+    def validate_name(self, value):
+        qs = ProductCategory.objects.filter(name__iexact=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('A category with this name already exists.')
+        return value
+
+
+class HealthConcernSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HealthConcern
+        fields = ('id', 'name', 'slug', 'description', 'icon', 'is_active', 'created_at')
+        extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
+
+    def validate_name(self, value):
+        qs = HealthConcern.objects.filter(name__iexact=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('A health concern with this name already exists.')
+        return value
+
+
+class StockMovementSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StockMovement
+        fields = (
+            'id', 'movement_type', 'quantity_change', 'quantity_before', 'quantity_after',
+            'reason', 'reference', 'created_at', 'updated_at', 'created_by', 'created_by_name',
+        )
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name() or obj.created_by.email
+        return 'system'
+
+
 class BrandSerializer(serializers.ModelSerializer):
+    health_concern_ids = serializers.PrimaryKeyRelatedField(
+        queryset=HealthConcern.objects.all(), source='health_concerns', many=True, write_only=True, required=False
+    )
+    health_concerns = HealthConcernSerializer(many=True, read_only=True)
+
     class Meta:
         model = Brand
-        fields = ('id', 'name', 'slug', 'logo', 'description', 'is_active')
+        fields = ('id', 'name', 'slug', 'logo', 'description', 'is_active', 'health_concerns', 'health_concern_ids')
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -84,7 +191,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = (
-            'id', 'sku', 'slug', 'name', 'brand_name', 'brand_slug',
+            'id', 'sku', 'slug', 'name', 'strength', 'brand_name', 'brand_slug',
             'category_name', 'category_slug', 'price', 'original_price',
             'image', 'badge', 'stock_source', 'stock_quantity',
             'short_description', 'average_rating', 'review_count',
@@ -119,6 +226,14 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
     )
+    subcategory_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProductSubcategory.objects.all(), source='subcategory', write_only=True, required=False, allow_null=True
+    )
+    subcategory_name = serializers.ReadOnlyField(source='subcategory.name')
+    health_concern_ids = serializers.PrimaryKeyRelatedField(
+        queryset=HealthConcern.objects.all(), source='health_concerns', many=True, write_only=True, required=False
+    )
+    health_concerns = HealthConcernSerializer(many=True, read_only=True)
     gallery = ProductImageSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     average_rating = serializers.ReadOnlyField()
@@ -133,7 +248,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = (
-            'id', 'sku', 'slug', 'name', 'brand', 'brand_id', 'category', 'category_id',
+            'id', 'sku', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
+            'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
             'price', 'original_price', 'image', 'gallery', 'variants', 'badge', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
             'short_description', 'description', 'features', 'directions', 'warnings',

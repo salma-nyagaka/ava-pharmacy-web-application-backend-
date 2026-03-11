@@ -213,6 +213,49 @@ def send_pharmacist_activation_email(*, user, raw_token, request=None, invited_b
     )
 
 
+def send_customer_welcome_email(*, user):
+    """Send a welcome email to a newly registered customer."""
+    frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
+    context = {
+        'first_name': user.first_name or 'there',
+        'login_url': getattr(settings, 'FRONTEND_LOGIN_URL', f'{frontend_base}/login'),
+        'shop_url': getattr(settings, 'FRONTEND_SHOP_URL', f'{frontend_base}/products'),
+        'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
+    }
+    text_body = render_to_string('accounts/emails/customer_welcome.txt', context)
+    html_body = render_to_string('accounts/emails/customer_welcome.html', context)
+    send_mail(
+        subject='Welcome to AVA Pharmacy',
+        message=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        html_message=html_body,
+        fail_silently=True,
+    )
+
+
+def send_password_reset_email(*, user, reset_url):
+    """Send a password reset email with themed HTML and text fallback."""
+    expires_hours = getattr(settings, 'PASSWORD_RESET_TTL_HOURS', 24)
+    context = {
+        'first_name': user.first_name or 'there',
+        'reset_url': reset_url,
+        'expires_hours': expires_hours,
+        'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
+    }
+    text_body = render_to_string('accounts/emails/password_reset.txt', context)
+    html_body = render_to_string('accounts/emails/password_reset.html', context)
+    send_mail(
+        subject='AVA Pharmacy - Password Reset',
+        message=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        html_message=html_body,
+        fail_silently=True,
+    )
+  
+
+
 def build_frontend_set_password_url(raw_token):
     """Optional frontend route helper if SPA uses token-based set-password screen."""
     frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')

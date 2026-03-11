@@ -6,7 +6,9 @@ ProductVariant, ProductReview, Wishlist, Banner, Promotion, and CMSBlock.
 """
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -23,10 +25,19 @@ class Category(models.Model):
     icon = models.CharField(max_length=50, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_categories')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_categories')
 
     class Meta:
         verbose_name_plural = 'categories'
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                Lower('name'),
+                name='unique_category_name_ci',
+            ),
+        ]
 
     def __str__(self):
         return self.name
@@ -35,6 +46,98 @@ class Category(models.Model):
         """Auto-generate slug from name if not already set."""
         if not self.slug:
             self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+
+class ProductCategory(models.Model):
+    """Top-level product category managed from the admin panel."""
+
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_product_categories')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_product_categories')
+
+    class Meta:
+        verbose_name_plural = 'product categories'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+
+class ProductSubcategory(models.Model):
+    """A subcategory that belongs to a ProductCategory."""
+
+    category = models.ForeignKey(
+        ProductCategory, on_delete=models.CASCADE, related_name='subcategories'
+    )
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_product_subcategories')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_product_subcategories')
+
+    class Meta:
+        verbose_name_plural = 'product subcategories'
+        ordering = ['category__name', 'name']
+        unique_together = [('category', 'name')]
+
+    def __str__(self):
+        return f'{self.category.name} / {self.name}'
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(f'{self.category.name}-{self.name}')
+            slug = base
+            counter = 2
+            while ProductSubcategory.objects.exclude(pk=self.pk).filter(slug=slug).exists():
+                slug = f'{base}-{counter}'
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+
+class HealthConcern(models.Model):
+    """A health concern or condition that products/brands address."""
+
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_health_concerns')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_health_concerns')
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name) or 'concern'
+            slug = base
+            counter = 2
+            while HealthConcern.objects.exclude(pk=self.pk).filter(slug=slug).exists():
+                slug = f'{base}-{counter}'
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
 
 
@@ -47,6 +150,10 @@ class Brand(models.Model):
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_brands')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_brands')
+    health_concerns = models.ManyToManyField(HealthConcern, blank=True, related_name='brands')
 
     class Meta:
         ordering = ['name']
@@ -81,10 +188,15 @@ class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True)
     slug = models.SlugField(unique=True, max_length=200)
     name = models.CharField(max_length=200)
+    strength = models.CharField(max_length=50, blank=True, help_text="e.g. 500mg, 10mg/5ml, 2%")
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products'
     )
+    subcategory = models.ForeignKey(
+        'ProductSubcategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='products'
+    )
+    health_concerns = models.ManyToManyField(HealthConcern, blank=True, related_name='products')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/', blank=True)
@@ -104,6 +216,8 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_products')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_products')
 
     class Meta:
         ordering = ['-created_at']
@@ -121,7 +235,7 @@ class Product(models.Model):
         """Auto-generate slug and sync stock_source with stock_quantity."""
         if not self.slug:
             self.slug = slugify(self.name)
-        if self.has_variants:
+        if self.pk and self.has_variants:
             super().save(*args, **kwargs)
             return
         if self.stock_quantity == 0 and not self.allow_backorder:
@@ -473,3 +587,49 @@ class CMSBlock(models.Model):
 
     def __str__(self):
         return f"{self.placement} - {self.key}"
+
+
+class StockMovement(models.Model):
+    """Audit trail for every stock level change on a product."""
+
+    TYPE_SALE = 'sale'
+    TYPE_ADJUSTMENT = 'adjustment'
+    TYPE_RETURN = 'return'
+    TYPE_RESERVE = 'reserve'
+    TYPE_RELEASE = 'release'
+    TYPE_INITIAL = 'initial'
+    TYPE_CHOICES = [
+        (TYPE_SALE, 'Sale'),
+        (TYPE_ADJUSTMENT, 'Adjustment'),
+        (TYPE_RETURN, 'Return'),
+        (TYPE_RESERVE, 'Reserve'),
+        (TYPE_RELEASE, 'Release'),
+        (TYPE_INITIAL, 'Initial'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
+    movement_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    quantity_change = models.IntegerField()
+    quantity_before = models.PositiveIntegerField()
+    quantity_after = models.PositiveIntegerField()
+    reason = models.CharField(max_length=255, blank=True)
+    reference = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='created_stock_movements'
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='updated_stock_movements'
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['product', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.movement_type} {self.quantity_change:+d} for {self.product.name}"

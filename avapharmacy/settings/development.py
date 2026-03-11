@@ -62,6 +62,11 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False,
         },
+        'django.server': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
         'django.db.backends': {
             'handlers': ['console'],
             'level': 'DEBUG' if SHOW_SQL_DEBUG else 'WARNING',

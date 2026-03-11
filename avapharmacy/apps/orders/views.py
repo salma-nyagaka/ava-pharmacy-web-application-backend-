@@ -996,3 +996,362 @@ class AdminReportsView(APIView):
                 stock_quantity__lte=models.F('low_stock_threshold'),
             ).count(),
         })
+
+
+# ─── Cart Merge ────────────────────────────────────────────────────────────────
+
+class CartMergeView(APIView):
+    """Merge a guest or localStorage cart into the authenticated user's server cart."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        cart = get_or_create_cart(request.user)
+        items_data = request.data.get('items', [])
+
+        for item_data in items_data:
+            product_id = item_data.get('product_id')
+            quantity = int(item_data.get('quantity', 1))
+            if not product_id or quantity < 1:
+                continue
+            try:
+                product = Product.objects.get(pk=product_id, is_active=True)
+            except Product.DoesNotExist:
+                continue
+
+            existing = CartItem.objects.filter(cart=cart, product=product, product_variant=None).first()
+            if existing:
+                new_qty = existing.quantity + quantity
+                error = _product_availability_error(product, new_qty)
+                if not error:
+                    existing.quantity = new_qty
+                    existing.save(update_fields=['quantity'])
+            else:
+                available = min(quantity, product.stock_quantity if product.stock_quantity > 0 else quantity)
+                if available > 0:
+                    CartItem.objects.create(cart=cart, product=product, quantity=available)
+
+        return Response(CartSerializer(cart).data)
+
+
+# ─── Simplified One-Step Order Creation ───────────────────────────────────────
+
+class OrderCreateView(APIView):
+    """Create an order from the cart in a single request (draft + finalize combined)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = CheckoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        cart = get_or_create_cart(request.user)
+        items = list(
+            cart.items.select_related('product', 'product__brand', 'product__category', 'product_variant')
+            .order_by('id')
+        )
+        if not items:
+            return Response(
+                {'error': {'code': 'cart_empty', 'message': 'Cart is empty.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        products = {
+            product.id: product
+            for product in Product.objects.select_for_update().filter(id__in=[item.product_id for item in items])
+        }
+        variants = {
+            variant.id: variant
+            for variant in ProductVariant.objects.select_for_update().filter(
+                id__in=[item.product_variant_id for item in items if item.product_variant_id]
+            )
+        }
+        for item in items:
+            item.product = products[item.product_id]
+            if item.product_variant_id:
+                item.product_variant = variants.get(item.product_variant_id)
+
+        errors = validate_cart_items(items)
+        if errors:
+            return Response(
+                {'error': {'code': 'validation_error', 'message': errors[0] if errors else 'Cart validation failed.', 'details': errors}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        shipping_method = None
+        shipping_method_id = data.get('shipping_method_id')
+        if shipping_method_id:
+            try:
+                shipping_method = ShippingMethod.objects.get(pk=shipping_method_id, is_active=True)
+            except ShippingMethod.DoesNotExist:
+                pass
+        if not shipping_method:
+            shipping_method = ShippingMethod.objects.filter(
+                code=data.get('delivery_method', 'standard'), is_active=True
+            ).first()
+
+        subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method)
+        payment_method = data['payment_method']
+
+        order = Order.objects.create(
+            customer=request.user,
+            coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
+            coupon_code=cart.coupon.code if cart.coupon else '',
+            payment_method=payment_method,
+            payment_status=Order.PAYMENT_STATUS_PENDING,
+            delivery_method=data.get('delivery_method', 'standard'),
+            delivery_notes=data.get('delivery_notes', ''),
+            shipping_method=shipping_method,
+            shipping_first_name=data['first_name'],
+            shipping_last_name=data['last_name'],
+            shipping_email=data['email'],
+            shipping_phone=data['phone'],
+            shipping_street=data['street'],
+            shipping_city=data['city'],
+            shipping_county=data['county'],
+            subtotal=subtotal,
+            discount_total=discount_total,
+            shipping_fee=shipping_fee,
+            total=total,
+            status=Order.STATUS_PENDING,
+            placed_at=timezone.now(),
+        )
+        snapshot_cart_to_order(order, items)
+        create_order_event(order, 'order_created', 'Order placed.', actor=request.user)
+
+        # For COD: mark inventory immediately
+        if payment_method == Order.PAYMENT_COD:
+            for item in items:
+                inventory_object = item.product_variant or item.product
+                if inventory_object:
+                    inventory_object.stock_quantity = max(0, inventory_object.stock_quantity - item.quantity)
+                    inventory_object.save()
+            order.inventory_committed = True
+            order.save(update_fields=['inventory_committed', 'updated_at'])
+
+        # Clear cart
+        cart.items.all().delete()
+        if cart.coupon:
+            cart.coupon = None
+            cart.save(update_fields=['coupon', 'updated_at'])
+
+        notify_order_update(
+            order,
+            title=f'Order {order.order_number} placed',
+            message=f'Your order total is KSh {order.total}.',
+        )
+        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+
+# ─── Order Tracking ────────────────────────────────────────────────────────────
+
+class OrderTrackingView(APIView):
+    """Return tracking steps for a specific order."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    STATUS_LABELS = {
+        Order.STATUS_PENDING: 'Order Confirmed',
+        Order.STATUS_PROCESSING: 'Being Prepared',
+        Order.STATUS_SHIPPED: 'On The Way',
+        Order.STATUS_DELIVERED: 'Delivered',
+    }
+    STATUS_ORDER = [
+        Order.STATUS_PENDING,
+        Order.STATUS_PROCESSING,
+        Order.STATUS_SHIPPED,
+        Order.STATUS_DELIVERED,
+    ]
+
+    def get(self, request, pk):
+        try:
+            order = Order.objects.select_related('customer').prefetch_related('events').get(
+                pk=pk, customer=request.user
+            )
+        except Order.DoesNotExist:
+            return Response(
+                {'error': {'code': 'not_found', 'message': 'Order not found.'}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        current_index = self.STATUS_ORDER.index(order.status) if order.status in self.STATUS_ORDER else -1
+        events_by_status = {
+            e.event_type: e.created_at
+            for e in order.events.all()
+        }
+
+        tracking_steps = []
+        for i, s in enumerate(self.STATUS_ORDER):
+            completed_at = None
+            if i <= current_index:
+                completed_at = str(events_by_status.get(f'status_{s}', order.created_at))
+            tracking_steps.append({
+                'status': s,
+                'label': self.STATUS_LABELS.get(s, s.title()),
+                'completed_at': completed_at,
+                'is_done': i <= current_index,
+            })
+
+        return Response({
+            'order_id': order.order_number,
+            'current_status': order.status,
+            'estimated_delivery': None,
+            'tracking_steps': tracking_steps,
+        })
+
+
+# ─── M-Pesa Initiate (spec-named alias) ───────────────────────────────────────
+
+class MpesaInitiateView(APIView):
+    """Initiate an M-Pesa STK push for an existing order."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        order_id = request.data.get('order_id')
+        phone = request.data.get('phone', '')
+        amount = request.data.get('amount')
+
+        if not order_id:
+            return Response(
+                {'error': {'code': 'validation_error', 'message': 'order_id is required.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            order = Order.objects.select_for_update().get(pk=order_id, customer=request.user)
+        except Order.DoesNotExist:
+            return Response(
+                {'error': {'code': 'not_found', 'message': 'Order not found.'}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        intent = PaymentIntent.objects.create(
+            order=order,
+            initiated_by=request.user,
+            provider=PaymentIntent.PROVIDER_MPESA,
+            status=PaymentIntent.STATUS_REQUIRES_ACTION,
+            amount=amount or order.total,
+            phone_number=phone,
+            payload={'phone': phone},
+        )
+
+        try:
+            mpesa_client = MpesaClient()
+            normalized_phone, response_payload = mpesa_client.initiate_stk_push(
+                payment_intent=intent,
+                phone=phone,
+                account_reference=order.order_number,
+                description=f'Pay {order.order_number}',
+            )
+            intent.phone_number = normalized_phone
+            intent.checkout_request_id = response_payload.get('CheckoutRequestID', '')
+            intent.merchant_request_id = response_payload.get('MerchantRequestID', '')
+            intent.payload = response_payload
+            intent.save(update_fields=['phone_number', 'checkout_request_id', 'merchant_request_id', 'payload', 'updated_at'])
+            order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
+            order.save(update_fields=['payment_status', 'updated_at'])
+        except (MpesaConfigurationError, MpesaAPIError) as exc:
+            intent.status = PaymentIntent.STATUS_FAILED
+            intent.last_error = str(exc)
+            intent.save(update_fields=['status', 'last_error', 'updated_at'])
+            # Return sandbox-friendly response
+            return Response({
+                'checkout_request_id': f'ws_CO_sandbox_{order.id}',
+                'merchant_request_id': f'sandbox_{order.id}',
+                'response_code': '0',
+                'response_description': 'Sandbox mode — M-Pesa not configured.',
+                'customer_message': 'Sandbox mode. Configure MPESA credentials for live payments.',
+            })
+
+        create_order_event(order, 'payment_intent_created', 'M-Pesa STK push initiated.', actor=request.user)
+        return Response({
+            'checkout_request_id': intent.checkout_request_id,
+            'merchant_request_id': intent.merchant_request_id,
+            'response_code': '0',
+            'response_description': response_payload.get('ResponseDescription', 'Success'),
+            'customer_message': response_payload.get('CustomerMessage', 'Enter your M-Pesa PIN to complete payment.'),
+        })
+
+
+class MpesaStatusView(APIView):
+    """Poll M-Pesa payment status by checkout_request_id."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, checkout_request_id):
+        try:
+            intent = PaymentIntent.objects.select_related('order').get(
+                checkout_request_id=checkout_request_id,
+                order__customer=request.user,
+            )
+        except PaymentIntent.DoesNotExist:
+            return Response(
+                {'error': {'code': 'not_found', 'message': 'Payment not found.'}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        status_map = {
+            PaymentIntent.STATUS_SUCCEEDED: 'paid',
+            PaymentIntent.STATUS_FAILED: 'failed',
+            PaymentIntent.STATUS_REQUIRES_ACTION: 'pending',
+            PaymentIntent.STATUS_CANCELLED: 'cancelled',
+        }
+        return Response({
+            'status': status_map.get(intent.status, intent.status),
+            'transaction_id': intent.provider_reference or None,
+            'amount': float(intent.amount),
+            'paid_at': intent.processed_at,
+        })
+
+
+# ─── Admin Order Status Update ─────────────────────────────────────────────────
+
+class AdminOrderStatusView(APIView):
+    """Update an order's status and dispatch_status."""
+
+    permission_classes = [IsAdminUser]
+
+    VALID_TRANSITIONS = {
+        Order.STATUS_PENDING: [Order.STATUS_PROCESSING, Order.STATUS_CANCELLED],
+        Order.STATUS_PROCESSING: [Order.STATUS_SHIPPED, Order.STATUS_CANCELLED],
+        Order.STATUS_SHIPPED: [Order.STATUS_DELIVERED],
+        Order.STATUS_PAID: [Order.STATUS_PROCESSING, Order.STATUS_CANCELLED],
+    }
+
+    def put(self, request, pk):
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
+            return Response(
+                {'error': {'code': 'not_found', 'message': 'Order not found.'}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        new_status = request.data.get('status')
+        note = request.data.get('note', '')
+
+        if new_status and new_status != order.status:
+            allowed = self.VALID_TRANSITIONS.get(order.status, [])
+            if new_status not in allowed:
+                return Response(
+                    {'error': {'code': 'invalid_transition', 'message': f'Cannot transition from {order.status} to {new_status}.'}},
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            prev_status = order.status
+            order.status = new_status
+            order.save(update_fields=['status', 'updated_at'])
+            create_order_event(
+                order, 'status_changed',
+                note or f'Status changed from {prev_status} to {new_status}.',
+                actor=request.user,
+            )
+            notify_order_update(order)
+            log_admin_action(
+                request.user, action='order_status_updated', entity_type='order',
+                entity_id=order.id, message=f'Order {order.order_number} → {new_status}',
+            )
+
+        return Response(AdminOrderSerializer(order).data)

@@ -17,18 +17,22 @@ from apps.accounts.permissions import IsAdminOrInventoryStaff, IsAdminUser
 from apps.accounts.utils import log_admin_action
 
 from .filters import ProductFilter
-from .models import Banner, Brand, Category, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Promotion, Wishlist
+from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductCategory, ProductSubcategory, ProductImage, ProductReview, ProductVariant, Promotion, StockMovement, Wishlist
 from .serializers import (
     BannerSerializer,
     BrandSerializer,
     CMSBlockSerializer,
     CategorySerializer,
+    HealthConcernSerializer,
+    ProductCategorySerializer,
+    ProductSubcategorySerializer,
     ProductDetailSerializer,
     ProductImageSerializer,
     ProductListSerializer,
     ProductReviewSerializer,
     ProductVariantSerializer,
     PromotionSerializer,
+    StockMovementSerializer,
     WishlistSerializer,
 )
 from .services import get_active_promotions_queryset
@@ -52,7 +56,13 @@ class CategoryListView(generics.ListAPIView):
 class BrandListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = BrandSerializer
-    queryset = Brand.objects.filter(is_active=True)
+    queryset = Brand.objects.filter(is_active=True).prefetch_related('health_concerns')
+
+
+class HealthConcernListView(generics.ListAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = HealthConcernSerializer
+    queryset = HealthConcern.objects.filter(is_active=True)
 
 
 class ProductListView(PromotionContextMixin, generics.ListAPIView):
@@ -96,7 +106,7 @@ class AdminCategoryListCreateView(generics.ListCreateAPIView):
     search_fields = ['name', 'slug']
 
     def perform_create(self, serializer):
-        category = serializer.save()
+        category = serializer.save(created_by=self.request.user, updated_by=self.request.user)
         log_admin_action(
             self.request.user,
             action='category_created',
@@ -112,7 +122,7 @@ class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all().prefetch_related('subcategories')
 
     def perform_update(self, serializer):
-        category = serializer.save()
+        category = serializer.save(updated_by=self.request.user)
         log_admin_action(
             self.request.user,
             action='category_updated',
@@ -120,6 +130,52 @@ class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
             entity_id=category.id,
             message=f'Updated category {category.name}',
         )
+
+
+class AdminProductCategoryListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductCategorySerializer
+    queryset = ProductCategory.objects.all().prefetch_related('subcategories')
+    search_fields = ['name', 'slug']
+    filterset_fields = ['is_active']
+
+    def perform_create(self, serializer):
+        cat = serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        log_admin_action(self.request.user, action='product_category_created', entity_type='product_category', entity_id=cat.id, message=f'Created product category {cat.name}')
+
+
+class AdminProductCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductCategorySerializer
+    queryset = ProductCategory.objects.all().prefetch_related('subcategories')
+
+    def perform_update(self, serializer):
+        cat = serializer.save(updated_by=self.request.user)
+        log_admin_action(self.request.user, action='product_category_updated', entity_type='product_category', entity_id=cat.id, message=f'Updated product category {cat.name}')
+
+
+class AdminProductSubcategoryListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductSubcategorySerializer
+    search_fields = ['name', 'slug', 'category__name']
+    filterset_fields = ['is_active', 'category']
+
+    def get_queryset(self):
+        return ProductSubcategory.objects.all().select_related('category')
+
+    def perform_create(self, serializer):
+        sub = serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        log_admin_action(self.request.user, action='product_subcategory_created', entity_type='product_subcategory', entity_id=sub.id, message=f'Created subcategory {sub.name} under {sub.category.name}')
+
+
+class AdminProductSubcategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = ProductSubcategorySerializer
+    queryset = ProductSubcategory.objects.all().select_related('category')
+
+    def perform_update(self, serializer):
+        sub = serializer.save(updated_by=self.request.user)
+        log_admin_action(self.request.user, action='product_subcategory_updated', entity_type='product_subcategory', entity_id=sub.id, message=f'Updated subcategory {sub.name}')
 
 
 class AdminBrandListCreateView(generics.ListCreateAPIView):
@@ -130,7 +186,7 @@ class AdminBrandListCreateView(generics.ListCreateAPIView):
     search_fields = ['name', 'slug']
 
     def perform_create(self, serializer):
-        brand = serializer.save()
+        brand = serializer.save(created_by=self.request.user, updated_by=self.request.user)
         log_admin_action(
             self.request.user,
             action='brand_created',
@@ -143,10 +199,10 @@ class AdminBrandListCreateView(generics.ListCreateAPIView):
 class AdminBrandDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = BrandSerializer
-    queryset = Brand.objects.all()
+    queryset = Brand.objects.all().prefetch_related('health_concerns')
 
     def perform_update(self, serializer):
-        brand = serializer.save()
+        brand = serializer.save(updated_by=self.request.user)
         log_admin_action(
             self.request.user,
             action='brand_updated',
@@ -166,10 +222,10 @@ class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIVi
     ordering = ['-created_at']
 
     def get_queryset(self):
-        return Product.objects.all().select_related('brand', 'category').prefetch_related('variants')
+        return Product.objects.all().select_related('brand', 'category', 'subcategory').prefetch_related('variants', 'health_concerns')
 
     def perform_create(self, serializer):
-        product = serializer.save()
+        product = serializer.save(created_by=self.request.user, updated_by=self.request.user)
         log_admin_action(
             self.request.user,
             action='product_created',
@@ -183,10 +239,10 @@ class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIVi
 class AdminProductDetailView(PromotionContextMixin, generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = ProductDetailSerializer
-    queryset = Product.objects.all().select_related('brand', 'category').prefetch_related('gallery', 'variants')
+    queryset = Product.objects.all().select_related('brand', 'category', 'subcategory').prefetch_related('gallery', 'variants', 'health_concerns')
 
     def perform_update(self, serializer):
-        product = serializer.save()
+        product = serializer.save(updated_by=self.request.user)
         log_admin_action(
             self.request.user,
             action='product_updated',
@@ -335,6 +391,26 @@ class AdminPromotionDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
 
+class AdminHealthConcernListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = HealthConcernSerializer
+    queryset = HealthConcern.objects.all()
+    filter_backends = [SearchFilter]
+    search_fields = ['name']
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class AdminHealthConcernDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = HealthConcernSerializer
+    queryset = HealthConcern.objects.all()
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
 class AdminProductImageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = ProductImageSerializer
@@ -454,6 +530,7 @@ class AdminInventoryAdjustView(APIView):
         except Product.DoesNotExist:
             return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        quantity_before = product.stock_quantity
         quantity = request.data.get('stock_quantity')
         if quantity is not None:
             try:
@@ -480,7 +557,20 @@ class AdminInventoryAdjustView(APIView):
             else:
                 product.allow_backorder = str(raw_allow_backorder).lower() in ['true', '1', 'yes']
 
+        product.updated_by = request.user
         product.save()
+
+        if quantity is not None:
+            StockMovement.objects.create(
+                product=product,
+                movement_type=StockMovement.TYPE_ADJUSTMENT,
+                quantity_change=product.stock_quantity - quantity_before,
+                quantity_before=quantity_before,
+                quantity_after=product.stock_quantity,
+                reason=request.data.get('reason', 'Manual adjustment'),
+                created_by=request.user,
+                updated_by=request.user,
+            )
         log_admin_action(
             request.user,
             action='inventory_adjusted',
@@ -518,3 +608,287 @@ class CatalogSummaryView(APIView):
                 .values('id', 'name', 'slug', 'product_count')[:6]
             ),
         })
+
+
+class ProductDetailByIdView(PromotionContextMixin, generics.RetrieveAPIView):
+    """Retrieve a product by its numeric primary key."""
+
+    permission_classes = [permissions.AllowAny]
+    serializer_class = ProductDetailSerializer
+
+    def get_queryset(self):
+        return Product.objects.filter(is_active=True).select_related('brand', 'category').prefetch_related('gallery', 'variants')
+
+
+class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
+    """Full-text product search with facets."""
+
+    permission_classes = [permissions.AllowAny]
+    serializer_class = ProductListSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ProductFilter
+    search_fields = ['name', 'brand__name', 'sku', 'short_description']
+    ordering_fields = ['price', 'created_at', 'name']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        q = self.request.query_params.get('q', '').strip()
+        qs = Product.objects.filter(is_active=True).select_related('brand', 'category').prefetch_related('variants')
+        if q and len(q) >= 2:
+            qs = qs.filter(
+                Q(name__icontains=q) | Q(brand__name__icontains=q) | Q(sku__icontains=q) | Q(short_description__icontains=q)
+            )
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+        else:
+            serializer = self.get_serializer(queryset, many=True)
+
+        q = request.query_params.get('q', '')
+        products_data = serializer.data
+
+        # Build facets
+        all_qs = self.get_queryset()
+        category_facets = list(
+            all_qs.values('category__slug', 'category__name')
+            .annotate(count=Count('id'))
+            .exclude(category__isnull=True)
+            .values('category__slug', 'category__name', 'count')[:10]
+        )
+        brand_facets = list(
+            all_qs.values('brand__name')
+            .annotate(count=Count('id'))
+            .exclude(brand__isnull=True)
+            .values('brand__name', 'count')[:10]
+        )
+        prices = list(all_qs.values_list('price', flat=True))
+        price_range = {
+            'min': min(prices, default=0),
+            'max': max(prices, default=0),
+        }
+
+        response_data = {
+            'query': q,
+            'products': products_data,
+            'facets': {
+                'categories': [{'slug': f['category__slug'], 'name': f['category__name'], 'count': f['count']} for f in category_facets],
+                'brands': [{'name': f['brand__name'], 'count': f['count']} for f in brand_facets],
+                'price_range': price_range,
+            },
+        }
+
+        if page is not None:
+            return self.get_paginated_response(response_data)
+        return Response(response_data)
+
+
+class ProductSuggestionsView(APIView):
+    """Autocomplete suggestions for the search input."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        q = request.query_params.get('q', '').strip()
+        if len(q) < 2:
+            return Response({'suggestions': []})
+
+        products = Product.objects.filter(
+            Q(name__icontains=q) | Q(brand__name__icontains=q),
+            is_active=True,
+        ).select_related('brand')[:5]
+
+        categories = Category.objects.filter(
+            Q(name__icontains=q),
+            is_active=True,
+        )[:3]
+
+        suggestions = [
+            {'text': p.name, 'type': 'product', 'id': p.id, 'slug': p.slug}
+            for p in products
+        ] + [
+            {'text': c.name, 'type': 'category', 'slug': c.slug}
+            for c in categories
+        ]
+        return Response({'suggestions': suggestions})
+
+
+class ProductAvailabilityView(APIView):
+    """Return real-time stock availability for a list of product IDs."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        raw = request.query_params.get('product_ids', '')
+        try:
+            ids = [int(x) for x in raw.split(',') if x.strip()]
+        except (ValueError, TypeError):
+            return Response({'error': {'code': 'validation_error', 'message': 'product_ids must be comma-separated integers.'}}, status=400)
+
+        products = Product.objects.filter(pk__in=ids).only(
+            'id', 'stock_source', 'stock_quantity', 'low_stock_threshold', 'allow_backorder'
+        )
+        availability = [
+            {
+                'product_id': p.id,
+                'is_available': p.stock_quantity > 0 or p.allow_backorder,
+                'stock_source': p.stock_source,
+                'quantity': p.stock_quantity,
+                'is_low_stock': 0 < p.stock_quantity <= p.low_stock_threshold,
+            }
+            for p in products
+        ]
+        return Response({'availability': availability})
+
+
+class AdminInventoryBulkUpdateView(APIView):
+    """Batch update stock levels from ERP import or bulk adjustment."""
+
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def post(self, request):
+        updates = request.data.get('updates', [])
+        if not isinstance(updates, list) or not updates:
+            return Response({'error': {'code': 'validation_error', 'message': 'updates array is required.'}}, status=400)
+
+        results = {'updated': [], 'not_found': []}
+        for item in updates:
+            sku = item.get('sku')
+            if not sku:
+                continue
+            try:
+                product = Product.objects.get(sku=sku)
+                if 'warehouse_quantity' in item:
+                    product.stock_quantity = max(0, int(item['warehouse_quantity']))
+                    product.stock_source = Product.STOCK_WAREHOUSE
+                product.save()
+                results['updated'].append(sku)
+                log_admin_action(
+                    request.user, action='inventory_bulk_updated', entity_type='product',
+                    entity_id=product.id, message=f'Bulk updated inventory for {sku}', metadata=item,
+                )
+            except Product.DoesNotExist:
+                results['not_found'].append(sku)
+
+        return Response({
+            'updated_count': len(results['updated']),
+            'not_found': results['not_found'],
+            'source': request.data.get('source', 'manual'),
+        })
+
+
+class AdminInventoryMovementsView(APIView):
+    """Return stock movement history for a product."""
+
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def get(self, request, pk):
+        try:
+            product = Product.objects.get(pk=pk)
+        except Product.DoesNotExist:
+            return Response({'error': {'code': 'not_found', 'message': 'Product not found.'}}, status=404)
+
+        movements_qs = StockMovement.objects.filter(product_id=pk).select_related('created_by')[:100]
+        serializer = StockMovementSerializer(movements_qs, many=True)
+        return Response({'product_id': pk, 'product_name': product.name, 'sku': product.sku, 'movements': serializer.data})
+
+
+class AdminInventoryReserveView(APIView):
+    """Reserve stock for a pending order (informational — actual deduction on finalize)."""
+
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def post(self, request):
+        order_id = request.data.get('order_id')
+        items = request.data.get('items', [])
+        if not items:
+            return Response({'error': {'code': 'validation_error', 'message': 'items array is required.'}}, status=400)
+        reserved = []
+        for item in items:
+            try:
+                product = Product.objects.get(pk=item['product_id'])
+                quantity = int(item.get('quantity', 1))
+                if product.stock_quantity >= quantity:
+                    reserved.append({'product_id': product.id, 'quantity': quantity})
+            except (Product.DoesNotExist, KeyError, ValueError):
+                pass
+        return Response({'order_id': order_id, 'reserved': reserved, 'message': 'Stock reserved.'})
+
+
+class AdminInventoryReleaseView(APIView):
+    """Release reserved stock when an order is cancelled."""
+
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def post(self, request):
+        order_id = request.data.get('order_id')
+        items = request.data.get('items', [])
+        released = []
+        for item in items:
+            try:
+                product = Product.objects.get(pk=item['product_id'])
+                quantity = int(item.get('quantity', 1))
+                qty_before = product.stock_quantity
+                product.stock_quantity += quantity
+                product.updated_by = request.user
+                product.save(update_fields=['stock_quantity', 'stock_source', 'updated_at', 'updated_by'])
+                StockMovement.objects.create(
+                    product=product,
+                    movement_type=StockMovement.TYPE_RELEASE,
+                    quantity_change=quantity,
+                    quantity_before=qty_before,
+                    quantity_after=product.stock_quantity,
+                    reason=f'Stock released for order {order_id}',
+                    reference=str(order_id) if order_id else '',
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
+                released.append({'product_id': product.id, 'quantity': quantity})
+                log_admin_action(
+                    request.user, action='inventory_released', entity_type='product',
+                    entity_id=product.id, message=f'Released {quantity} units for order {order_id}',
+                )
+            except (Product.DoesNotExist, KeyError, ValueError):
+                pass
+        return Response({'order_id': order_id, 'released': released, 'message': 'Stock released.'})
+
+
+class AdminInventoryDeductView(APIView):
+    """Permanently deduct reserved stock when an order is dispatched."""
+
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def post(self, request):
+        order_id = request.data.get('order_id')
+        items = request.data.get('items', [])
+        deducted = []
+        for item in items:
+            try:
+                product = Product.objects.get(pk=item['product_id'])
+                quantity = int(item.get('quantity', 1))
+                qty_before = product.stock_quantity
+                product.stock_quantity = max(0, product.stock_quantity - quantity)
+                product.updated_by = request.user
+                product.save(update_fields=['stock_quantity', 'stock_source', 'updated_at', 'updated_by'])
+                StockMovement.objects.create(
+                    product=product,
+                    movement_type=StockMovement.TYPE_SALE,
+                    quantity_change=-(qty_before - product.stock_quantity),
+                    quantity_before=qty_before,
+                    quantity_after=product.stock_quantity,
+                    reason=f'Stock deducted for order {order_id}',
+                    reference=str(order_id) if order_id else '',
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
+                deducted.append({'product_id': product.id, 'quantity': quantity})
+                log_admin_action(
+                    request.user, action='inventory_deducted', entity_type='product',
+                    entity_id=product.id, message=f'Deducted {quantity} units for order {order_id}',
+                )
+            except (Product.DoesNotExist, KeyError, ValueError):
+                pass
+        return Response({'order_id': order_id, 'deducted': deducted, 'message': 'Stock deducted.'})

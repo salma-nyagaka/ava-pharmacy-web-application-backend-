@@ -3,7 +3,7 @@ Custom DRF exception handler for the AvaPharma project.
 
 Normalises all API error responses into a consistent JSON envelope::
 
-    {"detail": "<msg>", "data": null, "errors": {"code": "<code>", "details": ...}}
+    {"error": {"code": "<code>", "message": "<msg>", "details": ...}}
 
 Handles DRF exceptions, Django built-in exceptions (Http404, PermissionDenied,
 ValidationError, ObjectDoesNotExist), and falls back to HTTP 500 for any
@@ -30,14 +30,29 @@ def _build_error(code, message, details=None):
     Returns:
         dict: Error envelope payload.
     """
-    error_obj = {'code': code}
+    error_obj = {'code': code, 'message': message}
     if details not in (None, {}, []):
         error_obj['details'] = details
-    return {
-        'detail': message,
-        'data': None,
-        'errors': error_obj,
-    }
+    return {'error': error_obj}
+
+
+def _first_error_message(details, default_message):
+    """Return the first human-readable message from nested error details."""
+    if isinstance(details, dict):
+        for key, value in details.items():
+            if key in {'detail', 'message'} and value not in (None, '', [], {}):
+                return _first_error_message(value, default_message)
+            message = _first_error_message(value, None)
+            if message:
+                return message
+    elif isinstance(details, list):
+        for value in details:
+            message = _first_error_message(value, None)
+            if message:
+                return message
+    elif details not in (None, '', [], {}):
+        return str(details)
+    return default_message
 
 
 def custom_exception_handler(exc, context):
@@ -60,14 +75,29 @@ def custom_exception_handler(exc, context):
 
     if response is not None:
         if isinstance(response.data, list):
-            response.data = _build_error('validation_error', 'Request validation failed.', response.data)
+            response.data = _build_error(
+                'validation_error',
+                _first_error_message(response.data, 'Request validation failed.'),
+                response.data,
+            )
         elif isinstance(response.data, dict):
-            if {'detail', 'data', 'errors'}.issubset(response.data.keys()):
+            if 'error' in response.data and isinstance(response.data['error'], dict):
                 return response
-            if 'detail' in response.data and len(response.data) == 1:
+            if {'detail', 'data', 'errors'}.issubset(response.data.keys()):
+                details = response.data.get('errors', {}).get('details')
+                response.data = _build_error(
+                    response.data.get('errors', {}).get('code', 'request_error'),
+                    response.data.get('detail') or _first_error_message(details, 'Request failed.'),
+                    details,
+                )
+            elif 'detail' in response.data and len(response.data) == 1:
                 response.data = _build_error('request_error', str(response.data['detail']))
             else:
-                response.data = _build_error('validation_error', 'Request validation failed.', response.data)
+                response.data = _build_error(
+                    'validation_error',
+                    _first_error_message(response.data, 'Request validation failed.'),
+                    response.data,
+                )
         else:
             response.data = _build_error('request_error', 'Request failed.')
         return response
@@ -79,8 +109,13 @@ def custom_exception_handler(exc, context):
         return Response(_build_error('permission_denied', 'Permission denied.'), status=status.HTTP_403_FORBIDDEN)
 
     if isinstance(exc, ValidationError):
+        details = getattr(exc, 'message_dict', None) or exc.messages
         return Response(
-            _build_error('validation_error', 'Request validation failed.', exc.messages),
+            _build_error(
+                'validation_error',
+                _first_error_message(details, 'Request validation failed.'),
+                details,
+            ),
             status=status.HTTP_400_BAD_REQUEST,
         )
 
