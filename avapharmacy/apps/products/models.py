@@ -111,7 +111,7 @@ class ProductSubcategory(models.Model):
 
 
 class HealthConcern(models.Model):
-    """A health concern or condition that products/brands address."""
+    """A health concern or condition that products address."""
 
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True)
@@ -146,14 +146,13 @@ class Brand(models.Model):
 
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
-    logo = models.ImageField(upload_to='brands/', null=True, blank=True)
+    logo = models.ImageField(upload_to='brands/')
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_brands')
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_brands')
-    health_concerns = models.ManyToManyField(HealthConcern, blank=True, related_name='brands')
 
     class Meta:
         ordering = ['name']

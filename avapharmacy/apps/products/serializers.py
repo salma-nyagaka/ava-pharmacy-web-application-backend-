@@ -127,14 +127,48 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
 
 class BrandSerializer(serializers.ModelSerializer):
-    health_concern_ids = serializers.PrimaryKeyRelatedField(
-        queryset=HealthConcern.objects.all(), source='health_concerns', many=True, write_only=True, required=False
-    )
-    health_concerns = HealthConcernSerializer(many=True, read_only=True)
-
     class Meta:
         model = Brand
-        fields = ('id', 'name', 'slug', 'logo', 'description', 'is_active', 'health_concerns', 'health_concern_ids')
+        fields = ('id', 'name', 'slug', 'logo', 'description', 'is_active')
+        extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
+
+    def _generate_unique_slug(self, name):
+        base_slug = slugify(name) or 'brand'
+        slug = base_slug
+        queryset = Brand.objects.all()
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        counter = 2
+        while queryset.filter(slug=slug).exists():
+            slug = f'{base_slug}-{counter}'
+            counter += 1
+        return slug
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        provided_slug = attrs.get('slug')
+        has_logo_input = hasattr(self, 'initial_data') and 'logo' in self.initial_data
+
+        if self.instance is None and not attrs.get('logo'):
+            raise serializers.ValidationError({'logo': ['Brand logo is required.']})
+        if self.instance is not None and has_logo_input and not attrs.get('logo'):
+            raise serializers.ValidationError({'logo': ['Brand logo is required.']})
+
+        if self.instance is None and not provided_slug:
+            attrs['slug'] = self._generate_unique_slug(attrs.get('name', ''))
+        elif 'slug' in attrs and not provided_slug:
+            attrs['slug'] = self._generate_unique_slug(attrs.get('name') or self.instance.name)
+
+        return attrs
+
+    def validate_name(self, value):
+        queryset = Brand.objects.filter(name__iexact=value)
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError('A brand with this name already exists.')
+        return value
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -274,6 +308,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
     def get_active_promotions(self, obj):
         return self._pricing(obj)['promotions']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if self.instance is None and not attrs.get('image'):
+            raise serializers.ValidationError({'image': 'Product image is required.'})
+        return attrs
 
 
 class WishlistSerializer(serializers.ModelSerializer):

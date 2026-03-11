@@ -34,6 +34,11 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
+!media/
+media/*
+!media/brands/
+media/brands/*
+!media/brands/default-brand-logo.svg
 staticfiles/
 .env
 .env.local

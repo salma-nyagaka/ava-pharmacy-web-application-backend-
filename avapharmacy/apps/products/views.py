@@ -56,7 +56,7 @@ class CategoryListView(generics.ListAPIView):
 class BrandListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = BrandSerializer
-    queryset = Brand.objects.filter(is_active=True).prefetch_related('health_concerns')
+    queryset = Brand.objects.filter(is_active=True)
 
 
 class HealthConcernListView(generics.ListAPIView):
@@ -199,7 +199,7 @@ class AdminBrandListCreateView(generics.ListCreateAPIView):
 class AdminBrandDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = BrandSerializer
-    queryset = Brand.objects.all().prefetch_related('health_concerns')
+    queryset = Brand.objects.all()
 
     def perform_update(self, serializer):
         brand = serializer.save(updated_by=self.request.user)
