@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
-from django.db.models.functions import Lower
+from django.db.models.functions import Coalesce, Lower
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -54,6 +54,7 @@ class ProductCategory(models.Model):
 
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True)
+    image = models.ImageField(upload_to='categories/')
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, blank=True)
     is_active = models.BooleanField(default=True)
@@ -179,9 +180,13 @@ class Product(models.Model):
     STOCK_WAREHOUSE = 'warehouse'
     STOCK_OUT = 'out'
     STOCK_CHOICES = [
-        (STOCK_BRANCH, 'In Branch'),
-        (STOCK_WAREHOUSE, 'In Warehouse'),
+        (STOCK_BRANCH, 'Main Shop'),
+        (STOCK_WAREHOUSE, 'POS Store'),
         (STOCK_OUT, 'Out of Stock'),
+    ]
+    INVENTORY_LOCATION_CHOICES = [
+        (STOCK_BRANCH, 'Main Shop'),
+        (STOCK_WAREHOUSE, 'POS Store'),
     ]
 
     sku = models.CharField(max_length=50, unique=True)
@@ -197,7 +202,9 @@ class Product(models.Model):
     )
     health_concerns = models.ManyToManyField(HealthConcern, blank=True, related_name='products')
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/', blank=True)
     short_description = models.CharField(max_length=500, blank=True)
     description = models.TextField(blank=True)
@@ -205,11 +212,6 @@ class Product(models.Model):
     directions = models.TextField(blank=True)
     warnings = models.TextField(blank=True)
     badge = models.CharField(max_length=50, blank=True)
-    stock_source = models.CharField(max_length=20, choices=STOCK_CHOICES, default=STOCK_BRANCH)
-    stock_quantity = models.PositiveIntegerField(default=0)
-    low_stock_threshold = models.PositiveIntegerField(default=5)
-    allow_backorder = models.BooleanField(default=False)
-    max_backorder_quantity = models.PositiveIntegerField(default=0)
     requires_prescription = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -224,24 +226,240 @@ class Product(models.Model):
             models.Index(fields=['is_active', 'created_at']),
             models.Index(fields=['category', 'is_active']),
             models.Index(fields=['brand', 'is_active']),
-            models.Index(fields=['stock_source', 'is_active']),
         ]
+
+    INVENTORY_FIELD_NAMES = {
+        'stock_source',
+        'stock_quantity',
+        'low_stock_threshold',
+        'allow_backorder',
+        'max_backorder_quantity',
+    }
 
     def __str__(self):
         return self.name
 
+    def _inventory_defaults(self, location=None):
+        return {
+            'stock_quantity': 0,
+            'low_stock_threshold': 5 if location != self.STOCK_WAREHOUSE else 0,
+            'allow_backorder': False,
+            'max_backorder_quantity': 0,
+        }
+
+    def _get_inventory_rows(self):
+        if not self.pk:
+            return []
+        if hasattr(self, '_prefetched_objects_cache') and 'inventories' in self._prefetched_objects_cache:
+            return list(self._prefetched_objects_cache['inventories'])
+        return list(self.inventories.all())
+
+    def _get_inventory_map(self):
+        return {inventory.location: inventory for inventory in self._get_inventory_rows()}
+
+    def _clear_inventory_cache(self):
+        if hasattr(self, '_prefetched_objects_cache'):
+            self._prefetched_objects_cache.pop('inventories', None)
+
+    def _ensure_inventory_rows(self):
+        if not self.pk:
+            return {}
+
+        inventory_map = self._get_inventory_map()
+        missing_rows = [
+            ProductInventory(
+                product=self,
+                location=location,
+                **self._inventory_defaults(location),
+            )
+            for location in dict(self.INVENTORY_LOCATION_CHOICES)
+            if location not in inventory_map
+        ]
+        if missing_rows:
+            ProductInventory.objects.bulk_create(missing_rows)
+            self._clear_inventory_cache()
+            inventory_map = self._get_inventory_map()
+        return inventory_map
+
+    def _get_location_inventory_values(self):
+        values = {
+            location: self._inventory_defaults(location).copy()
+            for location in dict(self.INVENTORY_LOCATION_CHOICES)
+        }
+        for location, inventory in self._get_inventory_map().items():
+            values[location].update({
+                'stock_quantity': inventory.stock_quantity,
+                'low_stock_threshold': inventory.low_stock_threshold,
+                'allow_backorder': inventory.allow_backorder,
+                'max_backorder_quantity': inventory.max_backorder_quantity,
+            })
+        return values
+
+    def _get_inventory_values(self):
+        pending = getattr(self, '_pending_inventory_updates', {})
+        annotated_total = getattr(self, 'total_stock_quantity', None)
+        annotated_threshold = getattr(self, 'total_low_stock_threshold', None)
+        annotated_backorder = getattr(self, 'has_backorder_inventory', None)
+        annotated_max_backorder = getattr(self, 'total_max_backorder_quantity', None)
+
+        if not pending and annotated_total is not None:
+            stock_source = self.STOCK_OUT
+            branch_stock = getattr(self, 'branch_stock_quantity', 0) or 0
+            warehouse_stock = getattr(self, 'warehouse_stock_quantity', 0) or 0
+            if branch_stock > 0:
+                stock_source = self.STOCK_BRANCH
+            elif warehouse_stock > 0:
+                stock_source = self.STOCK_WAREHOUSE
+            return {
+                'stock_source': stock_source,
+                'stock_quantity': annotated_total or 0,
+                'low_stock_threshold': annotated_threshold or 0,
+                'allow_backorder': bool(annotated_backorder),
+                'max_backorder_quantity': annotated_max_backorder or 0,
+            }
+
+        location_values = self._get_location_inventory_values()
+        stock_source = self.STOCK_OUT
+        if location_values[self.STOCK_BRANCH]['stock_quantity'] > 0:
+            stock_source = self.STOCK_BRANCH
+        elif location_values[self.STOCK_WAREHOUSE]['stock_quantity'] > 0:
+            stock_source = self.STOCK_WAREHOUSE
+
+        values = {
+            'stock_source': stock_source,
+            'stock_quantity': sum(item['stock_quantity'] for item in location_values.values()),
+            'low_stock_threshold': sum(item['low_stock_threshold'] for item in location_values.values()),
+            'allow_backorder': any(item['allow_backorder'] for item in location_values.values()),
+            'max_backorder_quantity': sum(item['max_backorder_quantity'] for item in location_values.values()),
+        }
+        if 'stock_source' in pending and pending['stock_source'] in dict(self.INVENTORY_LOCATION_CHOICES):
+            values['stock_source'] = pending['stock_source']
+        if 'stock_quantity' in pending:
+            values['stock_quantity'] = max(0, int(pending['stock_quantity']))
+        if 'low_stock_threshold' in pending:
+            values['low_stock_threshold'] = max(0, int(pending['low_stock_threshold']))
+        if 'allow_backorder' in pending:
+            values['allow_backorder'] = bool(pending['allow_backorder'])
+        if 'max_backorder_quantity' in pending:
+            values['max_backorder_quantity'] = max(0, int(pending['max_backorder_quantity']))
+        return values
+
+    def _set_inventory_value(self, field_name, value):
+        pending = getattr(self, '_pending_inventory_updates', {}).copy()
+        pending[field_name] = value
+        self._pending_inventory_updates = pending
+
+    def _sync_category_from_subcategory(self):
+        if not self.subcategory_id:
+            return False
+
+        source_category = self.subcategory.category
+        category, _ = Category.objects.get_or_create(
+            slug=source_category.slug,
+            defaults={
+                'name': source_category.name,
+                'description': source_category.description,
+                'icon': source_category.icon,
+                'is_active': source_category.is_active,
+            },
+        )
+
+        updated_fields = []
+        for field_name in ('name', 'description', 'icon', 'is_active'):
+            source_value = getattr(source_category, field_name)
+            if getattr(category, field_name) != source_value:
+                setattr(category, field_name, source_value)
+                updated_fields.append(field_name)
+        if updated_fields:
+            category.save(update_fields=updated_fields)
+
+        if self.category_id != category.id:
+            self.category = category
+            return True
+        return False
+
     def save(self, *args, **kwargs):
-        """Auto-generate slug and sync stock_source with stock_quantity."""
+        """Auto-generate slug and persist any pending inventory updates."""
         if not self.slug:
             self.slug = slugify(self.name)
-        if self.pk and self.has_variants:
+
+        category_synced = self._sync_category_from_subcategory()
+
+        original_update_fields = kwargs.get('update_fields')
+        inventory_update_fields = set()
+        if original_update_fields is not None:
+            update_fields = set(original_update_fields)
+            if category_synced:
+                update_fields.add('category')
+            inventory_update_fields = update_fields & self.INVENTORY_FIELD_NAMES
+            model_update_fields = update_fields - self.INVENTORY_FIELD_NAMES
+            if model_update_fields:
+                kwargs['update_fields'] = list(model_update_fields)
+            else:
+                kwargs.pop('update_fields')
+
+        should_save_product = self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields'))
+        if should_save_product:
             super().save(*args, **kwargs)
-            return
-        if self.stock_quantity == 0 and not self.allow_backorder:
-            self.stock_source = self.STOCK_OUT
-        elif self.stock_quantity > 0 and self.stock_source == self.STOCK_OUT:
-            self.stock_source = self.STOCK_BRANCH
-        super().save(*args, **kwargs)
+
+        pending = getattr(self, '_pending_inventory_updates', {}).copy()
+        if original_update_fields is None:
+            inventory_update_fields.update(pending.keys())
+        else:
+            for field_name in inventory_update_fields:
+                pending.setdefault(field_name, self._inventory_defaults()[field_name])
+
+        if self.pk is not None:
+            inventory_map = self._ensure_inventory_rows()
+            if pending:
+                self._apply_pending_inventory_updates(inventory_map, pending)
+
+        self._pending_inventory_updates = {}
+
+    def _apply_pending_inventory_updates(self, inventory_map, pending):
+        location_choices = dict(self.INVENTORY_LOCATION_CHOICES)
+        target_location = pending.get('stock_source')
+        current_source = self._get_inventory_values()['stock_source']
+        if target_location not in location_choices:
+            target_location = current_source if current_source in location_choices else self.STOCK_BRANCH
+
+        changed_inventories = set()
+        if 'stock_quantity' in pending:
+            desired_total = max(0, int(pending['stock_quantity']))
+            current_total = sum(inventory.stock_quantity for inventory in inventory_map.values())
+            delta = desired_total - current_total
+            if delta > 0:
+                inventory_map[target_location].stock_quantity += delta
+                changed_inventories.add(target_location)
+            elif delta < 0:
+                remaining = -delta
+                ordered_locations = [target_location] + [
+                    location for location in location_choices if location != target_location
+                ]
+                for location in ordered_locations:
+                    if remaining == 0:
+                        break
+                    inventory = inventory_map[location]
+                    deduction = min(inventory.stock_quantity, remaining)
+                    if deduction:
+                        inventory.stock_quantity -= deduction
+                        changed_inventories.add(location)
+                        remaining -= deduction
+
+        field_normalizers = {
+            'low_stock_threshold': lambda value: max(0, int(value)),
+            'allow_backorder': bool,
+            'max_backorder_quantity': lambda value: max(0, int(value)),
+        }
+        for field_name, normalizer in field_normalizers.items():
+            if field_name in pending:
+                setattr(inventory_map[target_location], field_name, normalizer(pending[field_name]))
+                changed_inventories.add(target_location)
+
+        if changed_inventories:
+            for location in changed_inventories:
+                inventory_map[location].save()
+            self._clear_inventory_cache()
 
     @property
     def inventory_status(self):
@@ -265,9 +483,10 @@ class Product(models.Model):
                 return 'out_of_stock'
         if not self.is_active:
             return 'inactive'
-        if self.stock_quantity == 0:
-            return 'backorder' if self.allow_backorder else 'out_of_stock'
-        if self.stock_quantity <= self.low_stock_threshold:
+        inventory = self._get_inventory_values()
+        if inventory['stock_quantity'] == 0:
+            return 'backorder' if inventory['allow_backorder'] else 'out_of_stock'
+        if inventory['stock_quantity'] <= inventory['low_stock_threshold']:
             return 'low_stock'
         return 'in_stock'
 
@@ -276,14 +495,55 @@ class Product(models.Model):
         """Return the total purchasable quantity, including backorder allowance."""
         if self.has_variants:
             return sum(variant.available_quantity for variant in self.variants.filter(is_active=True))
-        if self.allow_backorder:
-            return self.stock_quantity + self.max_backorder_quantity
-        return self.stock_quantity
+        inventory = self._get_inventory_values()
+        if inventory['allow_backorder']:
+            return inventory['stock_quantity'] + inventory['max_backorder_quantity']
+        return inventory['stock_quantity']
 
     @property
     def can_purchase(self):
         """Return True if the product is active and has available stock."""
         return self.is_active and self.available_quantity > 0
+
+    @property
+    def stock_source(self):
+        return self._get_inventory_values()['stock_source']
+
+    @stock_source.setter
+    def stock_source(self, value):
+        self._set_inventory_value('stock_source', value)
+
+    @property
+    def stock_quantity(self):
+        return self._get_inventory_values()['stock_quantity']
+
+    @stock_quantity.setter
+    def stock_quantity(self, value):
+        self._set_inventory_value('stock_quantity', max(0, int(value)))
+
+    @property
+    def low_stock_threshold(self):
+        return self._get_inventory_values()['low_stock_threshold']
+
+    @low_stock_threshold.setter
+    def low_stock_threshold(self, value):
+        self._set_inventory_value('low_stock_threshold', max(0, int(value)))
+
+    @property
+    def allow_backorder(self):
+        return self._get_inventory_values()['allow_backorder']
+
+    @allow_backorder.setter
+    def allow_backorder(self, value):
+        self._set_inventory_value('allow_backorder', bool(value))
+
+    @property
+    def max_backorder_quantity(self):
+        return self._get_inventory_values()['max_backorder_quantity']
+
+    @max_backorder_quantity.setter
+    def max_backorder_quantity(self, value):
+        self._set_inventory_value('max_backorder_quantity', max(0, int(value)))
 
     @property
     def has_variants(self):
@@ -306,6 +566,65 @@ class Product(models.Model):
     def review_count(self):
         """Return the count of approved reviews for this product."""
         return self.reviews.filter(is_approved=True).count()
+
+
+class ProductInventory(models.Model):
+    """Current inventory snapshot for a product location."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventories')
+    location = models.CharField(max_length=20, choices=Product.INVENTORY_LOCATION_CHOICES, default=Product.STOCK_BRANCH)
+    source_name = models.CharField(max_length=120, blank=True)
+    stock_quantity = models.PositiveIntegerField(default=0)
+    low_stock_threshold = models.PositiveIntegerField(default=0)
+    allow_backorder = models.BooleanField(default=False)
+    max_backorder_quantity = models.PositiveIntegerField(default=0)
+    is_pos_synced = models.BooleanField(default=False)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['product_id', 'location']
+        constraints = [
+            models.UniqueConstraint(fields=['product', 'location'], name='unique_product_inventory_location'),
+        ]
+        indexes = [
+            models.Index(fields=['location']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_location_display()} inventory for {self.product.name}"
+
+    def save(self, *args, **kwargs):
+        """Persist a location inventory row."""
+        if self.location == Product.STOCK_WAREHOUSE and not self.source_name:
+            self.source_name = 'POS Store'
+        if self.location == Product.STOCK_BRANCH:
+            self.source_name = ''
+        super().save(*args, **kwargs)
+
+
+def annotate_product_inventory(queryset):
+    branch_filter = models.Q(inventories__location=Product.STOCK_BRANCH)
+    warehouse_filter = models.Q(inventories__location=Product.STOCK_WAREHOUSE)
+    queryset = queryset.annotate(
+        branch_stock_quantity=Coalesce(models.Sum('inventories__stock_quantity', filter=branch_filter), 0),
+        warehouse_stock_quantity=Coalesce(models.Sum('inventories__stock_quantity', filter=warehouse_filter), 0),
+        total_low_stock_threshold=Coalesce(models.Sum('inventories__low_stock_threshold'), 0),
+        total_max_backorder_quantity=Coalesce(models.Sum('inventories__max_backorder_quantity'), 0),
+        backorder_inventory_count=Coalesce(
+            models.Count('inventories', filter=models.Q(inventories__allow_backorder=True), distinct=True),
+            0,
+        ),
+    )
+    return queryset.annotate(
+        total_stock_quantity=models.F('branch_stock_quantity') + models.F('warehouse_stock_quantity'),
+        has_backorder_inventory=models.Case(
+            models.When(backorder_inventory_count__gt=0, then=models.Value(True)),
+            default=models.Value(False),
+            output_field=models.BooleanField(),
+        ),
+    )
 
 
 class ProductImage(models.Model):

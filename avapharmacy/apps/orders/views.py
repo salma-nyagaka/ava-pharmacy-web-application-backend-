@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAdminUser
 from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
-from apps.products.models import Product, ProductVariant
+from apps.products.models import Product, ProductVariant, annotate_product_inventory
 
 from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
 from .mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
@@ -990,10 +990,9 @@ class AdminReportsView(APIView):
             'orders_by_status': list(Order.objects.values('status').annotate(count=Count('id'))),
             'orders_by_payment': list(Order.objects.values('payment_method').annotate(count=Count('id'))),
             'top_products': top_products,
-            'low_stock_products': Product.objects.filter(
-                is_active=True,
-                stock_quantity__gt=0,
-                stock_quantity__lte=models.F('low_stock_threshold'),
+            'low_stock_products': annotate_product_inventory(Product.objects.filter(is_active=True)).filter(
+                total_stock_quantity__gt=0,
+                total_stock_quantity__lte=models.F('total_low_stock_threshold'),
             ).count(),
         })
 

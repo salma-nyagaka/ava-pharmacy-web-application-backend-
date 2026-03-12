@@ -39,6 +39,9 @@ media/*
 !media/brands/
 media/brands/*
 !media/brands/default-brand-logo.svg
+!media/categories/
+media/categories/*
+!media/categories/default-category-image.svg
 staticfiles/
 .env
 .env.local

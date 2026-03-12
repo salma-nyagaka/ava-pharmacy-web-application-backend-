@@ -6,9 +6,11 @@ ProductList/Detail, Wishlist, Banner, Promotion, and CMSBlock serializers.
 Pricing fields (final_price, discount_total, active_promotions) are computed
 via the calculate_product_pricing service.
 """
+import json
+
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductCategory, ProductSubcategory, ProductImage, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
+from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductCategory, ProductSubcategory, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
 from .services import calculate_product_pricing
 
 
@@ -83,8 +85,22 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductCategory
-        fields = ('id', 'name', 'slug', 'description', 'icon', 'is_active', 'created_at', 'subcategories')
+        fields = ('id', 'name', 'slug', 'image', 'description', 'icon', 'is_active', 'created_at', 'subcategories')
         extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        description = attrs.get('description')
+
+        if self.instance is None and not str(description or '').strip():
+            raise serializers.ValidationError({'description': ['Category description is required.']})
+        if self.instance is not None and 'description' in attrs and not str(description or '').strip():
+            raise serializers.ValidationError({'description': ['Category description is required.']})
+        if self.instance is None and not attrs.get('image'):
+            raise serializers.ValidationError({'image': ['Category image is required.']})
+        if self.instance is not None and 'image' in attrs and not attrs.get('image'):
+            raise serializers.ValidationError({'image': ['Category image is required.']})
+        return attrs
 
     def validate_name(self, value):
         qs = ProductCategory.objects.filter(name__iexact=value)
@@ -122,7 +138,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
     def get_created_by_name(self, obj):
         if obj.created_by:
-            return obj.created_by.get_full_name() or obj.created_by.email
+            return getattr(obj.created_by, 'full_name', '') or obj.created_by.email
         return 'system'
 
 
@@ -177,6 +193,17 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ('id', 'image', 'alt_text', 'order')
 
 
+class ProductInventorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductInventory
+        fields = (
+            'id', 'location', 'source_name', 'stock_quantity', 'low_stock_threshold',
+            'allow_backorder', 'max_backorder_quantity', 'is_pos_synced', 'last_synced_at',
+            'created_at', 'updated_at',
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+
 class ProductVariantSerializer(serializers.ModelSerializer):
     effective_price = serializers.ReadOnlyField()
     inventory_status = serializers.ReadOnlyField()
@@ -212,15 +239,18 @@ class ProductListSerializer(serializers.ModelSerializer):
     brand_slug = serializers.ReadOnlyField(source='brand.slug')
     category_name = serializers.ReadOnlyField(source='category.name')
     category_slug = serializers.ReadOnlyField(source='category.slug')
+    stock_source = serializers.ReadOnlyField()
+    stock_quantity = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
     inventory_status = serializers.ReadOnlyField()
     available_quantity = serializers.ReadOnlyField()
     can_purchase = serializers.ReadOnlyField()
+    has_variants = serializers.ReadOnlyField()
+    original_price = serializers.SerializerMethodField()
     final_price = serializers.SerializerMethodField()
     discount_total = serializers.SerializerMethodField()
     active_promotions = serializers.SerializerMethodField()
-    has_variants = serializers.ReadOnlyField()
 
     class Meta:
         model = Product
@@ -244,6 +274,13 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_final_price(self, obj):
         return self._pricing(obj)['final_price']
 
+    def get_original_price(self, obj):
+        final_price = self._pricing(obj)['final_price']
+        price = obj.price
+        if final_price < price:
+            return price
+        return None
+
     def get_discount_total(self, obj):
         return self._pricing(obj)['discount_total']
 
@@ -252,6 +289,7 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
     brand = BrandSerializer(read_only=True)
     brand_id = serializers.PrimaryKeyRelatedField(
         queryset=Brand.objects.all(), source='brand', write_only=True, required=False, allow_null=True
@@ -269,12 +307,22 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     )
     health_concerns = HealthConcernSerializer(many=True, read_only=True)
     gallery = ProductImageSerializer(many=True, read_only=True)
+    inventories = ProductInventorySerializer(many=True, read_only=True)
+    branch_inventory = serializers.JSONField(write_only=True, required=False)
+    warehouse_inventory = serializers.JSONField(write_only=True, required=False)
     variants = ProductVariantSerializer(many=True, read_only=True)
+    stock_source = serializers.ChoiceField(choices=Product.STOCK_CHOICES, required=False)
+    stock_quantity = serializers.IntegerField(required=False, min_value=0)
+    low_stock_threshold = serializers.IntegerField(required=False, min_value=0)
+    allow_backorder = serializers.BooleanField(required=False)
+    max_backorder_quantity = serializers.IntegerField(required=False, min_value=0)
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
     inventory_status = serializers.ReadOnlyField()
     available_quantity = serializers.ReadOnlyField()
     can_purchase = serializers.ReadOnlyField()
+    has_variants = serializers.ReadOnlyField()
+    original_price = serializers.SerializerMethodField()
     final_price = serializers.SerializerMethodField()
     discount_total = serializers.SerializerMethodField()
     active_promotions = serializers.SerializerMethodField()
@@ -284,12 +332,13 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'sku', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
-            'price', 'original_price', 'image', 'gallery', 'variants', 'badge', 'stock_source',
+            'price', 'original_price', 'image', 'gallery', 'inventories', 'variants',
+            'branch_inventory', 'warehouse_inventory', 'badge', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
             'short_description', 'description', 'features', 'directions', 'warnings',
             'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
             'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_featured', 'is_active',
-            'average_rating', 'review_count', 'created_at', 'updated_at'
+            'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
 
@@ -300,8 +349,92 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             obj._pricing_cache = pricing
         return pricing
 
+    def _inventory_defaults(self, location=None):
+        return {
+            'stock_quantity': 0,
+            'low_stock_threshold': 5 if location != Product.STOCK_WAREHOUSE else 0,
+            'allow_backorder': False,
+            'max_backorder_quantity': 0,
+        }
+
+    def _validate_inventory_payload(self, value, location_label):
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError(f'{location_label} inventory must be a valid JSON object.')
+        if not isinstance(value, dict):
+            raise serializers.ValidationError(f'{location_label} inventory must be an object.')
+
+        validated = {}
+        integer_fields = ('stock_quantity', 'low_stock_threshold', 'max_backorder_quantity')
+        for field_name in integer_fields:
+            if field_name in value:
+                try:
+                    coerced = int(value[field_name])
+                except (TypeError, ValueError):
+                    raise serializers.ValidationError({field_name: ['A valid integer is required.']})
+                if coerced < 0:
+                    raise serializers.ValidationError({field_name: ['Ensure this value is greater than or equal to 0.']})
+                validated[field_name] = coerced
+
+        if 'allow_backorder' in value:
+            raw_value = value['allow_backorder']
+            if isinstance(raw_value, bool):
+                validated['allow_backorder'] = raw_value
+            else:
+                validated['allow_backorder'] = str(raw_value).lower() in {'true', '1', 'yes', 'on'}
+
+        return validated
+
+    def _pop_inventory_data(self, validated_data):
+        locations = {
+            Product.STOCK_BRANCH: self._inventory_defaults(Product.STOCK_BRANCH),
+            Product.STOCK_WAREHOUSE: self._inventory_defaults(Product.STOCK_WAREHOUSE),
+        }
+
+        if self.instance is not None:
+            for inventory in self.instance.inventories.all():
+                locations[inventory.location] = {
+                    'stock_quantity': inventory.stock_quantity,
+                    'low_stock_threshold': inventory.low_stock_threshold,
+                    'allow_backorder': inventory.allow_backorder,
+                    'max_backorder_quantity': inventory.max_backorder_quantity,
+                }
+
+        branch_payload = validated_data.pop('branch_inventory', None)
+        if branch_payload:
+            locations[Product.STOCK_BRANCH].update(branch_payload)
+
+        warehouse_payload = validated_data.pop('warehouse_inventory', None)
+        if warehouse_payload:
+            locations[Product.STOCK_WAREHOUSE].update(warehouse_payload)
+
+        flat_inventory_data = {}
+        for field_name in ('stock_source', 'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity'):
+            if field_name in validated_data:
+                flat_inventory_data[field_name] = validated_data.pop(field_name)
+
+        target_location = flat_inventory_data.pop('stock_source', None)
+        if flat_inventory_data:
+            if target_location not in dict(Product.INVENTORY_LOCATION_CHOICES):
+                if self.instance is not None and self.instance.stock_source in dict(Product.INVENTORY_LOCATION_CHOICES):
+                    target_location = self.instance.stock_source
+                else:
+                    target_location = Product.STOCK_BRANCH
+            locations[target_location].update(flat_inventory_data)
+
+        return locations
+
     def get_final_price(self, obj):
         return self._pricing(obj)['final_price']
+
+    def get_original_price(self, obj):
+        final_price = self._pricing(obj)['final_price']
+        price = obj.price
+        if final_price < price:
+            return price
+        return None
 
     def get_discount_total(self, obj):
         return self._pricing(obj)['discount_total']
@@ -309,12 +442,100 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     def get_active_promotions(self, obj):
         return self._pricing(obj)['promotions']
 
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            return getattr(obj.created_by, 'full_name', '') or obj.created_by.email
+        return 'system'
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        if 'branch_inventory' in attrs:
+            attrs['branch_inventory'] = self._validate_inventory_payload(attrs['branch_inventory'], 'Main shop')
+        if 'warehouse_inventory' in attrs:
+            attrs['warehouse_inventory'] = self._validate_inventory_payload(attrs['warehouse_inventory'], 'POS store')
         if self.instance is None and not attrs.get('image'):
             raise serializers.ValidationError({'image': 'Product image is required.'})
         return attrs
 
+    def create(self, validated_data):
+        inventory_data = self._pop_inventory_data(validated_data)
+        health_concerns = validated_data.pop('health_concerns', [])
+        product = Product.objects.create(**validated_data)
+        if health_concerns:
+            product.health_concerns.set(health_concerns)
+        for location, defaults in inventory_data.items():
+            ProductInventory.objects.update_or_create(
+                product=product,
+                location=location,
+                defaults=defaults,
+            )
+        if hasattr(product, '_clear_inventory_cache'):
+            product._clear_inventory_cache()
+        return product
+
+    def update(self, instance, validated_data):
+        inventory_data = self._pop_inventory_data(validated_data)
+        health_concerns = validated_data.pop('health_concerns', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if health_concerns is not None:
+            instance.health_concerns.set(health_concerns)
+        for location, defaults in inventory_data.items():
+            ProductInventory.objects.update_or_create(
+                product=instance,
+                location=location,
+                defaults=defaults,
+            )
+        if hasattr(instance, '_clear_inventory_cache'):
+            instance._clear_inventory_cache()
+        return instance
+
+
+class AdminProductSerializer(ProductDetailSerializer):
+    cost_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+    )
+    discount_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta(ProductDetailSerializer.Meta):
+        fields = (
+            'id', 'sku', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
+            'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
+            'price', 'cost_price', 'discount_price', 'original_price', 'image', 'gallery', 'inventories', 'variants',
+            'branch_inventory', 'warehouse_inventory', 'badge', 'stock_source',
+            'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
+            'short_description', 'description', 'features', 'directions', 'warnings',
+            'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
+            'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_featured', 'is_active',
+            'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'
+        )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        price = attrs.get('price', getattr(self.instance, 'price', None))
+        cost_price = attrs.get('cost_price', getattr(self.instance, 'cost_price', None))
+        discount_price = attrs.get('discount_price', getattr(self.instance, 'discount_price', None))
+
+        if cost_price is not None and price is not None and cost_price < 0:
+            raise serializers.ValidationError({'cost_price': ['Ensure this value is greater than or equal to 0.']})
+
+        if discount_price is not None:
+            if discount_price < 0:
+                raise serializers.ValidationError({'discount_price': ['Ensure this value is greater than or equal to 0.']})
+            if price is not None and discount_price >= price:
+                raise serializers.ValidationError({'discount_price': ['Discount price must be lower than the selling price.']})
+
+        return attrs
 
 class WishlistSerializer(serializers.ModelSerializer):
     product = ProductListSerializer(read_only=True)
