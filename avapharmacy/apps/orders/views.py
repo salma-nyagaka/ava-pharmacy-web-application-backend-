@@ -3,16 +3,20 @@ from django.db import transaction
 from django.db import models
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
+from decimal import Decimal, InvalidOperation
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import Address
 from apps.accounts.permissions import IsAdminUser
 from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
 from apps.products.models import Product, ProductVariant, annotate_product_inventory
 
 from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from .integrations import push_order_to_pos
+from .flutterwave import FlutterwaveAPIError, FlutterwaveClient, FlutterwaveConfigurationError
 from .mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
 from .serializers import (
     AdminOrderSerializer,
@@ -104,6 +108,34 @@ def snapshot_cart_to_order(order, cart_items):
         )
 
 
+def persist_checkout_address(user, data):
+    existing_address = data.get('saved_address')
+    save_requested = data.get('save_address') or not Address.objects.filter(user=user).exists()
+    set_default = data.get('set_default_address') or not Address.objects.filter(user=user).exists()
+
+    if existing_address:
+        if set_default and not existing_address.is_default:
+            Address.objects.filter(user=user).exclude(pk=existing_address.pk).update(is_default=False)
+            existing_address.is_default = True
+            existing_address.save(update_fields=['is_default'])
+        return existing_address
+
+    if not save_requested:
+        return None
+
+    if set_default:
+        Address.objects.filter(user=user).update(is_default=False)
+
+    return Address.objects.create(
+        user=user,
+        label=data.get('address_label') or 'Home',
+        street=data['street'],
+        city=data['city'],
+        county=data['county'],
+        is_default=set_default,
+    )
+
+
 def notify_order_update(order, title=None, message=None):
     if not order.customer:
         return
@@ -120,6 +152,92 @@ def notify_order_update(order, title=None, message=None):
         )
     except Exception:
         return
+
+
+def _save_order_push_result(order, action):
+    result = push_order_to_pos(order, action)
+    if result is None:
+        return
+    create_order_event(
+        order,
+        event_type='order_push_succeeded' if result['ok'] else 'order_push_failed',
+        message=f'Order push {action} {"succeeded" if result["ok"] else "failed"}.',
+        metadata={'action': action, **result},
+    )
+
+
+def _mark_order_paid(order, intent, message, notify_message):
+    order.payment_status = Order.PAYMENT_STATUS_PAID
+    order.payment_reference = intent.provider_reference or intent.reference
+    if order.status == Order.STATUS_DRAFT:
+        order.status = Order.STATUS_PAID
+    if not order.placed_at:
+        order.placed_at = timezone.now()
+    order.save(update_fields=['payment_status', 'payment_reference', 'status', 'placed_at', 'updated_at'])
+    create_order_event(
+        order,
+        'payment_succeeded',
+        message,
+        metadata={'intent_reference': intent.reference, 'provider_reference': intent.provider_reference},
+    )
+    notify_order_update(
+        order,
+        title=f'Payment received for {order.order_number}',
+        message=notify_message,
+    )
+
+
+def _mark_order_payment_failed(order, intent, message):
+    order.payment_status = Order.PAYMENT_STATUS_FAILED
+    order.save(update_fields=['payment_status', 'updated_at'])
+    create_order_event(
+        order,
+        'payment_failed',
+        message or 'Payment failed.',
+        metadata={'intent_reference': intent.reference},
+    )
+
+
+def _build_flutterwave_redirect_url(request, order, intent, fallback=''):
+    base_url = fallback or getattr(settings, 'FLUTTERWAVE_REDIRECT_URL', '') or f'{settings.FRONTEND_BASE_URL}/checkout'
+    separator = '&' if '?' in base_url else '?'
+    return f'{base_url}{separator}order_id={order.id}&intent_id={intent.id}'
+
+
+def _sync_flutterwave_intent(intent, transaction_id):
+    response = FlutterwaveClient().verify_transaction(transaction_id)
+    data = response.get('data') or {}
+    status_value = str(data.get('status', '')).lower()
+    amount = data.get('amount')
+    currency = str(data.get('currency') or intent.currency)
+
+    intent.payload = {**intent.payload, 'verification': response}
+    intent.callback_payload = data
+    intent.processed_at = timezone.now()
+    intent.provider_reference = str(data.get('flw_ref') or data.get('id') or intent.provider_reference)
+
+    try:
+        verified_amount = Decimal(str(amount))
+    except (InvalidOperation, TypeError):
+        verified_amount = None
+
+    if (
+        str(response.get('status', '')).lower() == 'success'
+        and status_value == 'successful'
+        and currency.upper() == intent.currency.upper()
+        and verified_amount is not None
+        and verified_amount == intent.amount
+    ):
+        intent.status = PaymentIntent.STATUS_SUCCEEDED
+        intent.last_error = ''
+    else:
+        intent.status = PaymentIntent.STATUS_FAILED
+        intent.last_error = response.get('message') or data.get('processor_response') or 'Card payment verification failed.'
+    intent.save(update_fields=[
+        'payload', 'callback_payload', 'processed_at', 'provider_reference',
+        'status', 'last_error', 'updated_at',
+    ])
+    return response
 
 
 class CartView(generics.RetrieveAPIView):
@@ -282,7 +400,7 @@ class CheckoutDraftView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        serializer = CheckoutSerializer(data=request.data)
+        serializer = CheckoutSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -345,6 +463,7 @@ class CheckoutDraftView(APIView):
             shipping_fee=shipping_fee,
             total=total,
         )
+        persist_checkout_address(request.user, data)
         snapshot_cart_to_order(order, items)
         create_order_event(
             order,
@@ -387,7 +506,7 @@ class PaymentIntentCreateView(APIView):
         elif provider == PaymentIntent.PROVIDER_MPESA:
             payload = {'phone': data.get('phone', ''), 'instructions': 'Await M-Pesa confirmation.'}
         elif provider == PaymentIntent.PROVIDER_CARD:
-            return Response({'detail': 'Card integration is not enabled. Use M-Pesa or manual payment.'}, status=status.HTTP_400_BAD_REQUEST)
+            payload = {'instructions': 'Redirect customer to hosted card checkout.'}
 
         intent = PaymentIntent.objects.create(
             order=order,
@@ -449,6 +568,44 @@ class PaymentIntentCreateView(APIView):
                 actor=request.user,
                 metadata={'intent_reference': intent.reference, 'phone_number': normalized_phone},
             )
+        elif provider == PaymentIntent.PROVIDER_CARD:
+            try:
+                redirect_url = _build_flutterwave_redirect_url(request, order, intent, data.get('return_url', ''))
+                response_payload = FlutterwaveClient().create_card_checkout(
+                    payment_intent=intent,
+                    order=order,
+                    customer=request.user,
+                    redirect_url=redirect_url,
+                )
+            except FlutterwaveConfigurationError as exc:
+                intent.status = PaymentIntent.STATUS_FAILED
+                intent.last_error = str(exc)
+                intent.save(update_fields=['status', 'last_error', 'updated_at'])
+                return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            except FlutterwaveAPIError as exc:
+                intent.status = PaymentIntent.STATUS_FAILED
+                intent.last_error = str(exc)
+                intent.save(update_fields=['status', 'last_error', 'updated_at'])
+                order.payment_status = Order.PAYMENT_STATUS_FAILED
+                order.save(update_fields=['payment_status', 'updated_at'])
+                _mark_order_payment_failed(order, intent, str(exc))
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+            response_data = response_payload.get('data') or {}
+            intent.external_reference = intent.reference
+            intent.client_secret = response_data.get('link', '')
+            intent.payload = response_payload
+            intent.save(update_fields=['external_reference', 'client_secret', 'payload', 'updated_at'])
+
+            order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
+            order.save(update_fields=['payment_status', 'updated_at'])
+            create_order_event(
+                order,
+                'payment_intent_created',
+                'Card checkout link created.',
+                actor=request.user,
+                metadata={'intent_reference': intent.reference, 'checkout_url': response_data.get('link', '')},
+            )
         else:
             order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
             order.save(update_fields=['payment_status', 'updated_at'])
@@ -488,35 +645,11 @@ class MpesaCallbackView(APIView):
         order = intent.order
         if callback['result_code'] == '0':
             intent.status = PaymentIntent.STATUS_SUCCEEDED
-            order.payment_status = Order.PAYMENT_STATUS_PAID
-            order.payment_reference = intent.provider_reference or intent.reference
-            if order.status == Order.STATUS_DRAFT:
-                order.status = Order.STATUS_PAID
-            if not order.placed_at:
-                order.placed_at = timezone.now()
-            order.save(update_fields=['payment_status', 'payment_reference', 'status', 'placed_at', 'updated_at'])
-            create_order_event(
-                order,
-                'payment_succeeded',
-                'M-Pesa payment confirmed.',
-                metadata={'intent_reference': intent.reference, 'receipt': intent.provider_reference},
-            )
-            notify_order_update(
-                order,
-                title=f'Payment received for {order.order_number}',
-                message='Your M-Pesa payment was confirmed successfully.',
-            )
+            _mark_order_paid(order, intent, 'M-Pesa payment confirmed.', 'Your M-Pesa payment was confirmed successfully.')
         else:
             intent.status = PaymentIntent.STATUS_FAILED
             intent.last_error = callback['result_desc']
-            order.payment_status = Order.PAYMENT_STATUS_FAILED
-            order.save(update_fields=['payment_status', 'updated_at'])
-            create_order_event(
-                order,
-                'payment_failed',
-                callback['result_desc'] or 'M-Pesa payment failed.',
-                metadata={'intent_reference': intent.reference, 'result_code': callback['result_code']},
-            )
+            _mark_order_payment_failed(order, intent, callback['result_desc'] or 'M-Pesa payment failed.')
         intent.save(update_fields=['callback_payload', 'processed_at', 'provider_reference', 'status', 'last_error', 'updated_at'])
         return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
@@ -531,32 +664,40 @@ class PaymentIntentStatusSyncView(APIView):
         except PaymentIntent.DoesNotExist:
             return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if intent.provider != PaymentIntent.PROVIDER_MPESA:
-            return Response({'detail': 'Only M-Pesa intents can be synced through this endpoint.'}, status=status.HTTP_400_BAD_REQUEST)
+        if intent.provider == PaymentIntent.PROVIDER_MPESA:
+            try:
+                mpesa_response = MpesaClient().query_stk_status(intent)
+            except (MpesaConfigurationError, MpesaAPIError) as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            mpesa_response = MpesaClient().query_stk_status(intent)
-        except (MpesaConfigurationError, MpesaAPIError) as exc:
-            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        intent.payload = {**intent.payload, 'status_query': mpesa_response}
-        result_code = str(mpesa_response.get('ResultCode', ''))
-        if result_code == '0':
-            intent.status = PaymentIntent.STATUS_SUCCEEDED
-            intent.provider_reference = mpesa_response.get('MpesaReceiptNumber', intent.provider_reference)
-            intent.processed_at = timezone.now()
-            intent.save(update_fields=['payload', 'status', 'provider_reference', 'processed_at', 'updated_at'])
-            order = intent.order
-            order.payment_status = Order.PAYMENT_STATUS_PAID
-            order.payment_reference = intent.provider_reference or intent.reference
-            if order.status == Order.STATUS_DRAFT:
-                order.status = Order.STATUS_PAID
-            order.save(update_fields=['payment_status', 'payment_reference', 'status', 'updated_at'])
+            intent.payload = {**intent.payload, 'status_query': mpesa_response}
+            result_code = str(mpesa_response.get('ResultCode', ''))
+            if result_code == '0':
+                intent.status = PaymentIntent.STATUS_SUCCEEDED
+                intent.provider_reference = mpesa_response.get('MpesaReceiptNumber', intent.provider_reference)
+                intent.processed_at = timezone.now()
+                intent.save(update_fields=['payload', 'status', 'provider_reference', 'processed_at', 'updated_at'])
+                _mark_order_paid(intent.order, intent, 'M-Pesa payment confirmed via status sync.', 'Your M-Pesa payment was confirmed successfully.')
+            else:
+                intent.status = PaymentIntent.STATUS_FAILED
+                intent.last_error = mpesa_response.get('ResultDesc', '')
+                intent.processed_at = timezone.now()
+                intent.save(update_fields=['payload', 'status', 'last_error', 'processed_at', 'updated_at'])
+                _mark_order_payment_failed(intent.order, intent, intent.last_error)
+        elif intent.provider == PaymentIntent.PROVIDER_CARD:
+            transaction_id = request.data.get('transaction_id') or request.query_params.get('transaction_id')
+            if not transaction_id:
+                return Response({'detail': 'transaction_id is required to verify this card payment.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                _sync_flutterwave_intent(intent, transaction_id)
+            except (FlutterwaveConfigurationError, FlutterwaveAPIError) as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            if intent.status == PaymentIntent.STATUS_SUCCEEDED:
+                _mark_order_paid(intent.order, intent, 'Card payment verified successfully.', 'Your card payment was confirmed successfully.')
+            else:
+                _mark_order_payment_failed(intent.order, intent, intent.last_error)
         else:
-            intent.status = PaymentIntent.STATUS_FAILED
-            intent.last_error = mpesa_response.get('ResultDesc', '')
-            intent.processed_at = timezone.now()
-            intent.save(update_fields=['payload', 'status', 'last_error', 'processed_at', 'updated_at'])
+            return Response({'detail': 'Unsupported payment provider for sync.'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(PaymentIntentSerializer(intent).data)
 
@@ -566,6 +707,38 @@ class PaymentWebhookView(APIView):
 
     @transaction.atomic
     def post(self, request):
+        flutterwave_signature = request.headers.get('flutterwave-signature') or request.headers.get('verif-hash')
+        if flutterwave_signature:
+            client = FlutterwaveClient()
+            raw_body = request.body or b''
+            if not client.verify_signature(raw_body, request.headers):
+                return Response({'detail': 'Invalid Flutterwave webhook signature.'}, status=status.HTTP_403_FORBIDDEN)
+
+            event_data = request.data.get('data') or {}
+            tx_ref = event_data.get('tx_ref')
+            transaction_id = event_data.get('id')
+            if not tx_ref or not transaction_id:
+                return Response({'detail': 'Invalid Flutterwave webhook payload.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                intent = PaymentIntent.objects.select_for_update().select_related('order').get(
+                    provider=PaymentIntent.PROVIDER_CARD,
+                    reference=tx_ref,
+                )
+            except PaymentIntent.DoesNotExist:
+                return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                _sync_flutterwave_intent(intent, transaction_id)
+            except (FlutterwaveConfigurationError, FlutterwaveAPIError) as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+            if intent.status == PaymentIntent.STATUS_SUCCEEDED:
+                _mark_order_paid(intent.order, intent, 'Card payment confirmed by webhook.', 'Your card payment was confirmed successfully.')
+            else:
+                _mark_order_payment_failed(intent.order, intent, intent.last_error)
+            return Response({'detail': 'Flutterwave webhook processed.'})
+
         expected_secret = getattr(settings, 'PAYMENT_WEBHOOK_SECRET', '')
         if expected_secret and request.headers.get('X-Ava-Webhook-Secret') != expected_secret:
             return Response({'detail': 'Invalid webhook signature.'}, status=status.HTTP_403_FORBIDDEN)
@@ -588,33 +761,9 @@ class PaymentWebhookView(APIView):
 
         order = intent.order
         if intent.status == PaymentIntent.STATUS_SUCCEEDED:
-            order.payment_status = Order.PAYMENT_STATUS_PAID
-            order.payment_reference = intent.provider_reference or intent.reference
-            if order.status == Order.STATUS_DRAFT:
-                order.status = Order.STATUS_PAID
-            if not order.placed_at:
-                order.placed_at = timezone.now()
-            order.save(update_fields=['payment_status', 'payment_reference', 'status', 'placed_at', 'updated_at'])
-            create_order_event(
-                order,
-                'payment_succeeded',
-                'Payment confirmed by webhook.',
-                metadata={'intent_reference': intent.reference},
-            )
-            notify_order_update(
-                order,
-                title=f'Payment received for {order.order_number}',
-                message='Your payment was confirmed successfully.',
-            )
+            _mark_order_paid(order, intent, 'Payment confirmed by webhook.', 'Your payment was confirmed successfully.')
         elif intent.status in [PaymentIntent.STATUS_FAILED, PaymentIntent.STATUS_CANCELLED]:
-            order.payment_status = Order.PAYMENT_STATUS_FAILED
-            order.save(update_fields=['payment_status', 'updated_at'])
-            create_order_event(
-                order,
-                'payment_failed',
-                data.get('message') or 'Payment failed.',
-                metadata={'intent_reference': intent.reference},
-            )
+            _mark_order_payment_failed(order, intent, data.get('message') or 'Payment failed.')
 
         return Response({'detail': 'Webhook processed.'})
 
@@ -685,6 +834,7 @@ class CheckoutFinalizeView(APIView):
             title=f'Order {order.order_number} placed',
             message=f'Your order total is KSh {order.total}.',
         )
+        _save_order_push_result(order, 'created')
         return Response(OrderSerializer(order).data)
 
 
@@ -735,6 +885,7 @@ class OrderCancelView(APIView):
         order.save(update_fields=['status', 'updated_at'])
         create_order_event(order, 'order_cancelled', 'Order cancelled by customer.', actor=request.user)
         notify_order_update(order, title=f'Order {order.order_number} cancelled', message='Your order was cancelled.')
+        _save_order_push_result(order, 'cancelled')
         return Response({'detail': 'Order cancelled successfully.'})
 
 
@@ -847,6 +998,7 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
                 actor=request.user,
             )
             notify_order_update(order)
+            _save_order_push_result(order, 'updated')
         if order.payment_status != prev_payment_status:
             create_order_event(
                 order,
@@ -854,6 +1006,7 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
                 f'Payment status changed from {prev_payment_status} to {order.payment_status}.',
                 actor=request.user,
             )
+            _save_order_push_result(order, 'updated')
 
         log_admin_action(
             request.user,
@@ -917,6 +1070,7 @@ class AdminOrderRefundView(APIView):
             message=f'Refunded order {order.order_number}',
         )
         notify_order_update(order, title=f'Order {order.order_number} refunded', message='Your refund has been processed.')
+        _save_order_push_result(order, 'refunded')
         return Response(AdminOrderSerializer(order).data)
 
 

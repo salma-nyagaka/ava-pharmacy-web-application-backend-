@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from apps.accounts.models import Address
 from apps.products.serializers import ProductListSerializer, ProductVariantSerializer
 
 
@@ -76,12 +77,19 @@ class OrderEventSerializer(serializers.ModelSerializer):
 
 
 class PaymentIntentSerializer(serializers.ModelSerializer):
+    next_action_url = serializers.SerializerMethodField()
+
+    def get_next_action_url(self, obj):
+        if obj.provider == PaymentIntent.PROVIDER_CARD:
+            return obj.client_secret or obj.payload.get('data', {}).get('link', '')
+        return ''
+
     class Meta:
         model = PaymentIntent
         fields = (
             'id', 'provider', 'status', 'reference', 'provider_reference',
             'external_reference', 'phone_number', 'merchant_request_id', 'checkout_request_id',
-            'amount', 'currency', 'client_secret', 'payload', 'callback_payload', 'last_error',
+            'amount', 'currency', 'client_secret', 'next_action_url', 'payload', 'callback_payload', 'last_error',
             'processed_at', 'created_at', 'updated_at'
         )
 
@@ -134,13 +142,44 @@ class CheckoutSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=100)
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=20)
-    street = serializers.CharField(max_length=200)
-    city = serializers.CharField(max_length=100)
-    county = serializers.CharField(max_length=100)
+    street = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    city = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    county = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    address_id = serializers.IntegerField(required=False, allow_null=True)
+    save_address = serializers.BooleanField(required=False, default=False)
+    address_label = serializers.CharField(max_length=50, required=False, allow_blank=True, default='')
+    set_default_address = serializers.BooleanField(required=False, default=False)
     payment_method = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES)
     delivery_method = serializers.CharField(max_length=30, default='standard')
     shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        address = None
+        address_id = attrs.get('address_id')
+
+        if address_id is not None:
+            if not getattr(user, 'is_authenticated', False):
+                raise serializers.ValidationError({'address_id': 'Authentication is required to use a saved address.'})
+            try:
+                address = Address.objects.get(pk=address_id, user=user)
+            except Address.DoesNotExist:
+                raise serializers.ValidationError({'address_id': 'Saved address not found.'})
+            attrs['street'] = address.street
+            attrs['city'] = address.city
+            attrs['county'] = address.county
+
+        if not attrs.get('street', '').strip() or not attrs.get('city', '').strip() or not attrs.get('county', '').strip():
+            raise serializers.ValidationError({'address': 'Street, city, and county are required.'})
+
+        attrs['saved_address'] = address
+        attrs['street'] = attrs['street'].strip()
+        attrs['city'] = attrs['city'].strip()
+        attrs['county'] = attrs['county'].strip()
+        attrs['address_label'] = attrs.get('address_label', '').strip()
+        return attrs
 
 
 class CouponApplySerializer(serializers.Serializer):

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
 
 
 class CartItemInline(admin.TabularInline):
@@ -68,3 +68,18 @@ class ReturnRequestAdmin(admin.ModelAdmin):
     list_display = ('order', 'customer', 'request_type', 'status', 'requested_refund_amount', 'created_at')
     list_filter = ('request_type', 'status')
     search_fields = ('order__order_number', 'customer__email')
+
+
+@admin.register(OutboundOrderPush)
+class OutboundOrderPushAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'order', 'action', 'status', 'attempt_count', 'max_attempts',
+        'response_status_code', 'next_attempt_at', 'last_attempt_at', 'processed_at',
+    )
+    list_filter = ('status', 'action')
+    search_fields = ('order__order_number', 'response_body', 'last_error')
+    readonly_fields = (
+        'order', 'action', 'payload', 'attempt_count', 'max_attempts', 'response_status_code',
+        'response_body', 'last_error', 'next_attempt_at', 'last_attempt_at', 'processed_at',
+        'created_at', 'updated_at',
+    )

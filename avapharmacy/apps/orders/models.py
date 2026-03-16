@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from apps.products.models import Product, ProductVariant
 
 
@@ -362,6 +363,48 @@ class PaymentIntent(models.Model):
 
     def __str__(self):
         return self.reference
+
+
+class OutboundOrderPush(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_RETRYING = 'retrying'
+    STATUS_SUCCEEDED = 'succeeded'
+    STATUS_EXHAUSTED = 'exhausted'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_RETRYING, 'Retrying'),
+        (STATUS_SUCCEEDED, 'Succeeded'),
+        (STATUS_EXHAUSTED, 'Exhausted'),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='outbound_pushes')
+    action = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    payload = models.JSONField(default=dict, blank=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    max_attempts = models.PositiveIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    response_status_code = models.IntegerField(null=True, blank=True)
+    response_body = models.TextField(blank=True)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['next_attempt_at', 'created_at']
+        indexes = [
+            models.Index(fields=['status', 'next_attempt_at'], name='orders_outb_status_8350b9_idx'),
+            models.Index(fields=['order', 'action', 'status'], name='orders_outb_order_i_44b93f_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.order.order_number} [{self.action}]'
+
+    @property
+    def can_retry(self):
+        return self.attempt_count < self.max_attempts
 
 
 class OrderEvent(models.Model):

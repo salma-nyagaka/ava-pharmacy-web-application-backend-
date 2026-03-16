@@ -440,9 +440,10 @@ class AddressListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         """Unset any existing default address if the new one is marked as default."""
+        has_existing = Address.objects.filter(user=self.request.user).exists()
         if serializer.validated_data.get('is_default'):
             Address.objects.filter(user=self.request.user).update(is_default=False)
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, is_default=serializer.validated_data.get('is_default', False) or not has_existing)
 
 
 class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):

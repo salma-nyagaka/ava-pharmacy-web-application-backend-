@@ -236,5 +236,21 @@ MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='')
 MPESA_TRANSACTION_TYPE = config('MPESA_TRANSACTION_TYPE', default='CustomerPayBillOnline')
 MPESA_TIMEOUT_SECONDS = config('MPESA_TIMEOUT_SECONDS', default=30, cast=int)
 
+# ─── Flutterwave / Card Payments ──────────────────────────────────────────────
+FLUTTERWAVE_SECRET_KEY = config('FLUTTERWAVE_SECRET_KEY', default='')
+FLUTTERWAVE_SECRET_HASH = config('FLUTTERWAVE_SECRET_HASH', default='')
+FLUTTERWAVE_BASE_URL = config('FLUTTERWAVE_BASE_URL', default='https://api.flutterwave.com')
+FLUTTERWAVE_TIMEOUT_SECONDS = config('FLUTTERWAVE_TIMEOUT_SECONDS', default=30, cast=int)
+FLUTTERWAVE_REDIRECT_URL = config('FLUTTERWAVE_REDIRECT_URL', default=f'{FRONTEND_BASE_URL}/checkout')
+
+# ─── POS / External Order Push ────────────────────────────────────────────────
+POS_ORDER_PUSH_URL = config('POS_ORDER_PUSH_URL', default='')
+POS_ORDER_PUSH_TOKEN = config('POS_ORDER_PUSH_TOKEN', default='')
+POS_ORDER_PUSH_TIMEOUT_SECONDS = config('POS_ORDER_PUSH_TIMEOUT_SECONDS', default=15, cast=int)
+POS_ORDER_PUSH_MAX_ATTEMPTS = config('POS_ORDER_PUSH_MAX_ATTEMPTS', default=3, cast=int)
+POS_ORDER_PUSH_BACKOFF_SECONDS = config('POS_ORDER_PUSH_BACKOFF_SECONDS', default=1.0, cast=float)
+POS_ORDER_PUSH_MAX_BACKOFF_SECONDS = config('POS_ORDER_PUSH_MAX_BACKOFF_SECONDS', default=8.0, cast=float)
+POS_ORDER_PUSH_QUEUE_MAX_ATTEMPTS = config('POS_ORDER_PUSH_QUEUE_MAX_ATTEMPTS', default=10, cast=int)
+
 # ─── Custom exception handler ─────────────────────────────────────────────────
 REST_FRAMEWORK_EXCEPTION_HANDLER = 'avapharmacy.exception_handler.custom_exception_handler'

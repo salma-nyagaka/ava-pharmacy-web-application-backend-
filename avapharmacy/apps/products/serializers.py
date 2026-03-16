@@ -11,6 +11,7 @@ import json
 from rest_framework import serializers
 from django.utils.text import slugify
 from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductCategory, ProductSubcategory, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
+from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
 
@@ -100,6 +101,8 @@ class ProductCategorySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'image': ['Category image is required.']})
         if self.instance is not None and 'image' in attrs and not attrs.get('image'):
             raise serializers.ValidationError({'image': ['Category image is required.']})
+        if attrs.get('image'):
+            validate_uploaded_image(attrs['image'], 'category')
         return attrs
 
     def validate_name(self, value):
@@ -170,6 +173,8 @@ class BrandSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'logo': ['Brand logo is required.']})
         if self.instance is not None and has_logo_input and not attrs.get('logo'):
             raise serializers.ValidationError({'logo': ['Brand logo is required.']})
+        if attrs.get('logo'):
+            validate_uploaded_image(attrs['logo'], 'brand')
 
         if self.instance is None and not provided_slug:
             attrs['slug'] = self._generate_unique_slug(attrs.get('name', ''))
@@ -455,6 +460,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             attrs['warehouse_inventory'] = self._validate_inventory_payload(attrs['warehouse_inventory'], 'POS store')
         if self.instance is None and not attrs.get('image'):
             raise serializers.ValidationError({'image': 'Product image is required.'})
+        if attrs.get('image'):
+            validate_uploaded_image(attrs['image'], 'product')
         return attrs
 
     def create(self, validated_data):
@@ -571,6 +578,11 @@ class PromotionSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+        extra_kwargs = {
+            'badge': {'read_only': True},
+            'is_stackable': {'read_only': True},
+            'priority': {'read_only': True},
+        }
 
 
 class CMSBlockSerializer(serializers.ModelSerializer):

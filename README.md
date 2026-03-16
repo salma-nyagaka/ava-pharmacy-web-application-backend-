@@ -55,6 +55,8 @@ DATABASE_PORT=5432
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
+For payment and POS integration variables, use the full block in `.env.example` and see `docs/ops-payments-pos.md`.
+
 ### 4. Create the database
 
 ```bash

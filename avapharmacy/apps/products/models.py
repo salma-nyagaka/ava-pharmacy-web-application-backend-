@@ -831,6 +831,23 @@ class Promotion(models.Model):
     def __str__(self):
         return self.title
 
+    @staticmethod
+    def format_badge_value(value):
+        normalized = Decimal(value)
+        if normalized == normalized.to_integral():
+            return str(int(normalized))
+        return format(normalized.normalize(), 'f').rstrip('0').rstrip('.')
+
+    def build_badge(self):
+        value = self.format_badge_value(self.value)
+        if self.type == self.TYPE_PERCENTAGE:
+            return f'{value}% Off'
+        return f'KSh {value} Off'
+
+    def save(self, *args, **kwargs):
+        self.badge = self.build_badge()
+        super().save(*args, **kwargs)
+
     @property
     def is_currently_active(self):
         """Return True if the promotion is active and within its date range."""
