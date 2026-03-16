@@ -235,6 +235,7 @@ MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
 MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='')
 MPESA_TRANSACTION_TYPE = config('MPESA_TRANSACTION_TYPE', default='CustomerPayBillOnline')
 MPESA_TIMEOUT_SECONDS = config('MPESA_TIMEOUT_SECONDS', default=30, cast=int)
+MPESA_STK_PUSH_AMOUNT_OVERRIDE = config('MPESA_STK_PUSH_AMOUNT_OVERRIDE', default='', cast=str)
 
 # ─── Flutterwave / Card Payments ──────────────────────────────────────────────
 FLUTTERWAVE_SECRET_KEY = config('FLUTTERWAVE_SECRET_KEY', default='')
