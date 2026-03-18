@@ -19,7 +19,7 @@ from apps.accounts.permissions import IsAdminOrInventoryStaff, IsAdminUser
 from apps.accounts.utils import log_admin_action
 
 from .filters import ProductFilter
-from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, ProductInventory, ProductReview, ProductVariant, Promotion, StockMovement, Wishlist, annotate_product_inventory
+from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductBadge, ProductImage, ProductInventory, ProductReview, ProductVariant, Promotion, StockMovement, Wishlist, annotate_product_inventory
 from .serializers import (
     AdminProductSerializer,
     BannerSerializer,
@@ -27,6 +27,7 @@ from .serializers import (
     CMSBlockSerializer,
     CategorySerializer,
     HealthConcernSerializer,
+    ProductBadgeSerializer,
     ProductCategorySerializer,
     ProductSubcategorySerializer,
     ProductDetailSerializer,
@@ -533,6 +534,17 @@ class AdminHealthConcernDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
+
+class AdminProductBadgeListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = ProductBadgeSerializer
+    queryset = ProductBadge.objects.all()
+
+
+class AdminProductBadgeDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = ProductBadgeSerializer
+    queryset = ProductBadge.objects.all()
 
 class AdminProductImageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]

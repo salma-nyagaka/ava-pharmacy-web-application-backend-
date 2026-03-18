@@ -10,7 +10,7 @@ import json
 
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
+from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductBadge, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
 from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
@@ -126,7 +126,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 class HealthConcernSerializer(serializers.ModelSerializer):
     class Meta:
         model = HealthConcern
-        fields = ('id', 'name', 'slug', 'description', 'icon', 'is_active', 'created_at')
+        fields = ('id', 'name', 'slug', 'description', 'icon', 'image', 'is_active', 'created_at')
         extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
 
     def validate_name(self, value):
@@ -248,6 +248,16 @@ class ProductReviewSerializer(serializers.ModelSerializer):
         return value
 
 
+class ProductBadgeSerializer(serializers.ModelSerializer):
+    display_label = serializers.ReadOnlyField()
+    is_expired = serializers.ReadOnlyField()
+
+    class Meta:
+        model = ProductBadge
+        fields = ('id', 'name', 'label', 'badge_type', 'value', 'color', 'expires_at', 'is_active', 'display_label', 'is_expired', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at', 'display_label', 'is_expired')
+
+
 class ProductListSerializer(serializers.ModelSerializer):
     brand_name = serializers.ReadOnlyField(source='brand.name')
     brand_slug = serializers.ReadOnlyField(source='brand.slug')
@@ -265,6 +275,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     final_price = serializers.SerializerMethodField()
     discount_total = serializers.SerializerMethodField()
     active_promotions = serializers.SerializerMethodField()
+    badge = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -277,6 +288,11 @@ class ProductListSerializer(serializers.ModelSerializer):
             'can_purchase', 'final_price', 'discount_total', 'active_promotions',
             'has_variants', 'is_featured', 'is_active'
         )
+
+    def get_badge(self, obj):
+        if obj.badge:
+            return obj.badge.display_label
+        return ''
 
     def _pricing(self, obj):
         pricing = getattr(obj, '_pricing_cache', None)
@@ -340,6 +356,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     final_price = serializers.SerializerMethodField()
     discount_total = serializers.SerializerMethodField()
     active_promotions = serializers.SerializerMethodField()
+    badge = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -456,6 +473,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
         return locations
 
+    def get_badge(self, obj):
+        if obj.badge:
+            return obj.badge.display_label
+        return ''
+
     def get_final_price(self, obj):
         return self._pricing(obj)['final_price']
 
@@ -542,15 +564,24 @@ class AdminProductSerializer(ProductDetailSerializer):
         required=False,
         allow_null=True,
     )
+    badge = ProductBadgeSerializer(read_only=True)
+    badge_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProductBadge.objects.all(),
+        source='badge',
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
 
     class Meta(ProductDetailSerializer.Meta):
         fields = (
             'id', 'sku', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
             'price', 'cost_price', 'discount_price', 'original_price', 'image', 'gallery', 'inventories', 'variants',
-            'branch_inventory', 'warehouse_inventory', 'badge', 'stock_source',
+            'branch_inventory', 'warehouse_inventory', 'badge', 'badge_id', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
             'short_description', 'description', 'features', 'directions', 'warnings',
+            'dosage_quantity', 'dosage_unit', 'dosage_frequency', 'dosage_notes',
             'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
             'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_featured', 'is_active',
             'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'

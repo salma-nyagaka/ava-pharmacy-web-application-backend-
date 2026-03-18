@@ -63,4 +63,6 @@ urlpatterns = [
     path('admin/promotions/<int:pk>/', views.AdminPromotionDetailView.as_view(), name='admin-promotion-detail'),
     path('admin/health-concerns/', views.AdminHealthConcernListCreateView.as_view(), name='admin-health-concerns'),
     path('admin/health-concerns/<int:pk>/', views.AdminHealthConcernDetailView.as_view(), name='admin-health-concern-detail'),
+    path('admin/badges/', views.AdminProductBadgeListCreateView.as_view(), name='admin-product-badges'),
+    path('admin/badges/<int:pk>/', views.AdminProductBadgeDetailView.as_view(), name='admin-product-badge-detail'),
 ]
