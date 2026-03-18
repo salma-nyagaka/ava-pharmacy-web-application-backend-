@@ -62,6 +62,7 @@ urlpatterns = [
     path('admin/returns/<int:pk>/', views.AdminReturnRequestDetailView.as_view(), name='admin-return-request-detail'),
     path('admin/reports/', views.AdminReportsView.as_view(), name='admin-reports'),
     path('admin/reports/download/', views.AdminDownloadReportView.as_view(), name='admin-reports-download'),
+    path('admin/activity-feed/', views.AdminActivityFeedView.as_view(), name='admin-activity-feed'),
     path('admin/invoices/', views.AdminInvoiceListView.as_view(), name='admin-invoices'),
     path('admin/invoices/<int:pk>/', views.AdminInvoiceDetailView.as_view(), name='admin-invoice-detail'),
 ]

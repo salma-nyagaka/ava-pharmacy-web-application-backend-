@@ -2362,6 +2362,8 @@ class AdminReportsView(APIView):
         range_days = max(1, int(request.query_params.get('range', 30)))
         today = timezone.now().date()
         range_start = today - timedelta(days=range_days - 1)
+        prev_range_start = range_start - timedelta(days=range_days)
+        prev_range_end = range_start - timedelta(days=1)
         month_start = today.replace(day=1)
 
         paid_orders = Order.objects.filter(payment_status=Order.PAYMENT_STATUS_PAID)
@@ -2370,6 +2372,25 @@ class AdminReportsView(APIView):
             revenue_monthly=Sum('total', filter=Q(created_at__date__gte=month_start)),
             revenue_range=Sum('total', filter=Q(created_at__date__gte=range_start)),
         )
+
+        prev_revenue = paid_orders.filter(
+            created_at__date__gte=prev_range_start,
+            created_at__date__lte=prev_range_end,
+        ).aggregate(t=Sum('total'))['t'] or 0
+
+        range_orders_qs = Order.objects.exclude(status=Order.STATUS_DRAFT).filter(
+            created_at__date__gte=range_start
+        )
+        range_orders_count = range_orders_qs.count()
+
+        prev_orders_count = Order.objects.exclude(status=Order.STATUS_DRAFT).filter(
+            created_at__date__gte=prev_range_start,
+            created_at__date__lte=prev_range_end,
+        ).count()
+
+        range_revenue_val = float(revenue['revenue_range'] or 0)
+        avg_order_value = range_revenue_val / range_orders_count if range_orders_count > 0 else 0
+        prev_avg_order_value = float(prev_revenue) / prev_orders_count if prev_orders_count > 0 else 0
 
         daily_revenue = list(
             paid_orders.filter(created_at__date__gte=range_start)
@@ -2389,26 +2410,102 @@ class AdminReportsView(APIView):
             .order_by('-revenue')[:10]
         )
 
+        top_customers_qs = list(
+            Order.objects.filter(
+                payment_status=Order.PAYMENT_STATUS_PAID,
+                created_at__date__gte=range_start,
+                customer__isnull=False,
+            )
+            .values('customer__id', 'customer__first_name', 'customer__last_name', 'customer__email')
+            .annotate(order_count=Count('id'), total_spend=Sum('total'))
+            .order_by('-total_spend')[:10]
+        )
+
+        orders_by_county = list(
+            Order.objects.exclude(status=Order.STATUS_DRAFT)
+            .filter(created_at__date__gte=range_start)
+            .values('shipping_county')
+            .annotate(count=Count('id'), revenue=Sum('total'))
+            .order_by('-count')[:8]
+        )
+
+        orders_by_shipping = list(
+            Order.objects.exclude(status=Order.STATUS_DRAFT)
+            .filter(created_at__date__gte=range_start)
+            .values('shipping_method__name')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+
+        new_customers_range = User.objects.filter(
+            role=User.CUSTOMER, date_joined__date__gte=range_start
+        ).count()
+
+        returning_customers_range = (
+            Order.objects.filter(
+                payment_status=Order.PAYMENT_STATUS_PAID,
+                created_at__date__gte=range_start,
+                customer__isnull=False,
+            )
+            .values('customer')
+            .annotate(c=Count('id'))
+            .filter(c__gt=1)
+            .count()
+        )
+
         rx_by_status = list(Prescription.objects.values('status').annotate(count=Count('id')))
         lab_by_status = list(LabRequest.objects.values('status').annotate(count=Count('id')))
 
         payout_pending = Payout.objects.filter(status='pending')
         payout_paid_month = Payout.objects.filter(status='paid', paid_at__date__gte=month_start)
+        payouts_by_role = list(
+            Payout.objects.values('role')
+            .annotate(
+                count=Count('id'),
+                total_amount=Sum('amount'),
+                pending_count=Count('id', filter=Q(status='pending')),
+                pending_amount=Sum('amount', filter=Q(status='pending')),
+            )
+            .order_by('-total_amount')
+        )
+
+        support_closed_range = SupportTicket.objects.filter(
+            status='resolved', updated_at__date__gte=range_start
+        ).count()
 
         return Response({
             'range_days': range_days,
             'total_orders': Order.objects.exclude(status=Order.STATUS_DRAFT).count(),
             'draft_orders': Order.objects.filter(status=Order.STATUS_DRAFT).count(),
+            'range_orders': range_orders_count,
+            'prev_range_orders': prev_orders_count,
             'total_revenue': float(revenue['revenue_total'] or 0),
             'monthly_revenue': float(revenue['revenue_monthly'] or 0),
-            'range_revenue': float(revenue['revenue_range'] or 0),
+            'range_revenue': range_revenue_val,
+            'prev_range_revenue': float(prev_revenue),
+            'avg_order_value': avg_order_value,
+            'prev_avg_order_value': prev_avg_order_value,
             'total_customers': User.objects.filter(role=User.CUSTOMER).count(),
             'new_customers_month': User.objects.filter(role=User.CUSTOMER, date_joined__date__gte=month_start).count(),
+            'new_customers_range': new_customers_range,
+            'returning_customers_range': returning_customers_range,
             'pending_orders': Order.objects.filter(status=Order.STATUS_PENDING).count(),
             'today_orders': Order.objects.filter(created_at__date=today).count(),
             'refund_requests': ReturnRequest.objects.filter(status=ReturnRequest.STATUS_REQUESTED).count(),
             'orders_by_status': list(Order.objects.values('status').annotate(count=Count('id'))),
             'orders_by_payment': list(Order.objects.values('payment_method').annotate(count=Count('id'))),
+            'orders_by_shipping': [
+                {'name': s['shipping_method__name'] or 'Standard', 'count': s['count']}
+                for s in orders_by_shipping
+            ],
+            'orders_by_county': [
+                {
+                    'county': c['shipping_county'] or 'Unknown',
+                    'count': c['count'],
+                    'revenue': float(c['revenue'] or 0),
+                }
+                for c in orders_by_county
+            ],
             'top_products': [
                 {
                     'product_name': p['product_name'],
@@ -2417,6 +2514,16 @@ class AdminReportsView(APIView):
                     'revenue': float(p['revenue'] or 0),
                 }
                 for p in top_products
+            ],
+            'top_customers': [
+                {
+                    'id': c['customer__id'],
+                    'name': f"{c['customer__first_name']} {c['customer__last_name']}".strip(),
+                    'email': c['customer__email'],
+                    'order_count': c['order_count'],
+                    'total_spend': float(c['total_spend'] or 0),
+                }
+                for c in top_customers_qs
             ],
             'low_stock_products': annotate_product_inventory(Product.objects.filter(is_active=True)).filter(
                 total_stock_quantity__gt=0,
@@ -2460,12 +2567,69 @@ class AdminReportsView(APIView):
                 'paid_month_amount': float(payout_paid_month.aggregate(t=Sum('amount'))['t'] or 0),
                 'paid_month_count': payout_paid_month.count(),
                 'failed_count': Payout.objects.filter(status='failed').count(),
+                'by_role': [
+                    {
+                        'role': r['role'],
+                        'count': r['count'],
+                        'total_amount': float(r['total_amount'] or 0),
+                        'pending_count': r['pending_count'],
+                        'pending_amount': float(r['pending_amount'] or 0),
+                    }
+                    for r in payouts_by_role
+                ],
             },
             'support': {
                 'open': SupportTicket.objects.filter(status='open').count(),
                 'in_progress': SupportTicket.objects.filter(status='in_progress').count(),
+                'closed_range': support_closed_range,
             },
         })
+
+
+class AdminActivityFeedView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from apps.support.models import SupportTicket
+        from apps.prescriptions.models import Prescription
+
+        feed = []
+
+        events = list(
+            OrderEvent.objects
+            .select_related('order')
+            .order_by('-created_at')[:20]
+        )
+        for e in events:
+            feed.append({
+                'type': e.event_type,
+                'message': e.message,
+                'timestamp': e.created_at.isoformat(),
+                'link': f'/admin/orders/{e.order_id}' if e.order_id else None,
+            })
+
+        tickets = list(SupportTicket.objects.order_by('-created_at')[:5])
+        for t in tickets:
+            feed.append({
+                'type': 'support_ticket',
+                'message': f'New support ticket: {t.subject[:80]}',
+                'timestamp': t.created_at.isoformat(),
+                'link': '/admin/support',
+            })
+
+        prescriptions = list(
+            Prescription.objects.filter(status='pending').order_by('-created_at')[:5]
+        )
+        for rx in prescriptions:
+            feed.append({
+                'type': 'prescription_pending',
+                'message': f'Prescription awaiting review',
+                'timestamp': rx.created_at.isoformat(),
+                'link': '/admin/prescriptions',
+            })
+
+        feed.sort(key=lambda x: x['timestamp'], reverse=True)
+        return Response(feed[:12])
 
 
 class AdminInvoiceListView(generics.ListAPIView):

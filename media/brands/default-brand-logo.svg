@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
-  <title id="title">Default brand logo</title>
-  <desc id="desc">Fallback logo used for legacy brand records without an uploaded logo.</desc>
-  <rect width="320" height="320" rx="40" fill="#f4f4f5"/>
-  <rect x="32" y="32" width="256" height="256" rx="32" fill="#ffffff" stroke="#d4d4d8" stroke-width="8"/>
-  <path d="M96 124c0-15.464 12.536-28 28-28h72c30.928 0 56 25.072 56 56s-25.072 56-56 56h-36v36H124V124h-28zm64 48h36c13.255 0 24-10.745 24-24s-10.745-24-24-24h-36v48z" fill="#991b1f"/>
-  <circle cx="236" cy="236" r="20" fill="#e11d48"/>
-</svg>

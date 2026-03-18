@@ -290,6 +290,11 @@ class ProductListSerializer(serializers.ModelSerializer):
         )
 
     def get_badge(self, obj):
+        promotions = self._pricing(obj).get('promotions') or []
+        if promotions:
+            promotion_badge = promotions[0].get('badge')
+            if promotion_badge:
+                return promotion_badge
         if obj.badge:
             return obj.badge.display_label
         return ''
@@ -474,6 +479,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return locations
 
     def get_badge(self, obj):
+        promotions = self._pricing(obj).get('promotions') or []
+        if promotions:
+            promotion_badge = promotions[0].get('badge')
+            if promotion_badge:
+                return promotion_badge
         if obj.badge:
             return obj.badge.display_label
         return ''

@@ -106,7 +106,7 @@ class ProductSubcategory(models.Model):
         related_name='legacy_product_subcategory',
     )
     name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, max_length=200)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

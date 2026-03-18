@@ -5,6 +5,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.throttling import UserRateThrottle
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
+from django.db.models.functions import TruncDate
+from datetime import timedelta
 
 from .models import (
     ClinicianProfile, ClinicianPrescription, ClinicianEarning,
@@ -693,12 +695,44 @@ class AdminDashboardView(APIView):
 
         today = timezone.now().date()
         month_start = today.replace(day=1)
+        summary_start = today - timedelta(days=13)
 
         users_by_role = list(User.objects.values('role').annotate(count=Count('id')))
         orders_by_status = list(Order.objects.values('status').annotate(count=Count('id')))
         revenue_data = Order.objects.filter(payment_status='paid').aggregate(
             revenue_total=Sum('total'), revenue_monthly=Sum('total', filter=Q(created_at__date__gte=month_start))
         )
+
+        daily_orders = list(
+            Order.objects.exclude(status='draft')
+            .filter(created_at__date__gte=summary_start)
+            .annotate(day=TruncDate('created_at'))
+            .values('day')
+            .annotate(
+                orders=Count('id'),
+                revenue=Sum('total', filter=Q(payment_status='paid')),
+            )
+            .order_by('day')
+        )
+
+        new_customers_by_day = list(
+            User.objects.filter(date_joined__date__gte=summary_start)
+            .annotate(day=TruncDate('date_joined'))
+            .values('day')
+            .annotate(count=Count('id'))
+            .order_by('day')
+        )
+        nc_map = {str(d['day']): d['count'] for d in new_customers_by_day}
+
+        daily_summary = [
+            {
+                'date': str(d['day']),
+                'orders': d['orders'],
+                'revenue': float(d['revenue'] or 0),
+                'new_customers': nc_map.get(str(d['day']), 0),
+            }
+            for d in daily_orders
+        ]
 
         return Response({
             'users': {
@@ -744,4 +778,5 @@ class AdminDashboardView(APIView):
                 'pending_doctor_verification': ClinicianProfile.objects.doctors().filter(status='pending').count(),
                 'pending_pediatrician_verification': ClinicianProfile.objects.pediatricians().filter(status='pending').count(),
             },
+            'daily_summary': daily_summary,
         })

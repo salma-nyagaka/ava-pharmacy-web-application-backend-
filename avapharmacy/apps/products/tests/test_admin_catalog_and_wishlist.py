@@ -1,6 +1,7 @@
 import io
 from decimal import Decimal
 
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -9,7 +10,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Cart, CartItem
-from apps.products.models import Brand, Category, Product, ProductInventory, Promotion, Wishlist
+from apps.products.models import Brand, Category, Product, ProductBadge, ProductInventory, Promotion, Wishlist
 
 
 def make_test_image(name='test.png', *, width=1000, height=1000, color=(220, 20, 60)):
@@ -185,3 +186,63 @@ class AdminCatalogAndWishlistTests(TestCase):
         response = self.client.post(reverse('wishlist'), {'product_id': product.id}, format='json')
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Wishlist.objects.filter(user=self.customer, product=product).count(), 1)
+
+    def test_active_promotion_badge_takes_precedence_over_manual_product_badge(self):
+        badge = ProductBadge.objects.create(
+            name='featured',
+            label='Featured',
+            badge_type=ProductBadge.TYPE_CUSTOM,
+        )
+        product = Product.objects.create(
+            sku='BADGE-001',
+            name='Badge Product',
+            price=Decimal('1000.00'),
+            badge=badge,
+            is_active=True,
+        )
+        Promotion.objects.create(
+            title='Badge Promotion',
+            type=Promotion.TYPE_PERCENTAGE,
+            value=Decimal('20'),
+            scope=Promotion.SCOPE_PRODUCT,
+            targets=[product.sku],
+            start_date='2026-03-01',
+            end_date='2026-03-31',
+            status=Promotion.STATUS_ACTIVE,
+        )
+
+        response = self.client.get(reverse('products'))
+        self.assertEqual(response.status_code, 200)
+        item = next(entry for entry in response.data['results'] if entry['sku'] == product.sku)
+        self.assertEqual(item['badge'], '20% Off')
+
+    def test_rebuild_pharmacy_taxonomy_maps_products_to_clean_subcategories(self):
+        Product.objects.create(
+            sku='RX-AB-001',
+            name='Amoxicillin 500mg Capsules',
+            price=Decimal('100.00'),
+            is_active=True,
+        )
+        Product.objects.create(
+            sku='PC-DC-001',
+            name='Sensodyne Repair & Protect Toothpaste 75ml',
+            price=Decimal('200.00'),
+            is_active=True,
+        )
+        Product.objects.create(
+            sku='BM-BS-002',
+            name='Sudocrem Antiseptic Healing Cream 125g',
+            price=Decimal('300.00'),
+            is_active=True,
+        )
+
+        call_command('rebuild_pharmacy_taxonomy')
+
+        antibiotics = Category.objects.get(slug='rx-antibiotics')
+        oral_care = Category.objects.get(slug='personal-oral-care')
+        rash_care = Category.objects.get(slug='family-nappy-rash-care')
+
+        self.assertEqual(Product.objects.get(sku='RX-AB-001').catalog_subcategory, antibiotics)
+        self.assertEqual(Product.objects.get(sku='PC-DC-001').catalog_subcategory, oral_care)
+        self.assertEqual(Product.objects.get(sku='BM-BS-002').catalog_subcategory, rash_care)
+        self.assertEqual(Category.objects.filter(parent__isnull=True).count(), 7)
