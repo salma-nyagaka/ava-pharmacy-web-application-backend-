@@ -107,6 +107,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         db_table = 'accounts_user'
         ordering = ['-date_joined']
+        indexes = [
+            models.Index(fields=['role', 'status']),
+            models.Index(fields=['status', 'date_joined']),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['phone'],
@@ -229,6 +233,17 @@ class Address(models.Model):
     class Meta:
         # Default addresses appear first, then by newest
         ordering = ['-is_default', '-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_default']),
+            models.Index(fields=['user', '-created_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user'],
+                condition=Q(is_default=True),
+                name='unique_default_address_per_user',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.full_name} - {self.street}, {self.city}"
@@ -246,6 +261,9 @@ class UserNote(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Note for {self.user.full_name} at {self.created_at}"
@@ -266,6 +284,11 @@ class AdminAuditLog(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['actor', '-created_at']),
+            models.Index(fields=['action', '-created_at']),
+            models.Index(fields=['entity_type', 'entity_id']),
+        ]
 
     def __str__(self):
         return f"{self.action} - {self.entity_type}"

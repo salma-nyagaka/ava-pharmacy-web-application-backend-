@@ -62,6 +62,10 @@ class LabPartner(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
+        indexes = [
+            models.Index(fields=['status', '-submitted_at']),
+            models.Index(fields=['user', 'status']),
+        ]
 
     def __str__(self):
         return self.name
@@ -143,6 +147,12 @@ class LabTechnicianProfile(models.Model):
     def __str__(self):
         return f"Lab Tech: {self.name or (self.user.full_name if self.user else 'Unknown')}"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['partner', 'status']),
+            models.Index(fields=['user', 'status']),
+        ]
+
 
 class LabTechDocument(models.Model):
     STATUS_SUBMITTED = 'submitted'
@@ -191,6 +201,9 @@ class LabTest(models.Model):
 
     class Meta:
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['category', 'is_active']),
+        ]
 
     def __str__(self):
         return self.name
@@ -261,6 +274,12 @@ class LabRequest(models.Model):
 
     class Meta:
         ordering = ['-requested_at']
+        indexes = [
+            models.Index(fields=['patient', 'status']),
+            models.Index(fields=['assigned_technician', 'status']),
+            models.Index(fields=['status', '-requested_at']),
+            models.Index(fields=['payment_status', '-requested_at']),
+        ]
 
     def __str__(self):
         return self.reference
@@ -281,6 +300,9 @@ class LabAuditLog(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['request', '-timestamp']),
+        ]
 
     def __str__(self):
         return f"{self.request.reference} - {self.action}"

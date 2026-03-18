@@ -42,6 +42,10 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', 'is_read', '-created_at']),
+            models.Index(fields=['recipient', 'type', '-created_at']),
+        ]
 
     def __str__(self):
         return f"{self.recipient.email} — {self.type}: {self.title}"
@@ -103,6 +107,10 @@ class NotificationDelivery(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', 'status', '-created_at']),
+            models.Index(fields=['notification', 'channel']),
+        ]
 
     def __str__(self):
         return f"{self.channel} to {self.destination} ({self.status})"

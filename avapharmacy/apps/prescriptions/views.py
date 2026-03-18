@@ -3,15 +3,35 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
+from apps.orders.models import Cart, CartItem
+
 from .models import Prescription, PrescriptionFile, PrescriptionAuditLog
 from .serializers import (
     PrescriptionSerializer, PrescriptionUploadSerializer,
     PrescriptionUpdateSerializer, PrescriptionAuditCreateSerializer
 )
 from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
+from apps.orders.serializers import CartSerializer
 
 ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+def _get_or_create_cart(user):
+    cart, _ = Cart.objects.get_or_create(user=user)
+    return cart
+
+
+def _product_availability_error(product, requested_quantity):
+    if not product.is_active:
+        return f'{product.name} is no longer active.'
+    if requested_quantity <= product.stock_quantity:
+        return None
+    if product.allow_backorder and requested_quantity <= product.available_quantity:
+        return None
+    if product.stock_quantity == 0 and not product.allow_backorder:
+        return f'{product.name} is out of stock.'
+    return f'{product.name} only has {product.available_quantity} unit(s) available.'
 
 
 class PrescriptionListView(generics.ListAPIView):
@@ -21,7 +41,7 @@ class PrescriptionListView(generics.ListAPIView):
     def get_queryset(self):
         return Prescription.objects.filter(
             patient=self.request.user
-        ).prefetch_related('files', 'items', 'audit_logs')
+        ).prefetch_related('files', 'items__product', 'audit_logs')
 
 
 class PrescriptionUploadView(APIView):
@@ -80,8 +100,8 @@ class PrescriptionDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role in ['pharmacist', 'admin']:
-            return Prescription.objects.all().prefetch_related('files', 'items', 'audit_logs')
-        return Prescription.objects.filter(patient=user).prefetch_related('files', 'items', 'audit_logs')
+            return Prescription.objects.all().prefetch_related('files', 'items__product', 'audit_logs')
+        return Prescription.objects.filter(patient=user).prefetch_related('files', 'items__product', 'audit_logs')
 
 
 class PrescriptionUpdateView(generics.UpdateAPIView):
@@ -146,4 +166,82 @@ class AdminPrescriptionListView(generics.ListAPIView):
     def get_queryset(self):
         return Prescription.objects.all().select_related(
             'patient', 'pharmacist'
-        ).prefetch_related('files', 'items', 'audit_logs')
+        ).prefetch_related('files', 'items__product', 'audit_logs')
+
+
+class PrescriptionItemAddToCartView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, item_pk):
+        try:
+            prescription = Prescription.objects.prefetch_related('items__product').get(
+                pk=pk,
+                patient=request.user,
+                status=Prescription.STATUS_APPROVED,
+            )
+        except Prescription.DoesNotExist:
+            return Response(
+                {'detail': 'Approved prescription not found for this account.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        item = prescription.items.filter(pk=item_pk).select_related('product').first()
+        if not item:
+            return Response({'detail': 'Prescription item not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not item.product or not item.product.is_active:
+            return Response(
+                {'detail': 'This prescription item has not been mapped to an active product yet.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            quantity = int(request.data.get('quantity', item.quantity or 1))
+        except (TypeError, ValueError):
+            return Response({'quantity': 'Invalid quantity.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if quantity < 1:
+            return Response({'quantity': 'Must be at least 1.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        cart = _get_or_create_cart(request.user)
+        existing_item = CartItem.objects.filter(
+            cart=cart,
+            product=item.product,
+            product_variant__isnull=True,
+            prescription=prescription,
+            prescription_item=item,
+        ).first()
+        requested_total = quantity + (existing_item.quantity if existing_item else 0)
+        if requested_total > item.quantity:
+            return Response(
+                {
+                    'detail': (
+                        f'You can only request up to {item.quantity} unit(s) for '
+                        f'{item.product.name} from this prescription.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        error = _product_availability_error(item.product, requested_total)
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        if existing_item:
+            existing_item.quantity = requested_total
+            existing_item.save(update_fields=['quantity'])
+        else:
+            CartItem.objects.create(
+                cart=cart,
+                product=item.product,
+                quantity=quantity,
+                prescription_reference=prescription.reference,
+                prescription=prescription,
+                prescription_item=item,
+            )
+
+        PrescriptionAuditLog.objects.create(
+            prescription=prescription,
+            action=f'Added {item.product.name} x{quantity} to cart from approved prescription',
+            performed_by=request.user,
+        )
+        return Response(CartSerializer(cart).data, status=status.HTTP_201_CREATED)

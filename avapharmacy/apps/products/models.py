@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q, Value
 from django.db.models.functions import Coalesce, Lower
 from django.utils import timezone
 from django.utils.text import slugify
@@ -21,6 +22,7 @@ class Category(models.Model):
     parent = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='subcategories'
     )
+    image = models.ImageField(upload_to='categories/', blank=True)
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, blank=True)
     is_active = models.BooleanField(default=True)
@@ -32,10 +34,21 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = 'categories'
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['parent', 'is_active']),
+            models.Index(fields=['is_active', 'name']),
+        ]
         constraints = [
             models.UniqueConstraint(
                 Lower('name'),
-                name='unique_category_name_ci',
+                condition=Q(parent__isnull=True),
+                name='unique_root_category_name_ci',
+            ),
+            models.UniqueConstraint(
+                Lower('name'),
+                Coalesce('parent', Value(0)),
+                condition=Q(parent__isnull=False),
+                name='unique_category_name_per_parent_ci',
             ),
         ]
 
@@ -66,6 +79,9 @@ class ProductCategory(models.Model):
     class Meta:
         verbose_name_plural = 'product categories'
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['is_active', 'name']),
+        ]
 
     def __str__(self):
         return self.name
@@ -82,6 +98,13 @@ class ProductSubcategory(models.Model):
     category = models.ForeignKey(
         ProductCategory, on_delete=models.CASCADE, related_name='subcategories'
     )
+    category_node = models.OneToOneField(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='legacy_product_subcategory',
+    )
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
@@ -94,7 +117,16 @@ class ProductSubcategory(models.Model):
     class Meta:
         verbose_name_plural = 'product subcategories'
         ordering = ['category__name', 'name']
-        unique_together = [('category', 'name')]
+        indexes = [
+            models.Index(fields=['category', 'is_active']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                Lower('name'),
+                models.F('category'),
+                name='unique_product_subcategory_name_per_category_ci',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.category.name} / {self.name}'
@@ -126,6 +158,9 @@ class HealthConcern(models.Model):
 
     class Meta:
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['is_active', 'name']),
+        ]
 
     def __str__(self):
         return self.name
@@ -157,6 +192,9 @@ class Brand(models.Model):
 
     class Meta:
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['is_active', 'name']),
+        ]
 
     def __str__(self):
         return self.name
@@ -200,10 +238,16 @@ class Product(models.Model):
     subcategory = models.ForeignKey(
         'ProductSubcategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='products'
     )
+    catalog_subcategory = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products_as_subcategory',
+    )
     health_concerns = models.ManyToManyField(HealthConcern, blank=True, related_name='products')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/', blank=True)
     short_description = models.CharField(max_length=500, blank=True)
@@ -225,7 +269,10 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=['is_active', 'created_at']),
             models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['catalog_subcategory', 'is_active']),
             models.Index(fields=['brand', 'is_active']),
+            models.Index(fields=['requires_prescription', 'is_active']),
+            models.Index(fields=['is_featured', 'is_active']),
         ]
 
     INVENTORY_FIELD_NAMES = {
@@ -350,31 +397,16 @@ class Product(models.Model):
         self._pending_inventory_updates = pending
 
     def _sync_category_from_subcategory(self):
-        if not self.subcategory_id:
+        subcategory = self.catalog_subcategory
+        if subcategory is None and self.subcategory_id:
+            subcategory = getattr(self.subcategory, 'category_node', None)
+        if not subcategory:
             return False
 
-        source_category = self.subcategory.category
-        category, _ = Category.objects.get_or_create(
-            slug=source_category.slug,
-            defaults={
-                'name': source_category.name,
-                'description': source_category.description,
-                'icon': source_category.icon,
-                'is_active': source_category.is_active,
-            },
-        )
+        source_category = subcategory.parent or subcategory
 
-        updated_fields = []
-        for field_name in ('name', 'description', 'icon', 'is_active'):
-            source_value = getattr(source_category, field_name)
-            if getattr(category, field_name) != source_value:
-                setattr(category, field_name, source_value)
-                updated_fields.append(field_name)
-        if updated_fields:
-            category.save(update_fields=updated_fields)
-
-        if self.category_id != category.id:
-            self.category = category
+        if self.category_id != source_category.id:
+            self.category = source_category
             return True
         return False
 
@@ -555,6 +587,9 @@ class Product(models.Model):
     @property
     def average_rating(self):
         """Return the average rating from approved reviews, rounded to 1 decimal."""
+        annotated_average = getattr(self, 'approved_average_rating', None)
+        if annotated_average is not None:
+            return round(annotated_average, 1) if annotated_average else 0.0
         from django.db.models import Avg
         reviews = self.reviews.filter(is_approved=True)
         if reviews.exists():
@@ -565,6 +600,9 @@ class Product(models.Model):
     @property
     def review_count(self):
         """Return the count of approved reviews for this product."""
+        annotated_count = getattr(self, 'approved_review_count', None)
+        if annotated_count is not None:
+            return annotated_count
         return self.reviews.filter(is_approved=True).count()
 
 

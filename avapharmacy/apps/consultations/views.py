@@ -7,10 +7,8 @@ from django.utils import timezone
 from django.db.models import Sum, Count, Q
 
 from .models import (
-    DoctorProfile, DoctorDocument, PediatricianProfile, PediatricianDocument,
+    ClinicianProfile, ClinicianPrescription, ClinicianEarning,
     Consultation, ConsultationMessage,
-    DoctorPrescription, PediatricianPrescription,
-    DoctorEarning, PediatricianEarning,
 )
 from .serializers import (
     DoctorProfileSerializer, DoctorProfileListSerializer, DoctorOnboardingSerializer,
@@ -29,18 +27,26 @@ from apps.accounts.serializers import (
 )
 
 
+CONSULTATION_SELECT_RELATED = (
+    'patient',
+    'clinician',
+    'clinician__user',
+)
+
+
+def _get_clinician_for_user(user, provider_type=None):
+    queryset = ClinicianProfile.objects.filter(user=user)
+    if provider_type:
+        queryset = queryset.filter(provider_type=provider_type)
+    return queryset.first()
+
+
 def _get_doctor_or_404(user):
-    try:
-        return DoctorProfile.objects.get(user=user)
-    except DoctorProfile.DoesNotExist:
-        return None
+    return _get_clinician_for_user(user, ClinicianProfile.TYPE_DOCTOR)
 
 
 def _get_pediatrician_or_404(user):
-    try:
-        return PediatricianProfile.objects.get(user=user)
-    except PediatricianProfile.DoesNotExist:
-        return None
+    return _get_clinician_for_user(user, ClinicianProfile.TYPE_PEDIATRICIAN)
 
 
 def _get_provider_for_user(user):
@@ -49,16 +55,22 @@ def _get_provider_for_user(user):
     return _get_doctor_or_404(user)
 
 
+def _get_clinician_by_identifier(identifier, provider_type):
+    queryset = ClinicianProfile.objects.filter(provider_type=provider_type)
+    legacy_field = 'legacy_doctor_id' if provider_type == ClinicianProfile.TYPE_DOCTOR else 'legacy_pediatrician_id'
+    return queryset.filter(pk=identifier).first() or queryset.filter(**{legacy_field: identifier}).first()
+
+
 # ─── Public ───────────────────────────────────────────────────────────────────
 
 class DoctorListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = DoctorProfileListSerializer
-    filterset_fields = ['type', 'specialty']
+    filterset_fields = ['specialty']
     search_fields = ['name', 'specialty', 'facility']
 
     def get_queryset(self):
-        return DoctorProfile.objects.filter(status=DoctorProfile.STATUS_ACTIVE)
+        return ClinicianProfile.objects.doctors().filter(status=ClinicianProfile.STATUS_ACTIVE).select_related('user')
 
 
 class PediatricianListView(generics.ListAPIView):
@@ -68,19 +80,33 @@ class PediatricianListView(generics.ListAPIView):
     search_fields = ['name', 'specialty', 'facility']
 
     def get_queryset(self):
-        return PediatricianProfile.objects.filter(status=PediatricianProfile.STATUS_ACTIVE)
+        return ClinicianProfile.objects.pediatricians().filter(status=ClinicianProfile.STATUS_ACTIVE).select_related('user')
 
 
 class DoctorDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = DoctorProfileSerializer
-    queryset = DoctorProfile.objects.all()
+    queryset = ClinicianProfile.objects.doctors().select_related('user').prefetch_related('documents')
+
+    def get_object(self):
+        clinician = _get_clinician_by_identifier(self.kwargs['pk'], ClinicianProfile.TYPE_DOCTOR)
+        if not clinician:
+            from django.http import Http404
+            raise Http404
+        return clinician
 
 
 class PediatricianDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = PediatricianProfileSerializer
-    queryset = PediatricianProfile.objects.all()
+    queryset = ClinicianProfile.objects.pediatricians().select_related('user').prefetch_related('documents')
+
+    def get_object(self):
+        clinician = _get_clinician_by_identifier(self.kwargs['pk'], ClinicianProfile.TYPE_PEDIATRICIAN)
+        if not clinician:
+            from django.http import Http404
+            raise Http404
+        return clinician
 
 
 # ─── Doctor / Pediatrician Onboarding ─────────────────────────────────────────
@@ -121,7 +147,7 @@ class DoctorDashboardView(APIView):
 
         today = timezone.now().date()
         month_start = today.replace(day=1)
-        qs = Consultation.objects.filter(doctor=doctor)
+        qs = Consultation.objects.filter(clinician=doctor).select_related(*CONSULTATION_SELECT_RELATED)
 
         stats = {
             'today': qs.filter(created_at__date=today).count(),
@@ -134,7 +160,7 @@ class DoctorDashboardView(APIView):
             'total_completed': qs.filter(status=Consultation.STATUS_COMPLETED).count(),
         }
 
-        earnings = DoctorEarning.objects.filter(doctor=doctor)
+        earnings = ClinicianEarning.objects.filter(clinician=doctor)
         stats['monthly_earnings'] = float(
             earnings.filter(earned_at__date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
         )
@@ -143,7 +169,7 @@ class DoctorDashboardView(APIView):
         )
 
         recent = ConsultationListSerializer(
-            qs.select_related('patient').order_by('-created_at')[:5], many=True
+            qs.order_by('-created_at')[:5], many=True
         ).data
 
         return Response({
@@ -167,7 +193,7 @@ class PediatricianDashboardView(APIView):
         today = timezone.now().date()
         month_start = today.replace(day=1)
 
-        qs = Consultation.objects.filter(pediatrician=pediatrician, is_pediatric=True)
+        qs = Consultation.objects.filter(clinician=pediatrician, is_pediatric=True).select_related(*CONSULTATION_SELECT_RELATED)
 
         return Response({
             'profile': PediatricianProfileSerializer(pediatrician).data,
@@ -185,8 +211,8 @@ class PediatricianDashboardView(APIView):
                     created_at__date__gte=month_start
                 ).count(),
                 'monthly_earnings': float(
-                    PediatricianEarning.objects.filter(
-                        pediatrician=pediatrician, earned_at__date__gte=month_start
+                    ClinicianEarning.objects.filter(
+                        clinician=pediatrician, earned_at__date__gte=month_start
                     ).aggregate(t=Sum('amount'))['t'] or 0
                 ),
             },
@@ -227,7 +253,7 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
         return ConsultationListSerializer
 
     def get_queryset(self):
-        return Consultation.objects.filter(patient=self.request.user).select_related('doctor')
+        return Consultation.objects.filter(patient=self.request.user).select_related(*CONSULTATION_SELECT_RELATED)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -238,13 +264,10 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
         )
 
         # Notify doctor of new consultation
-        doctor = consultation.doctor
-        pediatrician = consultation.pediatrician
+        provider = consultation.provider_profile
         provider_user = None
-        if doctor and doctor.user:
-            provider_user = doctor.user
-        elif pediatrician and pediatrician.user:
-            provider_user = pediatrician.user
+        if provider and provider.user:
+            provider_user = provider.user
         if provider_user:
             try:
                 from apps.notifications.utils import notify_new_consultation
@@ -261,8 +284,8 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role in ['doctor', 'pediatrician', 'admin']:
-            return Consultation.objects.all().prefetch_related('messages')
-        return Consultation.objects.filter(patient=user).prefetch_related('messages')
+            return Consultation.objects.all().select_related(*CONSULTATION_SELECT_RELATED).prefetch_related('messages')
+        return Consultation.objects.filter(patient=user).select_related(*CONSULTATION_SELECT_RELATED).prefetch_related('messages')
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
@@ -300,7 +323,7 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return ConsultationMessage.objects.filter(consultation_id=self.kwargs['pk'])
+        return ConsultationMessage.objects.filter(consultation_id=self.kwargs['pk']).select_related('sender')
 
     def perform_create(self, serializer):
         try:
@@ -311,8 +334,9 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
 
         # Validate the user is a participant
         user = self.request.user
-        is_doctor = bool(consultation.doctor and consultation.doctor.user == user)
-        is_pediatrician = bool(consultation.pediatrician and consultation.pediatrician.user == user)
+        provider = consultation.provider_profile
+        is_doctor = bool(provider and provider.provider_type == ClinicianProfile.TYPE_DOCTOR and provider.user == user)
+        is_pediatrician = bool(provider and provider.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN and provider.user == user)
         is_patient = consultation.patient == user
         is_admin = user.role == 'admin'
         if not (is_doctor or is_pediatrician or is_patient or is_admin):
@@ -330,10 +354,8 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
         # Notify the other participant
         try:
             from apps.notifications.utils import notify_consultation_message
-            if is_patient and consultation.doctor and consultation.doctor.user:
-                notify_consultation_message(consultation.doctor.user, consultation, user.full_name)
-            elif is_patient and consultation.pediatrician and consultation.pediatrician.user:
-                notify_consultation_message(consultation.pediatrician.user, consultation, user.full_name)
+            if is_patient and provider and provider.user:
+                notify_consultation_message(provider.user, consultation, user.full_name)
             elif (is_doctor or is_pediatrician) and consultation.patient:
                 notify_consultation_message(consultation.patient, consultation, user.full_name)
         except Exception:
@@ -351,8 +373,8 @@ class DoctorConsultationListView(generics.ListAPIView):
         provider = _get_provider_for_user(self.request.user)
         if not provider:
             return Consultation.objects.none()
-        filter_kwargs = {'pediatrician': provider} if self.request.user.role == 'pediatrician' else {'doctor': provider}
-        return Consultation.objects.filter(**filter_kwargs).select_related('patient')
+        filter_kwargs = {'clinician': provider}
+        return Consultation.objects.filter(**filter_kwargs).select_related(*CONSULTATION_SELECT_RELATED)
 
 
 class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
@@ -366,20 +388,17 @@ class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         provider = _get_provider_for_user(self.request.user)
         if not provider:
-            return PediatricianPrescription.objects.none() if self.request.user.role == 'pediatrician' else DoctorPrescription.objects.none()
+            return ClinicianPrescription.objects.none()
         if self.request.user.role == 'pediatrician':
-            return PediatricianPrescription.objects.filter(pediatrician=provider)
-        return DoctorPrescription.objects.filter(doctor=provider)
+            return ClinicianPrescription.objects.filter(clinician=provider).select_related('consultation')
+        return ClinicianPrescription.objects.filter(clinician=provider).select_related('consultation')
 
     def perform_create(self, serializer):
         provider = _get_provider_for_user(self.request.user)
         if not provider:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('No clinician profile found.')
-        if self.request.user.role == 'pediatrician':
-            serializer.save(pediatrician=provider)
-        else:
-            serializer.save(doctor=provider)
+        serializer.save(clinician=provider)
 
 
 class ClinicianEarningsView(generics.ListAPIView):
@@ -393,10 +412,8 @@ class ClinicianEarningsView(generics.ListAPIView):
     def get_queryset(self):
         provider = _get_provider_for_user(self.request.user)
         if not provider:
-            return PediatricianEarning.objects.none() if self.request.user.role == 'pediatrician' else DoctorEarning.objects.none()
-        if self.request.user.role == 'pediatrician':
-            return PediatricianEarning.objects.filter(pediatrician=provider)
-        return DoctorEarning.objects.filter(doctor=provider)
+            return ClinicianEarning.objects.none()
+        return ClinicianEarning.objects.filter(clinician=provider).select_related('consultation')
 
 
 # ─── Admin Doctor Management ──────────────────────────────────────────────────
@@ -407,12 +424,12 @@ class AdminDoctorListView(generics.ListAPIView):
     filterset_fields = ['status']
     search_fields = ['name', 'email', 'license_number']
     ordering = ['-submitted_at']
-    queryset = DoctorProfile.objects.all().prefetch_related('documents')
+    queryset = ClinicianProfile.objects.doctors().select_related('user', 'created_by', 'updated_by').prefetch_related('documents')
 
 
 class AdminDoctorDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAdminUser]
-    queryset = DoctorProfile.objects.all()
+    queryset = ClinicianProfile.objects.doctors().select_related('user', 'created_by', 'updated_by').prefetch_related('documents')
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
@@ -422,18 +439,18 @@ class AdminDoctorDetailView(generics.RetrieveUpdateAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
-        was_pending = instance.status == DoctorProfile.STATUS_PENDING
+        was_pending = instance.status == ClinicianProfile.STATUS_PENDING
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
-        if request.data.get('status') == DoctorProfile.STATUS_ACTIVE and not instance.verified_at:
+        if request.data.get('status') == ClinicianProfile.STATUS_ACTIVE and not instance.verified_at:
             instance.verified_at = timezone.now()
             instance.save(update_fields=['verified_at'])
 
         doctor = serializer.save(updated_by=request.user)
 
         # Notify doctor if newly verified
-        if was_pending and doctor.status == DoctorProfile.STATUS_ACTIVE and doctor.user:
+        if was_pending and doctor.status == ClinicianProfile.STATUS_ACTIVE and doctor.user:
             try:
                 from apps.notifications.utils import notify_doctor_verified
                 notify_doctor_verified(doctor)
@@ -448,14 +465,14 @@ class AdminDoctorActionView(APIView):
 
     def post(self, request, pk):
         try:
-            doctor = DoctorProfile.objects.get(pk=pk)
-        except DoctorProfile.DoesNotExist:
+            doctor = ClinicianProfile.objects.doctors().get(pk=pk)
+        except ClinicianProfile.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         action = request.data.get('action')
 
         if action == 'approve':
-            doctor.status = DoctorProfile.STATUS_ACTIVE
+            doctor.status = ClinicianProfile.STATUS_ACTIVE
             doctor.verified_at = timezone.now()
             doctor.status_note = ''
             doctor.updated_by = request.user
@@ -481,7 +498,7 @@ class AdminDoctorActionView(APIView):
             note = (request.data.get('note') or '').strip()
             if not note:
                 return Response({'note': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            doctor.status = DoctorProfile.STATUS_SUSPENDED
+            doctor.status = ClinicianProfile.STATUS_SUSPENDED
             doctor.rejection_note = note
             doctor.updated_by = request.user
             doctor.save(update_fields=['status', 'rejection_note', 'updated_by', 'updated_at'])
@@ -502,8 +519,8 @@ class AdminDoctorProvisionAccountView(APIView):
 
     def post(self, request, pk):
         try:
-            doctor = DoctorProfile.objects.get(pk=pk)
-        except DoctorProfile.DoesNotExist:
+            doctor = ClinicianProfile.objects.doctors().get(pk=pk)
+        except ClinicianProfile.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ProvisionDoctorAccountSerializer(
@@ -542,12 +559,12 @@ class AdminPediatricianListView(generics.ListAPIView):
     filterset_fields = ['status']
     search_fields = ['name', 'email', 'license_number']
     ordering = ['-submitted_at']
-    queryset = PediatricianProfile.objects.all().prefetch_related('documents')
+    queryset = ClinicianProfile.objects.pediatricians().select_related('user', 'created_by', 'updated_by').prefetch_related('documents')
 
 
 class AdminPediatricianDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAdminUser]
-    queryset = PediatricianProfile.objects.all()
+    queryset = ClinicianProfile.objects.pediatricians().select_related('user', 'created_by', 'updated_by').prefetch_related('documents')
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
@@ -557,17 +574,17 @@ class AdminPediatricianDetailView(generics.RetrieveUpdateAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
-        was_pending = instance.status == PediatricianProfile.STATUS_PENDING
+        was_pending = instance.status == ClinicianProfile.STATUS_PENDING
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
-        if request.data.get('status') == PediatricianProfile.STATUS_ACTIVE and not instance.verified_at:
+        if request.data.get('status') == ClinicianProfile.STATUS_ACTIVE and not instance.verified_at:
             instance.verified_at = timezone.now()
             instance.save(update_fields=['verified_at'])
 
         pediatrician = serializer.save(updated_by=request.user)
 
-        if was_pending and pediatrician.status == PediatricianProfile.STATUS_ACTIVE and pediatrician.user:
+        if was_pending and pediatrician.status == ClinicianProfile.STATUS_ACTIVE and pediatrician.user:
             try:
                 from apps.notifications.utils import notify_doctor_verified
                 notify_doctor_verified(pediatrician)
@@ -582,14 +599,14 @@ class AdminPediatricianActionView(APIView):
 
     def post(self, request, pk):
         try:
-            pediatrician = PediatricianProfile.objects.get(pk=pk)
-        except PediatricianProfile.DoesNotExist:
+            pediatrician = ClinicianProfile.objects.pediatricians().get(pk=pk)
+        except ClinicianProfile.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         action = request.data.get('action')
 
         if action == 'approve':
-            pediatrician.status = PediatricianProfile.STATUS_ACTIVE
+            pediatrician.status = ClinicianProfile.STATUS_ACTIVE
             pediatrician.verified_at = timezone.now()
             pediatrician.status_note = ''
             pediatrician.updated_by = request.user
@@ -607,7 +624,7 @@ class AdminPediatricianActionView(APIView):
             note = (request.data.get('note') or '').strip()
             if not note:
                 return Response({'note': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            pediatrician.status = PediatricianProfile.STATUS_SUSPENDED
+            pediatrician.status = ClinicianProfile.STATUS_SUSPENDED
             pediatrician.rejection_note = note
             pediatrician.updated_by = request.user
             pediatrician.save(update_fields=['status', 'rejection_note', 'updated_by', 'updated_at'])
@@ -627,8 +644,8 @@ class AdminPediatricianProvisionAccountView(APIView):
 
     def post(self, request, pk):
         try:
-            pediatrician = PediatricianProfile.objects.get(pk=pk)
-        except PediatricianProfile.DoesNotExist:
+            pediatrician = ClinicianProfile.objects.pediatricians().get(pk=pk)
+        except ClinicianProfile.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ProvisionPediatricianAccountSerializer(
@@ -724,7 +741,7 @@ class AdminDashboardView(APIView):
                 'total': Consultation.objects.count(),
                 'waiting': Consultation.objects.filter(status='waiting').count(),
                 'in_progress': Consultation.objects.filter(status='in_progress').count(),
-                'pending_doctor_verification': DoctorProfile.objects.filter(status='pending').count(),
-                'pending_pediatrician_verification': PediatricianProfile.objects.filter(status='pending').count(),
+                'pending_doctor_verification': ClinicianProfile.objects.doctors().filter(status='pending').count(),
+                'pending_pediatrician_verification': ClinicianProfile.objects.pediatricians().filter(status='pending').count(),
             },
         })

@@ -1,9 +1,17 @@
 from django.conf import settings
 from django.db import transaction
 from django.db import models
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Q, Sum
+from django.db.models.functions import TruncDate
+from django.http import HttpResponse
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
+from datetime import timedelta
+import logging
+from urllib.parse import urlencode
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,7 +26,16 @@ from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderN
 from .integrations import push_order_to_pos
 from .flutterwave import FlutterwaveAPIError, FlutterwaveClient, FlutterwaveConfigurationError
 from .mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
+from .payment_helpers import (
+    build_paybill_account_reference,
+    get_paybill_account_label,
+    get_paybill_instructions,
+    get_paybill_number,
+    resolve_order_number_from_paybill_reference,
+)
 from .serializers import (
+    AdminInvoiceSerializer,
+    AdminPaybillReconcileSerializer,
     AdminOrderSerializer,
     AdminOrderUpdateSerializer,
     CartSerializer,
@@ -26,6 +43,10 @@ from .serializers import (
     CouponApplySerializer,
     OrderNoteCreateSerializer,
     OrderSerializer,
+    PaybillWebhookSerializer,
+    MpesaC2BRegisterSerializer,
+    FlutterwaveInitiateSerializer,
+    FlutterwaveStatusSerializer,
     PaymentIntentCreateSerializer,
     PaymentIntentSerializer,
     PaymentWebhookSerializer,
@@ -34,6 +55,15 @@ from .serializers import (
     ReturnRequestSerializer,
     ShippingMethodSerializer,
 )
+
+payments_logger = logging.getLogger('payments')
+
+
+def _truncate_event_message(message, limit=255):
+    text = (message or '').strip()
+    if len(text) <= limit:
+        return text
+    return f'{text[: max(0, limit - 1)].rstrip()}…'
 
 
 def get_or_create_cart(user):
@@ -46,7 +76,7 @@ def create_order_event(order, event_type, message, actor=None, metadata=None):
         order=order,
         actor=actor if getattr(actor, 'is_authenticated', False) else None,
         event_type=event_type,
-        message=message,
+        message=_truncate_event_message(message),
         metadata=metadata or {},
     )
 
@@ -67,6 +97,45 @@ def _cart_inventory_object(item):
     return item.product_variant or item.product
 
 
+def _get_prescription_product_match(user, prescription_reference, product, prescription=None, prescription_item=None):
+    if not user or not getattr(user, 'is_authenticated', False):
+        return None
+    from apps.prescriptions.models import PrescriptionItem, Prescription
+
+    queryset = PrescriptionItem.objects.select_related('prescription', 'product').filter(
+        prescription__patient=user,
+        prescription__status=Prescription.STATUS_APPROVED,
+        product=product,
+    )
+    if prescription_item is not None:
+        return queryset.filter(pk=prescription_item.pk).first()
+    if prescription is not None:
+        return queryset.filter(prescription=prescription).first()
+    if not prescription_reference:
+        return None
+    return queryset.filter(prescription__reference=prescription_reference).first()
+
+
+def _prescription_cart_error(user, product, prescription_reference, requested_quantity, *, prescription=None, prescription_item=None):
+    if not any([prescription_reference, prescription, prescription_item]):
+        return f'{product.name} requires an approved prescription before it can be added to cart.'
+    match = _get_prescription_product_match(
+        user,
+        prescription_reference,
+        product,
+        prescription=prescription,
+        prescription_item=prescription_item,
+    )
+    if not match:
+        return f'{product.name} is not linked to an approved prescription for this account.'
+    if requested_quantity > match.quantity:
+        return (
+            f'{product.name} is approved for up to {match.quantity} unit(s) on prescription '
+            f'{match.prescription.reference}.'
+        )
+    return None
+
+
 def validate_cart_items(items):
     errors = []
     for item in items:
@@ -74,8 +143,17 @@ def validate_cart_items(items):
         error = _product_availability_error(inventory_object, item.quantity)
         if error:
             errors.append(error)
-        if item.product.requires_prescription and not item.prescription_id:
-            errors.append(f'{item.product.name} requires a prescription reference.')
+        if item.product.requires_prescription:
+            prescription_error = _prescription_cart_error(
+                getattr(item.cart, 'user', None),
+                item.product,
+                item.prescription_reference,
+                item.quantity,
+                prescription=item.prescription,
+                prescription_item=item.prescription_item,
+            )
+            if prescription_error:
+                errors.append(prescription_error)
     return errors
 
 
@@ -91,6 +169,17 @@ def build_order_totals(cart, shipping_method=None):
     return subtotal, discount_total, shipping_fee, total
 
 
+def resolve_mpesa_stk_amount(order_total):
+    raw_override = str(getattr(settings, 'MPESA_STK_PUSH_AMOUNT_OVERRIDE', '') or '').strip()
+    if not raw_override:
+        return order_total
+    try:
+        override = Decimal(raw_override)
+    except (InvalidOperation, TypeError, ValueError):
+        return order_total
+    return override if override > 0 else order_total
+
+
 def snapshot_cart_to_order(order, cart_items):
     order.items.all().delete()
     for item in cart_items:
@@ -104,7 +193,9 @@ def snapshot_cart_to_order(order, cart_items):
             variant_name=item.product_variant.name if item.product_variant else '',
             variant_sku=item.product_variant.sku if item.product_variant else '',
             unit_price=item.product_variant.effective_price if item.product_variant else item.product.price,
-            prescription_id=item.prescription_id,
+            prescription_reference=item.prescription_reference,
+            prescription=item.prescription,
+            prescription_item=item.prescription_item,
         )
 
 
@@ -166,6 +257,99 @@ def _save_order_push_result(order, action):
     )
 
 
+def _record_payment_error(intent, stage, message, *, metadata=None, event_type='payment_error'):
+    safe_message = (message or 'Payment failed.').strip()
+    payload = dict(intent.payload or {})
+    error_logs = list(payload.get('error_logs') or [])
+    entry = {
+        'timestamp': timezone.now().isoformat(),
+        'stage': stage,
+        'provider': intent.provider,
+        'status': intent.status,
+        'message': safe_message,
+    }
+    if metadata:
+        entry['metadata'] = metadata
+
+    last_entry = error_logs[-1] if error_logs else None
+    is_duplicate = (
+        last_entry
+        and last_entry.get('stage') == entry['stage']
+        and last_entry.get('message') == entry['message']
+        and last_entry.get('status') == entry['status']
+    )
+
+    if not is_duplicate:
+        error_logs.append(entry)
+        payload['error_logs'] = error_logs[-20:]
+        intent.payload = payload
+        intent.last_error = safe_message[:255]
+        intent.save(update_fields=['payload', 'last_error', 'updated_at'])
+        create_order_event(
+            intent.order,
+            event_type,
+            safe_message,
+            metadata={'intent_reference': intent.reference, 'stage': stage, **(metadata or {})},
+        )
+
+    payments_logger.error(
+        'Payment error [%s] order=%s intent=%s provider=%s status=%s message=%s metadata=%s',
+        stage,
+        intent.order.order_number,
+        intent.reference,
+        intent.provider,
+        intent.status,
+        safe_message,
+        metadata or {},
+    )
+
+
+def _record_payment_notice(intent, stage, message, *, metadata=None, event_type='payment_notice'):
+    safe_message = (message or '').strip()
+    payload = dict(intent.payload or {})
+    error_logs = list(payload.get('error_logs') or [])
+    entry = {
+        'timestamp': timezone.now().isoformat(),
+        'stage': stage,
+        'provider': intent.provider,
+        'status': intent.status,
+        'message': safe_message,
+        'severity': 'warning',
+    }
+    if metadata:
+        entry['metadata'] = metadata
+
+    last_entry = error_logs[-1] if error_logs else None
+    is_duplicate = (
+        last_entry
+        and last_entry.get('stage') == entry['stage']
+        and last_entry.get('message') == entry['message']
+        and last_entry.get('status') == entry['status']
+    )
+    if not is_duplicate:
+        error_logs.append(entry)
+        payload['error_logs'] = error_logs[-20:]
+        intent.payload = payload
+        intent.save(update_fields=['payload', 'updated_at'])
+        create_order_event(
+            intent.order,
+            event_type,
+            safe_message,
+            metadata={'intent_reference': intent.reference, 'stage': stage, **(metadata or {})},
+        )
+
+    payments_logger.warning(
+        'Payment notice [%s] order=%s intent=%s provider=%s status=%s message=%s metadata=%s',
+        stage,
+        intent.order.order_number,
+        intent.reference,
+        intent.provider,
+        intent.status,
+        safe_message,
+        metadata or {},
+    )
+
+
 def _mark_order_paid(order, intent, message, notify_message):
     order.payment_status = Order.PAYMENT_STATUS_PAID
     order.payment_reference = intent.provider_reference or intent.reference
@@ -190,18 +374,366 @@ def _mark_order_paid(order, intent, message, notify_message):
 def _mark_order_payment_failed(order, intent, message):
     order.payment_status = Order.PAYMENT_STATUS_FAILED
     order.save(update_fields=['payment_status', 'updated_at'])
-    create_order_event(
-        order,
+    _record_payment_error(
+        intent,
         'payment_failed',
         message or 'Payment failed.',
-        metadata={'intent_reference': intent.reference},
+        metadata={'provider_reference': intent.provider_reference},
+        event_type='payment_failed',
     )
 
 
 def _build_flutterwave_redirect_url(request, order, intent, fallback=''):
-    base_url = fallback or getattr(settings, 'FLUTTERWAVE_REDIRECT_URL', '') or f'{settings.FRONTEND_BASE_URL}/checkout'
+    frontend_target = fallback or getattr(settings, 'FLUTTERWAVE_REDIRECT_URL', '') or f'{settings.FRONTEND_BASE_URL}/checkout'
+    callback_url = request.build_absolute_uri(reverse('orders-payment-flutterwave-redirect'))
+    query = urlencode({
+        'order_id': order.id,
+        'intent_id': intent.id,
+        'return_url': frontend_target,
+    })
+    return f'{callback_url}?{query}'
+
+
+def _append_query_params(base_url, params):
     separator = '&' if '?' in base_url else '?'
-    return f'{base_url}{separator}order_id={order.id}&intent_id={intent.id}'
+    return f'{base_url}{separator}{urlencode(params)}'
+
+
+def _get_order_for_payment_request(request, order_id):
+    try:
+        order = Order.objects.select_related('customer').prefetch_related('payment_intents').get(pk=order_id)
+    except Order.DoesNotExist:
+        return None, Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not request.user.is_authenticated:
+        return None, Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+    if order.customer_id != request.user.id and request.user.role != 'admin':
+        return None, Response({'detail': 'You do not have permission to access this order.'}, status=status.HTTP_403_FORBIDDEN)
+    return order, None
+
+
+def _upsert_flutterwave_card_intent(request, order, *, return_url=''):
+    existing_success = (
+        order.payment_intents
+        .filter(provider=PaymentIntent.PROVIDER_CARD, status=PaymentIntent.STATUS_SUCCEEDED)
+        .order_by('-created_at')
+        .first()
+    )
+    if existing_success:
+        return existing_success
+
+    existing_active = (
+        order.payment_intents
+        .filter(provider=PaymentIntent.PROVIDER_CARD, status__in=[PaymentIntent.STATUS_PENDING, PaymentIntent.STATUS_REQUIRES_ACTION])
+        .order_by('-created_at')
+        .first()
+    )
+    intent = existing_active or PaymentIntent.objects.create(
+        order=order,
+        initiated_by=request.user,
+        provider=PaymentIntent.PROVIDER_CARD,
+        status=PaymentIntent.STATUS_REQUIRES_ACTION,
+        amount=order.total,
+        payload={'instructions': 'Redirect customer to hosted card checkout.'},
+    )
+
+    redirect_url = _build_flutterwave_redirect_url(request, order, intent, return_url)
+    response_payload = FlutterwaveClient().create_card_checkout(
+        payment_intent=intent,
+        order=order,
+        customer=request.user,
+        redirect_url=redirect_url,
+    )
+    response_data = response_payload.get('data') or {}
+    tx_ref = str(response_data.get('tx_ref') or intent.reference)
+
+    intent.initiated_by = request.user
+    intent.status = PaymentIntent.STATUS_REQUIRES_ACTION
+    intent.external_reference = tx_ref
+    intent.client_secret = response_data.get('link', '')
+    intent.payload = response_payload
+    intent.last_error = ''
+    intent.processed_at = None
+    intent.save(update_fields=[
+        'initiated_by', 'status', 'external_reference', 'client_secret',
+        'payload', 'last_error', 'processed_at', 'updated_at',
+    ])
+
+    order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
+    order.flutterwave_tx_ref = tx_ref
+    order.save(update_fields=['payment_status', 'flutterwave_tx_ref', 'updated_at'])
+    create_order_event(
+        order,
+        'payment_intent_created',
+        'Card checkout link created.',
+        actor=request.user,
+        metadata={'intent_reference': intent.reference, 'tx_ref': tx_ref, 'checkout_url': response_data.get('link', '')},
+    )
+    return intent
+
+
+def _merge_intent_payload(intent, extra_payload):
+    payload = dict(intent.payload or {})
+    payload.update(extra_payload or {})
+    intent.payload = payload
+
+
+def _upsert_paybill_intent(intent, *, phone, reference_code, account_reference, metadata=None):
+    submitted_at = timezone.now()
+    _merge_intent_payload(intent, {
+        'channel': 'mpesa_paybill',
+        'submitted_reference': reference_code,
+        'submitted_phone': phone,
+        'submitted_at': submitted_at.isoformat(),
+        'paybill_number': get_paybill_number(),
+        'paybill_account_label': get_paybill_account_label(),
+        'paybill_instructions': get_paybill_instructions(),
+        **({'metadata': metadata} if metadata else {}),
+    })
+    intent.phone_number = phone
+    intent.external_reference = account_reference
+    intent.provider_reference = reference_code
+    intent.status = PaymentIntent.STATUS_REQUIRES_ACTION
+    intent.last_error = ''
+    intent.processed_at = None
+    intent.save(update_fields=[
+        'payload', 'initiated_by', 'phone_number', 'external_reference', 'provider_reference',
+        'status', 'last_error', 'processed_at', 'updated_at',
+    ])
+    intent.order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
+    intent.order.save(update_fields=['payment_status', 'updated_at'])
+    create_order_event(
+        intent.order,
+        'paybill_reference_submitted',
+        'M-Pesa paybill transaction reference submitted for confirmation.',
+        actor=intent.initiated_by,
+        metadata={
+            'intent_reference': intent.reference,
+            'provider_reference': reference_code,
+            'account_reference': account_reference,
+        },
+    )
+    return intent
+
+
+def _parse_payment_amount(value):
+    if value in [None, '']:
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def _amount_matches_order_total(amount, order_total):
+    if amount is None:
+        return False
+    try:
+        return amount.quantize(Decimal('0.01')) == Decimal(str(order_total)).quantize(Decimal('0.01'))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
+
+def _is_mpesa_processing_response(payload):
+    result_desc = str((payload or {}).get('ResultDesc', '') or '').strip().lower()
+    if not result_desc:
+        return False
+    processing_markers = (
+        'still under processing',
+        'being processed',
+        'processing',
+        'pending',
+        'queued',
+    )
+    return any(marker in result_desc for marker in processing_markers)
+
+
+def _get_mpesa_sync_meta(intent):
+    return dict((intent.payload or {}).get('status_sync') or {})
+
+
+def _set_mpesa_sync_meta(intent, **extra):
+    payload = dict(intent.payload or {})
+    sync_meta = dict(payload.get('status_sync') or {})
+    sync_meta.update(extra)
+    payload['status_sync'] = sync_meta
+    intent.payload = payload
+
+
+def _parse_sync_datetime(value):
+    if not value:
+        return None
+    parsed = parse_datetime(str(value))
+    if parsed and timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
+
+
+def _mpesa_sync_retry_after_seconds(message):
+    text = str(message or '').lower()
+    if 'rate limit' in text or '429' in text or 'spikearrest' in text:
+        return max(1, int(getattr(settings, 'MPESA_STATUS_SYNC_RETRY_AFTER_429_SECONDS', 65)))
+    if 'blocked by safaricom edge protection' in text or 'incapsula' in text or '403' in text:
+        return max(1, int(getattr(settings, 'MPESA_STATUS_SYNC_RETRY_AFTER_403_SECONDS', 180)))
+    return 0
+
+
+def _mpesa_sync_next_allowed_at(intent):
+    now = timezone.now()
+    min_interval = max(0, int(getattr(settings, 'MPESA_STATUS_SYNC_MIN_INTERVAL_SECONDS', 15)))
+    sync_meta = _get_mpesa_sync_meta(intent)
+    next_allowed_at = _parse_sync_datetime(sync_meta.get('next_allowed_at'))
+    if next_allowed_at and next_allowed_at > now:
+        return next_allowed_at
+
+    last_attempt_at = _parse_sync_datetime(sync_meta.get('last_attempt_at'))
+    if last_attempt_at and min_interval:
+        candidate = last_attempt_at + timedelta(seconds=min_interval)
+        if candidate > now:
+            return candidate
+    return None
+
+
+def _resolve_paybill_order(*, order_number='', account_reference=''):
+    candidates = []
+    if order_number:
+        candidates.append(str(order_number).strip())
+    if account_reference:
+        resolved = resolve_order_number_from_paybill_reference(account_reference)
+        if resolved and resolved not in candidates:
+            candidates.append(resolved)
+
+    for candidate in candidates:
+        order = Order.objects.select_for_update().filter(order_number=candidate).first()
+        if order is not None:
+            return order
+
+    if account_reference:
+        intent = PaymentIntent.objects.select_for_update().select_related('order').filter(
+            provider=PaymentIntent.PROVIDER_PAYBILL,
+            external_reference=str(account_reference).strip(),
+        ).order_by('-created_at').first()
+        if intent is not None:
+            return intent.order
+    return None
+
+
+def _current_paybill_shortcode():
+    return str(getattr(settings, 'MPESA_C2B_SHORTCODE', '') or '').strip() or get_paybill_number()
+
+
+def _validate_paybill_order_for_c2b(order, *, amount=None, business_shortcode=''):
+    expected_shortcode = _current_paybill_shortcode()
+    if business_shortcode and expected_shortcode and str(business_shortcode).strip() != expected_shortcode:
+        return 'Invalid business shortcode.'
+    if order.payment_method != Order.PAYMENT_MPESA_PAYBILL:
+        return 'This order is not configured for M-Pesa paybill.'
+    if order.payment_status == Order.PAYMENT_STATUS_PAID:
+        return 'This order is already paid.'
+    if order.status not in [Order.STATUS_DRAFT, Order.STATUS_PENDING]:
+        return 'This order is not payable in its current state.'
+    if amount is None:
+        return 'Invalid payment amount.'
+    if not _amount_matches_order_total(amount, order.total):
+        return f'Expected KES {order.total} for this order.'
+    return None
+
+
+def _build_paybill_callback_metadata(payload, *, source):
+    return {
+        'source': source,
+        'transaction_type': str(payload.get('TransactionType') or '').strip(),
+        'transaction_reference': str(payload.get('TransID') or '').strip(),
+        'transaction_time': str(payload.get('TransTime') or '').strip(),
+        'amount': str(payload.get('TransAmount') or '').strip(),
+        'business_shortcode': str(payload.get('BusinessShortCode') or '').strip(),
+        'account_reference': str(payload.get('BillRefNumber') or '').strip(),
+        'invoice_number': str(payload.get('InvoiceNumber') or '').strip(),
+        'third_party_trans_id': str(payload.get('ThirdPartyTransID') or '').strip(),
+        'phone_number': str(payload.get('MSISDN') or '').strip(),
+        'first_name': str(payload.get('FirstName') or '').strip(),
+        'middle_name': str(payload.get('MiddleName') or '').strip(),
+        'last_name': str(payload.get('LastName') or '').strip(),
+    }
+
+
+def _apply_paybill_confirmation(order, *, raw_payload, source):
+    account_reference = str(raw_payload.get('BillRefNumber') or '').strip()
+    provider_reference = str(raw_payload.get('TransID') or '').strip()
+    phone_number = str(raw_payload.get('MSISDN') or '').strip()
+    amount = _parse_payment_amount(raw_payload.get('TransAmount'))
+    callback_metadata = _build_paybill_callback_metadata(raw_payload, source=source)
+
+    intent = PaymentIntent.objects.select_for_update().filter(
+        order=order,
+        provider=PaymentIntent.PROVIDER_PAYBILL,
+    ).order_by('-created_at').first()
+    if intent is None:
+        intent = PaymentIntent.objects.create(
+            order=order,
+            provider=PaymentIntent.PROVIDER_PAYBILL,
+            status=PaymentIntent.STATUS_PENDING,
+            amount=order.total,
+            external_reference=account_reference or build_paybill_account_reference(order),
+            provider_reference=provider_reference,
+            phone_number=phone_number,
+            payload={'channel': 'mpesa_paybill', 'source': source},
+        )
+
+    intent.callback_payload = raw_payload
+    _merge_intent_payload(intent, {
+        'channel': 'mpesa_paybill',
+        'callback': callback_metadata,
+        'paybill_number': get_paybill_number(),
+        'paybill_account_label': get_paybill_account_label(),
+        'paybill_instructions': get_paybill_instructions(),
+    })
+    intent.external_reference = account_reference or intent.external_reference or build_paybill_account_reference(order)
+    intent.provider_reference = provider_reference or intent.provider_reference
+    intent.phone_number = phone_number or intent.phone_number
+    intent.processed_at = timezone.now()
+
+    already_paid = order.payment_status == Order.PAYMENT_STATUS_PAID and intent.status == PaymentIntent.STATUS_SUCCEEDED
+    mismatch_message = _validate_paybill_order_for_c2b(
+        order,
+        amount=amount,
+        business_shortcode=raw_payload.get('BusinessShortCode', ''),
+    )
+    if mismatch_message == 'This order is already paid.':
+        mismatch_message = ''
+
+    if mismatch_message:
+        intent.status = PaymentIntent.STATUS_REQUIRES_ACTION
+        intent.last_error = mismatch_message
+        intent.save(update_fields=[
+            'payload', 'callback_payload', 'external_reference', 'provider_reference',
+            'phone_number', 'processed_at', 'status', 'last_error', 'updated_at',
+        ])
+        if order.payment_status != Order.PAYMENT_STATUS_PAID:
+            order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
+            order.save(update_fields=['payment_status', 'updated_at'])
+        create_order_event(
+            order,
+            'paybill_confirmation_review',
+            mismatch_message,
+            metadata={'intent_reference': intent.reference, **callback_metadata},
+        )
+        return intent, False
+
+    intent.status = PaymentIntent.STATUS_SUCCEEDED
+    intent.last_error = ''
+    intent.save(update_fields=[
+        'payload', 'callback_payload', 'external_reference', 'provider_reference',
+        'phone_number', 'processed_at', 'status', 'last_error', 'updated_at',
+    ])
+    if not already_paid:
+        _mark_order_paid(
+            order,
+            intent,
+            f'M-Pesa paybill payment confirmed automatically via {source}.',
+            'Your M-Pesa paybill payment was confirmed successfully.',
+        )
+    return intent, True
 
 
 def _sync_flutterwave_intent(intent, transaction_id):
@@ -210,11 +742,14 @@ def _sync_flutterwave_intent(intent, transaction_id):
     status_value = str(data.get('status', '')).lower()
     amount = data.get('amount')
     currency = str(data.get('currency') or intent.currency)
+    tx_ref = str(data.get('tx_ref') or intent.external_reference or intent.reference)
+    tx_id = str(data.get('id') or transaction_id or '')
 
     intent.payload = {**intent.payload, 'verification': response}
     intent.callback_payload = data
     intent.processed_at = timezone.now()
     intent.provider_reference = str(data.get('flw_ref') or data.get('id') or intent.provider_reference)
+    intent.external_reference = tx_ref
 
     try:
         verified_amount = Decimal(str(amount))
@@ -235,8 +770,12 @@ def _sync_flutterwave_intent(intent, transaction_id):
         intent.last_error = response.get('message') or data.get('processor_response') or 'Card payment verification failed.'
     intent.save(update_fields=[
         'payload', 'callback_payload', 'processed_at', 'provider_reference',
-        'status', 'last_error', 'updated_at',
+        'external_reference', 'status', 'last_error', 'updated_at',
     ])
+    order = intent.order
+    order.flutterwave_tx_ref = tx_ref
+    order.flutterwave_tx_id = tx_id
+    order.save(update_fields=['flutterwave_tx_ref', 'flutterwave_tx_id', 'updated_at'])
     return response
 
 
@@ -257,7 +796,9 @@ class CartItemCreateView(generics.CreateAPIView):
         product_id = request.data.get('product_id')
         variant_id = request.data.get('product_variant_id')
         quantity = request.data.get('quantity', 1)
-        prescription_id = request.data.get('prescription_id', None)
+        prescription_reference = request.data.get('prescription_reference') or request.data.get('prescription_id')
+        prescription_pk = request.data.get('prescription')
+        prescription_item_pk = request.data.get('prescription_item')
 
         try:
             quantity = int(quantity)
@@ -278,19 +819,75 @@ class CartItemCreateView(generics.CreateAPIView):
             except ProductVariant.DoesNotExist:
                 return Response({'detail': 'Variant not found for this product.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if product.requires_prescription and not prescription_id:
-            return Response(
-                {'detail': 'This product requires a prescription reference.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        prescription = None
+        prescription_item = None
+        if prescription_pk or prescription_item_pk:
+            from apps.prescriptions.models import Prescription, PrescriptionItem
 
-        existing_item = CartItem.objects.filter(
-            cart=cart,
-            product=product,
-            product_variant=variant,
-            prescription_id=prescription_id,
-        ).first()
+            if prescription_pk:
+                try:
+                    prescription = Prescription.objects.get(
+                        pk=prescription_pk,
+                        patient=request.user,
+                        status=Prescription.STATUS_APPROVED,
+                    )
+                except Prescription.DoesNotExist:
+                    return Response({'detail': 'Approved prescription not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if prescription_item_pk:
+                prescription_item = (
+                    PrescriptionItem.objects.select_related('prescription', 'product')
+                    .filter(
+                        pk=prescription_item_pk,
+                        prescription__patient=request.user,
+                        prescription__status=Prescription.STATUS_APPROVED,
+                    )
+                    .first()
+                )
+                if not prescription_item:
+                    return Response({'detail': 'Approved prescription item not found.'}, status=status.HTTP_400_BAD_REQUEST)
+                prescription = prescription_item.prescription
+                prescription_reference = prescription.reference
+        elif prescription_reference:
+            from apps.prescriptions.models import Prescription, PrescriptionItem
+
+            prescription = Prescription.objects.filter(
+                reference=prescription_reference,
+                patient=request.user,
+                status=Prescription.STATUS_APPROVED,
+            ).first()
+            if prescription:
+                prescription_item = PrescriptionItem.objects.select_related('prescription', 'product').filter(
+                    prescription=prescription,
+                    product=product,
+                ).first()
+
+        existing_item_filters = {
+            'cart': cart,
+            'product': product,
+            'product_variant': variant,
+        }
+        if prescription or prescription_item:
+            existing_item_filters.update({
+                'prescription': prescription,
+                'prescription_item': prescription_item,
+            })
+        else:
+            existing_item_filters['prescription_reference'] = prescription_reference
+
+        existing_item = CartItem.objects.filter(**existing_item_filters).first()
         requested_total = quantity + (existing_item.quantity if existing_item else 0)
+        if product.requires_prescription:
+            prescription_error = _prescription_cart_error(
+                request.user,
+                product,
+                prescription_reference,
+                requested_total,
+                prescription=prescription,
+                prescription_item=prescription_item,
+            )
+            if prescription_error:
+                return Response({'detail': prescription_error}, status=status.HTTP_400_BAD_REQUEST)
         inventory_object = variant or product
         error = _product_availability_error(inventory_object, requested_total)
         if error:
@@ -305,7 +902,9 @@ class CartItemCreateView(generics.CreateAPIView):
                 product=product,
                 product_variant=variant,
                 quantity=quantity,
-                prescription_id=prescription_id,
+                prescription_reference=prescription_reference,
+                prescription=prescription,
+                prescription_item=prescription_item,
             )
 
         return Response(CartSerializer(cart).data, status=status.HTTP_201_CREATED)
@@ -328,6 +927,18 @@ class CartItemUpdateView(APIView):
                 return Response({'quantity': 'Must be at least 1.'}, status=status.HTTP_400_BAD_REQUEST)
         except (TypeError, ValueError):
             return Response({'quantity': 'Invalid quantity.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if item.product.requires_prescription:
+            prescription_error = _prescription_cart_error(
+                request.user,
+                item.product,
+                item.prescription_reference,
+                quantity,
+                prescription=item.prescription,
+                prescription_item=item.prescription_item,
+            )
+            if prescription_error:
+                return Response({'detail': prescription_error}, status=status.HTTP_400_BAD_REQUEST)
 
         error = _product_availability_error(_cart_inventory_object(item), quantity)
         if error:
@@ -494,26 +1105,77 @@ class PaymentIntentCreateView(APIView):
             return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         if order.status not in [Order.STATUS_DRAFT, Order.STATUS_PENDING]:
-            return Response({'detail': 'Payment intent can only be created for draft or pending orders.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    'detail': (
+                        'This order is no longer awaiting payment. '
+                        'If you have already paid, refresh the page to see the updated status. '
+                        'If this order was completed or cancelled, start a new checkout to make another payment.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        existing_success = order.payment_intents.filter(
+            provider=data['provider'],
+            status=PaymentIntent.STATUS_SUCCEEDED,
+        ).order_by('-created_at').first()
+        if existing_success:
+            return Response(PaymentIntentSerializer(existing_success).data)
+        if order.payment_status == Order.PAYMENT_STATUS_PAID:
+            return Response({'detail': 'This order has already been paid.'}, status=status.HTTP_400_BAD_REQUEST)
 
         provider = data['provider']
+        existing_active = order.payment_intents.filter(
+            provider=provider,
+            status__in=[PaymentIntent.STATUS_PENDING, PaymentIntent.STATUS_REQUIRES_ACTION],
+        ).order_by('-created_at').first()
+        if existing_active and provider != PaymentIntent.PROVIDER_PAYBILL:
+            return Response(PaymentIntentSerializer(existing_active).data)
+
         payload = {}
         client_secret = ''
         status_value = PaymentIntent.STATUS_REQUIRES_ACTION
 
         if provider == PaymentIntent.PROVIDER_MANUAL:
             status_value = PaymentIntent.STATUS_SUCCEEDED
+        elif provider == PaymentIntent.PROVIDER_PAYBILL:
+            if not get_paybill_number():
+                return Response({'detail': 'M-Pesa paybill is not configured.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            if not getattr(settings, 'MPESA_C2B_URLS_REGISTERED', False):
+                return Response(
+                    {
+                        'detail': (
+                            'M-Pesa paybill callbacks are not registered yet. '
+                            'Register the Daraja validation and confirmation URLs, then set '
+                            'MPESA_C2B_URLS_REGISTERED=true in .env.'
+                        )
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            try:
+                MpesaClient().validate_c2b_configuration()
+            except MpesaConfigurationError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            payload = {
+                'channel': 'mpesa_paybill',
+                'paybill_number': get_paybill_number(),
+                'paybill_account_label': get_paybill_account_label(),
+                'paybill_instructions': get_paybill_instructions(),
+            }
         elif provider == PaymentIntent.PROVIDER_MPESA:
             payload = {'phone': data.get('phone', ''), 'instructions': 'Await M-Pesa confirmation.'}
         elif provider == PaymentIntent.PROVIDER_CARD:
             payload = {'instructions': 'Redirect customer to hosted card checkout.'}
 
-        intent = PaymentIntent.objects.create(
+        intent_amount = resolve_mpesa_stk_amount(order.total) if provider == PaymentIntent.PROVIDER_MPESA else order.total
+
+        intent = existing_active if provider == PaymentIntent.PROVIDER_PAYBILL and existing_active else PaymentIntent.objects.create(
             order=order,
             initiated_by=request.user,
             provider=provider,
             status=status_value,
-            amount=order.total,
+            amount=intent_amount,
             client_secret=client_secret,
             payload=payload,
             phone_number=data.get('phone', ''),
@@ -524,6 +1186,47 @@ class PaymentIntentCreateView(APIView):
             order.payment_reference = intent.reference
             order.save(update_fields=['payment_status', 'payment_reference', 'updated_at'])
             create_order_event(order, 'payment_captured', 'Manual payment marked as paid.', actor=request.user)
+        elif provider == PaymentIntent.PROVIDER_PAYBILL:
+            if order.payment_method != Order.PAYMENT_MPESA_PAYBILL:
+                return Response({'detail': 'This order is not configured for M-Pesa paybill.'}, status=status.HTTP_400_BAD_REQUEST)
+            intent.initiated_by = request.user
+            account_reference = build_paybill_account_reference(order)
+            reference_code = data.get('reference_code', '').strip()
+            phone_number = data.get('phone', '').strip()
+            if reference_code:
+                _upsert_paybill_intent(
+                    intent,
+                    phone=phone_number,
+                    reference_code=reference_code,
+                    account_reference=account_reference,
+                    metadata=data.get('metadata') or {},
+                )
+            else:
+                _merge_intent_payload(intent, {
+                    'channel': 'mpesa_paybill',
+                    'paybill_number': get_paybill_number(),
+                    'paybill_account_label': get_paybill_account_label(),
+                    'paybill_instructions': get_paybill_instructions(),
+                    **({'metadata': data.get('metadata') or {}} if data.get('metadata') else {}),
+                })
+                intent.external_reference = account_reference
+                intent.phone_number = phone_number
+                intent.status = PaymentIntent.STATUS_REQUIRES_ACTION
+                intent.last_error = ''
+                intent.processed_at = None
+                intent.save(update_fields=[
+                    'initiated_by', 'payload', 'external_reference', 'phone_number',
+                    'status', 'last_error', 'processed_at', 'updated_at',
+                ])
+                order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
+                order.save(update_fields=['payment_status', 'updated_at'])
+                create_order_event(
+                    order,
+                    'payment_intent_created',
+                    'M-Pesa paybill initiated. Awaiting Safaricom confirmation callback.',
+                    actor=request.user,
+                    metadata={'intent_reference': intent.reference, 'account_reference': account_reference},
+                )
         elif provider == PaymentIntent.PROVIDER_MPESA:
             try:
                 mpesa_client = MpesaClient()
@@ -535,16 +1238,13 @@ class PaymentIntentCreateView(APIView):
                 )
             except MpesaConfigurationError as exc:
                 intent.status = PaymentIntent.STATUS_FAILED
-                intent.last_error = str(exc)
-                intent.save(update_fields=['status', 'last_error', 'updated_at'])
+                intent.save(update_fields=['status', 'updated_at'])
+                _record_payment_error(intent, 'mpesa_initiate_configuration', str(exc))
                 return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             except MpesaAPIError as exc:
                 intent.status = PaymentIntent.STATUS_FAILED
-                intent.last_error = str(exc)
-                intent.save(update_fields=['status', 'last_error', 'updated_at'])
-                order.payment_status = Order.PAYMENT_STATUS_FAILED
-                order.save(update_fields=['payment_status', 'updated_at'])
-                create_order_event(order, 'payment_failed', str(exc), actor=request.user)
+                intent.save(update_fields=['status', 'updated_at'])
+                _mark_order_payment_failed(order, intent, str(exc))
                 return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
             intent.phone_number = normalized_phone
@@ -570,42 +1270,21 @@ class PaymentIntentCreateView(APIView):
             )
         elif provider == PaymentIntent.PROVIDER_CARD:
             try:
-                redirect_url = _build_flutterwave_redirect_url(request, order, intent, data.get('return_url', ''))
-                response_payload = FlutterwaveClient().create_card_checkout(
-                    payment_intent=intent,
-                    order=order,
-                    customer=request.user,
-                    redirect_url=redirect_url,
+                intent = _upsert_flutterwave_card_intent(
+                    request,
+                    order,
+                    return_url=data.get('return_url', ''),
                 )
             except FlutterwaveConfigurationError as exc:
                 intent.status = PaymentIntent.STATUS_FAILED
-                intent.last_error = str(exc)
-                intent.save(update_fields=['status', 'last_error', 'updated_at'])
+                intent.save(update_fields=['status', 'updated_at'])
+                _record_payment_error(intent, 'card_checkout_configuration', str(exc))
                 return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             except FlutterwaveAPIError as exc:
                 intent.status = PaymentIntent.STATUS_FAILED
-                intent.last_error = str(exc)
-                intent.save(update_fields=['status', 'last_error', 'updated_at'])
-                order.payment_status = Order.PAYMENT_STATUS_FAILED
-                order.save(update_fields=['payment_status', 'updated_at'])
+                intent.save(update_fields=['status', 'updated_at'])
                 _mark_order_payment_failed(order, intent, str(exc))
                 return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-            response_data = response_payload.get('data') or {}
-            intent.external_reference = intent.reference
-            intent.client_secret = response_data.get('link', '')
-            intent.payload = response_payload
-            intent.save(update_fields=['external_reference', 'client_secret', 'payload', 'updated_at'])
-
-            order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
-            order.save(update_fields=['payment_status', 'updated_at'])
-            create_order_event(
-                order,
-                'payment_intent_created',
-                'Card checkout link created.',
-                actor=request.user,
-                metadata={'intent_reference': intent.reference, 'checkout_url': response_data.get('link', '')},
-            )
         else:
             order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
             order.save(update_fields=['payment_status', 'updated_at'])
@@ -618,6 +1297,191 @@ class PaymentIntentCreateView(APIView):
             )
 
         return Response(PaymentIntentSerializer(intent).data, status=status.HTTP_201_CREATED)
+
+
+class FlutterwaveInitiateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = FlutterwaveInitiateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        order, error_response = _get_order_for_payment_request(request, data['order_id'])
+        if error_response:
+            return error_response
+        order = Order.objects.select_for_update().get(pk=order.pk)
+
+        if order.payment_method != Order.PAYMENT_CARD:
+            return Response({'detail': 'This order is not configured for card payment.'}, status=status.HTTP_400_BAD_REQUEST)
+        if order.status not in [Order.STATUS_DRAFT, Order.STATUS_PENDING]:
+            return Response(
+                {'detail': 'This order is no longer awaiting payment. Refresh the order to see its latest payment state.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if order.payment_status == Order.PAYMENT_STATUS_PAID:
+            existing_success = order.payment_intents.filter(
+                provider=PaymentIntent.PROVIDER_CARD,
+                status=PaymentIntent.STATUS_SUCCEEDED,
+            ).order_by('-created_at').first()
+            if existing_success:
+                return Response(PaymentIntentSerializer(existing_success).data)
+            return Response({'detail': 'This order has already been paid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            intent = _upsert_flutterwave_card_intent(request, order, return_url=data.get('return_url', ''))
+        except FlutterwaveConfigurationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except FlutterwaveAPIError as exc:
+            _record_payment_error(
+                order.payment_intents.filter(provider=PaymentIntent.PROVIDER_CARD).order_by('-created_at').first() or
+                PaymentIntent(order=order, provider=PaymentIntent.PROVIDER_CARD, amount=order.total),
+                'card_checkout_configuration',
+                str(exc),
+            )
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(PaymentIntentSerializer(intent).data, status=status.HTTP_201_CREATED)
+
+
+class FlutterwaveRedirectView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def get(self, request):
+        tx_ref = str(request.query_params.get('tx_ref') or '').strip()
+        transaction_id = str(request.query_params.get('transaction_id') or '').strip()
+        return_url = str(
+            request.query_params.get('return_url')
+            or getattr(settings, 'FLUTTERWAVE_REDIRECT_URL', '')
+            or f'{settings.FRONTEND_BASE_URL}/checkout'
+        ).strip()
+
+        if not tx_ref:
+            return HttpResponseRedirect(_append_query_params(return_url, {'status': 'failed', 'error': 'missing_tx_ref'}))
+
+        try:
+            intent = PaymentIntent.objects.select_for_update().select_related('order').get(
+                provider=PaymentIntent.PROVIDER_CARD,
+                reference=tx_ref,
+            )
+        except PaymentIntent.DoesNotExist:
+            return HttpResponseRedirect(_append_query_params(return_url, {'tx_ref': tx_ref, 'status': 'failed', 'error': 'payment_intent_not_found'}))
+
+        if transaction_id:
+            try:
+                _sync_flutterwave_intent(intent, transaction_id)
+            except (FlutterwaveConfigurationError, FlutterwaveAPIError) as exc:
+                _record_payment_error(intent, 'card_redirect_sync', str(exc))
+                redirect_status = 'failed'
+                redirect_params = {
+                    'order_id': intent.order_id,
+                    'intent_id': intent.id,
+                    'tx_ref': tx_ref,
+                    'transaction_id': transaction_id,
+                    'status': redirect_status,
+                    'error': 'verification_failed',
+                }
+                return HttpResponseRedirect(_append_query_params(return_url, redirect_params))
+
+            if intent.status == PaymentIntent.STATUS_SUCCEEDED:
+                _mark_order_paid(intent.order, intent, 'Card payment confirmed by redirect verification.', 'Your card payment was confirmed successfully.')
+                redirect_status = 'successful'
+            else:
+                _mark_order_payment_failed(intent.order, intent, intent.last_error)
+                redirect_status = 'failed'
+        else:
+            redirect_status = 'cancelled'
+            if intent.status not in [PaymentIntent.STATUS_SUCCEEDED, PaymentIntent.STATUS_FAILED, PaymentIntent.STATUS_CANCELLED]:
+                intent.status = PaymentIntent.STATUS_CANCELLED
+                intent.last_error = 'Card checkout was closed before payment confirmation.'
+                intent.processed_at = timezone.now()
+                intent.save(update_fields=['status', 'last_error', 'processed_at', 'updated_at'])
+                _mark_order_payment_failed(intent.order, intent, intent.last_error)
+
+        redirect_params = {
+            'order_id': intent.order_id,
+            'intent_id': intent.id,
+            'tx_ref': tx_ref,
+            'status': redirect_status,
+        }
+        if transaction_id:
+            redirect_params['transaction_id'] = transaction_id
+        return HttpResponseRedirect(_append_query_params(return_url, redirect_params))
+
+
+class FlutterwaveStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def get(self, request, tx_ref):
+        serializer = FlutterwaveStatusSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        transaction_id = serializer.validated_data.get('transaction_id', '').strip()
+
+        try:
+            intent = PaymentIntent.objects.select_for_update().select_related('order').get(
+                provider=PaymentIntent.PROVIDER_CARD,
+                reference=tx_ref,
+            )
+        except PaymentIntent.DoesNotExist:
+            return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if intent.order.customer_id != request.user.id and request.user.role != 'admin':
+            return Response({'detail': 'You do not have permission to access this payment.'}, status=status.HTTP_403_FORBIDDEN)
+
+        transaction_id = transaction_id or intent.order.flutterwave_tx_id
+        if transaction_id and intent.status not in [PaymentIntent.STATUS_SUCCEEDED, PaymentIntent.STATUS_FAILED, PaymentIntent.STATUS_CANCELLED]:
+            try:
+                _sync_flutterwave_intent(intent, transaction_id)
+            except (FlutterwaveConfigurationError, FlutterwaveAPIError) as exc:
+                _record_payment_error(intent, 'card_status_poll', str(exc))
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            if intent.status == PaymentIntent.STATUS_SUCCEEDED:
+                _mark_order_paid(intent.order, intent, 'Card payment verified successfully.', 'Your card payment was confirmed successfully.')
+            elif intent.status == PaymentIntent.STATUS_FAILED:
+                _mark_order_payment_failed(intent.order, intent, intent.last_error)
+
+        response_status = status.HTTP_202_ACCEPTED if intent.status == PaymentIntent.STATUS_REQUIRES_ACTION else status.HTTP_200_OK
+        return Response(PaymentIntentSerializer(intent).data, status=response_status)
+
+
+class FlutterwaveCallbackView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        client = FlutterwaveClient()
+        raw_body = request.body or b''
+        if not client.verify_signature(raw_body, request.headers):
+            return Response({'detail': 'Invalid Flutterwave webhook signature.'}, status=status.HTTP_403_FORBIDDEN)
+
+        event_data = request.data.get('data') or {}
+        tx_ref = str(event_data.get('tx_ref') or '').strip()
+        transaction_id = str(event_data.get('id') or '').strip()
+        if not tx_ref or not transaction_id:
+            return Response({'detail': 'Invalid Flutterwave webhook payload.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            intent = PaymentIntent.objects.select_for_update().select_related('order').get(
+                provider=PaymentIntent.PROVIDER_CARD,
+                reference=tx_ref,
+            )
+        except PaymentIntent.DoesNotExist:
+            return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            _sync_flutterwave_intent(intent, transaction_id)
+        except (FlutterwaveConfigurationError, FlutterwaveAPIError) as exc:
+            _record_payment_error(intent, 'card_webhook_sync', str(exc))
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if intent.status == PaymentIntent.STATUS_SUCCEEDED:
+            _mark_order_paid(intent.order, intent, 'Card payment confirmed by webhook.', 'Your card payment was confirmed successfully.')
+        else:
+            _mark_order_payment_failed(intent.order, intent, intent.last_error)
+        return Response({'detail': 'Flutterwave webhook processed.'})
 
 
 class MpesaCallbackView(APIView):
@@ -645,6 +1509,7 @@ class MpesaCallbackView(APIView):
         order = intent.order
         if callback['result_code'] == '0':
             intent.status = PaymentIntent.STATUS_SUCCEEDED
+            intent.last_error = ''
             _mark_order_paid(order, intent, 'M-Pesa payment confirmed.', 'Your M-Pesa payment was confirmed successfully.')
         else:
             intent.status = PaymentIntent.STATUS_FAILED
@@ -664,20 +1529,87 @@ class PaymentIntentStatusSyncView(APIView):
         except PaymentIntent.DoesNotExist:
             return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if (
+            intent.provider == PaymentIntent.PROVIDER_MPESA
+            and intent.order.payment_status == Order.PAYMENT_STATUS_PAID
+            and intent.status != PaymentIntent.STATUS_SUCCEEDED
+        ):
+            intent.status = PaymentIntent.STATUS_SUCCEEDED
+            intent.last_error = ''
+            if not intent.processed_at:
+                intent.processed_at = timezone.now()
+            if not intent.provider_reference:
+                intent.provider_reference = intent.order.payment_reference
+            intent.save(update_fields=['status', 'last_error', 'processed_at', 'provider_reference', 'updated_at'])
+            return Response(PaymentIntentSerializer(intent).data)
+
+        if intent.status in [
+            PaymentIntent.STATUS_SUCCEEDED,
+            PaymentIntent.STATUS_FAILED,
+            PaymentIntent.STATUS_CANCELLED,
+        ]:
+            return Response(PaymentIntentSerializer(intent).data)
+
         if intent.provider == PaymentIntent.PROVIDER_MPESA:
+            next_allowed_at = _mpesa_sync_next_allowed_at(intent)
+            if next_allowed_at:
+                _set_mpesa_sync_meta(
+                    intent,
+                    deferred_until=next_allowed_at.isoformat(),
+                )
+                intent.save(update_fields=['payload', 'updated_at'])
+                return Response(PaymentIntentSerializer(intent).data, status=status.HTTP_202_ACCEPTED)
+
+            _set_mpesa_sync_meta(intent, last_attempt_at=timezone.now().isoformat())
+            intent.save(update_fields=['payload', 'updated_at'])
             try:
                 mpesa_response = MpesaClient().query_stk_status(intent)
-            except (MpesaConfigurationError, MpesaAPIError) as exc:
-                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            except MpesaConfigurationError as exc:
+                _record_payment_error(intent, 'mpesa_status_sync_configuration', str(exc))
+                return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            except MpesaAPIError as exc:
+                retry_after_seconds = _mpesa_sync_retry_after_seconds(str(exc))
+                if retry_after_seconds:
+                    next_allowed_at = timezone.now() + timedelta(seconds=retry_after_seconds)
+                    _set_mpesa_sync_meta(
+                        intent,
+                        next_allowed_at=next_allowed_at.isoformat(),
+                        last_transient_error=str(exc),
+                    )
+                    intent.status = PaymentIntent.STATUS_REQUIRES_ACTION
+                    intent.save(update_fields=['payload', 'status', 'updated_at'])
+                    _record_payment_notice(
+                        intent,
+                        'mpesa_status_sync_deferred',
+                        str(exc),
+                        metadata={'retry_after_seconds': retry_after_seconds},
+                    )
+                    return Response(PaymentIntentSerializer(intent).data, status=status.HTTP_202_ACCEPTED)
+                _record_payment_error(intent, 'mpesa_status_sync', str(exc))
+                response_status = (
+                    status.HTTP_202_ACCEPTED
+                    if intent.status == PaymentIntent.STATUS_REQUIRES_ACTION
+                    else status.HTTP_400_BAD_REQUEST
+                )
+                return Response(PaymentIntentSerializer(intent).data, status=response_status)
 
             intent.payload = {**intent.payload, 'status_query': mpesa_response}
             result_code = str(mpesa_response.get('ResultCode', ''))
             if result_code == '0':
                 intent.status = PaymentIntent.STATUS_SUCCEEDED
+                intent.last_error = ''
+                _set_mpesa_sync_meta(intent, next_allowed_at='', last_transient_error='')
                 intent.provider_reference = mpesa_response.get('MpesaReceiptNumber', intent.provider_reference)
                 intent.processed_at = timezone.now()
-                intent.save(update_fields=['payload', 'status', 'provider_reference', 'processed_at', 'updated_at'])
+                intent.save(update_fields=['payload', 'status', 'last_error', 'provider_reference', 'processed_at', 'updated_at'])
                 _mark_order_paid(intent.order, intent, 'M-Pesa payment confirmed via status sync.', 'Your M-Pesa payment was confirmed successfully.')
+            elif _is_mpesa_processing_response(mpesa_response):
+                intent.status = PaymentIntent.STATUS_REQUIRES_ACTION
+                intent.last_error = ''
+                min_interval = max(1, int(getattr(settings, 'MPESA_STATUS_SYNC_MIN_INTERVAL_SECONDS', 15)))
+                _set_mpesa_sync_meta(intent, next_allowed_at=(timezone.now() + timedelta(seconds=min_interval)).isoformat())
+                intent.save(update_fields=['payload', 'status', 'last_error', 'updated_at'])
+                return Response(PaymentIntentSerializer(intent).data, status=status.HTTP_202_ACCEPTED)
             else:
                 intent.status = PaymentIntent.STATUS_FAILED
                 intent.last_error = mpesa_response.get('ResultDesc', '')
@@ -685,21 +1617,109 @@ class PaymentIntentStatusSyncView(APIView):
                 intent.save(update_fields=['payload', 'status', 'last_error', 'processed_at', 'updated_at'])
                 _mark_order_payment_failed(intent.order, intent, intent.last_error)
         elif intent.provider == PaymentIntent.PROVIDER_CARD:
-            transaction_id = request.data.get('transaction_id') or request.query_params.get('transaction_id')
+            transaction_id = (
+                request.data.get('transaction_id')
+                or request.query_params.get('transaction_id')
+                or intent.order.flutterwave_tx_id
+            )
             if not transaction_id:
                 return Response({'detail': 'transaction_id is required to verify this card payment.'}, status=status.HTTP_400_BAD_REQUEST)
             try:
                 _sync_flutterwave_intent(intent, transaction_id)
             except (FlutterwaveConfigurationError, FlutterwaveAPIError) as exc:
+                _record_payment_error(intent, 'card_status_sync', str(exc))
                 return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             if intent.status == PaymentIntent.STATUS_SUCCEEDED:
                 _mark_order_paid(intent.order, intent, 'Card payment verified successfully.', 'Your card payment was confirmed successfully.')
             else:
                 _mark_order_payment_failed(intent.order, intent, intent.last_error)
+        elif intent.provider == PaymentIntent.PROVIDER_PAYBILL:
+            response_status = (
+                status.HTTP_202_ACCEPTED
+                if intent.status in [PaymentIntent.STATUS_PENDING, PaymentIntent.STATUS_REQUIRES_ACTION]
+                else status.HTTP_200_OK
+            )
+            return Response(PaymentIntentSerializer(intent).data, status=response_status)
         else:
             return Response({'detail': 'Unsupported payment provider for sync.'}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(PaymentIntentSerializer(intent).data)
+
+
+class MpesaPaybillValidationView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        raw_payload = request.data or {}
+        account_reference = str(raw_payload.get('BillRefNumber') or '').strip()
+        amount = _parse_payment_amount(raw_payload.get('TransAmount'))
+        order = _resolve_paybill_order(account_reference=account_reference)
+
+        if order is None:
+            payments_logger.warning(
+                'Unmatched M-Pesa paybill validation callback account_reference=%s payload=%s',
+                account_reference,
+                raw_payload,
+            )
+            return Response({'ResultCode': 1, 'ResultDesc': 'Invalid account reference.'})
+
+        rejection_message = _validate_paybill_order_for_c2b(
+            order,
+            amount=amount,
+            business_shortcode=raw_payload.get('BusinessShortCode', ''),
+        )
+        if rejection_message:
+            create_order_event(
+                order,
+                'paybill_validation_rejected',
+                rejection_message,
+                metadata=_build_paybill_callback_metadata(raw_payload, source='daraja_validation'),
+            )
+            return Response({'ResultCode': 1, 'ResultDesc': rejection_message})
+
+        create_order_event(
+            order,
+            'paybill_validation_accepted',
+            'Safaricom paybill validation accepted.',
+            metadata=_build_paybill_callback_metadata(raw_payload, source='daraja_validation'),
+        )
+        return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
+
+class MpesaPaybillConfirmationView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        raw_payload = request.data or {}
+        account_reference = str(raw_payload.get('BillRefNumber') or '').strip()
+        provider_reference = str(raw_payload.get('TransID') or '').strip()
+        order = _resolve_paybill_order(account_reference=account_reference)
+
+        if order is None:
+            payments_logger.error(
+                'Unmatched M-Pesa paybill confirmation account_reference=%s provider_reference=%s payload=%s',
+                account_reference,
+                provider_reference,
+                raw_payload,
+            )
+            return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
+        intent, confirmed = _apply_paybill_confirmation(
+            order,
+            raw_payload=raw_payload,
+            source='daraja_confirmation',
+        )
+        if not confirmed:
+            payments_logger.warning(
+                'M-Pesa paybill confirmation requires review order=%s intent=%s provider_reference=%s last_error=%s',
+                order.order_number,
+                intent.reference,
+                intent.provider_reference,
+                intent.last_error,
+            )
+        return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 class PaymentWebhookView(APIView):
@@ -731,6 +1751,7 @@ class PaymentWebhookView(APIView):
             try:
                 _sync_flutterwave_intent(intent, transaction_id)
             except (FlutterwaveConfigurationError, FlutterwaveAPIError) as exc:
+                _record_payment_error(intent, 'card_webhook_sync', str(exc))
                 return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
             if intent.status == PaymentIntent.STATUS_SUCCEEDED:
@@ -766,6 +1787,222 @@ class PaymentWebhookView(APIView):
             _mark_order_payment_failed(order, intent, data.get('message') or 'Payment failed.')
 
         return Response({'detail': 'Webhook processed.'})
+
+
+class PaybillWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        expected_secret = getattr(settings, 'PAYMENT_WEBHOOK_SECRET', '')
+        if expected_secret and request.headers.get('X-Ava-Webhook-Secret') != expected_secret:
+            return Response({'detail': 'Invalid webhook signature.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = PaybillWebhookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        transaction_reference = data['transaction_reference'].strip()
+
+        account_reference = (data.get('account_reference') or '').strip()
+        order = _resolve_paybill_order(
+            order_number=(data.get('order_number') or '').strip(),
+            account_reference=account_reference,
+        )
+
+        if order is None:
+            return Response({'detail': 'Order not found for paybill reconciliation.'}, status=status.HTTP_404_NOT_FOUND)
+
+        status_value = data['status']
+        if status_value == PaymentIntent.STATUS_SUCCEEDED:
+            intent, _ = _apply_paybill_confirmation(
+                order,
+                raw_payload={
+                    **(data.get('payload') or request.data),
+                    'BillRefNumber': account_reference or build_paybill_account_reference(order),
+                    'TransID': transaction_reference,
+                    'MSISDN': (data.get('phone') or '').strip(),
+                    'TransAmount': str(data.get('amount') or order.total),
+                },
+                source='legacy_paybill_webhook',
+            )
+        elif status_value in [PaymentIntent.STATUS_FAILED, PaymentIntent.STATUS_CANCELLED]:
+            intent = PaymentIntent.objects.select_for_update().filter(
+                order=order,
+                provider=PaymentIntent.PROVIDER_PAYBILL,
+            ).order_by('-created_at').first()
+            if intent is None:
+                intent = PaymentIntent.objects.create(
+                    order=order,
+                    provider=PaymentIntent.PROVIDER_PAYBILL,
+                    status=PaymentIntent.STATUS_PENDING,
+                    amount=order.total,
+                    external_reference=account_reference or build_paybill_account_reference(order),
+                    provider_reference=transaction_reference,
+                    phone_number=(data.get('phone') or '').strip(),
+                    payload={'channel': 'mpesa_paybill', 'source': 'legacy_paybill_webhook'},
+                )
+            intent.callback_payload = data.get('payload') or request.data
+            _merge_intent_payload(intent, {
+                'channel': 'mpesa_paybill',
+                'paybill_number': get_paybill_number(),
+                'paybill_account_label': get_paybill_account_label(),
+                'paybill_instructions': get_paybill_instructions(),
+            })
+            intent.external_reference = account_reference or intent.external_reference or build_paybill_account_reference(order)
+            intent.provider_reference = transaction_reference
+            intent.phone_number = (data.get('phone') or intent.phone_number or '').strip()
+            intent.processed_at = timezone.now()
+            intent.status = PaymentIntent.STATUS_FAILED
+            intent.last_error = data.get('message') or 'Paybill payment was not confirmed.'
+            intent.save(update_fields=[
+                'payload', 'callback_payload', 'external_reference', 'provider_reference',
+                'phone_number', 'processed_at', 'status', 'last_error', 'updated_at',
+            ])
+            _mark_order_payment_failed(order, intent, intent.last_error)
+        else:
+            intent = PaymentIntent.objects.select_for_update().filter(
+                order=order,
+                provider=PaymentIntent.PROVIDER_PAYBILL,
+            ).order_by('-created_at').first()
+            if intent is None:
+                intent = PaymentIntent.objects.create(
+                    order=order,
+                    provider=PaymentIntent.PROVIDER_PAYBILL,
+                    status=PaymentIntent.STATUS_PENDING,
+                    amount=order.total,
+                    external_reference=account_reference or build_paybill_account_reference(order),
+                    provider_reference=transaction_reference,
+                    phone_number=(data.get('phone') or '').strip(),
+                    payload={'channel': 'mpesa_paybill', 'source': 'legacy_paybill_webhook'},
+                )
+            intent.callback_payload = data.get('payload') or request.data
+            _merge_intent_payload(intent, {
+                'channel': 'mpesa_paybill',
+                'paybill_number': get_paybill_number(),
+                'paybill_account_label': get_paybill_account_label(),
+                'paybill_instructions': get_paybill_instructions(),
+            })
+            intent.external_reference = account_reference or intent.external_reference or build_paybill_account_reference(order)
+            intent.provider_reference = transaction_reference
+            intent.phone_number = (data.get('phone') or intent.phone_number or '').strip()
+            intent.processed_at = timezone.now()
+            intent.status = PaymentIntent.STATUS_REQUIRES_ACTION
+            intent.last_error = ''
+            intent.save(update_fields=[
+                'payload', 'callback_payload', 'external_reference', 'provider_reference',
+                'phone_number', 'processed_at', 'status', 'last_error', 'updated_at',
+            ])
+            order.payment_status = Order.PAYMENT_STATUS_REQUIRES_ACTION
+            order.save(update_fields=['payment_status', 'updated_at'])
+            create_order_event(
+                order,
+                'paybill_reconciliation_pending',
+                'Paybill payment received and is awaiting final reconciliation.',
+                metadata={'intent_reference': intent.reference, 'provider_reference': transaction_reference},
+            )
+
+        return Response(PaymentIntentSerializer(intent).data)
+
+
+class AdminPaybillReconcileView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            intent = PaymentIntent.objects.select_for_update().select_related('order').get(
+                pk=pk,
+                provider=PaymentIntent.PROVIDER_PAYBILL,
+            )
+        except PaymentIntent.DoesNotExist:
+            return Response({'detail': 'Paybill payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AdminPaybillReconcileSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        provider_reference = data.get('provider_reference', '').strip() or intent.provider_reference
+        message = data.get('message', '').strip()
+        intent.provider_reference = provider_reference
+        _merge_intent_payload(intent, {
+            'admin_reconciliation': {
+                'actor_id': request.user.id,
+                'actor_name': getattr(request.user, 'full_name', '') or getattr(request.user, 'email', ''),
+                'status': data['status'],
+                'message': message,
+                'timestamp': timezone.now().isoformat(),
+                'payload': data.get('payload') or {},
+            },
+        })
+        intent.processed_at = timezone.now()
+
+        if data['status'] == PaymentIntent.STATUS_SUCCEEDED:
+            intent.status = PaymentIntent.STATUS_SUCCEEDED
+            intent.last_error = ''
+            intent.save(update_fields=['provider_reference', 'payload', 'processed_at', 'status', 'last_error', 'updated_at'])
+            _mark_order_paid(
+                intent.order,
+                intent,
+                message or 'M-Pesa paybill payment confirmed by admin.',
+                'Your M-Pesa paybill payment was confirmed successfully.',
+            )
+        else:
+            intent.status = PaymentIntent.STATUS_FAILED
+            intent.last_error = message or 'Paybill payment was not confirmed.'
+            intent.save(update_fields=['provider_reference', 'payload', 'processed_at', 'status', 'last_error', 'updated_at'])
+            _mark_order_payment_failed(intent.order, intent, intent.last_error)
+
+        log_admin_action(
+            request.user,
+            action='paybill_payment_reconciled',
+            entity_type='payment_intent',
+            entity_id=intent.id,
+            message=f'Paybill intent {intent.reference} reconciled as {intent.status}',
+            metadata={'order_number': intent.order.order_number, 'provider_reference': provider_reference},
+        )
+        return Response(PaymentIntentSerializer(intent).data)
+
+
+class AdminMpesaPaybillRegisterUrlsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = MpesaC2BRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            client = MpesaClient()
+            if serializer.validated_data.get('response_type'):
+                client.c2b_response_type = serializer.validated_data['response_type']
+            response_payload = client.register_c2b_urls()
+        except MpesaConfigurationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except MpesaAPIError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        log_admin_action(
+            request.user,
+            action='mpesa_paybill_urls_registered',
+            entity_type='payment_gateway',
+            entity_id=0,
+            message='Registered M-Pesa paybill validation and confirmation URLs.',
+            metadata={
+                'response_type': client.c2b_response_type,
+                'shortcode': client.c2b_shortcode,
+                'validation_url': client.c2b_validation_url,
+                'confirmation_url': client.c2b_confirmation_url,
+                'provider_response': response_payload,
+            },
+        )
+        return Response({
+            'detail': 'M-Pesa paybill callback URLs registered successfully.',
+            'next_step': 'Set MPESA_C2B_URLS_REGISTERED=true in .env and restart Django.',
+            'shortcode': client.c2b_shortcode,
+            'response_type': client.c2b_response_type,
+            'validation_url': client.c2b_validation_url,
+            'confirmation_url': client.c2b_confirmation_url,
+            'provider_response': response_payload,
+        })
 
 
 class CheckoutFinalizeView(APIView):
@@ -1116,39 +2353,226 @@ class AdminReportsView(APIView):
 
     def get(self, request):
         from apps.accounts.models import User
+        from apps.prescriptions.models import Prescription
+        from apps.lab.models import LabRequest
+        from apps.consultations.models import Consultation
+        from apps.payouts.models import Payout
+        from apps.support.models import SupportTicket
 
+        range_days = max(1, int(request.query_params.get('range', 30)))
         today = timezone.now().date()
+        range_start = today - timedelta(days=range_days - 1)
         month_start = today.replace(day=1)
 
         paid_orders = Order.objects.filter(payment_status=Order.PAYMENT_STATUS_PAID)
         revenue = paid_orders.aggregate(
             revenue_total=Sum('total'),
-            revenue_monthly=Sum('total', filter=Q(created_at__date__gte=month_start))
+            revenue_monthly=Sum('total', filter=Q(created_at__date__gte=month_start)),
+            revenue_range=Sum('total', filter=Q(created_at__date__gte=range_start)),
+        )
+
+        daily_revenue = list(
+            paid_orders.filter(created_at__date__gte=range_start)
+            .annotate(day=TruncDate('created_at'))
+            .values('day')
+            .annotate(revenue=Sum('total'), orders=Count('id'))
+            .order_by('day')
         )
 
         top_products = list(
-            OrderItem.objects.values('product_name', 'product_sku')
-            .annotate(quantity_sold=Sum('quantity'))
-            .order_by('-quantity_sold')[:5]
+            OrderItem.objects.filter(order__created_at__date__gte=range_start)
+            .values('product_name', 'product_sku')
+            .annotate(
+                quantity_sold=Sum('quantity'),
+                revenue=Sum(F('unit_price') * F('quantity')),
+            )
+            .order_by('-revenue')[:10]
         )
 
+        rx_by_status = list(Prescription.objects.values('status').annotate(count=Count('id')))
+        lab_by_status = list(LabRequest.objects.values('status').annotate(count=Count('id')))
+
+        payout_pending = Payout.objects.filter(status='pending')
+        payout_paid_month = Payout.objects.filter(status='paid', paid_at__date__gte=month_start)
+
         return Response({
+            'range_days': range_days,
             'total_orders': Order.objects.exclude(status=Order.STATUS_DRAFT).count(),
             'draft_orders': Order.objects.filter(status=Order.STATUS_DRAFT).count(),
             'total_revenue': float(revenue['revenue_total'] or 0),
             'monthly_revenue': float(revenue['revenue_monthly'] or 0),
+            'range_revenue': float(revenue['revenue_range'] or 0),
             'total_customers': User.objects.filter(role=User.CUSTOMER).count(),
+            'new_customers_month': User.objects.filter(role=User.CUSTOMER, date_joined__date__gte=month_start).count(),
             'pending_orders': Order.objects.filter(status=Order.STATUS_PENDING).count(),
             'today_orders': Order.objects.filter(created_at__date=today).count(),
             'refund_requests': ReturnRequest.objects.filter(status=ReturnRequest.STATUS_REQUESTED).count(),
             'orders_by_status': list(Order.objects.values('status').annotate(count=Count('id'))),
             'orders_by_payment': list(Order.objects.values('payment_method').annotate(count=Count('id'))),
-            'top_products': top_products,
+            'top_products': [
+                {
+                    'product_name': p['product_name'],
+                    'product_sku': p['product_sku'],
+                    'quantity_sold': p['quantity_sold'],
+                    'revenue': float(p['revenue'] or 0),
+                }
+                for p in top_products
+            ],
             'low_stock_products': annotate_product_inventory(Product.objects.filter(is_active=True)).filter(
                 total_stock_quantity__gt=0,
                 total_stock_quantity__lte=models.F('total_low_stock_threshold'),
             ).count(),
+            'out_of_stock_products': annotate_product_inventory(Product.objects.filter(is_active=True)).filter(
+                total_stock_quantity=0,
+            ).count(),
+            'daily_revenue': [
+                {'date': str(d['day']), 'revenue': float(d['revenue'] or 0), 'orders': d['orders']}
+                for d in daily_revenue
+            ],
+            'prescriptions': {
+                'by_status': rx_by_status,
+                'total': Prescription.objects.count(),
+                'pending': Prescription.objects.filter(status='pending').count(),
+                'approved': Prescription.objects.filter(status='approved').count(),
+                'clarification': Prescription.objects.filter(status='clarification').count(),
+                'rejected': Prescription.objects.filter(status='rejected').count(),
+            },
+            'lab': {
+                'by_status': lab_by_status,
+                'total': LabRequest.objects.count(),
+                'awaiting': LabRequest.objects.filter(status='awaiting_sample').count(),
+                'processing': LabRequest.objects.filter(status__in=['collected', 'processing']).count(),
+                'results_ready': LabRequest.objects.filter(status='result_ready').count(),
+                'completed': LabRequest.objects.filter(status='completed').count(),
+            },
+            'consultations': {
+                'total': Consultation.objects.count(),
+                'waiting': Consultation.objects.filter(status='waiting').count(),
+                'in_progress': Consultation.objects.filter(status='in_progress').count(),
+                'completed': Consultation.objects.filter(status='completed').count(),
+                'completed_range': Consultation.objects.filter(
+                    status='completed', updated_at__date__gte=range_start
+                ).count(),
+            },
+            'payouts': {
+                'pending_count': payout_pending.count(),
+                'pending_amount': float(payout_pending.aggregate(t=Sum('amount'))['t'] or 0),
+                'paid_month_amount': float(payout_paid_month.aggregate(t=Sum('amount'))['t'] or 0),
+                'paid_month_count': payout_paid_month.count(),
+                'failed_count': Payout.objects.filter(status='failed').count(),
+            },
+            'support': {
+                'open': SupportTicket.objects.filter(status='open').count(),
+                'in_progress': SupportTicket.objects.filter(status='in_progress').count(),
+            },
         })
+
+
+class AdminInvoiceListView(generics.ListAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = AdminInvoiceSerializer
+    filterset_fields = ['status', 'payment_status', 'payment_method']
+    search_fields = ['order_number', 'shipping_email', 'shipping_first_name', 'shipping_last_name', 'customer__email']
+    ordering_fields = ['created_at', 'total', 'placed_at']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return (
+            Order.objects.exclude(status=Order.STATUS_DRAFT)
+            .select_related('customer', 'coupon', 'shipping_method')
+            .prefetch_related('items', 'items__product_variant', 'payment_intents')
+        )
+
+
+class AdminInvoiceDetailView(generics.RetrieveAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = AdminInvoiceSerializer
+
+    def get_queryset(self):
+        return (
+            Order.objects.exclude(status=Order.STATUS_DRAFT)
+            .select_related('customer', 'coupon', 'shipping_method')
+            .prefetch_related('items', 'items__product_variant', 'payment_intents')
+        )
+
+
+class AdminDownloadReportView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        import csv
+        from io import StringIO
+
+        report_type = request.query_params.get('type', 'orders')
+        range_days = max(1, int(request.query_params.get('range', 30)))
+        today = timezone.now().date()
+        range_start = today - timedelta(days=range_days - 1)
+
+        output = StringIO()
+
+        if report_type == 'orders':
+            writer = csv.writer(output)
+            writer.writerow([
+                'Order #', 'Customer', 'Email', 'Phone', 'Status',
+                'Payment Status', 'Payment Method', 'Subtotal (KSh)',
+                'Discount (KSh)', 'Shipping (KSh)', 'Total (KSh)', 'Date',
+            ])
+            orders = (
+                Order.objects.exclude(status=Order.STATUS_DRAFT)
+                .filter(created_at__date__gte=range_start)
+                .select_related('customer')
+                .order_by('-created_at')
+            )
+            for order in orders:
+                if order.customer:
+                    name = order.customer.full_name
+                else:
+                    name = f"{order.shipping_first_name} {order.shipping_last_name}".strip()
+                writer.writerow([
+                    order.order_number, name, order.shipping_email, order.shipping_phone,
+                    order.status, order.payment_status, order.payment_method,
+                    order.subtotal, order.discount_total, order.shipping_fee, order.total,
+                    order.created_at.strftime('%Y-%m-%d %H:%M'),
+                ])
+
+        elif report_type == 'revenue':
+            writer = csv.writer(output)
+            writer.writerow(['Date', 'Orders', 'Revenue (KSh)'])
+            daily = (
+                Order.objects.filter(payment_status=Order.PAYMENT_STATUS_PAID, created_at__date__gte=range_start)
+                .annotate(day=TruncDate('created_at'))
+                .values('day')
+                .annotate(orders=Count('id'), revenue=Sum('total'))
+                .order_by('day')
+            )
+            for d in daily:
+                writer.writerow([str(d['day']), d['orders'], float(d['revenue'] or 0)])
+
+        elif report_type == 'products':
+            writer = csv.writer(output)
+            writer.writerow(['Product', 'SKU', 'Qty Sold', 'Revenue (KSh)'])
+            items = (
+                OrderItem.objects.filter(order__created_at__date__gte=range_start)
+                .values('product_name', 'product_sku')
+                .annotate(
+                    quantity_sold=Sum('quantity'),
+                    revenue=Sum(F('unit_price') * F('quantity')),
+                )
+                .order_by('-revenue')
+            )
+            for item in items:
+                writer.writerow([
+                    item['product_name'], item['product_sku'],
+                    item['quantity_sold'], float(item['revenue'] or 0),
+                ])
+
+        else:
+            return Response({'detail': 'Unknown report type.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        filename = f'avapharmacy_{report_type}_last{range_days}d_{today}.csv'
+        response = HttpResponse(output.getvalue(), content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 # ─── Cart Merge ────────────────────────────────────────────────────────────────
@@ -1386,7 +2810,7 @@ class MpesaInitiateView(APIView):
             initiated_by=request.user,
             provider=PaymentIntent.PROVIDER_MPESA,
             status=PaymentIntent.STATUS_REQUIRES_ACTION,
-            amount=amount or order.total,
+            amount=amount or resolve_mpesa_stk_amount(order.total),
             phone_number=phone,
             payload={'phone': phone},
         )
@@ -1408,8 +2832,8 @@ class MpesaInitiateView(APIView):
             order.save(update_fields=['payment_status', 'updated_at'])
         except (MpesaConfigurationError, MpesaAPIError) as exc:
             intent.status = PaymentIntent.STATUS_FAILED
-            intent.last_error = str(exc)
-            intent.save(update_fields=['status', 'last_error', 'updated_at'])
+            intent.save(update_fields=['status', 'updated_at'])
+            _record_payment_error(intent, 'mpesa_initiate_alias', str(exc))
             # Return sandbox-friendly response
             return Response({
                 'checkout_request_id': f'ws_CO_sandbox_{order.id}',

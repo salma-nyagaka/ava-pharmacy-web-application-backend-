@@ -54,6 +54,11 @@ class Payout(models.Model):
 
     class Meta:
         ordering = ['-requested_at']
+        indexes = [
+            models.Index(fields=['recipient', 'status']),
+            models.Index(fields=['role', 'status']),
+            models.Index(fields=['status', '-requested_at']),
+        ]
 
     def __str__(self):
         return self.reference

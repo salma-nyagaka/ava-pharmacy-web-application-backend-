@@ -26,9 +26,16 @@ urlpatterns = [
     # Payments
     path('payments/intents/', views.PaymentIntentCreateView.as_view(), name='payment-intents'),
     path('payments/intents/<int:pk>/sync/', views.PaymentIntentStatusSyncView.as_view(), name='payment-intent-sync'),
+    path('orders/payments/flutterwave/initiate/', views.FlutterwaveInitiateView.as_view(), name='orders-payment-flutterwave-initiate'),
+    path('orders/payments/flutterwave/callback/', views.FlutterwaveCallbackView.as_view(), name='orders-payment-flutterwave-callback'),
+    path('orders/payments/flutterwave/redirect/', views.FlutterwaveRedirectView.as_view(), name='orders-payment-flutterwave-redirect'),
+    path('orders/payments/flutterwave/status/<str:tx_ref>/', views.FlutterwaveStatusView.as_view(), name='orders-payment-flutterwave-status'),
     path('payments/mpesa/initiate/', views.MpesaInitiateView.as_view(), name='payment-mpesa-initiate'),
     path('payments/mpesa/status/<str:checkout_request_id>/', views.MpesaStatusView.as_view(), name='payment-mpesa-status'),
     path('payments/mpesa/callback/', views.MpesaCallbackView.as_view(), name='payment-mpesa-callback'),
+    path('payments/mpesa/paybill/validation/', views.MpesaPaybillValidationView.as_view(), name='payment-mpesa-paybill-validation'),
+    path('payments/mpesa/paybill/confirmation/', views.MpesaPaybillConfirmationView.as_view(), name='payment-mpesa-paybill-confirmation'),
+    path('payments/mpesa/paybill/webhook/', views.PaybillWebhookView.as_view(), name='payment-mpesa-paybill-webhook'),
     path('payments/webhook/', views.PaymentWebhookView.as_view(), name='payment-webhook'),
 
     # Orders (spec: POST /orders = one-step create)
@@ -47,9 +54,14 @@ urlpatterns = [
     path('admin/orders/<int:pk>/status/', views.AdminOrderStatusView.as_view(), name='admin-order-status'),
     path('admin/orders/<int:pk>/notes/', views.AdminOrderNoteView.as_view(), name='admin-order-notes'),
     path('admin/orders/<int:pk>/refund/', views.AdminOrderRefundView.as_view(), name='admin-order-refund'),
+    path('admin/payments/mpesa/paybill/register-urls/', views.AdminMpesaPaybillRegisterUrlsView.as_view(), name='admin-payment-mpesa-paybill-register-urls'),
+    path('admin/payments/intents/<int:pk>/reconcile/', views.AdminPaybillReconcileView.as_view(), name='admin-payment-intent-reconcile'),
     path('admin/shipping-methods/', views.AdminShippingMethodListCreateView.as_view(), name='admin-shipping-methods'),
     path('admin/shipping-methods/<int:pk>/', views.AdminShippingMethodDetailView.as_view(), name='admin-shipping-method-detail'),
     path('admin/returns/', views.AdminReturnRequestListView.as_view(), name='admin-return-requests'),
     path('admin/returns/<int:pk>/', views.AdminReturnRequestDetailView.as_view(), name='admin-return-request-detail'),
     path('admin/reports/', views.AdminReportsView.as_view(), name='admin-reports'),
+    path('admin/reports/download/', views.AdminDownloadReportView.as_view(), name='admin-reports-download'),
+    path('admin/invoices/', views.AdminInvoiceListView.as_view(), name='admin-invoices'),
+    path('admin/invoices/<int:pk>/', views.AdminInvoiceDetailView.as_view(), name='admin-invoice-detail'),
 ]

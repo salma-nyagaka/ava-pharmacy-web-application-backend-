@@ -87,6 +87,14 @@ class Cart(models.Model):
             return f"Cart - {self.user.email}"
         return f"Cart - Session {self.session_key}"
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(user__isnull=False) | models.Q(session_key__isnull=False),
+                name='cart_requires_user_or_session',
+            ),
+        ]
+
     @property
     def total(self):
         return sum(item.subtotal for item in self.items.select_related('product').all())
@@ -121,11 +129,35 @@ class CartItem(models.Model):
         ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name='cart_items'
     )
     quantity = models.PositiveIntegerField(default=1)
-    prescription_id = models.CharField(max_length=20, blank=True, null=True)
+    prescription_reference = models.CharField(max_length=20, blank=True, null=True)
+    prescription = models.ForeignKey(
+        'prescriptions.Prescription',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cart_items',
+    )
+    prescription_item = models.ForeignKey(
+        'prescriptions.PrescriptionItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cart_items',
+    )
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('cart', 'product', 'product_variant', 'prescription_id')
+        indexes = [
+            models.Index(fields=['cart', 'added_at']),
+            models.Index(fields=['prescription']),
+            models.Index(fields=['prescription_item']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cart', 'product', 'product_variant', 'prescription', 'prescription_item'],
+                name='unique_cart_item_product_variant_prescription',
+            ),
+        ]
 
     def __str__(self):
         label = self.product_variant.name if self.product_variant else self.product.name
@@ -155,6 +187,9 @@ class ShippingMethod(models.Model):
 
     class Meta:
         ordering = ['sort_order', 'name']
+        indexes = [
+            models.Index(fields=['is_active', 'sort_order']),
+        ]
 
     def __str__(self):
         return self.name
@@ -225,6 +260,8 @@ class Order(models.Model):
         max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING
     )
     payment_reference = models.CharField(max_length=100, blank=True)
+    flutterwave_tx_ref = models.CharField(max_length=64, blank=True)
+    flutterwave_tx_id = models.CharField(max_length=64, blank=True)
     coupon_code = models.CharField(max_length=40, blank=True)
     delivery_method = models.CharField(max_length=30, default='standard')
     delivery_notes = models.TextField(blank=True)
@@ -257,6 +294,9 @@ class Order(models.Model):
             models.Index(fields=['status', 'created_at']),
             models.Index(fields=['payment_status', 'created_at']),
             models.Index(fields=['customer', 'created_at']),
+            models.Index(fields=['payment_method', 'created_at']),
+            models.Index(fields=['flutterwave_tx_ref']),
+            models.Index(fields=['flutterwave_tx_id']),
         ]
 
     def __str__(self):
@@ -284,7 +324,21 @@ class OrderItem(models.Model):
     variant_sku = models.CharField(max_length=60, blank=True)
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    prescription_id = models.CharField(max_length=20, blank=True, null=True)
+    prescription_reference = models.CharField(max_length=20, blank=True, null=True)
+    prescription = models.ForeignKey(
+        'prescriptions.Prescription',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_items',
+    )
+    prescription_item = models.ForeignKey(
+        'prescriptions.PrescriptionItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_items',
+    )
     discount_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
@@ -303,6 +357,9 @@ class OrderNote(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Note on {self.order.order_number}"
@@ -310,10 +367,12 @@ class OrderNote(models.Model):
 
 class PaymentIntent(models.Model):
     PROVIDER_MPESA = 'mpesa'
+    PROVIDER_PAYBILL = 'paybill'
     PROVIDER_CARD = 'card'
     PROVIDER_MANUAL = 'manual'
     PROVIDER_CHOICES = [
         (PROVIDER_MPESA, 'M-Pesa'),
+        (PROVIDER_PAYBILL, 'M-Pesa Paybill'),
         (PROVIDER_CARD, 'Card'),
         (PROVIDER_MANUAL, 'Manual'),
     ]
@@ -355,6 +414,12 @@ class PaymentIntent(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', 'status']),
+            models.Index(fields=['provider', 'status']),
+            models.Index(fields=['checkout_request_id']),
+            models.Index(fields=['external_reference']),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.reference:
@@ -413,12 +478,16 @@ class OrderEvent(models.Model):
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='order_events'
     )
     event_type = models.CharField(max_length=50)
-    message = models.CharField(max_length=255)
+    message = models.TextField()
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', '-created_at']),
+            models.Index(fields=['event_type', '-created_at']),
+        ]
 
     def __str__(self):
         return f"{self.order.order_number} - {self.event_type}"
@@ -459,6 +528,10 @@ class ReturnRequest(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['customer', 'status']),
+            models.Index(fields=['order', 'status']),
+        ]
 
     def __str__(self):
         return f"Return {self.id} - {self.order.order_number}"

@@ -153,16 +153,39 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
     def get_last_order_date(self, obj):
         """Return the created_at timestamp of the user's most recent order."""
-        last = obj.orders.order_by('-created_at').first()
+        prefetched_orders = getattr(obj, '_prefetched_objects_cache', {}).get('orders')
+        if prefetched_orders is not None:
+            last = max(prefetched_orders, key=lambda order: order.created_at, default=None)
+        else:
+            last = obj.orders.order_by('-created_at').first()
         return last.created_at if last else None
 
     def get_default_address(self, obj):
         """Return the user's default address (or first address) as serialized data."""
-        address = obj.addresses.filter(is_default=True).first() or obj.addresses.first()
+        prefetched_addresses = getattr(obj, '_prefetched_objects_cache', {}).get('addresses')
+        if prefetched_addresses is not None:
+            ordered_addresses = sorted(prefetched_addresses, key=lambda address: (not address.is_default, -address.created_at.timestamp()))
+            address = ordered_addresses[0] if ordered_addresses else None
+        else:
+            address = obj.addresses.filter(is_default=True).first() or obj.addresses.first()
         return AddressSerializer(address).data if address else None
 
     def get_recent_orders(self, obj):
         """Return the five most recent orders as lightweight dicts."""
+        prefetched_orders = getattr(obj, '_prefetched_objects_cache', {}).get('orders')
+        if prefetched_orders is not None:
+            recent_orders = sorted(prefetched_orders, key=lambda order: order.created_at, reverse=True)[:5]
+            return [
+                {
+                    'id': order.id,
+                    'order_number': order.order_number,
+                    'status': order.status,
+                    'payment_status': order.payment_status,
+                    'total': order.total,
+                    'created_at': order.created_at,
+                }
+                for order in recent_orders
+            ]
         return list(
             obj.orders.order_by('-created_at')
             .values('id', 'order_number', 'status', 'payment_status', 'total', 'created_at')[:5]
@@ -170,6 +193,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
     def get_total_spend(self, obj):
         """Return the sum of all paid order totals for this user."""
+        prefetched_orders = getattr(obj, '_prefetched_objects_cache', {}).get('orders')
+        if prefetched_orders is not None:
+            total = sum(order.total for order in prefetched_orders if order.payment_status == 'paid')
+            return total or 0
         total = obj.orders.filter(payment_status='paid').aggregate(total=Sum('total'))['total']
         return total or 0
 

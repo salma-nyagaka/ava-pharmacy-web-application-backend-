@@ -2,166 +2,140 @@ import uuid
 from django.db import models
 
 
-class DoctorProfile(models.Model):
+class BaseClinicianProfile(models.Model):
+    STATUS_ACTIVE = 'active'
+    STATUS_PENDING = 'pending'
+    STATUS_SUSPENDED = 'suspended'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_SUSPENDED, 'Suspended'),
+    ]
+
+    PAYOUT_MPESA = 'mpesa'
+    PAYOUT_BANK = 'bank_transfer'
+    PAYOUT_CHOICES = [
+        (PAYOUT_MPESA, 'M-Pesa'),
+        (PAYOUT_BANK, 'Bank Transfer'),
+    ]
+
+    reference = models.CharField(max_length=20, unique=True, blank=True)
+    user = models.OneToOneField(
+        'accounts.User', on_delete=models.CASCADE, null=True, blank=True
+    )
+    name = models.CharField(max_length=200)
+    specialty = models.CharField(max_length=200)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20)
+    license_number = models.CharField(max_length=100)
+    license_board = models.CharField(max_length=200, blank=True)
+    license_country = models.CharField(max_length=100, blank=True)
+    license_expiry = models.DateField(null=True, blank=True)
+    id_number = models.CharField(max_length=100, blank=True)
+    facility = models.CharField(max_length=200, blank=True)
+    availability = models.CharField(max_length=200, blank=True)
+    bio = models.TextField(blank=True)
+    languages = models.JSONField(default=list)
+    consult_modes = models.JSONField(default=list)
+    years_experience = models.PositiveIntegerField(null=True, blank=True)
+    county = models.CharField(max_length=100, blank=True)
+    address = models.TextField(blank=True)
+    references = models.JSONField(default=list)
+    document_checklist = models.JSONField(default=list)
+    payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
+    payout_account = models.CharField(max_length=100, blank=True)
+    background_consent = models.BooleanField(default=False)
+    compliance_declaration = models.BooleanField(default=False)
+    agreed_to_terms = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status_note = models.TextField(blank=True)
+    rejection_note = models.TextField(blank=True)
+    commission = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
+    consult_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
+    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+'
+    )
+    updated_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+'
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['-submitted_at']
+    @property
+    def provider_type(self):
+        raise NotImplementedError
+
+    @property
+    def role_label(self):
+        return self.provider_type.replace('_', ' ')
+
+
+class ClinicianQuerySet(models.QuerySet):
+    def doctors(self):
+        return self.filter(provider_type=ClinicianProfile.TYPE_DOCTOR)
+
+    def pediatricians(self):
+        return self.filter(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN)
+
+    def active(self):
+        return self.filter(status=ClinicianProfile.STATUS_ACTIVE)
+
+
+class ClinicianProfile(BaseClinicianProfile):
     TYPE_DOCTOR = 'doctor'
+    TYPE_PEDIATRICIAN = 'pediatrician'
     TYPE_CHOICES = [
         (TYPE_DOCTOR, 'Doctor'),
+        (TYPE_PEDIATRICIAN, 'Pediatrician'),
     ]
 
-    STATUS_ACTIVE = 'active'
-    STATUS_PENDING = 'pending'
-    STATUS_SUSPENDED = 'suspended'
-    STATUS_CHOICES = [
-        (STATUS_ACTIVE, 'Active'),
-        (STATUS_PENDING, 'Pending'),
-        (STATUS_SUSPENDED, 'Suspended'),
-    ]
-
-    PAYOUT_MPESA = 'mpesa'
-    PAYOUT_BANK = 'bank_transfer'
-    PAYOUT_CHOICES = [
-        (PAYOUT_MPESA, 'M-Pesa'),
-        (PAYOUT_BANK, 'Bank Transfer'),
-    ]
-
-    reference = models.CharField(max_length=20, unique=True, blank=True)
     user = models.OneToOneField(
-        'accounts.User', on_delete=models.CASCADE, related_name='doctor_profile', null=True, blank=True
+        'accounts.User', on_delete=models.CASCADE, related_name='clinician_profile', null=True, blank=True
     )
-    name = models.CharField(max_length=200)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_DOCTOR)
-    specialty = models.CharField(max_length=200)
-    email = models.EmailField()
-    phone = models.CharField(max_length=20)
-    license_number = models.CharField(max_length=100)
-    license_board = models.CharField(max_length=200, blank=True)
-    license_country = models.CharField(max_length=100, blank=True)
-    license_expiry = models.DateField(null=True, blank=True)
-    id_number = models.CharField(max_length=100, blank=True)
-    facility = models.CharField(max_length=200, blank=True)
-    availability = models.CharField(max_length=200, blank=True)
-    bio = models.TextField(blank=True)
-    languages = models.JSONField(default=list)
-    consult_modes = models.JSONField(default=list)
-    years_experience = models.PositiveIntegerField(null=True, blank=True)
-    county = models.CharField(max_length=100, blank=True)
-    address = models.TextField(blank=True)
-    references = models.JSONField(default=list)
-    document_checklist = models.JSONField(default=list)
-    payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
-    payout_account = models.CharField(max_length=100, blank=True)
-    background_consent = models.BooleanField(default=False)
-    compliance_declaration = models.BooleanField(default=False)
-    agreed_to_terms = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
-    status_note = models.TextField(blank=True)
-    rejection_note = models.TextField(blank=True)
-    commission = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
-    consult_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
-    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
-    verified_at = models.DateTimeField(null=True, blank=True)
-    submitted_at = models.DateTimeField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    provider_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    legacy_doctor_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
+    legacy_pediatrician_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
     created_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='created_doctor_profiles'
+        related_name='created_clinician_profiles'
     )
     updated_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='updated_doctor_profiles'
+        related_name='updated_clinician_profiles'
     )
 
-    class Meta:
-        ordering = ['-submitted_at']
+    objects = ClinicianQuerySet.as_manager()
+
+    class Meta(BaseClinicianProfile.Meta):
+        indexes = [
+            models.Index(fields=['provider_type', 'status']),
+            models.Index(fields=['status', '-submitted_at']),
+            models.Index(fields=['user', 'status']),
+        ]
+
+    @property
+    def provider_type_label(self):
+        return dict(self.TYPE_CHOICES).get(self.provider_type, self.provider_type)
 
     def __str__(self):
-        return f"{self.name} ({self.type})"
+        return f"{self.name} ({self.provider_type})"
 
     def save(self, *args, **kwargs):
         if not self.reference:
-            self.reference = f"DOC-{uuid.uuid4().hex[:6].upper()}"
-        self.type = self.TYPE_DOCTOR
+            prefix = 'DOC' if self.provider_type == self.TYPE_DOCTOR else 'PED'
+            self.reference = f"{prefix}-{uuid.uuid4().hex[:6].upper()}"
         super().save(*args, **kwargs)
 
 
-class PediatricianProfile(models.Model):
-    STATUS_ACTIVE = 'active'
-    STATUS_PENDING = 'pending'
-    STATUS_SUSPENDED = 'suspended'
-    STATUS_CHOICES = [
-        (STATUS_ACTIVE, 'Active'),
-        (STATUS_PENDING, 'Pending'),
-        (STATUS_SUSPENDED, 'Suspended'),
-    ]
-
-    PAYOUT_MPESA = 'mpesa'
-    PAYOUT_BANK = 'bank_transfer'
-    PAYOUT_CHOICES = [
-        (PAYOUT_MPESA, 'M-Pesa'),
-        (PAYOUT_BANK, 'Bank Transfer'),
-    ]
-
-    reference = models.CharField(max_length=20, unique=True, blank=True)
-    user = models.OneToOneField(
-        'accounts.User', on_delete=models.CASCADE, related_name='pediatrician_profile', null=True, blank=True
-    )
-    name = models.CharField(max_length=200)
-    specialty = models.CharField(max_length=200)
-    email = models.EmailField()
-    phone = models.CharField(max_length=20)
-    license_number = models.CharField(max_length=100)
-    license_board = models.CharField(max_length=200, blank=True)
-    license_country = models.CharField(max_length=100, blank=True)
-    license_expiry = models.DateField(null=True, blank=True)
-    id_number = models.CharField(max_length=100, blank=True)
-    facility = models.CharField(max_length=200, blank=True)
-    availability = models.CharField(max_length=200, blank=True)
-    bio = models.TextField(blank=True)
-    languages = models.JSONField(default=list)
-    consult_modes = models.JSONField(default=list)
-    years_experience = models.PositiveIntegerField(null=True, blank=True)
-    county = models.CharField(max_length=100, blank=True)
-    address = models.TextField(blank=True)
-    references = models.JSONField(default=list)
-    document_checklist = models.JSONField(default=list)
-    payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
-    payout_account = models.CharField(max_length=100, blank=True)
-    background_consent = models.BooleanField(default=False)
-    compliance_declaration = models.BooleanField(default=False)
-    agreed_to_terms = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
-    status_note = models.TextField(blank=True)
-    rejection_note = models.TextField(blank=True)
-    commission = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
-    consult_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
-    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
-    verified_at = models.DateTimeField(null=True, blank=True)
-    submitted_at = models.DateTimeField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='created_pediatrician_profiles'
-    )
-    updated_by = models.ForeignKey(
-        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='updated_pediatrician_profiles'
-    )
-
-    class Meta:
-        ordering = ['-submitted_at']
-
-    def __str__(self):
-        return f"{self.name} (pediatrician)"
-
-    def save(self, *args, **kwargs):
-        if not self.reference:
-            self.reference = f"PED-{uuid.uuid4().hex[:6].upper()}"
-        super().save(*args, **kwargs)
-
-
-class DoctorDocument(models.Model):
+class BaseClinicianDocument(models.Model):
     STATUS_SUBMITTED = 'submitted'
     STATUS_VERIFIED = 'verified'
     STATUS_MISSING = 'missing'
@@ -171,36 +145,26 @@ class DoctorDocument(models.Model):
         (STATUS_MISSING, 'Missing'),
     ]
 
-    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='documents')
     name = models.CharField(max_length=200)
     file = models.FileField(upload_to='doctors/documents/', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SUBMITTED)
     note = models.TextField(blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"{self.doctor.name} - {self.name}"
+    class Meta:
+        abstract = True
 
 
-class PediatricianDocument(models.Model):
-    STATUS_SUBMITTED = 'submitted'
-    STATUS_VERIFIED = 'verified'
-    STATUS_MISSING = 'missing'
-    STATUS_CHOICES = [
-        (STATUS_SUBMITTED, 'Submitted'),
-        (STATUS_VERIFIED, 'Verified'),
-        (STATUS_MISSING, 'Missing'),
-    ]
+class ClinicianDocument(BaseClinicianDocument):
+    clinician = models.ForeignKey(ClinicianProfile, on_delete=models.CASCADE, related_name='documents')
 
-    pediatrician = models.ForeignKey(PediatricianProfile, on_delete=models.CASCADE, related_name='documents')
-    name = models.CharField(max_length=200)
-    file = models.FileField(upload_to='pediatricians/documents/', null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SUBMITTED)
-    note = models.TextField(blank=True)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    def upload_to(self):
+        if self.clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN:
+            return 'pediatricians/documents/'
+        return 'doctors/documents/'
 
     def __str__(self):
-        return f"{self.pediatrician.name} - {self.name}"
+        return f"{self.clinician.name} - {self.name}"
 
 
 class Consultation(models.Model):
@@ -223,8 +187,13 @@ class Consultation(models.Model):
     ]
 
     reference = models.CharField(max_length=20, unique=True, blank=True)
-    doctor = models.ForeignKey(DoctorProfile, on_delete=models.SET_NULL, null=True, related_name='consultations')
-    pediatrician = models.ForeignKey(PediatricianProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name='consultations')
+    clinician = models.ForeignKey(
+        'ClinicianProfile',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultations',
+    )
     patient = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, related_name='consultations'
     )
@@ -255,13 +224,19 @@ class Consultation(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['clinician', 'status']),
+            models.Index(fields=['patient', 'status']),
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['is_pediatric', 'status']),
+        ]
 
     def __str__(self):
         return self.reference
 
     @property
     def provider_profile(self):
-        return self.pediatrician or self.doctor
+        return self.clinician
 
     @property
     def provider_name(self):
@@ -276,8 +251,8 @@ class Consultation(models.Model):
     def save(self, *args, **kwargs):
         if not self.reference:
             self.reference = f"CONS-{uuid.uuid4().hex[:6].upper()}"
-        if self.pediatrician_id:
-            self.is_pediatric = True
+        if self.clinician_id:
+            self.is_pediatric = self.clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN
         super().save(*args, **kwargs)
 
 
@@ -290,12 +265,15 @@ class ConsultationMessage(models.Model):
 
     class Meta:
         ordering = ['sent_at']
+        indexes = [
+            models.Index(fields=['consultation', 'sent_at']),
+        ]
 
     def __str__(self):
         return f"{self.consultation.reference} - {self.sender_name}"
 
 
-class DoctorPrescription(models.Model):
+class BaseClinicianPrescription(models.Model):
     STATUS_DRAFT = 'draft'
     STATUS_SENT = 'sent'
     STATUS_DISPENSED = 'dispensed'
@@ -306,7 +284,6 @@ class DoctorPrescription(models.Model):
     ]
 
     reference = models.CharField(max_length=20, unique=True, blank=True)
-    doctor = models.ForeignKey(DoctorProfile, on_delete=models.SET_NULL, null=True, related_name='issued_prescriptions')
     consultation = models.ForeignKey(Consultation, on_delete=models.SET_NULL, null=True, blank=True, related_name='prescriptions')
     patient_name = models.CharField(max_length=200)
     items = models.JSONField(default=list)
@@ -314,66 +291,55 @@ class DoctorPrescription(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.reference
-
-    def save(self, *args, **kwargs):
-        if not self.reference:
-            self.reference = f"DRXP-{uuid.uuid4().hex[:6].upper()}"
-        super().save(*args, **kwargs)
-
-
-class PediatricianPrescription(models.Model):
-    STATUS_DRAFT = 'draft'
-    STATUS_SENT = 'sent'
-    STATUS_DISPENSED = 'dispensed'
-    STATUS_CHOICES = [
-        (STATUS_DRAFT, 'Draft'),
-        (STATUS_SENT, 'Sent'),
-        (STATUS_DISPENSED, 'Dispensed'),
-    ]
-
-    reference = models.CharField(max_length=20, unique=True, blank=True)
-    pediatrician = models.ForeignKey(PediatricianProfile, on_delete=models.SET_NULL, null=True, related_name='issued_prescriptions')
-    consultation = models.ForeignKey(Consultation, on_delete=models.SET_NULL, null=True, blank=True, related_name='pediatrician_prescriptions')
-    patient_name = models.CharField(max_length=200)
-    items = models.JSONField(default=list)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        abstract = True
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.reference
 
+
+class ClinicianPrescription(BaseClinicianPrescription):
+    clinician = models.ForeignKey(ClinicianProfile, on_delete=models.SET_NULL, null=True, related_name='issued_prescriptions')
+    consultation = models.ForeignKey(
+        Consultation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clinician_prescriptions',
+    )
+
+    class Meta(BaseClinicianPrescription.Meta):
+        indexes = [
+            models.Index(fields=['clinician', 'status']),
+            models.Index(fields=['consultation', 'status']),
+        ]
+
     def save(self, *args, **kwargs):
         if not self.reference:
-            self.reference = f"PED-RX-{uuid.uuid4().hex[:6].upper()}"
+            prefix = 'DRXP' if self.clinician and self.clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else 'PED-RX'
+            self.reference = f"{prefix}-{uuid.uuid4().hex[:6].upper()}"
         super().save(*args, **kwargs)
 
 
-class DoctorEarning(models.Model):
-    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, null=True, blank=True, related_name='earnings')
+class BaseClinicianEarning(models.Model):
     consultation = models.ForeignKey(Consultation, on_delete=models.SET_NULL, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.CharField(max_length=200, blank=True)
     earned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        abstract = True
         ordering = ['-earned_at']
 
-    def __str__(self):
-        return f"{self.doctor.name if self.doctor else 'Unknown'} - KSh {self.amount}"
 
+class ClinicianEarning(BaseClinicianEarning):
+    clinician = models.ForeignKey(ClinicianProfile, on_delete=models.CASCADE, related_name='earnings')
 
-class PediatricianEarning(models.Model):
-    pediatrician = models.ForeignKey(PediatricianProfile, on_delete=models.CASCADE, related_name='earnings')
-    consultation = models.ForeignKey(Consultation, on_delete=models.SET_NULL, null=True, blank=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.CharField(max_length=200, blank=True)
-    earned_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-earned_at']
+    class Meta(BaseClinicianEarning.Meta):
+        indexes = [
+            models.Index(fields=['clinician', '-earned_at']),
+        ]
 
     def __str__(self):
-        return f"{self.pediatrician.name if self.pediatrician else 'Unknown'} - KSh {self.amount}"
+        return f"{self.clinician.name if self.clinician else 'Unknown'} - KSh {self.amount}"

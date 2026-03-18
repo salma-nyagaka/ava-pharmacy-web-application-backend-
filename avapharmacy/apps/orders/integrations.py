@@ -44,7 +44,7 @@ def build_order_push_payload(order, action):
                     'quantity': item.quantity,
                     'unit_price': str(item.unit_price),
                     'discount_total': str(item.discount_total),
-                    'prescription_id': item.prescription_id,
+                    'prescription_reference': item.prescription_reference,
                 }
                 for item in order.items.all()
             ],

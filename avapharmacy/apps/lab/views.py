@@ -33,7 +33,7 @@ class AdminLabPartnerListCreateView(generics.ListCreateAPIView):
     ordering = ['-submitted_at']
 
     def get_queryset(self):
-        return LabPartner.objects.all().prefetch_related('documents', 'technicians__user')
+        return LabPartner.objects.all().prefetch_related('documents', 'technicians__user', 'technicians__documents')
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -49,7 +49,7 @@ class AdminLabPartnerListCreateView(generics.ListCreateAPIView):
 
 class AdminLabPartnerDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAdminUser]
-    queryset = LabPartner.objects.all().prefetch_related('documents', 'technicians__user')
+    queryset = LabPartner.objects.all().prefetch_related('documents', 'technicians__user', 'technicians__documents')
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:

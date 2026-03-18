@@ -26,7 +26,7 @@ class SupportTicketListCreateView(generics.ListCreateAPIView):
                 .select_related('customer', 'assigned_to')
                 .prefetch_related('notes')
             )
-        return SupportTicket.objects.filter(customer=user).prefetch_related('notes')
+        return SupportTicket.objects.filter(customer=user).select_related('customer', 'assigned_to').prefetch_related('notes')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -45,8 +45,8 @@ class SupportTicketDetailView(generics.RetrieveUpdateAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'admin':
-            return SupportTicket.objects.all().prefetch_related('notes')
-        return SupportTicket.objects.filter(customer=user).prefetch_related('notes')
+            return SupportTicket.objects.all().select_related('customer', 'assigned_to').prefetch_related('notes')
+        return SupportTicket.objects.filter(customer=user).select_related('customer', 'assigned_to').prefetch_related('notes')
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:

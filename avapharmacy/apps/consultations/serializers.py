@@ -1,10 +1,22 @@
 from rest_framework import serializers
+
 from .models import (
-    DoctorProfile, DoctorDocument, PediatricianProfile, PediatricianDocument,
-    Consultation, ConsultationMessage,
-    DoctorPrescription, PediatricianPrescription,
-    DoctorEarning, PediatricianEarning,
+    ClinicianDocument,
+    ClinicianEarning,
+    ClinicianPrescription,
+    ClinicianProfile,
+    Consultation,
+    ConsultationMessage,
 )
+
+
+def _resolve_clinician_identifier(value, provider_type):
+    if value in (None, '', 0, '0'):
+        return None
+
+    queryset = ClinicianProfile.objects.filter(provider_type=provider_type)
+    legacy_field = 'legacy_doctor_id' if provider_type == ClinicianProfile.TYPE_DOCTOR else 'legacy_pediatrician_id'
+    return queryset.filter(pk=value).first() or queryset.filter(**{legacy_field: value}).first()
 
 
 def _validate_unique_professional_phone(phone, instance=None):
@@ -14,18 +26,13 @@ def _validate_unique_professional_phone(phone, instance=None):
 
     from apps.accounts.models import User
 
-    user_qs = User.objects.filter(phone=phone)
-    if user_qs.exists():
+    if User.objects.filter(phone=phone).exists():
         raise serializers.ValidationError('A user with this phone number already exists.')
 
-    doctor_qs = DoctorProfile.objects.filter(phone=phone)
-    pediatrician_qs = PediatricianProfile.objects.filter(phone=phone)
+    clinician_qs = ClinicianProfile.objects.filter(phone=phone)
     if instance is not None:
-        if isinstance(instance, DoctorProfile):
-            doctor_qs = doctor_qs.exclude(pk=instance.pk)
-        elif isinstance(instance, PediatricianProfile):
-            pediatrician_qs = pediatrician_qs.exclude(pk=instance.pk)
-    if doctor_qs.exists() or pediatrician_qs.exists():
+        clinician_qs = clinician_qs.exclude(pk=instance.pk)
+    if clinician_qs.exists():
         raise serializers.ValidationError('An application with this phone number already exists.')
     return phone
 
@@ -36,37 +43,56 @@ def _validate_unique_professional_email(email, instance=None):
     if User.objects.filter(email=email).exists():
         raise serializers.ValidationError('A user with this email already exists.')
 
-    doctor_qs = DoctorProfile.objects.filter(email=email)
-    pediatrician_qs = PediatricianProfile.objects.filter(email=email)
+    clinician_qs = ClinicianProfile.objects.filter(email=email)
     if instance is not None:
-        if isinstance(instance, DoctorProfile):
-            doctor_qs = doctor_qs.exclude(pk=instance.pk)
-        elif isinstance(instance, PediatricianProfile):
-            pediatrician_qs = pediatrician_qs.exclude(pk=instance.pk)
-    if doctor_qs.exists() or pediatrician_qs.exists():
+        clinician_qs = clinician_qs.exclude(pk=instance.pk)
+    if clinician_qs.exists():
         raise serializers.ValidationError('An application with this email already exists.')
     return email
 
 
-class DoctorDocumentSerializer(serializers.ModelSerializer):
+class ClinicianCompatibilityField(serializers.Field):
+    default_error_messages = {
+        'invalid': 'Selected clinician was not found.',
+    }
+
+    def __init__(self, *, provider_type, **kwargs):
+        self.provider_type = provider_type
+        super().__init__(**kwargs)
+
+    def to_representation(self, value):
+        if value and value.provider_type == self.provider_type:
+            return value.pk
+        return None
+
+    def to_internal_value(self, data):
+        clinician = _resolve_clinician_identifier(data, self.provider_type)
+        if clinician is None:
+            self.fail('invalid')
+        return clinician
+
+
+class ClinicianDocumentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = DoctorDocument
+        model = ClinicianDocument
         fields = ('id', 'name', 'file', 'status', 'note', 'uploaded_at')
         read_only_fields = ('id', 'uploaded_at')
 
 
-class PediatricianDocumentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PediatricianDocument
-        fields = ('id', 'name', 'file', 'status', 'note', 'uploaded_at')
-        read_only_fields = ('id', 'uploaded_at')
+class DoctorDocumentSerializer(ClinicianDocumentSerializer):
+    pass
+
+
+class PediatricianDocumentSerializer(ClinicianDocumentSerializer):
+    pass
 
 
 class DoctorProfileSerializer(serializers.ModelSerializer):
-    documents = DoctorDocumentSerializer(many=True, read_only=True)
+    type = serializers.CharField(source='provider_type', read_only=True)
+    documents = ClinicianDocumentSerializer(many=True, read_only=True)
 
     class Meta:
-        model = DoctorProfile
+        model = ClinicianProfile
         fields = (
             'id', 'reference', 'user', 'name', 'type', 'specialty', 'email', 'phone',
             'license_number', 'license_board', 'license_country', 'license_expiry', 'id_number',
@@ -86,10 +112,10 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
 
 
 class PediatricianProfileSerializer(serializers.ModelSerializer):
-    documents = PediatricianDocumentSerializer(many=True, read_only=True)
+    documents = ClinicianDocumentSerializer(many=True, read_only=True)
 
     class Meta:
-        model = PediatricianProfile
+        model = ClinicianProfile
         fields = (
             'id', 'reference', 'user', 'name', 'specialty', 'email', 'phone',
             'license_number', 'license_board', 'license_country', 'license_expiry', 'id_number',
@@ -109,8 +135,10 @@ class PediatricianProfileSerializer(serializers.ModelSerializer):
 
 
 class DoctorProfileListSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='provider_type', read_only=True)
+
     class Meta:
-        model = DoctorProfile
+        model = ClinicianProfile
         fields = (
             'id', 'reference', 'name', 'type', 'specialty', 'facility',
             'consult_fee', 'rating', 'availability', 'status'
@@ -119,35 +147,18 @@ class DoctorProfileListSerializer(serializers.ModelSerializer):
 
 class PediatricianProfileListSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PediatricianProfile
+        model = ClinicianProfile
         fields = (
             'id', 'reference', 'name', 'specialty', 'facility',
             'consult_fee', 'rating', 'availability', 'status'
         )
 
 
-class DoctorOnboardingSerializer(serializers.ModelSerializer):
-    documents = serializers.ListField(
-        child=serializers.FileField(), required=False, write_only=True
-    )
-    document_names = serializers.ListField(
-        child=serializers.CharField(), required=False, write_only=True
-    )
-    cv_files = serializers.ListField(
-        child=serializers.FileField(), required=False, write_only=True
-    )
-
-    class Meta:
-        model = DoctorProfile
-        fields = (
-            'name', 'type', 'specialty', 'email', 'phone',
-            'license_number', 'license_board', 'license_country', 'license_expiry', 'id_number',
-            'facility', 'availability', 'bio', 'languages', 'consult_modes', 'consult_fee',
-            'years_experience', 'county', 'address', 'references', 'document_checklist',
-            'payout_method', 'payout_account',
-            'background_consent', 'compliance_declaration', 'agreed_to_terms',
-            'documents', 'document_names', 'cv_files',
-        )
+class BaseClinicianOnboardingSerializer(serializers.ModelSerializer):
+    documents = serializers.ListField(child=serializers.FileField(), required=False, write_only=True)
+    document_names = serializers.ListField(child=serializers.CharField(), required=False, write_only=True)
+    cv_files = serializers.ListField(child=serializers.FileField(), required=False, write_only=True)
+    provider_type = None
 
     def validate_email(self, value):
         return _validate_unique_professional_email(value, instance=self.instance)
@@ -176,35 +187,27 @@ class DoctorOnboardingSerializer(serializers.ModelSerializer):
         cv_files = validated_data.pop('cv_files', [])
         request = self.context.get('request')
         actor = request.user if request and getattr(request.user, 'is_authenticated', False) else None
-        profile = DoctorProfile.objects.create(
-            status=DoctorProfile.STATUS_PENDING,
+        profile = ClinicianProfile.objects.create(
+            provider_type=self.provider_type,
+            status=ClinicianProfile.STATUS_PENDING,
             commission=15,
             created_by=actor,
             updated_by=actor,
             **validated_data,
         )
-        for i, doc_file in enumerate(documents):
-            doc_name = document_names[i] if i < len(document_names) else doc_file.name
-            DoctorDocument.objects.create(doctor=profile, name=doc_name, file=doc_file)
+        for index, doc_file in enumerate(documents):
+            doc_name = document_names[index] if index < len(document_names) else doc_file.name
+            ClinicianDocument.objects.create(clinician=profile, name=doc_name, file=doc_file)
         for cv_file in cv_files:
-            DoctorDocument.objects.create(doctor=profile, name=f'CV: {cv_file.name}', file=cv_file)
-
+            ClinicianDocument.objects.create(clinician=profile, name=f'CV: {cv_file.name}', file=cv_file)
         return profile
 
 
-class PediatricianOnboardingSerializer(serializers.ModelSerializer):
-    documents = serializers.ListField(
-        child=serializers.FileField(), required=False, write_only=True
-    )
-    document_names = serializers.ListField(
-        child=serializers.CharField(), required=False, write_only=True
-    )
-    cv_files = serializers.ListField(
-        child=serializers.FileField(), required=False, write_only=True
-    )
+class DoctorOnboardingSerializer(BaseClinicianOnboardingSerializer):
+    provider_type = ClinicianProfile.TYPE_DOCTOR
 
     class Meta:
-        model = PediatricianProfile
+        model = ClinicianProfile
         fields = (
             'name', 'specialty', 'email', 'phone',
             'license_number', 'license_board', 'license_country', 'license_expiry', 'id_number',
@@ -215,57 +218,32 @@ class PediatricianOnboardingSerializer(serializers.ModelSerializer):
             'documents', 'document_names', 'cv_files',
         )
 
-    def validate_email(self, value):
-        return _validate_unique_professional_email(value, instance=self.instance)
 
-    def validate_phone(self, value):
-        return _validate_unique_professional_phone(value, instance=self.instance)
+class PediatricianOnboardingSerializer(BaseClinicianOnboardingSerializer):
+    provider_type = ClinicianProfile.TYPE_PEDIATRICIAN
 
-    def validate_background_consent(self, value):
-        if not value:
-            raise serializers.ValidationError('Background consent is required.')
-        return value
-
-    def validate_compliance_declaration(self, value):
-        if not value:
-            raise serializers.ValidationError('Compliance declaration is required.')
-        return value
-
-    def validate_agreed_to_terms(self, value):
-        if not value:
-            raise serializers.ValidationError('You must agree to the terms.')
-        return value
-
-    def create(self, validated_data):
-        documents = validated_data.pop('documents', [])
-        document_names = validated_data.pop('document_names', [])
-        cv_files = validated_data.pop('cv_files', [])
-        request = self.context.get('request')
-        actor = request.user if request and getattr(request.user, 'is_authenticated', False) else None
-        profile = PediatricianProfile.objects.create(
-            status=PediatricianProfile.STATUS_PENDING,
-            commission=15,
-            created_by=actor,
-            updated_by=actor,
-            **validated_data,
+    class Meta:
+        model = ClinicianProfile
+        fields = (
+            'name', 'specialty', 'email', 'phone',
+            'license_number', 'license_board', 'license_country', 'license_expiry', 'id_number',
+            'facility', 'availability', 'bio', 'languages', 'consult_modes', 'consult_fee',
+            'years_experience', 'county', 'address', 'references', 'document_checklist',
+            'payout_method', 'payout_account',
+            'background_consent', 'compliance_declaration', 'agreed_to_terms',
+            'documents', 'document_names', 'cv_files',
         )
-        for i, doc_file in enumerate(documents):
-            doc_name = document_names[i] if i < len(document_names) else doc_file.name
-            PediatricianDocument.objects.create(pediatrician=profile, name=doc_name, file=doc_file)
-        for cv_file in cv_files:
-            PediatricianDocument.objects.create(pediatrician=profile, name=f'CV: {cv_file.name}', file=cv_file)
-        return profile
 
 
 class AdminDoctorUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = DoctorProfile
+        model = ClinicianProfile
         fields = ('status', 'status_note', 'rejection_note', 'commission', 'consult_fee', 'verified_at')
 
 
 class AdminPediatricianUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PediatricianProfile
+        model = ClinicianProfile
         fields = ('status', 'status_note', 'rejection_note', 'commission', 'consult_fee', 'verified_at')
 
 
@@ -277,6 +255,8 @@ class ConsultationMessageSerializer(serializers.ModelSerializer):
 
 
 class ConsultationSerializer(serializers.ModelSerializer):
+    doctor = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_DOCTOR, source='clinician', required=False, allow_null=True)
+    pediatrician = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN, source='clinician', required=False, allow_null=True)
     doctor_name = serializers.ReadOnlyField(source='provider_name')
     doctor_specialty = serializers.ReadOnlyField(source='provider_specialty')
     messages = ConsultationMessageSerializer(many=True, read_only=True)
@@ -305,6 +285,9 @@ class ConsultationListSerializer(serializers.ModelSerializer):
 
 
 class ConsultationCreateSerializer(serializers.ModelSerializer):
+    doctor = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    pediatrician = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+
     class Meta:
         model = Consultation
         fields = (
@@ -314,14 +297,23 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs):
-        doctor = attrs.get('doctor')
-        pediatrician = attrs.get('pediatrician')
-        if doctor and pediatrician:
+        doctor_identifier = attrs.pop('doctor', None)
+        pediatrician_identifier = attrs.pop('pediatrician', None)
+        if doctor_identifier and pediatrician_identifier:
             raise serializers.ValidationError('Select either a doctor or a pediatrician, not both.')
-        if not doctor and not pediatrician:
-            raise serializers.ValidationError('A doctor or pediatrician is required.')
-        if pediatrician:
+        clinician = None
+        if doctor_identifier:
+            clinician = _resolve_clinician_identifier(doctor_identifier, ClinicianProfile.TYPE_DOCTOR)
+            if clinician is None:
+                raise serializers.ValidationError({'doctor': 'Selected doctor was not found.'})
+        elif pediatrician_identifier:
+            clinician = _resolve_clinician_identifier(pediatrician_identifier, ClinicianProfile.TYPE_PEDIATRICIAN)
+            if clinician is None:
+                raise serializers.ValidationError({'pediatrician': 'Selected pediatrician was not found.'})
             attrs['is_pediatric'] = True
+        if clinician is None:
+            raise serializers.ValidationError('A doctor or pediatrician is required.')
+        attrs['clinician'] = clinician
         return attrs
 
 
@@ -332,28 +324,36 @@ class ConsultationUpdateSerializer(serializers.ModelSerializer):
 
 
 class DoctorPrescriptionSerializer(serializers.ModelSerializer):
+    doctor = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_DOCTOR, source='clinician', required=False, allow_null=True)
+
     class Meta:
-        model = DoctorPrescription
+        model = ClinicianPrescription
         fields = ('id', 'reference', 'doctor', 'consultation', 'patient_name', 'items', 'status', 'notes', 'created_at')
         read_only_fields = ('id', 'reference', 'created_at')
 
 
 class PediatricianPrescriptionSerializer(serializers.ModelSerializer):
+    pediatrician = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN, source='clinician', required=False, allow_null=True)
+
     class Meta:
-        model = PediatricianPrescription
+        model = ClinicianPrescription
         fields = ('id', 'reference', 'pediatrician', 'consultation', 'patient_name', 'items', 'status', 'notes', 'created_at')
         read_only_fields = ('id', 'reference', 'created_at')
 
 
 class DoctorEarningSerializer(serializers.ModelSerializer):
+    doctor = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_DOCTOR, source='clinician', required=False, allow_null=True)
+
     class Meta:
-        model = DoctorEarning
+        model = ClinicianEarning
         fields = ('id', 'doctor', 'consultation', 'amount', 'description', 'earned_at')
         read_only_fields = ('id', 'earned_at')
 
 
 class PediatricianEarningSerializer(serializers.ModelSerializer):
+    pediatrician = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN, source='clinician', required=False, allow_null=True)
+
     class Meta:
-        model = PediatricianEarning
+        model = ClinicianEarning
         fields = ('id', 'pediatrician', 'consultation', 'amount', 'description', 'earned_at')
         read_only_fields = ('id', 'earned_at')

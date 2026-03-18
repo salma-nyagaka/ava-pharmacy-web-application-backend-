@@ -51,6 +51,11 @@ class SupportTicket(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['customer', 'status']),
+            models.Index(fields=['assigned_to', 'status']),
+            models.Index(fields=['status', 'priority', '-created_at']),
+        ]
 
     def __str__(self):
         return self.reference
@@ -72,6 +77,9 @@ class SupportNote(models.Model):
 
     class Meta:
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['ticket', 'created_at']),
+        ]
 
     def __str__(self):
         return f"{self.ticket.reference} - {self.author_name}"

@@ -11,6 +11,8 @@ from decouple import config
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
 
@@ -236,6 +238,28 @@ MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='')
 MPESA_TRANSACTION_TYPE = config('MPESA_TRANSACTION_TYPE', default='CustomerPayBillOnline')
 MPESA_TIMEOUT_SECONDS = config('MPESA_TIMEOUT_SECONDS', default=30, cast=int)
 MPESA_STK_PUSH_AMOUNT_OVERRIDE = config('MPESA_STK_PUSH_AMOUNT_OVERRIDE', default='', cast=str)
+MPESA_PAYBILL_NUMBER = config('MPESA_PAYBILL_NUMBER', default='')
+MPESA_C2B_SHORTCODE = config('MPESA_C2B_SHORTCODE', default=MPESA_PAYBILL_NUMBER)
+MPESA_C2B_RESPONSE_TYPE = config('MPESA_C2B_RESPONSE_TYPE', default='Completed')
+MPESA_C2B_URLS_REGISTERED = config('MPESA_C2B_URLS_REGISTERED', default=False, cast=bool)
+MPESA_REQUIRE_PUBLIC_CALLBACK_URLS = config('MPESA_REQUIRE_PUBLIC_CALLBACK_URLS', default=True, cast=bool)
+MPESA_STATUS_SYNC_MIN_INTERVAL_SECONDS = config('MPESA_STATUS_SYNC_MIN_INTERVAL_SECONDS', default=15, cast=int)
+MPESA_STATUS_SYNC_RETRY_AFTER_429_SECONDS = config('MPESA_STATUS_SYNC_RETRY_AFTER_429_SECONDS', default=65, cast=int)
+MPESA_STATUS_SYNC_RETRY_AFTER_403_SECONDS = config('MPESA_STATUS_SYNC_RETRY_AFTER_403_SECONDS', default=180, cast=int)
+MPESA_C2B_VALIDATION_URL = config(
+    'MPESA_C2B_VALIDATION_URL',
+    default=f'{BACKEND_BASE_URL}/api/payments/mpesa/paybill/validation/',
+)
+MPESA_C2B_CONFIRMATION_URL = config(
+    'MPESA_C2B_CONFIRMATION_URL',
+    default=f'{BACKEND_BASE_URL}/api/payments/mpesa/paybill/confirmation/',
+)
+MPESA_PAYBILL_ACCOUNT_PREFIX = config('MPESA_PAYBILL_ACCOUNT_PREFIX', default='')
+MPESA_PAYBILL_ACCOUNT_LABEL = config('MPESA_PAYBILL_ACCOUNT_LABEL', default='Account Number')
+MPESA_PAYBILL_INSTRUCTIONS = config(
+    'MPESA_PAYBILL_INSTRUCTIONS',
+    default='Pay using the M-Pesa Paybill details below. We confirm the payment automatically once Safaricom sends the callback.',
+)
 
 # ─── Flutterwave / Card Payments ──────────────────────────────────────────────
 FLUTTERWAVE_SECRET_KEY = config('FLUTTERWAVE_SECRET_KEY', default='')
@@ -255,3 +279,31 @@ POS_ORDER_PUSH_QUEUE_MAX_ATTEMPTS = config('POS_ORDER_PUSH_QUEUE_MAX_ATTEMPTS', 
 
 # ─── Custom exception handler ─────────────────────────────────────────────────
 REST_FRAMEWORK_EXCEPTION_HANDLER = 'avapharmacy.exception_handler.custom_exception_handler'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'payments_file': {
+            'class': 'logging.FileHandler',
+            'filename': LOG_DIR / 'payments.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'payments': {
+            'handlers': ['console', 'payments_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

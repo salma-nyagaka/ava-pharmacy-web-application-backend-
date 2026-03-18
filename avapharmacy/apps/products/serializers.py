@@ -10,7 +10,7 @@ import json
 
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductCategory, ProductSubcategory, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
+from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
 from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
@@ -20,7 +20,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ('id', 'name', 'slug', 'description', 'icon', 'is_active', 'subcategories')
+        fields = ('id', 'name', 'slug', 'image', 'description', 'icon', 'is_active', 'subcategories')
         extra_kwargs = {
             'slug': {'required': False, 'allow_blank': True},
         }
@@ -50,7 +50,10 @@ class CategorySerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_name(self, value):
-        queryset = Category.objects.filter(name__iexact=value)
+        parent = self.instance.parent if self.instance else None
+        if hasattr(self, 'initial_data') and 'parent' in self.initial_data:
+            parent = Category.objects.filter(pk=self.initial_data.get('parent')).first()
+        queryset = Category.objects.filter(name__iexact=value, parent=parent)
         if self.instance is not None:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
@@ -59,21 +62,27 @@ class CategorySerializer(serializers.ModelSerializer):
 
     def get_subcategories(self, obj):
         if obj.parent is None:
-            return CategorySerializer(obj.subcategories.filter(is_active=True), many=True).data
+            prefetched = getattr(obj, '_prefetched_objects_cache', {}).get('subcategories')
+            subcategories = prefetched if prefetched is not None else obj.subcategories.all()
+            return CategorySerializer([item for item in subcategories if item.is_active], many=True).data
         return []
 
 
 class ProductSubcategorySerializer(serializers.ModelSerializer):
-    category_name = serializers.ReadOnlyField(source='category.name')
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.filter(parent__isnull=True),
+        source='parent',
+    )
+    category_name = serializers.ReadOnlyField(source='parent.name')
 
     class Meta:
-        model = ProductSubcategory
-        fields = ('id', 'name', 'slug', 'category', 'category_name', 'description', 'is_active', 'created_at')
+        model = Category
+        fields = ('id', 'name', 'slug', 'category', 'category_name', 'image', 'description', 'is_active', 'created_at')
         extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
 
     def validate_name(self, value):
-        category_id = self.initial_data.get('category')
-        qs = ProductSubcategory.objects.filter(category_id=category_id, name__iexact=value)
+        parent_id = self.initial_data.get('category')
+        qs = Category.objects.filter(parent_id=parent_id, name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
@@ -85,7 +94,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
     subcategories = ProductSubcategorySerializer(many=True, read_only=True)
 
     class Meta:
-        model = ProductCategory
+        model = Category
         fields = ('id', 'name', 'slug', 'image', 'description', 'icon', 'is_active', 'created_at', 'subcategories')
         extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
 
@@ -106,7 +115,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_name(self, value):
-        qs = ProductCategory.objects.filter(name__iexact=value)
+        qs = Category.objects.filter(parent__isnull=True, name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
@@ -301,12 +310,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     )
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
+        queryset=Category.objects.filter(parent__isnull=True), source='category', write_only=True, required=False, allow_null=True
     )
     subcategory_id = serializers.PrimaryKeyRelatedField(
-        queryset=ProductSubcategory.objects.all(), source='subcategory', write_only=True, required=False, allow_null=True
+        queryset=Category.objects.exclude(parent__isnull=True), source='catalog_subcategory', write_only=True, required=False, allow_null=True
     )
-    subcategory_name = serializers.ReadOnlyField(source='subcategory.name')
+    subcategory_name = serializers.ReadOnlyField(source='catalog_subcategory.name')
     health_concern_ids = serializers.PrimaryKeyRelatedField(
         queryset=HealthConcern.objects.all(), source='health_concerns', many=True, write_only=True, required=False
     )
@@ -346,6 +355,22 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+        extra_kwargs = {
+            'slug': {'required': False, 'allow_blank': True},
+        }
+
+    def _generate_unique_slug(self, name):
+        base_slug = slugify(name) or 'product'
+        slug = base_slug
+        queryset = Product.objects.all()
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        counter = 2
+        while queryset.filter(slug=slug).exists():
+            slug = f'{base_slug}-{counter}'
+            counter += 1
+        return slug
 
     def _pricing(self, obj):
         pricing = getattr(obj, '_pricing_cache', None)
@@ -454,10 +479,15 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        provided_slug = attrs.get('slug')
         if 'branch_inventory' in attrs:
             attrs['branch_inventory'] = self._validate_inventory_payload(attrs['branch_inventory'], 'Main shop')
         if 'warehouse_inventory' in attrs:
             attrs['warehouse_inventory'] = self._validate_inventory_payload(attrs['warehouse_inventory'], 'POS store')
+        if self.instance is None and not provided_slug:
+            attrs['slug'] = self._generate_unique_slug(attrs.get('name', ''))
+        elif 'slug' in attrs and not provided_slug:
+            attrs['slug'] = self._generate_unique_slug(attrs.get('name') or self.instance.name)
         if self.instance is None and not attrs.get('image'):
             raise serializers.ValidationError({'image': 'Product image is required.'})
         if attrs.get('image'):

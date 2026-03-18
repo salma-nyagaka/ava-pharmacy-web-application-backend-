@@ -10,6 +10,7 @@ class PrescriptionFileInline(admin.TabularInline):
 class PrescriptionItemInline(admin.TabularInline):
     model = PrescriptionItem
     extra = 0
+    autocomplete_fields = ('product',)
 
 
 class PrescriptionAuditLogInline(admin.TabularInline):
@@ -25,3 +26,11 @@ class PrescriptionAdmin(admin.ModelAdmin):
     search_fields = ('reference', 'patient_name', 'doctor_name')
     readonly_fields = ('reference', 'submitted_at', 'updated_at')
     inlines = [PrescriptionFileInline, PrescriptionItemInline, PrescriptionAuditLogInline]
+
+
+@admin.register(PrescriptionItem)
+class PrescriptionItemAdmin(admin.ModelAdmin):
+    list_display = ('prescription', 'name', 'product', 'quantity')
+    list_select_related = ('prescription', 'product')
+    search_fields = ('prescription__reference', 'name', 'product__name', 'product__sku')
+    autocomplete_fields = ('product',)

@@ -95,7 +95,7 @@ class Command(BaseCommand):
             {
                 'sku': 'MED-001', 'slug': 'panadol-500mg-tablets-24',
                 'name': 'Panadol 500mg Tablets 24s', 'brand': panadol_brand,
-                'category': otc_cat, 'price': Decimal('120.00'), 'original_price': Decimal('150.00'),
+                'category': otc_cat, 'price': Decimal('150.00'), 'discount_price': Decimal('120.00'),
                 'stock_source': 'branch', 'stock_quantity': 150,
                 'short_description': 'Effective pain and fever relief',
                 'description': 'Panadol 500mg tablets provide fast, effective relief from pain and fever.',
@@ -116,7 +116,7 @@ class Command(BaseCommand):
             {
                 'sku': 'VIT-001', 'slug': 'vitamin-c-1000mg-effervescent',
                 'name': 'Vitamin C 1000mg Effervescent 20s', 'brand': reckitt_brand,
-                'category': vitamins_cat, 'price': Decimal('350.00'), 'original_price': Decimal('420.00'),
+                'category': vitamins_cat, 'price': Decimal('420.00'), 'discount_price': Decimal('350.00'),
                 'stock_source': 'branch', 'stock_quantity': 80,
                 'short_description': 'Immune system support with vitamin C',
                 'description': 'Vitamin C 1000mg effervescent tablets support the immune system and provide antioxidant protection.',
@@ -171,7 +171,7 @@ class Command(BaseCommand):
 
     def _seed_doctors(self):
         from apps.accounts.models import User
-        from apps.consultations.models import DoctorProfile, PediatricianProfile
+        from apps.consultations.models import ClinicianProfile
         doctors = [
             {
                 'name': 'Dr. James Kariuki', 'specialty': 'General Practice',
@@ -198,16 +198,16 @@ class Command(BaseCommand):
             },
         ]
         for d in doctors:
-            if not DoctorProfile.objects.filter(email=d['email']).exists():
+            if not ClinicianProfile.objects.doctors().filter(email=d['email']).exists():
                 user = User.objects.filter(email=d['email']).first()
-                profile = DoctorProfile.objects.create(**d)
+                profile = ClinicianProfile.objects.create(provider_type=ClinicianProfile.TYPE_DOCTOR, **d)
                 if user:
                     profile.user = user
                     profile.save()
         for d in pediatricians:
-            if not PediatricianProfile.objects.filter(email=d['email']).exists():
+            if not ClinicianProfile.objects.pediatricians().filter(email=d['email']).exists():
                 user = User.objects.filter(email=d['email']).first()
-                profile = PediatricianProfile.objects.create(**d)
+                profile = ClinicianProfile.objects.create(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN, **d)
                 if user:
                     profile.user = user
                     profile.save()

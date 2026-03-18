@@ -52,6 +52,11 @@ class Prescription(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
+        indexes = [
+            models.Index(fields=['patient', 'status']),
+            models.Index(fields=['status', '-submitted_at']),
+            models.Index(fields=['dispatch_status', '-submitted_at']),
+        ]
 
     def __str__(self):
         return self.reference
@@ -68,6 +73,11 @@ class PrescriptionFile(models.Model):
     filename = models.CharField(max_length=255)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['prescription', '-uploaded_at']),
+        ]
+
     def __str__(self):
         return f"{self.prescription.reference} - {self.filename}"
 
@@ -75,9 +85,21 @@ class PrescriptionFile(models.Model):
 class PrescriptionItem(models.Model):
     prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name='items')
     name = models.CharField(max_length=200)
+    product = models.ForeignKey(
+        'products.Product',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prescription_items',
+    )
     dose = models.CharField(max_length=100, blank=True)
     frequency = models.CharField(max_length=100, blank=True)
     quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['prescription', 'product']),
+        ]
 
     def __str__(self):
         return f"{self.prescription.reference} - {self.name}"
@@ -93,6 +115,9 @@ class PrescriptionAuditLog(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['prescription', '-timestamp']),
+        ]
 
     def __str__(self):
         return f"{self.prescription.reference} - {self.action}"

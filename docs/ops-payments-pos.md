@@ -10,6 +10,11 @@ Copy these from `.env.example` into the deployed `.env` and set real values:
 - `MPESA_SHORTCODE`
 - `MPESA_PASSKEY`
 - `MPESA_CALLBACK_URL`
+- `MPESA_PAYBILL_NUMBER`
+- `MPESA_C2B_SHORTCODE`
+- `MPESA_C2B_RESPONSE_TYPE`
+- `MPESA_C2B_VALIDATION_URL`
+- `MPESA_C2B_CONFIRMATION_URL`
 - `FLUTTERWAVE_SECRET_KEY`
 - `FLUTTERWAVE_SECRET_HASH`
 - `FLUTTERWAVE_REDIRECT_URL`
@@ -31,6 +36,16 @@ Copy these from `.env.example` into the deployed `.env` and set real values:
 - Safaricom posts to `POST /api/payments/mpesa/callback/`.
 - Backend marks the payment as paid.
 - Frontend finalizes the order with `POST /api/checkout/<order_id>/finalize/`.
+
+### M-Pesa Paybill
+
+- Checkout creates a draft order with payment method `mpesa_paybill`.
+- Backend creates a paybill payment intent and shows the paybill number plus an account reference derived from the order number.
+- Daraja validates the paybill payment against:
+  - `POST /api/payments/mpesa/paybill/validation/`
+  - `POST /api/payments/mpesa/paybill/confirmation/`
+- Safaricom confirmation marks the paybill intent and order as paid automatically.
+- Frontend picks up the updated order state and then allows finalization.
 
 ### Card Payments
 
@@ -57,6 +72,36 @@ Copy these from `.env.example` into the deployed `.env` and set real values:
 - Endpoint: `POST /api/payments/mpesa/callback/`
 - Source: Safaricom Daraja callback configuration
 - Secret/header verification is not part of Daraja; protect with HTTPS and exact callback URL configuration
+
+### M-Pesa Paybill Validation Callback
+
+- Endpoint: `POST /api/payments/mpesa/paybill/validation/`
+- Source: Safaricom Daraja C2B URL registration
+- Purpose:
+  - validates account reference
+  - validates exact order amount
+  - rejects invalid or already-paid orders before Safaricom accepts payment
+
+### M-Pesa Paybill Confirmation Callback
+
+- Endpoint: `POST /api/payments/mpesa/paybill/confirmation/`
+- Source: Safaricom Daraja C2B URL registration
+- Purpose:
+  - confirms successful paybill payments automatically
+  - updates `PaymentIntent` and `Order`
+  - stores the raw callback payload for audit
+
+### Register Paybill Callback URLs
+
+- Admin endpoint: `POST /api/admin/payments/mpesa/paybill/register-urls/`
+- Auth: admin JWT
+- Optional body:
+
+```json
+{
+  "response_type": "Completed"
+}
+```
 
 ## POS Order Push
 
