@@ -9,8 +9,8 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.orders.models import Cart, CartItem
-from apps.products.models import Brand, Category, Product, ProductBadge, ProductInventory, Promotion, Wishlist
+from apps.orders.models import Cart, CartItem, Order, OrderItem
+from apps.products.models import Brand, Category, Product, ProductInventory, Promotion, Wishlist
 
 
 def make_test_image(name='test.png', *, width=1000, height=1000, color=(220, 20, 60)):
@@ -90,7 +90,6 @@ class AdminCatalogAndWishlistTests(TestCase):
                 'name': 'Panadol 500mg',
                 'price': '1000.00',
                 'cost_price': '600.00',
-                'discount_price': '850.00',
                 'brand_id': brand.id,
                 'description': 'Pain relief tablet',
                 'short_description': 'Fast pain relief',
@@ -187,17 +186,11 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Wishlist.objects.filter(user=self.customer, product=product).count(), 1)
 
-    def test_active_promotion_badge_takes_precedence_over_manual_product_badge(self):
-        badge = ProductBadge.objects.create(
-            name='featured',
-            label='Featured',
-            badge_type=ProductBadge.TYPE_CUSTOM,
-        )
+    def test_active_promotion_badge_is_exposed_on_product_list(self):
         product = Product.objects.create(
             sku='BADGE-001',
             name='Badge Product',
             price=Decimal('1000.00'),
-            badge=badge,
             is_active=True,
         )
         Promotion.objects.create(
@@ -215,6 +208,116 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(response.status_code, 200)
         item = next(entry for entry in response.data['results'] if entry['sku'] == product.sku)
         self.assertEqual(item['badge'], '20% Off')
+
+    def test_no_badge_is_exposed_without_active_promotion(self):
+        product = Product.objects.create(
+            sku='BADGE-002',
+            name='Manual Badge Product',
+            price=Decimal('1000.00'),
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('products'))
+        self.assertEqual(response.status_code, 200)
+        item = next(entry for entry in response.data['results'] if entry['sku'] == product.sku)
+        self.assertEqual(item['badge'], '')
+
+    def test_pricing_has_no_discount_without_active_promotion(self):
+        product = Product.objects.create(
+            sku='DISC-001',
+            name='Legacy Discount Product',
+            price=Decimal('1000.00'),
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('products'))
+        self.assertEqual(response.status_code, 200)
+        item = next(entry for entry in response.data['results'] if entry['sku'] == product.sku)
+        self.assertEqual(Decimal(str(item['final_price'])), Decimal('1000.00'))
+        self.assertIsNone(item['original_price'])
+        self.assertEqual(Decimal(str(item['discount_total'])), Decimal('0.00'))
+
+    def test_featured_products_are_ranked_by_paid_sales_volume(self):
+        top_product = Product.objects.create(
+            sku='TOP-001',
+            name='Top Seller',
+            price=Decimal('1500.00'),
+            is_active=True,
+        )
+        next_product = Product.objects.create(
+            sku='TOP-002',
+            name='Next Seller',
+            price=Decimal('1200.00'),
+            is_active=True,
+        )
+        new_product = Product.objects.create(
+            sku='TOP-003',
+            name='No Sales Yet',
+            price=Decimal('900.00'),
+            is_active=True,
+        )
+
+        paid_order = Order.objects.create(
+            customer=self.customer,
+            status=Order.STATUS_PAID,
+            payment_method=Order.PAYMENT_COD,
+            payment_status=Order.PAYMENT_STATUS_PAID,
+            shipping_first_name='Customer',
+            shipping_last_name='User',
+            shipping_email='customer@example.com',
+            shipping_phone='+254700000000',
+            shipping_street='Moi Avenue',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal=Decimal('4200.00'),
+            total=Decimal('4200.00'),
+        )
+        OrderItem.objects.create(
+            order=paid_order,
+            product=top_product,
+            product_name=top_product.name,
+            product_sku=top_product.sku,
+            quantity=5,
+            unit_price=top_product.price,
+        )
+        OrderItem.objects.create(
+            order=paid_order,
+            product=next_product,
+            product_name=next_product.name,
+            product_sku=next_product.sku,
+            quantity=2,
+            unit_price=next_product.price,
+        )
+
+        draft_order = Order.objects.create(
+            customer=self.customer,
+            status=Order.STATUS_DRAFT,
+            payment_method=Order.PAYMENT_COD,
+            payment_status=Order.PAYMENT_STATUS_PENDING,
+            shipping_first_name='Customer',
+            shipping_last_name='User',
+            shipping_email='customer@example.com',
+            shipping_phone='+254700000000',
+            shipping_street='Moi Avenue',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal=Decimal('1800.00'),
+            total=Decimal('1800.00'),
+        )
+        OrderItem.objects.create(
+            order=draft_order,
+            product=new_product,
+            product_name=new_product.name,
+            product_sku=new_product.sku,
+            quantity=9,
+            unit_price=new_product.price,
+        )
+
+        response = self.client.get(reverse('featured-products'))
+        self.assertEqual(response.status_code, 200)
+        skus = [item['sku'] for item in response.data['results']]
+        self.assertLess(skus.index('TOP-001'), skus.index('TOP-002'))
+        self.assertLess(skus.index('TOP-002'), skus.index('TOP-003'))
 
     def test_rebuild_pharmacy_taxonomy_maps_products_to_clean_subcategories(self):
         Product.objects.create(

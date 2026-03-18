@@ -10,7 +10,7 @@ import json
 
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductBadge, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
+from .models import Category, Brand, CMSBlock, HealthConcern, Product, ProductImage, ProductInventory, ProductReview, ProductVariant, StockMovement, Wishlist, Banner, Promotion
 from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
@@ -248,16 +248,6 @@ class ProductReviewSerializer(serializers.ModelSerializer):
         return value
 
 
-class ProductBadgeSerializer(serializers.ModelSerializer):
-    display_label = serializers.ReadOnlyField()
-    is_expired = serializers.ReadOnlyField()
-
-    class Meta:
-        model = ProductBadge
-        fields = ('id', 'name', 'label', 'badge_type', 'value', 'color', 'expires_at', 'is_active', 'display_label', 'is_expired', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'created_at', 'updated_at', 'display_label', 'is_expired')
-
-
 class ProductListSerializer(serializers.ModelSerializer):
     brand_name = serializers.ReadOnlyField(source='brand.name')
     brand_slug = serializers.ReadOnlyField(source='brand.slug')
@@ -286,7 +276,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'short_description', 'average_rating', 'review_count',
             'requires_prescription', 'inventory_status', 'available_quantity',
             'can_purchase', 'final_price', 'discount_total', 'active_promotions',
-            'has_variants', 'is_featured', 'is_active'
+            'has_variants', 'is_active'
         )
 
     def get_badge(self, obj):
@@ -295,8 +285,6 @@ class ProductListSerializer(serializers.ModelSerializer):
             promotion_badge = promotions[0].get('badge')
             if promotion_badge:
                 return promotion_badge
-        if obj.badge:
-            return obj.badge.display_label
         return ''
 
     def _pricing(self, obj):
@@ -373,7 +361,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
             'short_description', 'description', 'features', 'directions', 'warnings',
             'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
-            'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_featured', 'is_active',
+            'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_active',
             'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
@@ -484,8 +472,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             promotion_badge = promotions[0].get('badge')
             if promotion_badge:
                 return promotion_badge
-        if obj.badge:
-            return obj.badge.display_label
         return ''
 
     def get_final_price(self, obj):
@@ -568,32 +554,18 @@ class AdminProductSerializer(ProductDetailSerializer):
         required=False,
         allow_null=True,
     )
-    discount_price = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=False,
-        allow_null=True,
-    )
-    badge = ProductBadgeSerializer(read_only=True)
-    badge_id = serializers.PrimaryKeyRelatedField(
-        queryset=ProductBadge.objects.all(),
-        source='badge',
-        write_only=True,
-        required=False,
-        allow_null=True,
-    )
 
     class Meta(ProductDetailSerializer.Meta):
         fields = (
             'id', 'sku', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
-            'price', 'cost_price', 'discount_price', 'original_price', 'image', 'gallery', 'inventories', 'variants',
-            'branch_inventory', 'warehouse_inventory', 'badge', 'badge_id', 'stock_source',
+            'price', 'cost_price', 'original_price', 'image', 'gallery', 'inventories', 'variants',
+            'branch_inventory', 'warehouse_inventory', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
             'short_description', 'description', 'features', 'directions', 'warnings',
             'dosage_quantity', 'dosage_unit', 'dosage_frequency', 'dosage_notes',
             'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
-            'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_featured', 'is_active',
+            'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_active',
             'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'
         )
 
@@ -602,16 +574,9 @@ class AdminProductSerializer(ProductDetailSerializer):
 
         price = attrs.get('price', getattr(self.instance, 'price', None))
         cost_price = attrs.get('cost_price', getattr(self.instance, 'cost_price', None))
-        discount_price = attrs.get('discount_price', getattr(self.instance, 'discount_price', None))
 
         if cost_price is not None and price is not None and cost_price < 0:
             raise serializers.ValidationError({'cost_price': ['Ensure this value is greater than or equal to 0.']})
-
-        if discount_price is not None:
-            if discount_price < 0:
-                raise serializers.ValidationError({'discount_price': ['Ensure this value is greater than or equal to 0.']})
-            if price is not None and discount_price >= price:
-                raise serializers.ValidationError({'discount_price': ['Discount price must be lower than the selling price.']})
 
         return attrs
 

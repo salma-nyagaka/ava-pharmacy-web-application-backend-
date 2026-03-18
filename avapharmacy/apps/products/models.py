@@ -178,61 +178,6 @@ class HealthConcern(models.Model):
         super().save(*args, **kwargs)
 
 
-class ProductBadge(models.Model):
-    """A badge that can be attached to a product (e.g. New, Hot, 20% Off)."""
-
-    TYPE_CUSTOM = 'custom'
-    TYPE_PERCENTAGE = 'percentage'
-    TYPE_AMOUNT = 'amount'
-    TYPE_CHOICES = [
-        ('custom', 'Custom'),
-        ('percentage', 'Percentage Off'),
-        ('amount', 'Amount Off'),
-    ]
-    COLOR_CHOICES = [
-        ('green', 'Green'),
-        ('red', 'Red'),
-        ('orange', 'Orange'),
-        ('blue', 'Blue'),
-        ('purple', 'Purple'),
-        ('teal', 'Teal'),
-    ]
-
-    name = models.CharField(max_length=50, unique=True, help_text="Unique identifier, e.g. 'new', 'hot-deal'")
-    label = models.CharField(max_length=50, help_text="Display text shown on product, e.g. 'New', '20% Off'")
-    badge_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='custom')
-    value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                help_text='Numeric value for percentage/amount types')
-    color = models.CharField(max_length=20, choices=COLOR_CHOICES, default='green')
-    expires_at = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['name']
-
-    def __str__(self):
-        return self.label
-
-    @property
-    def display_label(self):
-        if self.badge_type == self.TYPE_PERCENTAGE and self.value is not None:
-            v = int(self.value) if self.value == int(self.value) else self.value
-            return f'{v}% Off'
-        if self.badge_type == self.TYPE_AMOUNT and self.value is not None:
-            v = int(self.value) if self.value == int(self.value) else self.value
-            return f'KSh {v} Off'
-        return self.label
-
-    @property
-    def is_expired(self):
-        if not self.expires_at:
-            return False
-        from django.utils import timezone
-        return self.expires_at < timezone.now().date()
-
-
 class Brand(models.Model):
     """A product brand (manufacturer or label)."""
 
@@ -304,20 +249,17 @@ class Product(models.Model):
     health_concerns = models.ManyToManyField(HealthConcern, blank=True, related_name='products')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/', blank=True)
     short_description = models.CharField(max_length=500, blank=True)
     description = models.TextField(blank=True)
     features = models.JSONField(default=list)
     directions = models.TextField(blank=True)
     warnings = models.TextField(blank=True)
-    badge = models.ForeignKey('ProductBadge', null=True, blank=True, on_delete=models.SET_NULL, related_name='products')
     dosage_quantity = models.CharField(max_length=20, blank=True, help_text="e.g. 1, 2, 1-2")
     dosage_unit = models.CharField(max_length=30, blank=True, help_text="e.g. tablet, capsule, ml, drop")
     dosage_frequency = models.CharField(max_length=50, blank=True, help_text="e.g. once_daily, twice_daily")
     dosage_notes = models.CharField(max_length=150, blank=True, help_text="e.g. with food, before meals")
     requires_prescription = models.BooleanField(default=False)
-    is_featured = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -332,7 +274,6 @@ class Product(models.Model):
             models.Index(fields=['catalog_subcategory', 'is_active']),
             models.Index(fields=['brand', 'is_active']),
             models.Index(fields=['requires_prescription', 'is_active']),
-            models.Index(fields=['is_featured', 'is_active']),
         ]
 
     INVENTORY_FIELD_NAMES = {

@@ -1818,8 +1818,6 @@ class Command(BaseCommand):
         self._seed_brands()
         self.stdout.write('Seeding product categories & subcategories...')
         self._seed_categories()
-        self.stdout.write('Seeding badges...')
-        self._seed_badges()
         self.stdout.write('Seeding products...')
         self._seed_products()
         self.stdout.write(self.style.SUCCESS('Catalog seeded successfully.'))
@@ -1827,13 +1825,12 @@ class Command(BaseCommand):
     # ── helpers ──────────────────────────────────────────────────────────────
 
     def _wipe(self):
-        from apps.products.models import Product, ProductSubcategory, ProductCategory, HealthConcern, Brand, ProductBadge
+        from apps.products.models import Product, ProductSubcategory, ProductCategory, HealthConcern, Brand
         Product.objects.all().delete()
         ProductSubcategory.objects.all().delete()
         ProductCategory.objects.all().delete()
         HealthConcern.objects.all().delete()
         Brand.objects.all().delete()
-        ProductBadge.objects.all().delete()
         self.stdout.write('  Existing catalog data deleted.')
 
     def _get_admin(self):
@@ -1940,23 +1937,8 @@ class Command(BaseCommand):
         total_subs = sum(len(c['subcategories']) for c in CATEGORIES)
         self.stdout.write(f'  Created {len(CATEGORIES)} categories, {total_subs} subcategories.')
 
-    def _seed_badges(self):
-        from apps.products.models import ProductBadge
-        import datetime
-        badges = [
-            {'name': 'new', 'label': 'New', 'badge_type': 'custom', 'color': 'green', 'value': None, 'expires_at': None},
-            {'name': 'best-seller', 'label': 'Best Seller', 'badge_type': 'custom', 'color': 'orange', 'value': None, 'expires_at': None},
-            {'name': 'hot-deal', 'label': 'Hot Deal', 'badge_type': 'custom', 'color': 'red', 'value': None, 'expires_at': None},
-            {'name': 'sale-15', 'label': '15% Off', 'badge_type': 'percentage', 'color': 'red', 'value': 15, 'expires_at': None},
-            {'name': 'sale-10', 'label': '10% Off', 'badge_type': 'percentage', 'color': 'orange', 'value': 10, 'expires_at': None},
-            {'name': 'essential', 'label': 'Essential', 'badge_type': 'custom', 'color': 'blue', 'value': None, 'expires_at': None},
-        ]
-        for b in badges:
-            ProductBadge.objects.create(**b, is_active=True)
-        self.stdout.write(f'  Created {len(badges)} badges.')
-
     def _seed_products(self):
-        from apps.products.models import Product, ProductCategory, ProductSubcategory, Brand, HealthConcern, ProductBadge
+        from apps.products.models import Product, ProductCategory, ProductSubcategory, Brand, HealthConcern
 
         brand_map = {b.name: b for b in Brand.objects.all()}
         cat_map = {c.name: c for c in ProductCategory.objects.all()}
@@ -1964,7 +1946,6 @@ class Command(BaseCommand):
         for sub in ProductSubcategory.objects.select_related('category').all():
             sub_map[(sub.category.name, sub.name)] = sub
         hc_map = {hc.name: hc for hc in HealthConcern.objects.all()}
-        badge_map = {b.name: b for b in ProductBadge.objects.all()}
 
         admin = self._get_admin()
         created = 0
@@ -1974,13 +1955,6 @@ class Command(BaseCommand):
             img_rel = f'products/{slugify(p["name"])[:60]}.jpg'
             img_field = self._img_field(img_rel, p['img_seed'], 800, 800)
 
-            # Assign featured products a relevant badge
-            badge = None
-            if p.get('is_featured'):
-                badge = badge_map.get('best-seller')
-            elif p.get('discount_price'):
-                badge = badge_map.get('sale-10')
-
             product = Product.objects.create(
                 name=p['name'],
                 strength=p.get('strength', ''),
@@ -1988,15 +1962,12 @@ class Command(BaseCommand):
                 subcategory=subcategory,
                 price=p['price'],
                 cost_price=p.get('cost_price'),
-                discount_price=p.get('discount_price'),
                 image=img_field,
                 short_description=p.get('short_description', ''),
                 description=p.get('description', ''),
                 features=p.get('features', []),
                 requires_prescription=p.get('requires_prescription', False),
-                is_featured=p.get('is_featured', False),
                 is_active=True,
-                badge=badge,
                 dosage_quantity=p.get('dosage_quantity', ''),
                 dosage_unit=p.get('dosage_unit', ''),
                 dosage_frequency=p.get('dosage_frequency', ''),

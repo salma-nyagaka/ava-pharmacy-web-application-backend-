@@ -6,7 +6,7 @@ wishlist, banners, CMS blocks, promotions) and admin-only endpoints for full
 CRUD on all catalog entities, inventory adjustment, and CMS management.
 """
 from django.db import models
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from django.db.models import Prefetch
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -19,7 +19,7 @@ from apps.accounts.permissions import IsAdminOrInventoryStaff, IsAdminUser
 from apps.accounts.utils import log_admin_action
 
 from .filters import ProductFilter
-from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductBadge, ProductImage, ProductInventory, ProductReview, ProductVariant, Promotion, StockMovement, Wishlist, annotate_product_inventory
+from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, ProductInventory, ProductReview, ProductVariant, Promotion, StockMovement, Wishlist, annotate_product_inventory
 from .serializers import (
     AdminProductSerializer,
     BannerSerializer,
@@ -27,7 +27,6 @@ from .serializers import (
     CMSBlockSerializer,
     CategorySerializer,
     HealthConcernSerializer,
-    ProductBadgeSerializer,
     ProductCategorySerializer,
     ProductSubcategorySerializer,
     ProductDetailSerializer,
@@ -56,6 +55,19 @@ def annotate_product_reviews(queryset):
     return queryset.annotate(
         approved_average_rating=models.Avg('reviews__rating', filter=models.Q(reviews__is_approved=True)),
         approved_review_count=models.Count('reviews', filter=models.Q(reviews__is_approved=True), distinct=True),
+    )
+
+
+def annotate_product_units_sold(queryset):
+    return queryset.annotate(
+        units_sold=Sum(
+            'orderitem__quantity',
+            filter=Q(
+                orderitem__order__payment_status='paid',
+            ) & ~Q(
+                orderitem__order__status__in=['draft', 'cancelled', 'refunded']
+            ),
+        )
     )
 
 
@@ -131,7 +143,12 @@ class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
     serializer_class = ProductListSerializer
 
     def get_queryset(self):
-        return annotate_product_reviews(Product.objects.filter(is_active=True, is_featured=True).select_related('brand', 'category', 'catalog_subcategory').prefetch_related('variants', 'inventories'))
+        queryset = Product.objects.filter(is_active=True).select_related(
+            'brand', 'category', 'catalog_subcategory'
+        ).prefetch_related('variants', 'inventories')
+        queryset = annotate_product_units_sold(queryset)
+        queryset = annotate_product_reviews(queryset)
+        return queryset.order_by(models.F('units_sold').desc(nulls_last=True), '-created_at')
 
 
 class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
@@ -535,17 +552,6 @@ class AdminHealthConcernDetailView(generics.RetrieveUpdateDestroyAPIView):
         serializer.save(updated_by=self.request.user)
 
 
-class AdminProductBadgeListCreateView(generics.ListCreateAPIView):
-    permission_classes = [IsAdminUser]
-    serializer_class = ProductBadgeSerializer
-    queryset = ProductBadge.objects.all()
-
-
-class AdminProductBadgeDetailView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAdminUser]
-    serializer_class = ProductBadgeSerializer
-    queryset = ProductBadge.objects.all()
-
 class AdminProductImageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = ProductImageSerializer
@@ -714,9 +720,14 @@ class CatalogSummaryView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        featured_count = (
+            annotate_product_units_sold(Product.objects.filter(is_active=True))
+            .filter(units_sold__gt=0)
+            .count()
+        )
         return Response({
             'products': Product.objects.filter(is_active=True).count(),
-            'featured_products': Product.objects.filter(is_active=True, is_featured=True).count(),
+            'featured_products': featured_count,
             'categories': Category.objects.filter(parent__isnull=True, is_active=True).count(),
             'brands': Brand.objects.filter(is_active=True).count(),
             'low_stock_products': annotate_product_inventory(Product.objects.filter(is_active=True)).filter(

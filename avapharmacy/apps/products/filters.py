@@ -20,14 +20,13 @@ class ProductFilter(django_filters.FilterSet):
     stock_source = django_filters.CharFilter(method='filter_stock_source')
     inventory_status = django_filters.CharFilter(method='filter_inventory_status')
     requires_prescription = django_filters.BooleanFilter()
-    is_featured = django_filters.BooleanFilter()
     is_active = django_filters.BooleanFilter()
 
     class Meta:
         model = Product
         fields = [
             'category', 'subcategory', 'brand', 'health_concern', 'stock_source', 'inventory_status', 'requires_prescription',
-            'is_featured', 'is_active', 'min_price', 'max_price'
+            'is_active', 'min_price', 'max_price'
         ]
 
     def filter_inventory_status(self, queryset, name, value):
