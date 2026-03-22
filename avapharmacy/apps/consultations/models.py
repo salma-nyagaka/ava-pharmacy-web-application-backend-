@@ -198,6 +198,8 @@ class Consultation(models.Model):
         'accounts.User', on_delete=models.SET_NULL, null=True, related_name='consultations'
     )
     patient_name = models.CharField(max_length=200)
+    patient_email = models.EmailField(blank=True)
+    patient_phone = models.CharField(max_length=20, blank=True)
     patient_age = models.PositiveIntegerField(null=True, blank=True)
     issue = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_WAITING)

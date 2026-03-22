@@ -32,11 +32,11 @@ class RegisterRateThrottle(AnonRateThrottle):
     """Throttle for the register endpoint — uses the 'register' scope (10/hr)."""
     scope = 'register'
 
-from .models import AdminAuditLog, User, Address, UserNote
+from .models import AdminAuditLog, User, Address, SiteSettings, UserNote
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer, UserUpdateSerializer,
     AdminUserSerializer, AdminUserCreateSerializer, AddressSerializer,
-    UserNoteSerializer, PasswordChangeSerializer, AdminAuditLogSerializer,
+    SiteSettingsSerializer, UserNoteSerializer, PasswordChangeSerializer, AdminAuditLogSerializer,
     PharmacistActivationSetPasswordSerializer, ProfessionalRegistrationSerializer,
     PublicLabPartnerListSerializer,
 )
@@ -349,6 +349,8 @@ class AdminUserSuspendView(APIView):
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if user.pk == request.user.pk:
+            return Response({'detail': 'You cannot suspend your own account.'}, status=status.HTTP_400_BAD_REQUEST)
         user.status = User.STATUS_SUSPENDED
         user.is_active = False
         user.save()
@@ -359,7 +361,7 @@ class AdminUserSuspendView(APIView):
             entity_id=user.id,
             message=f'Suspended user {user.email}',
         )
-        return Response({'detail': 'User suspended.'})
+        return Response({'data': AdminUserSerializer(user).data, 'message': 'User suspended.'})
 
 
 class AdminUserActivateView(APIView):
@@ -383,7 +385,7 @@ class AdminUserActivateView(APIView):
             entity_id=user.id,
             message=f'Activated user {user.email}',
         )
-        return Response({'detail': 'User activated.'})
+        return Response({'data': AdminUserSerializer(user).data, 'message': 'User activated.'})
 
 
 class AdminPharmacistActivationResendView(APIView):
@@ -461,6 +463,33 @@ class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
         if serializer.validated_data.get('is_default'):
             Address.objects.filter(user=self.request.user).exclude(pk=self.get_object().pk).update(is_default=False)
         serializer.save()
+
+
+class SiteSettingsView(APIView):
+    """Public read / admin write endpoint for storefront site settings."""
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [permissions.AllowAny()]
+        return [IsAdminUser()]
+
+    def get(self, request):
+        serializer = SiteSettingsSerializer(SiteSettings.get_solo())
+        return Response(serializer.data)
+
+    def put(self, request):
+        settings_obj = SiteSettings.get_solo()
+        serializer = SiteSettingsSerializer(settings_obj, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        log_admin_action(
+            request.user,
+            action='site_settings_updated',
+            entity_type='site_settings',
+            entity_id=settings_obj.pk,
+            message='Updated site settings',
+        )
+        return Response(serializer.data)
 
 
 class UserNoteListCreateView(generics.ListCreateAPIView):

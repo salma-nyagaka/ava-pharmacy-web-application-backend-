@@ -265,7 +265,7 @@ class ConsultationSerializer(serializers.ModelSerializer):
         model = Consultation
         fields = (
             'id', 'reference', 'doctor', 'pediatrician', 'doctor_name', 'doctor_specialty',
-            'patient', 'patient_name', 'patient_age', 'issue', 'status', 'priority',
+            'patient', 'patient_name', 'patient_email', 'patient_phone', 'patient_age', 'issue', 'status', 'priority',
             'channel', 'scheduled_at', 'is_pediatric', 'guardian_name', 'child_name',
             'child_age', 'weight_kg', 'consent_status', 'dosage_alert',
             'last_message_at', 'messages', 'created_at', 'updated_at'
@@ -275,12 +275,14 @@ class ConsultationSerializer(serializers.ModelSerializer):
 
 class ConsultationListSerializer(serializers.ModelSerializer):
     doctor_name = serializers.ReadOnlyField(source='provider_name')
+    doctor_specialty = serializers.ReadOnlyField(source='provider_specialty')
 
     class Meta:
         model = Consultation
         fields = (
-            'id', 'reference', 'doctor_name', 'patient_name', 'issue',
-            'status', 'priority', 'is_pediatric', 'last_message_at', 'created_at'
+            'id', 'reference', 'doctor_name', 'doctor_specialty', 'patient_name', 'issue',
+            'status', 'priority', 'scheduled_at', 'is_pediatric', 'child_name',
+            'consent_status', 'last_message_at', 'created_at'
         )
 
 
@@ -291,7 +293,7 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Consultation
         fields = (
-            'doctor', 'pediatrician', 'patient_name', 'patient_age', 'issue', 'priority',
+            'doctor', 'pediatrician', 'patient_name', 'patient_email', 'patient_phone', 'patient_age', 'issue', 'priority',
             'scheduled_at', 'is_pediatric', 'guardian_name', 'child_name',
             'child_age', 'weight_kg'
         )

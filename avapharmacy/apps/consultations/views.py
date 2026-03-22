@@ -260,9 +260,15 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        patient_name = request.user.full_name or validated.get('patient_name') or request.user.email
+        patient_email = validated.get('patient_email') or request.user.email or ''
+        patient_phone = validated.get('patient_phone') or getattr(request.user, 'phone', '') or ''
         consultation = serializer.save(
             patient=request.user,
-            patient_name=request.user.full_name,
+            patient_name=patient_name,
+            patient_email=patient_email,
+            patient_phone=patient_phone,
         )
 
         # Notify doctor of new consultation

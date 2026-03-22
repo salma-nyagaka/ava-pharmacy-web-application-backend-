@@ -33,6 +33,7 @@ urlpatterns = [
     path('account/profile/', views.AccountProfileView.as_view(), name='account-profile'),
     path('account/change-password/', views.PasswordChangeView.as_view(), name='account-change-password'),
     path('account/', views.AccountDeleteView.as_view(), name='account-delete'),
+    path('site-settings/', views.SiteSettingsView.as_view(), name='site-settings'),
 
     path('admin/users/', views.AdminUserListCreateView.as_view(), name='admin-users'),
     path('admin/users/<int:pk>/', views.AdminUserDetailView.as_view(), name='admin-user-detail'),

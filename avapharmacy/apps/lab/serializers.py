@@ -287,6 +287,9 @@ class LabResultSerializer(serializers.ModelSerializer):
 class LabRequestSerializer(serializers.ModelSerializer):
     test_name = serializers.ReadOnlyField(source='test.name')
     test_category = serializers.ReadOnlyField(source='test.category')
+    test_price = serializers.ReadOnlyField(source='test.price')
+    test_turnaround = serializers.ReadOnlyField(source='test.turnaround')
+    test_sample_type = serializers.ReadOnlyField(source='test.sample_type')
     audit_logs = LabAuditLogSerializer(many=True, read_only=True)
     result = LabResultSerializer(read_only=True)
     technician_name = serializers.ReadOnlyField(source='assigned_technician.full_name')
@@ -294,7 +297,7 @@ class LabRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = LabRequest
         fields = (
-            'id', 'reference', 'test', 'test_name', 'test_category',
+            'id', 'reference', 'test', 'test_name', 'test_category', 'test_price', 'test_turnaround', 'test_sample_type',
             'patient', 'patient_name', 'patient_phone', 'patient_email',
             'status', 'payment_status', 'priority', 'channel',
             'ordering_doctor', 'notes', 'assigned_technician', 'technician_name',

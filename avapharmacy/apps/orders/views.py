@@ -2618,13 +2618,13 @@ class AdminActivityFeedView(APIView):
             })
 
         prescriptions = list(
-            Prescription.objects.filter(status='pending').order_by('-created_at')[:5]
+            Prescription.objects.filter(status='pending').order_by('-submitted_at')[:5]
         )
         for rx in prescriptions:
             feed.append({
                 'type': 'prescription_pending',
                 'message': f'Prescription awaiting review',
-                'timestamp': rx.created_at.isoformat(),
+                'timestamp': rx.submitted_at.isoformat(),
                 'link': '/admin/prescriptions',
             })
 

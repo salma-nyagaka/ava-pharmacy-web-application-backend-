@@ -6,7 +6,7 @@ with customised list displays, filters, and search configurations.
 """
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import AdminAuditLog, Customer, User, Pharmacist, PharmacistActivationToken, Address, UserNote
+from .models import AdminAuditLog, Customer, User, Pharmacist, PharmacistActivationToken, Address, SiteSettings, UserNote
 
 
 @admin.register(User)
@@ -51,6 +51,11 @@ class PharmacistActivationTokenAdmin(admin.ModelAdmin):
 class AddressAdmin(admin.ModelAdmin):
     list_display = ('user', 'street', 'city', 'county', 'is_default')
     list_filter = ('city', 'county', 'is_default')
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    list_display = ('support_email', 'support_phone', 'whatsapp_phone', 'base_delivery_fee', 'updated_at')
 
 
 @admin.register(UserNote)

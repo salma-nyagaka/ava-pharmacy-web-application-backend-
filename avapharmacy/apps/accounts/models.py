@@ -249,6 +249,34 @@ class Address(models.Model):
         return f"{self.user.full_name} - {self.street}, {self.city}"
 
 
+class SiteSettings(models.Model):
+    """Singleton store configuration exposed to the storefront and admin UI."""
+
+    singleton_key = models.PositiveSmallIntegerField(default=1, unique=True, editable=False)
+    support_email = models.EmailField(default='support@avapharmacy.co.ke')
+    support_phone = models.CharField(max_length=20, default='+254 700 000 000')
+    whatsapp_phone = models.CharField(max_length=20, default='+254 700 000 000')
+    support_address = models.CharField(max_length=255, default='Karen / The Hub, Karen, Nairobi, Kenya')
+    support_hours = models.CharField(max_length=255, default='Mon – Sun: 09am – 5pm')
+    base_delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=300)
+    free_delivery_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=3000)
+    active_delivery_zones = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'accounts_site_settings'
+        verbose_name = 'Site settings'
+        verbose_name_plural = 'Site settings'
+
+    def __str__(self):
+        return 'Site settings'
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(singleton_key=1)
+        return obj
+
+
 class UserNote(models.Model):
     """An internal note written by an admin about a specific user."""
 

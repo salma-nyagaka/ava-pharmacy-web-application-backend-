@@ -9,7 +9,7 @@ import json
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.db.models import Sum
-from .models import AdminAuditLog, Customer, User, Pharmacist, Address, UserNote
+from .models import AdminAuditLog, Customer, User, Pharmacist, Address, SiteSettings, UserNote
 from apps.consultations.serializers import (
     DoctorOnboardingSerializer, DoctorProfileSerializer,
     PediatricianOnboardingSerializer, PediatricianProfileSerializer,
@@ -140,7 +140,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             'id', 'email', 'first_name', 'last_name', 'full_name',
-            'phone', 'role', 'status', 'address', 'total_orders',
+            'phone', 'role', 'status', 'is_active', 'address', 'total_orders',
             'last_order_date', 'default_address', 'recent_orders', 'total_spend',
             'date_joined', 'pharmacist_permissions'
         )
@@ -316,6 +316,40 @@ class AddressSerializer(serializers.ModelSerializer):
         model = Address
         fields = ('id', 'label', 'street', 'city', 'county', 'is_default', 'created_at')
         read_only_fields = ('id', 'created_at')
+
+
+class SiteSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for storefront/admin site-wide contact and delivery settings."""
+
+    active_delivery_zones = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        allow_empty=True,
+    )
+
+    class Meta:
+        model = SiteSettings
+        fields = (
+            'support_email',
+            'support_phone',
+            'whatsapp_phone',
+            'support_address',
+            'support_hours',
+            'base_delivery_fee',
+            'free_delivery_threshold',
+            'active_delivery_zones',
+        )
+
+    def to_internal_value(self, data):
+        mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+        zones = mutable.get('active_delivery_zones')
+        if isinstance(zones, str):
+            mutable['active_delivery_zones'] = [
+                entry.strip() for entry in zones.split(',') if entry.strip()
+            ]
+        return super().to_internal_value(mutable)
+
+    def validate_active_delivery_zones(self, value):
+        return [entry.strip() for entry in value if str(entry).strip()]
 
 
 class UserNoteSerializer(serializers.ModelSerializer):

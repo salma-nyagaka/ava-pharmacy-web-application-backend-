@@ -389,13 +389,15 @@ class LabRequestListCreateView(generics.ListCreateAPIView):
         if user.role in ['lab_technician', 'admin']:
             return (
                 LabRequest.objects.all()
-                .select_related('test', 'assigned_technician', 'patient')
-                .prefetch_related('audit_logs')
+                .select_related('test', 'assigned_technician', 'patient', 'result__reviewed_by')
+                .prefetch_related('audit_logs__performed_by')
+                .order_by('-requested_at')
             )
         return (
             LabRequest.objects.filter(patient=user)
-            .select_related('test')
-            .prefetch_related('audit_logs')
+            .select_related('test', 'result__reviewed_by')
+            .prefetch_related('audit_logs__performed_by')
+            .order_by('-requested_at')
         )
 
     def create(self, request, *args, **kwargs):
@@ -420,8 +422,16 @@ class LabRequestDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role in ['lab_technician', 'admin']:
-            return LabRequest.objects.all().prefetch_related('audit_logs', 'result')
-        return LabRequest.objects.filter(patient=user).prefetch_related('audit_logs', 'result')
+            return (
+                LabRequest.objects.all()
+                .select_related('test', 'assigned_technician', 'patient', 'result__reviewed_by')
+                .prefetch_related('audit_logs__performed_by')
+            )
+        return (
+            LabRequest.objects.filter(patient=user)
+            .select_related('test', 'result__reviewed_by')
+            .prefetch_related('audit_logs__performed_by')
+        )
 
 
 class LabRequestUpdateView(generics.UpdateAPIView):

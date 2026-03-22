@@ -16,6 +16,10 @@ urlpatterns = [
     path('product-categories/', views.ProductCategoryListView.as_view(), name='product-categories'),
     path('products/', views.ProductListView.as_view(), name='products'),
     path('products/featured/', views.FeaturedProductListView.as_view(), name='featured-products'),
+    path('products/wishlist/', views.WishlistView.as_view(), name='products-wishlist'),
+    path('products/wishlist/<int:pk>/', views.WishlistItemDeleteView.as_view(), name='products-wishlist-item'),
+    path('products/wishlist/<int:pk>/move-to-cart/', views.WishlistItemMoveToCartView.as_view(), name='products-wishlist-item-move-to-cart'),
+    path('products/cart/items/<int:pk>/move-to-wishlist/', views.CartItemMoveToWishlistView.as_view(), name='products-cart-item-move-to-wishlist'),
     # Search must come before slug route to avoid conflict
     path('products/search/suggestions/', views.ProductSuggestionsView.as_view(), name='product-suggestions'),
     path('products/search/', views.ProductSearchView.as_view(), name='product-search'),

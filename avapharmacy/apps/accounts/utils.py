@@ -175,7 +175,7 @@ def consume_pharmacist_activation(raw_token):
 
 def send_pharmacist_activation_email(*, user, raw_token, request=None, invited_by=None):
     """Send activation email with themed HTML and text fallback."""
-    activation_url = build_activation_url(raw_token, request=request)
+    activation_url = build_frontend_set_password_url(raw_token)
     frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
     dashboard_url = dashboard_url_for_role(user.role)
     login_url = getattr(settings, 'FRONTEND_LOGIN_URL', f'{frontend_base}/login')
