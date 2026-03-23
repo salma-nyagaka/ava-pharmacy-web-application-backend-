@@ -1,0 +1,15 @@
+AVA Pharmacy - {{ account_role_label|default:"Professional" }} Account Activation
+
+Hi {{ first_name }},
+
+Your {{ account_role_lower|default:"professional" }} account has been created by {{ invited_by }}.
+
+Activate your account by setting your password using this link:
+{{ activation_url }}
+
+This activation link expires in {{ expires_hours }} hours.
+
+After activation, access your dashboard at:
+{{ dashboard_url }}
+
+If you were not expecting this invitation, please ignore this email or contact support at {{ support_email }}.

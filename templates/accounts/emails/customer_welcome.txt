@@ -1,0 +1,11 @@
+Hi {{ first_name }},
+
+Your AVA Pharmacy account has been created successfully. You can now shop for medicines, track orders, upload prescriptions, and more.
+
+Start shopping: {{ shop_url }}
+
+Sign in at: {{ login_url }}
+
+If you did not create this account, contact support at {{ support_email }}.
+
+— AVA Pharmacy Team

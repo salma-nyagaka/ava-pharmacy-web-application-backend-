@@ -1,0 +1,12 @@
+Review all Django models across every app in this project (accounts, products, orders, prescriptions, consultations, lab, support, payouts, notifications). For each app:
+
+Check model field definitions — are field types appropriate (e.g. DecimalField for money, PositiveIntegerField for quantities, UUIDField for public IDs)?
+Check relationships — are ForeignKey, ManyToManyField, OneToOneField correct, with proper on_delete strategies and related_name set?
+Check database normalization — is data duplicated across models that should be shared via FK?
+Check indexes — are frequently queried fields (status, created_at, user, etc.) indexed with db_index=True or Meta.indexes?
+Check Meta classes — are ordering, verbose_name, constraints, and unique_together/UniqueConstraint used where appropriate?
+Check ORM usage in views and serializers — flag any N+1 query risks (missing select_related/prefetch_related), raw SQL usage, or .all() without filtering on large tables.
+Check migrations — are there any squash opportunities or redundant migrations?
+Flag any model that is doing too much and should be split, or any missing model that should exist based on the business domain.
+Report findings per app with specific file and line references, prioritized by severity (critical → warning → suggestion).
+

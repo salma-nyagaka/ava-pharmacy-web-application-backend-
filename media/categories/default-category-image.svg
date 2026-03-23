@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Default category image</title>
+  <desc id="desc">Placeholder image for product categories.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8d7da"/>
+      <stop offset="100%" stop-color="#fde2e4"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="220" rx="24" fill="url(#bg)"/>
+  <g fill="none" stroke="#991b1f" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M92 82h136v84H92z"/>
+    <path d="M128 82V60h64v22"/>
+    <path d="M160 112v28"/>
+    <path d="M146 126h28"/>
+  </g>
+</svg>
