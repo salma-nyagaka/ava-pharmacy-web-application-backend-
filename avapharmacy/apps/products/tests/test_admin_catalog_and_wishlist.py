@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Cart, CartItem, Order, OrderItem
-from apps.products.models import Brand, Category, Product, ProductInventory, Promotion, Wishlist
+from apps.products.models import Brand, Category, Product, ProductInventory, ProductReview, Promotion, Wishlist
 
 
 def make_test_image(name='test.png', *, width=1000, height=1000, color=(220, 20, 60)):
@@ -237,24 +237,99 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertIsNone(item['original_price'])
         self.assertEqual(Decimal(str(item['discount_total'])), Decimal('0.00'))
 
-    def test_featured_products_are_ranked_by_paid_sales_volume(self):
-        top_product = Product.objects.create(
+    def test_featured_products_prioritize_highly_rated_items(self):
+        top_rated = Product.objects.create(
             sku='TOP-001',
+            name='Top Rated',
+            price=Decimal('1500.00'),
+            is_active=True,
+        )
+        best_seller = Product.objects.create(
+            sku='TOP-002',
+            name='Best Seller',
+            price=Decimal('1200.00'),
+            is_active=True,
+        )
+        unrated = Product.objects.create(
+            sku='TOP-003',
+            name='No Ratings Yet',
+            price=Decimal('900.00'),
+            is_active=True,
+        )
+
+        ProductReview.objects.create(
+            product=top_rated,
+            user=self.customer,
+            rating=5,
+            comment='Excellent',
+            is_approved=True,
+        )
+
+        paid_order = Order.objects.create(
+            customer=self.customer,
+            status=Order.STATUS_PAID,
+            payment_method=Order.PAYMENT_COD,
+            payment_status=Order.PAYMENT_STATUS_PAID,
+            shipping_first_name='Customer',
+            shipping_last_name='User',
+            shipping_email='customer@example.com',
+            shipping_phone='+254700000000',
+            shipping_street='Moi Avenue',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal=Decimal('4200.00'),
+            total=Decimal('4200.00'),
+        )
+        OrderItem.objects.create(
+            order=paid_order,
+            product=best_seller,
+            product_name=best_seller.name,
+            product_sku=best_seller.sku,
+            quantity=8,
+            unit_price=best_seller.price,
+        )
+        OrderItem.objects.create(
+            order=paid_order,
+            product=top_rated,
+            product_name=top_rated.name,
+            product_sku=top_rated.sku,
+            quantity=2,
+            unit_price=top_rated.price,
+        )
+
+        response = self.client.get(reverse('featured-products'))
+        self.assertEqual(response.status_code, 200)
+        skus = [item['sku'] for item in response.data['results']]
+        self.assertIn('TOP-001', skus)
+        self.assertNotIn('TOP-002', skus)
+        self.assertNotIn('TOP-003', skus)
+
+    def test_featured_products_fall_back_to_paid_sales_when_no_highly_rated_items_exist(self):
+        top_product = Product.objects.create(
+            sku='FALLBACK-001',
             name='Top Seller',
             price=Decimal('1500.00'),
             is_active=True,
         )
         next_product = Product.objects.create(
-            sku='TOP-002',
+            sku='FALLBACK-002',
             name='Next Seller',
             price=Decimal('1200.00'),
             is_active=True,
         )
-        new_product = Product.objects.create(
-            sku='TOP-003',
-            name='No Sales Yet',
+        low_rated_product = Product.objects.create(
+            sku='FALLBACK-003',
+            name='Low Rated Product',
             price=Decimal('900.00'),
             is_active=True,
+        )
+
+        ProductReview.objects.create(
+            product=low_rated_product,
+            user=self.customer,
+            rating=3,
+            comment='Average',
+            is_approved=True,
         )
 
         paid_order = Order.objects.create(
@@ -306,18 +381,18 @@ class AdminCatalogAndWishlistTests(TestCase):
         )
         OrderItem.objects.create(
             order=draft_order,
-            product=new_product,
-            product_name=new_product.name,
-            product_sku=new_product.sku,
+            product=low_rated_product,
+            product_name=low_rated_product.name,
+            product_sku=low_rated_product.sku,
             quantity=9,
-            unit_price=new_product.price,
+            unit_price=low_rated_product.price,
         )
 
         response = self.client.get(reverse('featured-products'))
         self.assertEqual(response.status_code, 200)
         skus = [item['sku'] for item in response.data['results']]
-        self.assertLess(skus.index('TOP-001'), skus.index('TOP-002'))
-        self.assertLess(skus.index('TOP-002'), skus.index('TOP-003'))
+        self.assertLess(skus.index('FALLBACK-001'), skus.index('FALLBACK-002'))
+        self.assertLess(skus.index('FALLBACK-002'), skus.index('FALLBACK-003'))
 
     def test_rebuild_pharmacy_taxonomy_maps_products_to_clean_subcategories(self):
         Product.objects.create(

@@ -269,7 +269,7 @@ FLUTTERWAVE_TIMEOUT_SECONDS = config('FLUTTERWAVE_TIMEOUT_SECONDS', default=30, 
 FLUTTERWAVE_REDIRECT_URL = config('FLUTTERWAVE_REDIRECT_URL', default=f'{FRONTEND_BASE_URL}/checkout')
 
 # ─── POS / External Order Push ────────────────────────────────────────────────
-POS_LINK_STRATEGY = config('POS_LINK_STRATEGY', default='pos_product_id')
+POS_LINK_STRATEGY = config('POS_LINK_STRATEGY', default='sku_or_pos_id')
 POS_ORDER_PUSH_URL = config('POS_ORDER_PUSH_URL', default='')
 POS_ORDER_PUSH_TOKEN = config('POS_ORDER_PUSH_TOKEN', default='')
 POS_ORDER_PUSH_TIMEOUT_SECONDS = config('POS_ORDER_PUSH_TIMEOUT_SECONDS', default=15, cast=int)

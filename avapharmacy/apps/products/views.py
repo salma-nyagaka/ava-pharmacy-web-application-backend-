@@ -151,7 +151,24 @@ class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
         ).prefetch_related('variants', 'inventories')
         queryset = annotate_product_units_sold(queryset)
         queryset = annotate_product_reviews(queryset)
-        return queryset.order_by(models.F('units_sold').desc(nulls_last=True), '-created_at')
+        minimum_rating = getattr(settings, 'FEATURED_PRODUCT_MIN_RATING', 4)
+        highly_rated_queryset = queryset.filter(
+            approved_review_count__gt=0,
+            approved_average_rating__gte=minimum_rating,
+        )
+        if highly_rated_queryset.exists():
+            return highly_rated_queryset.order_by(
+                models.F('approved_average_rating').desc(nulls_last=True),
+                models.F('approved_review_count').desc(nulls_last=True),
+                models.F('units_sold').desc(nulls_last=True),
+                '-created_at',
+            )
+        return queryset.order_by(
+            models.F('units_sold').desc(nulls_last=True),
+            models.F('approved_average_rating').desc(nulls_last=True),
+            models.F('approved_review_count').desc(nulls_last=True),
+            '-created_at',
+        )
 
 
 class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
