@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('consultations', '0011_remove_doctordocument_doctor_and_more'),
+        ('consultations', '0012_consultation_patient_email_and_more'),
     ]
 
     operations = [
@@ -65,16 +65,6 @@ class Migration(migrations.Migration):
             model_name='consultation',
             name='ended_at',
             field=models.DateTimeField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name='consultation',
-            name='patient_email',
-            field=models.EmailField(blank=True, max_length=254),
-        ),
-        migrations.AddField(
-            model_name='consultation',
-            name='patient_phone',
-            field=models.CharField(blank=True, max_length=20),
         ),
         migrations.AddField(
             model_name='consultationmessage',

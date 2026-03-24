@@ -15,6 +15,8 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from .seed_catalog import LOREMFLICKR_QUERIES, PRODUCTS as SEEDED_PRODUCTS, UNSPLASH_PHOTO_IDS
+
 
 HEADERS = {
     'User-Agent': (
@@ -184,6 +186,12 @@ PRODUCT_QUERIES = {
     'Moringa Leaf Powder 200g':                         'moringa leaf powder supplement natural health',
 }
 
+SEEDED_PRODUCT_IMAGE_SEEDS = {
+    product['name']: product['img_seed']
+    for product in SEEDED_PRODUCTS
+    if product.get('img_seed')
+}
+
 
 def _fetch_ddg_images(query: str, max_results: int = 8):
     """Return a list of image URLs from DuckDuckGo image search."""
@@ -236,6 +244,32 @@ def _preferred_extension_for_url(url: str) -> str:
 
 def _media(rel: str) -> str:
     return str(Path(settings.MEDIA_ROOT) / rel)
+
+
+def _download_seeded_fallback(seed: str, dest_rel: str, *, width: int = 800, height: int = 800) -> bool:
+    """Fallback to the deterministic sources used by seed_catalog."""
+    dest_abs = _media(dest_rel)
+    candidates = []
+
+    photo_id = UNSPLASH_PHOTO_IDS.get(seed)
+    if photo_id:
+        candidates.append(
+            f'https://images.unsplash.com/photo-{photo_id}'
+            f'?w={width}&h={height}&fit=crop&crop=center&q=85&auto=format'
+        )
+
+    lorem = LOREMFLICKR_QUERIES.get(seed)
+    if lorem:
+        terms, lock = lorem
+        candidates.append(f'https://loremflickr.com/{width}/{height}/{terms}?lock={lock}')
+
+    seed_num = abs(hash(seed)) % 1000
+    candidates.append(f'https://picsum.photos/seed/{seed_num}/{width}/{height}')
+
+    for url in candidates:
+        if _download(url, dest_abs):
+            return True
+    return False
 
 
 def _is_usable_asset(dest_abs: str) -> bool:
@@ -369,5 +403,14 @@ class Command(BaseCommand):
             )
             rel = f'products/{product.slug[:80]}.jpg'
             ok = self._get_and_save(query, rel, product.name, force)
+            if not ok:
+                seed = SEEDED_PRODUCT_IMAGE_SEEDS.get(product.name)
+                if seed:
+                    self.stdout.write(f'  FALLBACK {product.name} → seeded asset')
+                    ok = _download_seeded_fallback(seed, rel)
+                    if ok:
+                        size_kb = os.path.getsize(_media(rel)) // 1024
+                        self.stdout.write(self.style.SUCCESS(f'        ✓ {size_kb}KB'))
+                        time.sleep(0.3)
             if ok:
                 self._update_image_field(product, 'image', rel)

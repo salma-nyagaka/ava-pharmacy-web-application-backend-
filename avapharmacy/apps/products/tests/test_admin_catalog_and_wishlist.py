@@ -126,6 +126,103 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(promotion.badge, '15% Off')
         self.assertFalse(promotion.is_stackable)
 
+    def test_admin_brand_create_accepts_image_alias(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            reverse('admin-brands'),
+            {
+                'name': 'Alias Brand',
+                'description': 'Created with image alias',
+                'image': make_test_image('brand-alias.png', width=500, height=500),
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        brand = Brand.objects.get(name='Alias Brand')
+        self.assertIn('brand-alias', brand.logo.name)
+        self.assertEqual(response.data['logo'], response.data['image'])
+
+    def test_public_brand_and_product_responses_include_brand_images(self):
+        brand = Brand.objects.create(
+            name='Image Brand',
+            slug='image-brand',
+            logo=make_test_image('brand-public.png', width=500, height=500),
+            is_active=True,
+        )
+        Product.objects.create(
+            sku='IMG-BRAND-001',
+            name='Image Brand Product',
+            slug='image-brand-product',
+            brand=brand,
+            price=Decimal('1200.00'),
+            is_active=True,
+        )
+
+        brands_response = self.client.get(reverse('brands'))
+        self.assertEqual(brands_response.status_code, 200)
+        brand_item = next(entry for entry in brands_response.data['results'] if entry['slug'] == brand.slug)
+        self.assertEqual(brand_item['logo'], brand_item['image'])
+        self.assertIn('brand-public', brand_item['image'])
+
+        products_response = self.client.get(reverse('products'))
+        self.assertEqual(products_response.status_code, 200)
+        product_item = next(entry for entry in products_response.data['results'] if entry['sku'] == 'IMG-BRAND-001')
+        self.assertEqual(product_item['brand_name'], brand.name)
+        self.assertIn('brand-public', product_item['brand_image'])
+
+    def test_product_search_brand_facets_include_brand_images(self):
+        brand = Brand.objects.create(
+            name='Facet Brand',
+            slug='facet-brand',
+            logo=make_test_image('brand-facet.png', width=500, height=500),
+            is_active=True,
+        )
+        Product.objects.create(
+            sku='FACET-BRAND-001',
+            name='Facet Brand Syrup',
+            slug='facet-brand-syrup',
+            brand=brand,
+            price=Decimal('700.00'),
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('product-search'), {'q': 'facet'})
+        self.assertEqual(response.status_code, 200)
+        facet = next(entry for entry in response.data['results']['facets']['brands'] if entry['slug'] == brand.slug)
+        self.assertEqual(facet['logo'], facet['image'])
+        self.assertEqual(facet['count'], 1)
+        self.assertIn('brand-facet', facet['image'])
+
+    def test_product_image_falls_back_to_brand_logo_when_file_is_missing(self):
+        brand = Brand.objects.create(
+            name='Fallback Brand',
+            slug='fallback-brand',
+            logo=make_test_image('brand-fallback.png', width=500, height=500),
+            is_active=True,
+        )
+        product = Product.objects.create(
+            sku='FALLBACK-001',
+            name='Fallback Product',
+            slug='fallback-product',
+            brand=brand,
+            image='products/missing-packshot.jpg',
+            price=Decimal('999.00'),
+            is_active=True,
+        )
+
+        list_response = self.client.get(reverse('products'))
+        self.assertEqual(list_response.status_code, 200)
+        list_item = next(entry for entry in list_response.data['results'] if entry['sku'] == product.sku)
+        self.assertEqual(list_item['image'], list_item['brand_image'])
+        self.assertIn('brand-fallback', list_item['image'])
+
+        detail_response = self.client.get(reverse('product-detail-by-id', args=[product.id]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.data['image'], detail_response.data['brand']['logo'])
+        self.assertIn('brand-fallback', detail_response.data['image'])
+
     def test_customer_can_add_to_wishlist_move_to_cart_and_back(self):
         product = Product.objects.create(
             sku='WISH-001',

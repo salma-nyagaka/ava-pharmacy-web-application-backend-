@@ -47,6 +47,7 @@ Edit `.env` with your database credentials:
 ```env
 DEBUG=True
 SECRET_KEY=your-secret-key
+FIELD_ENCRYPTION_KEY=your-fernet-key
 DATABASE_NAME=avapharmacy
 DATABASE_USER=postgres
 DATABASE_PASSWORD=yourpassword

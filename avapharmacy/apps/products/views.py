@@ -860,11 +860,16 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
             .values('category__slug', 'category__name', 'count')[:10]
         )
         brand_facets = list(
-            all_qs.values('brand__name')
-            .annotate(count=Count('id'))
-            .exclude(brand__isnull=True)
-            .values('brand__name', 'count')[:10]
+            Brand.objects.filter(products__in=all_qs)
+            .annotate(count=Count('products', filter=Q(products__in=all_qs), distinct=True))
+            .filter(count__gt=0)
+            .order_by('-count', 'name')[:10]
         )
+        brand_facets_data = BrandSerializer(
+            brand_facets,
+            many=True,
+            context=self.get_serializer_context(),
+        ).data
         prices = list(all_qs.values_list('price', flat=True))
         price_range = {
             'min': min(prices, default=0),
@@ -876,7 +881,7 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
             'products': products_data,
             'facets': {
                 'categories': [{'slug': f['category__slug'], 'name': f['category__name'], 'count': f['count']} for f in category_facets],
-                'brands': [{'name': f['brand__name'], 'count': f['count']} for f in brand_facets],
+                'brands': [{**item, 'count': brand.count} for brand, item in zip(brand_facets, brand_facets_data)],
                 'price_range': price_range,
             },
         }

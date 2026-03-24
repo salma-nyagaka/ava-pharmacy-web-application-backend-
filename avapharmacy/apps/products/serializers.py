@@ -16,6 +16,36 @@ from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
 
+class ProductImageWithBrandFallbackField(serializers.ImageField):
+    """Return the product image when the asset exists, otherwise fall back to the brand logo."""
+
+    def to_representation(self, value):
+        if self._has_usable_file(value):
+            return super().to_representation(value)
+
+        instance = getattr(value, 'instance', None)
+        brand_logo = getattr(getattr(instance, 'brand', None), 'logo', None)
+        if self._has_usable_file(brand_logo):
+            return super().to_representation(brand_logo)
+
+        return None
+
+    @staticmethod
+    def _has_usable_file(value):
+        name = getattr(value, 'name', '')
+        if not name:
+            return False
+
+        storage = getattr(value, 'storage', None)
+        if storage is None:
+            return False
+
+        try:
+            return storage.exists(name)
+        except Exception:
+            return False
+
+
 class CategorySerializer(serializers.ModelSerializer):
     subcategories = serializers.SerializerMethodField()
 
@@ -156,10 +186,26 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
 
 class BrandSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Brand
-        fields = ('id', 'name', 'slug', 'logo', 'description', 'is_active')
+        fields = ('id', 'name', 'slug', 'logo', 'image', 'description', 'is_active')
         extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
+
+    def to_internal_value(self, data):
+        if hasattr(data, 'copy'):
+            data = data.copy()
+        else:
+            data = dict(data)
+
+        if 'image' in data and 'logo' not in data:
+            data['logo'] = data.get('image')
+
+        return super().to_internal_value(data)
+
+    def get_image(self, obj):
+        return self.fields['logo'].to_representation(obj.logo)
 
     def _generate_unique_slug(self, name):
         base_slug = slugify(name) or 'brand'
@@ -177,7 +223,9 @@ class BrandSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
         provided_slug = attrs.get('slug')
-        has_logo_input = hasattr(self, 'initial_data') and 'logo' in self.initial_data
+        has_logo_input = hasattr(self, 'initial_data') and (
+            'logo' in self.initial_data or 'image' in self.initial_data
+        )
 
         if self.instance is None and not attrs.get('logo'):
             raise serializers.ValidationError({'logo': ['Brand logo is required.']})
@@ -293,8 +341,10 @@ class ProductReviewSerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
+    image = ProductImageWithBrandFallbackField(read_only=True)
     brand_name = serializers.ReadOnlyField(source='brand.name')
     brand_slug = serializers.ReadOnlyField(source='brand.slug')
+    brand_image = serializers.ImageField(source='brand.logo', read_only=True)
     category_name = serializers.ReadOnlyField(source='category.name')
     category_slug = serializers.ReadOnlyField(source='category.slug')
     stock_source = serializers.ReadOnlyField()
@@ -314,7 +364,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = (
-            'id', 'sku', 'slug', 'name', 'strength', 'brand_name', 'brand_slug',
+            'id', 'sku', 'slug', 'name', 'strength', 'brand_name', 'brand_slug', 'brand_image',
             'category_name', 'category_slug', 'price', 'original_price',
             'image', 'badge', 'stock_source', 'stock_quantity',
             'short_description', 'average_rating', 'review_count',
@@ -356,6 +406,7 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
+    image = ProductImageWithBrandFallbackField(required=False, allow_null=True)
     created_by_name = serializers.SerializerMethodField()
     brand = BrandSerializer(read_only=True)
     brand_id = serializers.PrimaryKeyRelatedField(

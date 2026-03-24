@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('consultations', '0012_clinicianprescription_digital_signature_and_more'),
+        ('consultations', '0013_clinicianprescription_digital_signature_and_more'),
         ('prescriptions', '0003_prescription_prescriptio_patient_283c70_idx_and_more'),
     ]
 
