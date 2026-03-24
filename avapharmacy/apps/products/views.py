@@ -18,8 +18,10 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminOrInventoryStaff, IsAdminUser
 from apps.accounts.utils import log_admin_action
+from avapharmacy.security import verify_hmac_signature
 
 from .filters import ProductFilter
+from .inventory_sync import apply_inventory_sync, normalize_inventory_payload
 from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, ProductInventory, ProductReview, ProductVariant, Promotion, StockMovement, Wishlist, annotate_product_inventory
 from .pos import refresh_pos_inventory_for_products
 from .serializers import (
@@ -944,6 +946,50 @@ class ProductAvailabilityView(APIView):
                 'pos_store_count': len(pos_stores) if isinstance(pos_stores, list) else 0,
             })
         return Response({'availability': availability})
+
+
+class ProductAvailabilityDetailView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        try:
+            product = Product.objects.prefetch_related('inventories').get(pk=pk, is_active=True)
+        except Product.DoesNotExist:
+            return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        location_stock = [
+            {
+                'location': inventory.location,
+                'quantity': inventory.stock_quantity,
+                'allow_backorder': inventory.allow_backorder,
+                'max_backorder_quantity': inventory.max_backorder_quantity,
+                'next_restock_date': inventory.next_restock_date,
+            }
+            for inventory in product.inventories.all().order_by('location')
+        ]
+        next_restock_date = next(
+            (inventory.next_restock_date for inventory in product.inventories.all().order_by('next_restock_date') if inventory.next_restock_date),
+            None,
+        )
+        return Response({
+            'in_stock': product.stock_quantity > 0 or product.allow_backorder,
+            'quantity': product.available_quantity,
+            'location_stock': location_stock,
+            'next_restock_date': next_restock_date,
+        })
+
+
+class InventoryWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        signature = request.headers.get('X-Sync-Signature', '')
+        if not verify_hmac_signature(request.body, signature, settings.INVENTORY_SYNC_SECRET):
+            return Response({'detail': 'Invalid inventory sync signature.'}, status=status.HTTP_403_FORBIDDEN)
+
+        rows = normalize_inventory_payload(request.data)
+        results = apply_inventory_sync(rows, source=StockMovement.SOURCE_WEBHOOK)
+        return Response({'updated': results})
 
 
 class AdminInventoryBulkUpdateView(APIView):

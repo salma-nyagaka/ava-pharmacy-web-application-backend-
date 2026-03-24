@@ -20,6 +20,7 @@ urlpatterns = [
     path('products/search/suggestions/', views.ProductSuggestionsView.as_view(), name='product-suggestions'),
     path('products/search/', views.ProductSearchView.as_view(), name='product-search'),
     path('products/availability/', views.ProductAvailabilityView.as_view(), name='product-availability'),
+    path('products/<int:pk>/availability/', views.ProductAvailabilityDetailView.as_view(), name='product-availability-detail'),
     # Product by numeric ID (spec: GET /products/:id)
     path('products/<int:pk>/', views.ProductDetailByIdView.as_view(), name='product-detail-by-id'),
     # Product by slug (SEO URLs)
@@ -33,6 +34,7 @@ urlpatterns = [
     path('banners/', views.BannerListView.as_view(), name='banners'),
     path('cms/', views.CMSBlockListView.as_view(), name='cms-blocks'),
     path('promotions/', views.PromotionListView.as_view(), name='promotions'),
+    path('webhooks/inventory/', views.InventoryWebhookView.as_view(), name='inventory-webhook'),
     path('admin/categories/', views.AdminCategoryListCreateView.as_view(), name='admin-categories'),
     path('admin/categories/<int:pk>/', views.AdminCategoryDetailView.as_view(), name='admin-category-detail'),
     path('admin/product-categories/', views.AdminProductCategoryListCreateView.as_view(), name='admin-product-categories'),

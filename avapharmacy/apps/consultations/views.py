@@ -1,15 +1,21 @@
+import hashlib
+from io import BytesIO
+
+from django.http import Http404, HttpResponse
 from rest_framework import generics, permissions, status
+from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.throttling import UserRateThrottle
+from django.db import transaction
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncDate
 from datetime import timedelta
 
 from .models import (
-    ClinicianProfile, ClinicianPrescription, ClinicianEarning,
+    ClinicianDocument, ClinicianProfile, ClinicianPrescription, ClinicianEarning,
     Consultation, ConsultationMessage,
 )
 from .serializers import (
@@ -21,12 +27,17 @@ from .serializers import (
     ConsultationMessageSerializer,
     DoctorPrescriptionSerializer, PediatricianPrescriptionSerializer,
     DoctorEarningSerializer, PediatricianEarningSerializer,
+    DoctorOnboardingAvailabilityStepSerializer,
+    DoctorOnboardingPayoutStepSerializer,
+    DoctorOnboardingProfileStepSerializer,
+    DoctorVerificationActionSerializer,
 )
 from apps.accounts.permissions import IsAdminUser, IsDoctor, IsDoctorOrAdmin
 from apps.accounts.utils import log_admin_action
 from apps.accounts.serializers import (
     ProvisionDoctorAccountSerializer, ProvisionPediatricianAccountSerializer, UserSerializer,
 )
+from apps.notifications.utils import create_notification, notify_doctor_verified
 
 
 CONSULTATION_SELECT_RELATED = (
@@ -55,6 +66,66 @@ def _get_provider_for_user(user):
     if getattr(user, 'role', None) == 'pediatrician':
         return _get_pediatrician_or_404(user)
     return _get_doctor_or_404(user)
+
+
+def _get_or_create_onboarding_profile(user):
+    profile, _ = ClinicianProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            'provider_type': ClinicianProfile.TYPE_DOCTOR,
+            'name': user.full_name or user.email,
+            'email': user.email,
+            'phone': user.phone,
+            'specialty': '',
+            'license_number': '',
+            'status': ClinicianProfile.STATUS_PENDING,
+        },
+    )
+    return profile
+
+
+def _update_availability_summary(profile):
+    slots = profile.availability_schedule or []
+    if not slots:
+        profile.availability = ''
+        return
+    first = slots[0]
+    profile.availability = f"{first.get('day', '')} {first.get('start_time', '')}-{first.get('end_time', '')}".strip()
+
+
+def _is_controlled_substance_item(item):
+    text = ' '.join(
+        str(item.get(key, '') or '').lower()
+        for key in ('drug_name', 'name', 'dose', 'notes', 'frequency')
+    )
+    return any(keyword in text for keyword in {
+        'morphine', 'codeine', 'diazepam', 'alprazolam', 'tramadol',
+        'ketamine', 'fentanyl', 'pethidine', 'methadone', 'clonazepam',
+    })
+
+
+class ConsultationMessageCursorPagination(CursorPagination):
+    page_size = 20
+    ordering = '-sent_at'
+
+
+def _broadcast_consultation_event(consultation_id, event_type, payload):
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+    except Exception:
+        return
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        return
+    async_to_sync(channel_layer.group_send)(
+        f'consultation_{consultation_id}',
+        {
+            'type': 'consultation.event',
+            'event_type': event_type,
+            'payload': payload,
+        },
+    )
 
 
 def _get_clinician_by_identifier(identifier, provider_type):
@@ -115,7 +186,7 @@ class PediatricianDetailView(generics.RetrieveAPIView):
 
 class DoctorOnboardingView(APIView):
     permission_classes = [permissions.AllowAny]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     throttle_classes = [UserRateThrottle]
 
     def post(self, request):
@@ -135,6 +206,79 @@ class PediatricianOnboardingView(APIView):
         serializer.is_valid(raise_exception=True)
         profile = serializer.save()
         return Response(PediatricianProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
+
+
+class DoctorOnboardingProfileStepView(APIView):
+    permission_classes = [IsDoctor]
+
+    def patch(self, request):
+        profile = _get_or_create_onboarding_profile(request.user)
+        serializer = DoctorOnboardingProfileStepSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(email=request.user.email or profile.email, updated_by=request.user)
+        if 'phone' in serializer.validated_data and request.user.phone != serializer.validated_data['phone']:
+            request.user.phone = serializer.validated_data['phone']
+            request.user.save(update_fields=['phone', 'updated_at'])
+        return Response(DoctorProfileSerializer(profile).data)
+
+
+class DoctorOnboardingDocumentsStepView(APIView):
+    permission_classes = [IsDoctor]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        profile = _get_or_create_onboarding_profile(request.user)
+        medical_license_number = (request.data.get('medical_license_number') or '').strip()
+        specialty = (request.data.get('specialty') or '').strip()
+        years_of_experience = request.data.get('years_of_experience')
+        if medical_license_number:
+            profile.license_number = medical_license_number
+        if specialty:
+            profile.specialty = specialty
+        if years_of_experience not in (None, ''):
+            profile.years_experience = int(years_of_experience)
+        profile.updated_by = request.user
+        profile.save(update_fields=['license_number', 'specialty', 'years_experience', 'updated_by', 'updated_at'])
+
+        files = request.FILES.getlist('documents') or request.FILES.getlist('files')
+        document_names = request.data.getlist('document_names') or []
+        created = []
+        for index, file_obj in enumerate(files):
+            document = ClinicianDocument.objects.create(
+                clinician=profile,
+                name=document_names[index] if index < len(document_names) else file_obj.name,
+                file=file_obj,
+            )
+            created.append(document.id)
+        return Response({'created_document_ids': created, 'profile': DoctorProfileSerializer(profile).data}, status=status.HTTP_201_CREATED)
+
+
+class DoctorOnboardingAvailabilityStepView(APIView):
+    permission_classes = [IsDoctor]
+
+    def patch(self, request):
+        profile = _get_or_create_onboarding_profile(request.user)
+        serializer = DoctorOnboardingAvailabilityStepSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(updated_by=request.user)
+        _update_availability_summary(profile)
+        profile.save(update_fields=['availability', 'updated_at'])
+        return Response(DoctorProfileSerializer(profile).data)
+
+
+class DoctorOnboardingPayoutStepView(APIView):
+    permission_classes = [IsDoctor]
+
+    def patch(self, request):
+        profile = _get_or_create_onboarding_profile(request.user)
+        serializer = DoctorOnboardingPayoutStepSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        payout_account_number = serializer.validated_data['payout_account_number']
+        serializer.save(
+            payout_account=payout_account_number[-4:],
+            updated_by=request.user,
+        )
+        return Response(DoctorProfileSerializer(profile).data)
 
 
 # ─── Doctor Dashboard ─────────────────────────────────────────────────────────
@@ -263,6 +407,8 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
         consultation = serializer.save(
             patient=request.user,
             patient_name=request.user.full_name,
+            patient_email=request.user.email,
+            patient_phone=request.user.phone,
         )
 
         # Notify doctor of new consultation
@@ -323,8 +469,18 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
 class ConsultationMessageListCreateView(generics.ListCreateAPIView):
     serializer_class = ConsultationMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+    pagination_class = ConsultationMessageCursorPagination
 
     def get_queryset(self):
+        consultation = Consultation.objects.select_related('clinician', 'patient').filter(pk=self.kwargs['pk']).first()
+        if consultation is None:
+            return ConsultationMessage.objects.none()
+        user = self.request.user
+        provider = consultation.provider_profile
+        is_provider = bool(provider and provider.user_id == user.id)
+        if consultation.patient_id != user.id and not is_provider and user.role != 'admin':
+            return ConsultationMessage.objects.none()
         return ConsultationMessage.objects.filter(consultation_id=self.kwargs['pk']).select_related('sender')
 
     def perform_create(self, serializer):
@@ -355,13 +511,29 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
 
         # Notify the other participant
         try:
-            from apps.notifications.utils import notify_consultation_message
             if is_patient and provider and provider.user:
-                notify_consultation_message(provider.user, consultation, user.full_name)
+                create_notification(
+                    recipient=provider.user,
+                    notification_type='consultation_message',
+                    title=f'New message from {user.full_name}',
+                    message=f'New message in consultation {consultation.reference}',
+                    data={'reference': consultation.reference, 'consultation_id': consultation.id},
+                )
             elif (is_doctor or is_pediatrician) and consultation.patient:
-                notify_consultation_message(consultation.patient, consultation, user.full_name)
+                create_notification(
+                    recipient=consultation.patient,
+                    notification_type='consultation_message',
+                    title=f'New message from {user.full_name}',
+                    message=f'New message in consultation {consultation.reference}',
+                    data={'reference': consultation.reference, 'consultation_id': consultation.id},
+                )
         except Exception:
             pass
+        _broadcast_consultation_event(
+            consultation.id,
+            'message.new',
+            ConsultationMessageSerializer(msg).data,
+        )
 
 
 # ─── Doctor-Specific Views ────────────────────────────────────────────────────
@@ -377,6 +549,50 @@ class DoctorConsultationListView(generics.ListAPIView):
             return Consultation.objects.none()
         filter_kwargs = {'clinician': provider}
         return Consultation.objects.filter(**filter_kwargs).select_related(*CONSULTATION_SELECT_RELATED)
+
+
+class ConsultationEndView(APIView):
+    permission_classes = [IsDoctor]
+
+    def post(self, request, pk):
+        try:
+            consultation = Consultation.objects.select_related('clinician', 'patient').get(pk=pk)
+        except Consultation.DoesNotExist:
+            return Response({'detail': 'Consultation not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        provider = _get_provider_for_user(request.user)
+        if not provider or consultation.clinician_id != provider.id:
+            return Response({'detail': 'You are not assigned to this consultation.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if consultation.status == Consultation.STATUS_COMPLETED:
+            return Response({'detail': 'Consultation already completed.'})
+
+        consultation.status = Consultation.STATUS_COMPLETED
+        consultation.ended_at = timezone.now()
+        consultation.save(update_fields=['status', 'ended_at', 'updated_at'])
+
+        ClinicianEarning.objects.get_or_create(
+            clinician=provider,
+            consultation=consultation,
+            defaults={
+                'amount': provider.consult_fee,
+                'description': f'Consultation fee for {consultation.reference}',
+            },
+        )
+        if consultation.patient:
+            create_notification(
+                recipient=consultation.patient,
+                notification_type='consultation_status',
+                title='Consultation completed',
+                message=f'Consultation {consultation.reference} has been completed.',
+                data={'consultation_id': consultation.id, 'reference': consultation.reference},
+            )
+        _broadcast_consultation_event(
+            consultation.id,
+            'consultation.status_changed',
+            {'status': consultation.status, 'ended_at': consultation.ended_at.isoformat()},
+        )
+        return Response(ConsultationSerializer(consultation).data)
 
 
 class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
@@ -400,7 +616,137 @@ class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
         if not provider:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('No clinician profile found.')
-        serializer.save(clinician=provider)
+        consultation = serializer.validated_data.get('consultation')
+        patient_name = serializer.validated_data.get('patient_name')
+        if consultation and not patient_name:
+            patient_name = consultation.patient_name
+        serializer.save(clinician=provider, patient_name=patient_name or '')
+
+
+class ClinicianPrescriptionSendView(APIView):
+    permission_classes = [IsDoctor]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        provider = _get_provider_for_user(request.user)
+        if not provider:
+            return Response({'detail': 'No clinician profile found.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            prescription = ClinicianPrescription.objects.select_for_update().select_related(
+                'consultation', 'consultation__patient'
+            ).get(pk=pk, clinician=provider)
+        except ClinicianPrescription.DoesNotExist:
+            return Response({'detail': 'Prescription not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        patient = prescription.consultation.patient if prescription.consultation else None
+        if not patient:
+            return Response({'detail': 'Prescription must be linked to a consultation with a patient.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not prescription.items:
+            return Response({'detail': 'Prescription must contain at least one item.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.prescriptions.models import Prescription as DispensingPrescription, PrescriptionItem as DispensingPrescriptionItem
+
+        linked = getattr(prescription, 'linked_prescriptions', None)
+        existing = linked.order_by('-created_at').first() if linked is not None else None
+        if existing is None:
+            existing = DispensingPrescription.objects.create(
+                patient=patient,
+                patient_name=patient.full_name,
+                doctor_name=provider.name,
+                source=DispensingPrescription.SOURCE_E_PRESCRIPTION,
+                clinician_prescription=prescription,
+                status=DispensingPrescription.STATUS_APPROVED,
+                notes=prescription.notes,
+            )
+        else:
+            existing.status = DispensingPrescription.STATUS_APPROVED
+            existing.notes = prescription.notes
+            existing.doctor_name = provider.name
+            existing.save(update_fields=['status', 'notes', 'doctor_name', 'updated_at'])
+            existing.items.all().delete()
+
+        for item in prescription.items:
+            DispensingPrescriptionItem.objects.create(
+                prescription=existing,
+                name=item.get('drug_name') or item.get('name') or 'Medication',
+                dose=item.get('dose', ''),
+                frequency=item.get('frequency', ''),
+                quantity=item.get('quantity') or 1,
+                is_controlled_substance=_is_controlled_substance_item(item),
+            )
+
+        signature_material = f'{provider.license_number}:{timezone.now().isoformat()}'
+        prescription.digital_signature = hashlib.sha256(signature_material.encode('utf-8')).hexdigest()
+        prescription.status = ClinicianPrescription.STATUS_SENT
+        prescription.sent_at = timezone.now()
+        prescription.save(update_fields=['digital_signature', 'status', 'sent_at', 'updated_at'])
+
+        create_notification(
+            recipient=patient,
+            notification_type='prescription_status',
+            title='New e-prescription',
+            message=f'Your clinician sent prescription {prescription.reference}.',
+            data={'prescription_id': existing.id, 'reference': existing.reference},
+            send_email=True,
+        )
+        return Response(self._serialize_response(prescription, request.user))
+
+    @staticmethod
+    def _serialize_response(prescription, user):
+        serializer_class = PediatricianPrescriptionSerializer if user.role == 'pediatrician' else DoctorPrescriptionSerializer
+        return serializer_class(prescription).data
+
+
+class ClinicianPrescriptionPDFView(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request, pk):
+        provider = _get_provider_for_user(request.user)
+        if not provider:
+            return Response({'detail': 'No clinician profile found.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            prescription = ClinicianPrescription.objects.select_related('consultation').get(pk=pk, clinician=provider)
+        except ClinicianPrescription.DoesNotExist:
+            return Response({'detail': 'Prescription not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:  # pragma: no cover - optional dependency in local dev
+            from reportlab.lib.pagesizes import A4
+            from reportlab.pdfgen import canvas
+        except ImportError:
+            return Response({'detail': 'PDF generation dependency is not installed.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        buffer = BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=A4)
+        pdf.setTitle(f'{prescription.reference}.pdf')
+        y = 800
+        rows = [
+            'AvaPharma Clinic',
+            f'Prescription: {prescription.reference}',
+            f'Clinician: {provider.name} ({provider.license_number})',
+            f'Patient: {prescription.patient_name}',
+            f'Status: {prescription.get_status_display()}',
+            '',
+        ]
+        for row in rows:
+            pdf.drawString(40, y, row)
+            y -= 22
+        for item in prescription.items:
+            text = f"- {item.get('drug_name') or item.get('name')} | {item.get('dose', '')} | {item.get('frequency', '')} | {item.get('duration', '')}"
+            pdf.drawString(40, y, text[:110])
+            y -= 18
+            if item.get('notes'):
+                pdf.drawString(55, y, f"Notes: {item['notes']}"[:105])
+                y -= 18
+        y -= 8
+        pdf.drawString(40, y, f'Digital signature: {prescription.digital_signature or "Pending"}')
+        pdf.showPage()
+        pdf.save()
+        buffer.seek(0)
+
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{prescription.reference}.pdf"'
+        return response
 
 
 class ClinicianEarningsView(generics.ListAPIView):
@@ -447,7 +793,8 @@ class AdminDoctorDetailView(generics.RetrieveUpdateAPIView):
 
         if request.data.get('status') == ClinicianProfile.STATUS_ACTIVE and not instance.verified_at:
             instance.verified_at = timezone.now()
-            instance.save(update_fields=['verified_at'])
+            instance.is_verified = True
+            instance.save(update_fields=['verified_at', 'is_verified'])
 
         doctor = serializer.save(updated_by=request.user)
 
@@ -475,10 +822,11 @@ class AdminDoctorActionView(APIView):
 
         if action == 'approve':
             doctor.status = ClinicianProfile.STATUS_ACTIVE
+            doctor.is_verified = True
             doctor.verified_at = timezone.now()
             doctor.status_note = ''
             doctor.updated_by = request.user
-            doctor.save(update_fields=['status', 'verified_at', 'status_note', 'updated_by', 'updated_at'])
+            doctor.save(update_fields=['status', 'is_verified', 'verified_at', 'status_note', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'doctor_approved', 'doctor_profile', doctor.id,
                              f'Approved {doctor.name}')
             if doctor.user:
@@ -501,9 +849,10 @@ class AdminDoctorActionView(APIView):
             if not note:
                 return Response({'note': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
             doctor.status = ClinicianProfile.STATUS_SUSPENDED
+            doctor.is_verified = False
             doctor.rejection_note = note
             doctor.updated_by = request.user
-            doctor.save(update_fields=['status', 'rejection_note', 'updated_by', 'updated_at'])
+            doctor.save(update_fields=['status', 'is_verified', 'rejection_note', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'doctor_rejected', 'doctor_profile', doctor.id,
                              f'Rejected {doctor.name}')
 
@@ -513,6 +862,64 @@ class AdminDoctorActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        return Response(DoctorProfileSerializer(doctor).data)
+
+
+class AdminDoctorVerifyView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            doctor = ClinicianProfile.objects.doctors().select_related('user').get(pk=pk)
+        except ClinicianProfile.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        doctor.status = ClinicianProfile.STATUS_ACTIVE
+        doctor.is_verified = True
+        doctor.verified_at = timezone.now()
+        doctor.suspension_reason = ''
+        doctor.updated_by = request.user
+        doctor.save(update_fields=['status', 'is_verified', 'verified_at', 'suspension_reason', 'updated_by', 'updated_at'])
+        if doctor.user:
+            doctor.user.status = doctor.user.STATUS_ACTIVE
+            doctor.user.is_active = True
+            doctor.user.save(update_fields=['status', 'is_active', 'updated_at'])
+            notify_doctor_verified(doctor)
+        return Response(DoctorProfileSerializer(doctor).data)
+
+
+class AdminDoctorSuspendView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            doctor = ClinicianProfile.objects.doctors().select_related('user').get(pk=pk)
+        except ClinicianProfile.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = DoctorVerificationActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data.get('reason', '').strip()
+        if not reason:
+            return Response({'reason': 'Suspension reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        doctor.status = ClinicianProfile.STATUS_SUSPENDED
+        doctor.is_verified = False
+        doctor.suspension_reason = reason
+        doctor.updated_by = request.user
+        doctor.save(update_fields=['status', 'is_verified', 'suspension_reason', 'updated_by', 'updated_at'])
+        if doctor.user:
+            doctor.user.status = doctor.user.STATUS_SUSPENDED
+            doctor.user.is_active = False
+            doctor.user.save(update_fields=['status', 'is_active', 'updated_at'])
+            create_notification(
+                recipient=doctor.user,
+                notification_type='doctor_verified',
+                title='Doctor account suspended',
+                message=reason,
+                data={'doctor_id': doctor.id},
+                send_email=True,
+            )
         return Response(DoctorProfileSerializer(doctor).data)
 
 

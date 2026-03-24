@@ -619,6 +619,7 @@ class ProductInventory(models.Model):
     low_stock_threshold = models.PositiveIntegerField(default=0)
     allow_backorder = models.BooleanField(default=False)
     max_backorder_quantity = models.PositiveIntegerField(default=0)
+    next_restock_date = models.DateField(null=True, blank=True)
     is_pos_synced = models.BooleanField(default=False)
     last_synced_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -635,6 +636,10 @@ class ProductInventory(models.Model):
 
     def __str__(self):
         return f"{self.get_location_display()} inventory for {self.product.name}"
+
+    @property
+    def quantity_on_hand(self):
+        return self.stock_quantity
 
     def save(self, *args, **kwargs):
         """Persist a location inventory row."""
@@ -985,8 +990,22 @@ class StockMovement(models.Model):
         (TYPE_INITIAL, 'Initial'),
     ]
 
+    SOURCE_MANUAL = 'manual'
+    SOURCE_POS_SYNC = 'pos_sync'
+    SOURCE_WEBHOOK = 'webhook'
+    SOURCE_ORDER = 'order'
+    SOURCE_SYSTEM = 'system'
+    SOURCE_CHOICES = [
+        (SOURCE_MANUAL, 'Manual'),
+        (SOURCE_POS_SYNC, 'POS Sync'),
+        (SOURCE_WEBHOOK, 'Webhook'),
+        (SOURCE_ORDER, 'Order'),
+        (SOURCE_SYSTEM, 'System'),
+    ]
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
     movement_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
     quantity_change = models.IntegerField()
     quantity_before = models.PositiveIntegerField()
     quantity_after = models.PositiveIntegerField()
@@ -1007,6 +1026,7 @@ class StockMovement(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['product', '-created_at']),
+            models.Index(fields=['source', '-created_at']),
         ]
 
     def __str__(self):

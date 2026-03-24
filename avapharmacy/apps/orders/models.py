@@ -324,6 +324,9 @@ class OrderItem(models.Model):
     variant_sku = models.CharField(max_length=60, blank=True)
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    allocated_branch_quantity = models.PositiveIntegerField(default=0)
+    allocated_warehouse_quantity = models.PositiveIntegerField(default=0)
+    allocated_backorder_quantity = models.PositiveIntegerField(default=0)
     prescription_reference = models.CharField(max_length=20, blank=True, null=True)
     prescription = models.ForeignKey(
         'prescriptions.Prescription',

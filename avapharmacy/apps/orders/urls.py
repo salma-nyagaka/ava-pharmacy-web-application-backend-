@@ -37,6 +37,7 @@ urlpatterns = [
     path('payments/mpesa/paybill/confirmation/', views.MpesaPaybillConfirmationView.as_view(), name='payment-mpesa-paybill-confirmation'),
     path('payments/mpesa/paybill/webhook/', views.PaybillWebhookView.as_view(), name='payment-mpesa-paybill-webhook'),
     path('payments/webhook/', views.PaymentWebhookView.as_view(), name='payment-webhook'),
+    path('webhooks/order-status/', views.OrderStatusWebhookView.as_view(), name='order-status-webhook'),
 
     # Orders (spec: POST /orders = one-step create)
     path('orders/', views.OrderListView.as_view(), name='orders'),
@@ -52,6 +53,8 @@ urlpatterns = [
     path('admin/orders/', views.AdminOrderListView.as_view(), name='admin-orders'),
     path('admin/orders/<int:pk>/', views.AdminOrderDetailView.as_view(), name='admin-order-detail'),
     path('admin/orders/<int:pk>/status/', views.AdminOrderStatusView.as_view(), name='admin-order-status'),
+    path('admin/order-push/', views.AdminOrderPushListView.as_view(), name='admin-order-push-list'),
+    path('admin/order-push/<int:pk>/retry/', views.AdminOrderPushRetryView.as_view(), name='admin-order-push-retry'),
     path('admin/orders/<int:pk>/notes/', views.AdminOrderNoteView.as_view(), name='admin-order-notes'),
     path('admin/orders/<int:pk>/refund/', views.AdminOrderRefundView.as_view(), name='admin-order-refund'),
     path('admin/payments/mpesa/paybill/register-urls/', views.AdminMpesaPaybillRegisterUrlsView.as_view(), name='admin-payment-mpesa-paybill-register-urls'),

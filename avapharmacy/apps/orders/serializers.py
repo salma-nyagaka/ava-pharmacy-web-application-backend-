@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
 from .payment_helpers import (
     build_paybill_account_reference,
     get_paybill_account_label,
@@ -369,6 +369,25 @@ class PaymentWebhookSerializer(serializers.Serializer):
     provider_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
     message = serializers.CharField(max_length=255, required=False, allow_blank=True)
     payload = serializers.JSONField(required=False)
+
+
+class OrderStatusWebhookSerializer(serializers.Serializer):
+    order_number = serializers.CharField(max_length=20)
+    status = serializers.ChoiceField(choices=Order.STATUS_CHOICES)
+    message = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    payload = serializers.JSONField(required=False)
+
+
+class OutboundOrderPushSerializer(serializers.ModelSerializer):
+    order_number = serializers.ReadOnlyField(source='order.order_number')
+
+    class Meta:
+        model = OutboundOrderPush
+        fields = (
+            'id', 'order', 'order_number', 'action', 'status', 'attempt_count',
+            'max_attempts', 'next_attempt_at', 'last_attempt_at', 'processed_at',
+            'response_status_code', 'response_body', 'last_error', 'created_at', 'updated_at',
+        )
 
 
 class AdminInvoiceSerializer(serializers.ModelSerializer):

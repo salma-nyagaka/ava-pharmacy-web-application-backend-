@@ -20,7 +20,7 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
         model = PrescriptionItem
         fields = (
             'id', 'name', 'product_id', 'product_name', 'product_slug', 'product_image',
-            'dose', 'frequency', 'quantity',
+            'dose', 'frequency', 'quantity', 'is_controlled_substance',
         )
         read_only_fields = ('id',)
 
@@ -37,7 +37,7 @@ class PrescriptionAuditLogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PrescriptionAuditLog
-        fields = ('id', 'action', 'performed_by', 'performed_by_name', 'timestamp')
+        fields = ('id', 'action', 'notes', 'performed_by', 'performed_by_name', 'timestamp')
         read_only_fields = ('id', 'timestamp')
 
 
@@ -47,25 +47,36 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     audit_logs = PrescriptionAuditLogSerializer(many=True, read_only=True)
     patient_name_display = serializers.ReadOnlyField(source='patient.full_name')
     pharmacist_name = serializers.ReadOnlyField(source='pharmacist.full_name')
+    is_overdue = serializers.ReadOnlyField()
 
     class Meta:
         model = Prescription
         fields = (
             'id', 'reference', 'patient', 'patient_name', 'patient_name_display',
-            'doctor_name', 'pharmacist', 'pharmacist_name', 'status', 'dispatch_status',
-            'notes', 'pharmacist_notes', 'files', 'items', 'audit_logs',
-            'submitted_at', 'updated_at'
+            'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'status', 'dispatch_status',
+            'notes', 'pharmacist_notes', 'clarification_message',
+            'files', 'items', 'audit_logs', 'is_overdue',
+            'resubmitted_at', 'submitted_at', 'updated_at'
         )
         read_only_fields = ('id', 'reference', 'patient', 'submitted_at', 'updated_at')
+
+
+class PrescriptionUploadItemSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    quantity = serializers.IntegerField(min_value=1, required=False, default=1)
 
 
 class PrescriptionUploadSerializer(serializers.Serializer):
     patient_name = serializers.CharField(max_length=200)
     doctor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
+    items = PrescriptionUploadItemSerializer(many=True, required=False)
     files = serializers.ListField(
         child=serializers.FileField(),
-        min_length=1
+        min_length=1,
+        max_length=5,
     )
 
 
@@ -121,3 +132,36 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
 
 class PrescriptionAuditCreateSerializer(serializers.Serializer):
     action = serializers.CharField(max_length=500)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class PharmacistPrescriptionReviewItemSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    product_id = serializers.IntegerField(required=False, allow_null=True)
+    dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
+    ACTION_APPROVE = 'approve'
+    ACTION_REJECT = 'reject'
+    ACTION_REQUEST_CLARIFICATION = 'request_clarification'
+    ACTION_CHOICES = [
+        (ACTION_APPROVE, 'Approve'),
+        (ACTION_REJECT, 'Reject'),
+        (ACTION_REQUEST_CLARIFICATION, 'Request Clarification'),
+    ]
+
+    action = serializers.ChoiceField(choices=ACTION_CHOICES)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    items = PharmacistPrescriptionReviewItemSerializer(many=True, required=False)
+
+
+class PrescriptionResubmitSerializer(serializers.Serializer):
+    notes = serializers.CharField(required=False, allow_blank=True)
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        required=False,
+        max_length=5,
+    )

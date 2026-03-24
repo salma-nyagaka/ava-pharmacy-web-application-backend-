@@ -1,6 +1,8 @@
 import uuid
 from django.db import models
 
+from avapharmacy.fields import OptionalEncryptedCharField
+
 
 class BaseClinicianProfile(models.Model):
     STATUS_ACTIVE = 'active'
@@ -19,11 +21,22 @@ class BaseClinicianProfile(models.Model):
         (PAYOUT_BANK, 'Bank Transfer'),
     ]
 
+    GENDER_MALE = 'male'
+    GENDER_FEMALE = 'female'
+    GENDER_OTHER = 'other'
+    GENDER_CHOICES = [
+        (GENDER_MALE, 'Male'),
+        (GENDER_FEMALE, 'Female'),
+        (GENDER_OTHER, 'Other'),
+    ]
+
     reference = models.CharField(max_length=20, unique=True, blank=True)
     user = models.OneToOneField(
         'accounts.User', on_delete=models.CASCADE, null=True, blank=True
     )
     name = models.CharField(max_length=200)
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
     specialty = models.CharField(max_length=200)
     email = models.EmailField()
     phone = models.CharField(max_length=20)
@@ -34,6 +47,7 @@ class BaseClinicianProfile(models.Model):
     id_number = models.CharField(max_length=100, blank=True)
     facility = models.CharField(max_length=200, blank=True)
     availability = models.CharField(max_length=200, blank=True)
+    availability_schedule = models.JSONField(default=list, blank=True)
     bio = models.TextField(blank=True)
     languages = models.JSONField(default=list)
     consult_modes = models.JSONField(default=list)
@@ -44,10 +58,14 @@ class BaseClinicianProfile(models.Model):
     document_checklist = models.JSONField(default=list)
     payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, default=PAYOUT_MPESA)
     payout_account = models.CharField(max_length=100, blank=True)
+    payout_account_number = OptionalEncryptedCharField(max_length=255, blank=True)
+    currency = models.CharField(max_length=10, default='KES')
     background_consent = models.BooleanField(default=False)
     compliance_declaration = models.BooleanField(default=False)
     agreed_to_terms = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    is_verified = models.BooleanField(default=False)
+    suspension_reason = models.TextField(blank=True)
     status_note = models.TextField(blank=True)
     rejection_note = models.TextField(blank=True)
     commission = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
@@ -198,6 +216,8 @@ class Consultation(models.Model):
         'accounts.User', on_delete=models.SET_NULL, null=True, related_name='consultations'
     )
     patient_name = models.CharField(max_length=200)
+    patient_email = models.EmailField(blank=True)
+    patient_phone = models.CharField(max_length=20, blank=True)
     patient_age = models.PositiveIntegerField(null=True, blank=True)
     issue = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_WAITING)
@@ -219,6 +239,7 @@ class Consultation(models.Model):
     dosage_alert = models.BooleanField(default=False)
 
     last_message_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -257,10 +278,23 @@ class Consultation(models.Model):
 
 
 class ConsultationMessage(models.Model):
+    TYPE_TEXT = 'text'
+    TYPE_IMAGE = 'image'
+    TYPE_FILE = 'file'
+    TYPE_E_PRESCRIPTION = 'e_prescription'
+    TYPE_CHOICES = [
+        (TYPE_TEXT, 'Text'),
+        (TYPE_IMAGE, 'Image'),
+        (TYPE_FILE, 'File'),
+        (TYPE_E_PRESCRIPTION, 'E-Prescription'),
+    ]
+
     consultation = models.ForeignKey(Consultation, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True)
     sender_name = models.CharField(max_length=200)
     message = models.TextField()
+    message_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_TEXT)
+    attachment = models.FileField(upload_to='consultations/messages/', null=True, blank=True)
     sent_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -288,7 +322,10 @@ class BaseClinicianPrescription(models.Model):
     patient_name = models.CharField(max_length=200)
     items = models.JSONField(default=list)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    digital_signature = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    dispensed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -22,8 +22,9 @@ from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
 from apps.products.models import Product, ProductVariant, annotate_product_inventory
 from apps.products.pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
+from avapharmacy.security import verify_hmac_signature
 
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
 from .integrations import push_order_to_pos
 from .flutterwave import FlutterwaveAPIError, FlutterwaveClient, FlutterwaveConfigurationError
 from .mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
@@ -48,6 +49,8 @@ from .serializers import (
     MpesaC2BRegisterSerializer,
     FlutterwaveInitiateSerializer,
     FlutterwaveStatusSerializer,
+    OrderStatusWebhookSerializer,
+    OutboundOrderPushSerializer,
     PaymentIntentCreateSerializer,
     PaymentIntentSerializer,
     PaymentWebhookSerializer,
@@ -56,6 +59,7 @@ from .serializers import (
     ReturnRequestSerializer,
     ShippingMethodSerializer,
 )
+from .stock import commit_order_inventory, release_order_inventory
 
 payments_logger = logging.getLogger('payments')
 
@@ -379,6 +383,7 @@ def _mark_order_paid(order, intent, message, notify_message):
         title=f'Payment received for {order.order_number}',
         message=notify_message,
     )
+    _save_order_push_result(order, 'paid')
 
 
 def _mark_order_payment_failed(order, intent, message):
@@ -391,6 +396,23 @@ def _mark_order_payment_failed(order, intent, message):
         metadata={'provider_reference': intent.provider_reference},
         event_type='payment_failed',
     )
+
+
+def _apply_order_status_transition(order, next_status, *, actor=None, message='', metadata=None):
+    previous_status = order.status
+    if previous_status == next_status:
+        return
+    order.status = next_status
+    order.save(update_fields=['status', 'updated_at'])
+    create_order_event(
+        order,
+        f'status_{next_status}',
+        message or f'Order status changed from {previous_status} to {next_status}.',
+        actor=actor,
+        metadata={'previous_status': previous_status, **(metadata or {})},
+    )
+    notify_order_status(order)
+    _save_order_push_result(order, 'updated')
 
 
 def _build_flutterwave_redirect_url(request, order, intent, fallback=''):
@@ -2054,12 +2076,7 @@ class CheckoutFinalizeView(APIView):
         if errors:
             return Response({'detail': errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        for item in order.items.all():
-            inventory_object = locked_variants.get(item.product_variant_id) if item.product_variant_id else locked_products.get(item.product_id)
-            if not inventory_object:
-                continue
-            inventory_object.stock_quantity = max(0, inventory_object.stock_quantity - item.quantity)
-            inventory_object.save()
+        commit_order_inventory(order)
 
         order.status = Order.STATUS_PENDING if order.payment_method == Order.PAYMENT_COD else Order.STATUS_PAID
         if order.payment_method == Order.PAYMENT_COD:
@@ -2122,11 +2139,7 @@ class OrderCancelView(APIView):
             )
 
         if order.inventory_committed:
-            for item in order.items.select_related('product', 'product_variant').all():
-                inventory_object = item.product_variant or item.product
-                if inventory_object:
-                    inventory_object.stock_quantity += item.quantity
-                    inventory_object.save()
+            release_order_inventory(order)
 
         order.status = Order.STATUS_CANCELLED
         order.save(update_fields=['status', 'updated_at'])
@@ -2240,11 +2253,12 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
         if order.status != prev_status:
             create_order_event(
                 order,
-                'status_changed',
+                f'status_{order.status}',
                 f'Order status changed from {prev_status} to {order.status}.',
                 actor=request.user,
+                metadata={'previous_status': prev_status},
             )
-            notify_order_update(order)
+            notify_order_status(order)
             _save_order_push_result(order, 'updated')
         if order.payment_status != prev_payment_status:
             create_order_event(
@@ -2299,11 +2313,7 @@ class AdminOrderRefundView(APIView):
             return Response({'detail': 'Only paid orders can be refunded.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if order.inventory_committed:
-            for item in order.items.select_related('product', 'product_variant').all():
-                inventory_object = item.product_variant or item.product
-                if inventory_object:
-                    inventory_object.stock_quantity += item.quantity
-                    inventory_object.save()
+            release_order_inventory(order)
 
         order.payment_status = Order.PAYMENT_STATUS_REFUNDED
         order.status = Order.STATUS_REFUNDED
@@ -2319,6 +2329,66 @@ class AdminOrderRefundView(APIView):
         notify_order_update(order, title=f'Order {order.order_number} refunded', message='Your refund has been processed.')
         _save_order_push_result(order, 'refunded')
         return Response(AdminOrderSerializer(order).data)
+
+
+class AdminOrderPushListView(generics.ListAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = OutboundOrderPushSerializer
+
+    def get_queryset(self):
+        return OutboundOrderPush.objects.select_related('order').filter(
+            status=OutboundOrderPush.STATUS_EXHAUSTED
+        ).order_by('-updated_at')
+
+
+class AdminOrderPushRetryView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            push_record = OutboundOrderPush.objects.select_for_update().select_related('order').get(pk=pk)
+        except OutboundOrderPush.DoesNotExist:
+            return Response({'detail': 'Order push record not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        result = push_order_to_pos(
+            push_record.order,
+            push_record.action,
+            queue_record=push_record,
+            persist_failure=True,
+            max_attempts=max(1, push_record.max_attempts or settings.EXTERNAL_ORDER_MAX_ATTEMPTS),
+        )
+        refreshed = OutboundOrderPush.objects.get(pk=push_record.pk)
+        payload = OutboundOrderPushSerializer(refreshed).data
+        payload['result'] = result
+        return Response(payload)
+
+
+class OrderStatusWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        signature = request.headers.get('X-Sync-Signature', '')
+        if not verify_hmac_signature(request.body, signature, settings.ORDER_STATUS_WEBHOOK_SECRET):
+            return Response({'detail': 'Invalid order status signature.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = OrderStatusWebhookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            order = Order.objects.select_for_update().get(order_number=data['order_number'])
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        _apply_order_status_transition(
+            order,
+            data['status'],
+            message=data.get('message', '').strip() or f'Order updated to {data["status"]} by fulfillment webhook.',
+            metadata={'webhook': data.get('payload', {})},
+        )
+        return Response(OrderSerializer(order).data)
 
 
 class AdminReturnRequestListView(generics.ListAPIView):
@@ -2628,13 +2698,13 @@ class AdminActivityFeedView(APIView):
             })
 
         prescriptions = list(
-            Prescription.objects.filter(status='pending').order_by('-created_at')[:5]
+            Prescription.objects.filter(status='pending').order_by('-submitted_at')[:5]
         )
         for rx in prescriptions:
             feed.append({
                 'type': 'prescription_pending',
                 'message': f'Prescription awaiting review',
-                'timestamp': rx.created_at.isoformat(),
+                'timestamp': rx.submitted_at.isoformat(),
                 'link': '/admin/prescriptions',
             })
 
@@ -2874,11 +2944,7 @@ class OrderCreateView(APIView):
 
         # For COD: mark inventory immediately
         if payment_method == Order.PAYMENT_COD:
-            for item in items:
-                inventory_object = item.product_variant or item.product
-                if inventory_object:
-                    inventory_object.stock_quantity = max(0, inventory_object.stock_quantity - item.quantity)
-                    inventory_object.save()
+            commit_order_inventory(order)
             order.inventory_committed = True
             order.save(update_fields=['inventory_committed', 'updated_at'])
 
@@ -2950,6 +3016,15 @@ class OrderTrackingView(APIView):
             'current_status': order.status,
             'estimated_delivery': None,
             'tracking_steps': tracking_steps,
+            'events': [
+                {
+                    'event_type': event.event_type,
+                    'message': event.message,
+                    'metadata': event.metadata,
+                    'created_at': event.created_at,
+                }
+                for event in order.events.all().order_by('-created_at')
+            ],
         })
 
 
@@ -3091,15 +3166,12 @@ class AdminOrderStatusView(APIView):
                     {'error': {'code': 'invalid_transition', 'message': f'Cannot transition from {order.status} to {new_status}.'}},
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
-            prev_status = order.status
-            order.status = new_status
-            order.save(update_fields=['status', 'updated_at'])
-            create_order_event(
-                order, 'status_changed',
-                note or f'Status changed from {prev_status} to {new_status}.',
+            _apply_order_status_transition(
+                order,
+                new_status,
                 actor=request.user,
+                message=note or f'Status changed from {order.status} to {new_status}.',
             )
-            notify_order_update(order)
             log_admin_action(
                 request.user, action='order_status_updated', entity_type='order',
                 entity_id=order.id, message=f'Order {order.order_number} → {new_status}',

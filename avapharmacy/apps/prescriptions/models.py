@@ -1,5 +1,7 @@
 import uuid
+from datetime import timedelta
 from django.db import models
+from django.utils import timezone
 
 
 def prescription_upload_path(instance, filename):
@@ -7,6 +9,13 @@ def prescription_upload_path(instance, filename):
 
 
 class Prescription(models.Model):
+    SOURCE_UPLOAD = 'upload'
+    SOURCE_E_PRESCRIPTION = 'e_prescription'
+    SOURCE_CHOICES = [
+        (SOURCE_UPLOAD, 'Upload'),
+        (SOURCE_E_PRESCRIPTION, 'E-Prescription'),
+    ]
+
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
     STATUS_CLARIFICATION = 'clarification'
@@ -43,10 +52,20 @@ class Prescription(models.Model):
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='reviewed_prescriptions'
     )
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_UPLOAD)
+    clinician_prescription = models.ForeignKey(
+        'consultations.ClinicianPrescription',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='linked_prescriptions',
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     dispatch_status = models.CharField(max_length=20, choices=DISPATCH_CHOICES, default=DISPATCH_NOT_STARTED)
     notes = models.TextField(blank=True)
     pharmacist_notes = models.TextField(blank=True)
+    clarification_message = models.TextField(blank=True)
+    resubmitted_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -56,6 +75,7 @@ class Prescription(models.Model):
             models.Index(fields=['patient', 'status']),
             models.Index(fields=['status', '-submitted_at']),
             models.Index(fields=['dispatch_status', '-submitted_at']),
+            models.Index(fields=['source', 'status']),
         ]
 
     def __str__(self):
@@ -65,6 +85,12 @@ class Prescription(models.Model):
         if not self.reference:
             self.reference = f"RX-{uuid.uuid4().hex[:6].upper()}"
         super().save(*args, **kwargs)
+
+    @property
+    def is_overdue(self):
+        if self.status != self.STATUS_PENDING:
+            return False
+        return self.submitted_at <= timezone.now() - timedelta(hours=24)
 
 
 class PrescriptionFile(models.Model):
@@ -95,6 +121,7 @@ class PrescriptionItem(models.Model):
     dose = models.CharField(max_length=100, blank=True)
     frequency = models.CharField(max_length=100, blank=True)
     quantity = models.PositiveIntegerField(default=1)
+    is_controlled_substance = models.BooleanField(default=False)
 
     class Meta:
         indexes = [
@@ -108,6 +135,7 @@ class PrescriptionItem(models.Model):
 class PrescriptionAuditLog(models.Model):
     prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name='audit_logs')
     action = models.CharField(max_length=500)
+    notes = models.TextField(blank=True)
     performed_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True
     )

@@ -14,10 +14,13 @@ urlpatterns = [
 
     # Lab tech dashboard (serves /labaratory frontend route)
     path('lab/dashboard/', views.LabTechDashboardView.as_view(), name='lab-dashboard'),
+    path('lab/partner/dashboard/', views.LabPartnerDashboardView.as_view(), name='lab-partner-dashboard'),
+    path('lab/partner/technicians/', views.LabPartnerTechnicianListCreateView.as_view(), name='lab-partner-techs'),
+    path('lab/partner/technicians/<int:pk>/action/', views.LabPartnerTechnicianActionView.as_view(), name='lab-partner-tech-action'),
+    path('lab/partner/technicians/<int:pk>/provision-account/', views.LabPartnerTechnicianProvisionAccountView.as_view(), name='lab-partner-tech-provision-account'),
 
     # Public professional registration
     path('professionals/register/lab-partner/', views.LabPartnerRegistrationView.as_view(), name='lab-partner-register'),
-    path('professionals/register/lab-technician/', views.LabTechnicianRegistrationView.as_view(), name='lab-tech-register'),
 
     # Admin
     path('admin/lab/tests/', views.AdminLabTestListCreateView.as_view(), name='admin-lab-tests'),

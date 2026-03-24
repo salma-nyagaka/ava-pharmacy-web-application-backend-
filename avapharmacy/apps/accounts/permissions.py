@@ -83,6 +83,26 @@ class IsLabTechOrAdmin(BasePermission):
         )
 
 
+class IsLabPartner(BasePermission):
+    """Allow access only to verified lab partner accounts."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user and request.user.is_authenticated
+            and request.user.role == User.LAB_PARTNER
+        )
+
+
+class IsLabPartnerOrAdmin(BasePermission):
+    """Allow access to lab partners and admins."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user and request.user.is_authenticated
+            and request.user.role in [User.LAB_PARTNER, User.ADMIN]
+        )
+
+
 class IsStaffUser(BasePermission):
     """Allow access to any internal staff role (admin, pharmacist, lab tech, inventory)."""
 
