@@ -61,6 +61,8 @@ class CartSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     subtotal = serializers.ReadOnlyField()
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_slug = serializers.CharField(source='product.slug', read_only=True)
     product_variant = ProductVariantSerializer(read_only=True)
     prescription_id = serializers.CharField(source='prescription_reference', read_only=True)
     prescription = serializers.IntegerField(source='prescription_id', read_only=True)
@@ -69,7 +71,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = (
-            'id', 'product_name', 'product_sku', 'product_variant', 'variant_name', 'variant_sku',
+            'id', 'product_id', 'product_slug', 'product_name', 'product_sku', 'product_variant', 'variant_name', 'variant_sku',
             'quantity', 'unit_price', 'discount_total', 'prescription_id', 'prescription', 'prescription_item', 'subtotal'
         )
 

@@ -1,3 +1,4 @@
+import json
 import io
 from decimal import Decimal
 
@@ -110,21 +111,23 @@ class AdminCatalogAndWishlistTests(TestCase):
                 'title': 'Panadol Weekend Saver',
                 'code': 'PANADOL15',
                 'description': '15 percent off Panadol',
+                'image': make_test_image('promotion.png', width=1400, height=900),
                 'type': Promotion.TYPE_PERCENTAGE,
                 'value': '15',
                 'scope': Promotion.SCOPE_PRODUCT,
-                'targets': [product.sku],
+                'targets': json.dumps([product.sku]),
                 'minimum_order_amount': '0',
                 'start_date': '2026-03-16',
                 'end_date': '2026-03-30',
                 'status': Promotion.STATUS_ACTIVE,
             },
-            format='json',
+            format='multipart',
         )
         self.assertEqual(promotion_response.status_code, 201)
         promotion = Promotion.objects.get(code='PANADOL15')
         self.assertEqual(promotion.badge, '15% Off')
         self.assertFalse(promotion.is_stackable)
+        self.assertTrue(bool(promotion.image))
 
     def test_admin_brand_create_accepts_image_alias(self):
         self.client.force_authenticate(self.admin)
@@ -490,6 +493,94 @@ class AdminCatalogAndWishlistTests(TestCase):
         skus = [item['sku'] for item in response.data['results']]
         self.assertLess(skus.index('FALLBACK-001'), skus.index('FALLBACK-002'))
         self.assertLess(skus.index('FALLBACK-002'), skus.index('FALLBACK-003'))
+
+    def test_featured_products_exclude_prescription_products(self):
+        otc_product = Product.objects.create(
+            sku='OTC-001',
+            name='Everyday Vitamin',
+            price=Decimal('800.00'),
+            is_active=True,
+            requires_prescription=False,
+        )
+        prescription_product = Product.objects.create(
+            sku='RX-001',
+            name='Prescription Antibiotic',
+            price=Decimal('1500.00'),
+            is_active=True,
+            requires_prescription=True,
+        )
+
+        ProductReview.objects.create(
+            product=otc_product,
+            user=self.customer,
+            rating=5,
+            comment='Excellent',
+            is_approved=True,
+        )
+        ProductReview.objects.create(
+            product=prescription_product,
+            user=self.admin,
+            rating=5,
+            comment='Excellent',
+            is_approved=True,
+        )
+
+        response = self.client.get(reverse('featured-products'))
+        self.assertEqual(response.status_code, 200)
+        skus = [item['sku'] for item in response.data['results']]
+        self.assertIn('OTC-001', skus)
+        self.assertNotIn('RX-001', skus)
+
+    def test_customer_can_create_and_update_review_for_delivered_product(self):
+        product = Product.objects.create(
+            sku='REVIEW-001',
+            name='Reviewable Product',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        delivered_order = Order.objects.create(
+            customer=self.customer,
+            status=Order.STATUS_DELIVERED,
+            payment_method=Order.PAYMENT_COD,
+            payment_status=Order.PAYMENT_STATUS_PAID,
+            shipping_first_name='Customer',
+            shipping_last_name='User',
+            shipping_email='customer@example.com',
+            shipping_phone='+254700000000',
+            shipping_street='Moi Avenue',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal=Decimal('500.00'),
+            total=Decimal('500.00'),
+        )
+        OrderItem.objects.create(
+            order=delivered_order,
+            product=product,
+            product_name=product.name,
+            product_sku=product.sku,
+            quantity=1,
+            unit_price=product.price,
+        )
+
+        self.client.force_authenticate(self.customer)
+        create_response = self.client.post(
+            reverse('product-reviews', args=[product.id]),
+            {'rating': 5, 'comment': 'Worked very well.'},
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201)
+        self.assertEqual(ProductReview.objects.filter(product=product, user=self.customer).count(), 1)
+        self.assertTrue(create_response.data['is_verified_purchase'])
+
+        update_response = self.client.post(
+            reverse('product-reviews', args=[product.id]),
+            {'rating': 4, 'comment': 'Updating my rating after a week.'},
+            format='json',
+        )
+        self.assertEqual(update_response.status_code, 200)
+        review = ProductReview.objects.get(product=product, user=self.customer)
+        self.assertEqual(review.rating, 4)
+        self.assertEqual(review.comment, 'Updating my rating after a week.')
 
     def test_rebuild_pharmacy_taxonomy_maps_products_to_clean_subcategories(self):
         Product.objects.create(

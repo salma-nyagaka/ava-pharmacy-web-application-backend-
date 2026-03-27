@@ -328,16 +328,26 @@ class AdminProductVariantSerializer(ProductVariantSerializer):
 
 class ProductReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.ReadOnlyField(source='user.full_name')
+    is_verified_purchase = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductReview
-        fields = ('id', 'user', 'user_name', 'rating', 'comment', 'is_approved', 'created_at')
+        fields = ('id', 'user', 'user_name', 'rating', 'comment', 'is_approved', 'is_verified_purchase', 'created_at')
         read_only_fields = ('id', 'user', 'is_approved', 'created_at')
 
     def validate_rating(self, value):
         if not 1 <= value <= 5:
             raise serializers.ValidationError('Rating must be between 1 and 5.')
         return value
+
+    def get_is_verified_purchase(self, obj):
+        from apps.orders.models import Order
+
+        return Order.objects.filter(
+            customer=obj.user,
+            status=Order.STATUS_DELIVERED,
+            items__product=obj.product,
+        ).exists()
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -731,7 +741,7 @@ class PromotionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Promotion
         fields = (
-            'id', 'title', 'code', 'description', 'type', 'value', 'scope', 'targets', 'badge',
+            'id', 'title', 'code', 'description', 'image', 'type', 'value', 'scope', 'targets', 'badge',
             'priority', 'is_stackable', 'minimum_order_amount',
             'start_date', 'end_date', 'status', 'is_currently_active',
             'created_at', 'updated_at'
@@ -742,6 +752,22 @@ class PromotionSerializer(serializers.ModelSerializer):
             'is_stackable': {'read_only': True},
             'priority': {'read_only': True},
         }
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        has_image_input = hasattr(self, 'initial_data') and 'image' in self.initial_data
+        existing_image = getattr(self.instance, 'image', None)
+        if attrs.get('code', None) == '':
+            attrs['code'] = None
+
+        if self.instance is None and not attrs.get('image'):
+            raise serializers.ValidationError({'image': ['Offer image is required.']})
+        if self.instance is not None and has_image_input and not attrs.get('image') and not existing_image:
+            raise serializers.ValidationError({'image': ['Offer image is required.']})
+        if attrs.get('image'):
+            validate_uploaded_image(attrs['image'], 'promotion')
+
+        return attrs
 
 
 class CMSBlockSerializer(serializers.ModelSerializer):

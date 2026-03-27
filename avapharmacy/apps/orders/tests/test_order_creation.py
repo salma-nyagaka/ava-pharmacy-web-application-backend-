@@ -5,6 +5,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.notifications.models import Notification
 from apps.orders.models import Cart, CartItem, Order
 from apps.prescriptions.models import Prescription, PrescriptionItem
 from apps.products.models import Product, ProductInventory
@@ -19,6 +20,7 @@ class OrderCreationFlowTests(TestCase):
             first_name='Buyer',
             last_name='Customer',
             role=User.CUSTOMER,
+            phone='+254700000010',
         )
         self.admin = User.objects.create_user(
             email='admin-orders@example.com',
@@ -135,3 +137,36 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(order_item.prescription_id, prescription.id)
         self.assertEqual(order_item.prescription_item_id, prescription_item.id)
         self.assertEqual(order_item.prescription_reference, prescription.reference)
+
+    def test_order_creation_and_status_updates_create_customer_notifications(self):
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(cart=cart, product=self.product, quantity=1)
+
+        create_response = self.client.post(
+            reverse('order-create'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '+254700000010',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_COD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201)
+        order = Order.objects.get(customer=self.customer)
+        self.assertEqual(Notification.objects.filter(recipient=self.customer, type='order_status').count(), 1)
+
+        self.client.force_authenticate(self.admin)
+        update_response = self.client.patch(
+            reverse('admin-order-detail', args=[order.id]),
+            {'status': Order.STATUS_PROCESSING},
+            format='json',
+        )
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(Notification.objects.filter(recipient=self.customer, type='order_status').count(), 2)

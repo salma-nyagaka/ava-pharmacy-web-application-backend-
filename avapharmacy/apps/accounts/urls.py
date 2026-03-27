@@ -26,6 +26,8 @@ urlpatterns = [
     path('auth/me/password/', views.PasswordChangeView.as_view(), name='password-change'),
     path('auth/me/addresses/', views.AddressListCreateView.as_view(), name='addresses'),
     path('auth/me/addresses/<int:pk>/', views.AddressDetailView.as_view(), name='address-detail'),
+    path('auth/me/payment-methods/', views.PaymentMethodListCreateView.as_view(), name='payment-methods'),
+    path('auth/me/payment-methods/<int:pk>/', views.PaymentMethodDetailView.as_view(), name='payment-method-detail'),
     path('professionals/register/', views.ProfessionalRegistrationView.as_view(), name='professional-register'),
     path('professionals/lab-partners/', views.PublicLabPartnerListView.as_view(), name='public-lab-partners'),
 

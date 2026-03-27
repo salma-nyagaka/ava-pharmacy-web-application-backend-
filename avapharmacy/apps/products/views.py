@@ -148,7 +148,10 @@ class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
     serializer_class = ProductListSerializer
 
     def get_queryset(self):
-        queryset = Product.objects.filter(is_active=True).select_related(
+        queryset = Product.objects.filter(
+            is_active=True,
+            requires_prescription=False,
+        ).select_related(
             'brand', 'category', 'catalog_subcategory'
         ).prefetch_related('variants', 'inventories')
         queryset = annotate_product_units_sold(queryset)
@@ -358,8 +361,34 @@ class ProductReviewListCreateView(generics.ListCreateAPIView):
             product_id=self.kwargs['pk'], is_approved=True
         ).select_related('user')
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user, product_id=self.kwargs['pk'])
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        from apps.orders.models import Order
+
+        has_delivered_order = Order.objects.filter(
+            customer=request.user,
+            status=Order.STATUS_DELIVERED,
+            items__product_id=self.kwargs['pk'],
+        ).exists()
+        if not has_delivered_order:
+            return Response(
+                {'detail': 'You can review this product after it has been delivered to you.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        review, created = ProductReview.objects.update_or_create(
+            product_id=self.kwargs['pk'],
+            user=request.user,
+            defaults={
+                'rating': serializer.validated_data['rating'],
+                'comment': serializer.validated_data.get('comment', ''),
+                'is_approved': True,
+            },
+        )
+        output = self.get_serializer(review)
+        return Response(output.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class WishlistView(generics.ListCreateAPIView):

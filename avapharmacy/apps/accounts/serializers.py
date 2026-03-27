@@ -9,7 +9,8 @@ import json
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.db.models import Sum
-from .models import AdminAuditLog, Customer, User, Pharmacist, Address, UserNote
+from django.utils import timezone
+from .models import AdminAuditLog, Address, Customer, PaymentMethod, Pharmacist, User, UserNote
 from apps.consultations.serializers import (
     DoctorOnboardingSerializer, DoctorProfileSerializer,
     PediatricianOnboardingSerializer, PediatricianProfileSerializer,
@@ -40,6 +41,21 @@ def validate_unique_phone(phone, instance=None):
     if queryset.exists():
         raise serializers.ValidationError('A user with this phone number already exists.')
     return phone
+
+
+def validate_unique_email(email, instance=None):
+    """Validate that an email address remains unique across users."""
+    email = (email or '').strip().lower()
+    if not email:
+        raise serializers.ValidationError('Email is required.')
+
+    queryset = User.objects.filter(email__iexact=email)
+    if instance is not None:
+        queryset = queryset.exclude(pk=instance.pk)
+
+    if queryset.exists():
+        raise serializers.ValidationError('A user with this email address already exists.')
+    return email
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -102,7 +118,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             'id', 'email', 'first_name', 'last_name', 'full_name',
-            'phone', 'role', 'status', 'address', 'total_orders',
+            'phone', 'date_of_birth', 'role', 'status', 'address', 'total_orders',
             'date_joined', 'updated_at'
         )
         read_only_fields = ('id', 'date_joined', 'updated_at')
@@ -113,7 +129,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'phone', 'address')
+        fields = ('email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'address')
+
+    def validate_email(self, value):
+        """Ensure updated email addresses remain unique."""
+        return validate_unique_email(value, instance=self.instance)
 
     def validate_phone(self, value):
         """Ensure updated phone numbers remain unique."""
@@ -315,6 +335,44 @@ class AddressSerializer(serializers.ModelSerializer):
         model = Address
         fields = ('id', 'label', 'street', 'city', 'county', 'is_default', 'created_at')
         read_only_fields = ('id', 'created_at')
+
+
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMethod
+        fields = (
+            'id', 'brand', 'last4', 'expiry_month', 'expiry_year',
+            'cardholder_name', 'is_default', 'created_at', 'updated_at',
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def validate_last4(self, value):
+        value = ''.join(ch for ch in str(value or '') if ch.isdigit())
+        if len(value) != 4:
+            raise serializers.ValidationError('Last four digits are required.')
+        return value
+
+    def validate_expiry_month(self, value):
+        if not 1 <= int(value) <= 12:
+            raise serializers.ValidationError('Expiry month must be between 1 and 12.')
+        return value
+
+    def validate_expiry_year(self, value):
+        if int(value) < timezone.now().year:
+            raise serializers.ValidationError('Expiry year cannot be in the past.')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        month = attrs.get('expiry_month', getattr(self.instance, 'expiry_month', None))
+        year = attrs.get('expiry_year', getattr(self.instance, 'expiry_year', None))
+        if month is None or year is None:
+            return attrs
+
+        now = timezone.now()
+        if int(year) == now.year and int(month) < now.month:
+            raise serializers.ValidationError({'expiry_month': ['Expiry date cannot be in the past.']})
+        return attrs
 
 
 class UserNoteSerializer(serializers.ModelSerializer):

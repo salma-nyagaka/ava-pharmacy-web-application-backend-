@@ -91,6 +91,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CUSTOMER)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     address = models.TextField(blank=True)
@@ -247,6 +248,37 @@ class Address(models.Model):
 
     def __str__(self):
         return f"{self.user.full_name} - {self.street}, {self.city}"
+
+
+class PaymentMethod(models.Model):
+    """A masked customer payment method saved for faster checkout."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_methods')
+    brand = models.CharField(max_length=30, blank=True, default='unknown')
+    last4 = models.CharField(max_length=4)
+    expiry_month = models.PositiveSmallIntegerField()
+    expiry_year = models.PositiveSmallIntegerField()
+    cardholder_name = models.CharField(max_length=120)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_default', '-updated_at']
+        indexes = [
+            models.Index(fields=['user', 'is_default']),
+            models.Index(fields=['user', '-updated_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user'],
+                condition=Q(is_default=True),
+                name='unique_default_payment_method_per_user',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.brand} ending {self.last4}"
 
 
 class UserNote(models.Model):

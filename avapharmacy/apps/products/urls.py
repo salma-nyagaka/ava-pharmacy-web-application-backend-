@@ -21,6 +21,7 @@ urlpatterns = [
     path('products/search/', views.ProductSearchView.as_view(), name='product-search'),
     path('products/availability/', views.ProductAvailabilityView.as_view(), name='product-availability'),
     path('products/<int:pk>/availability/', views.ProductAvailabilityDetailView.as_view(), name='product-availability-detail'),
+    path('products/id/<int:pk>/', views.ProductDetailByIdView.as_view(), name='product-detail-by-id-alias'),
     # Product by numeric ID (spec: GET /products/:id)
     path('products/<int:pk>/', views.ProductDetailByIdView.as_view(), name='product-detail-by-id'),
     # Product by slug (SEO URLs)

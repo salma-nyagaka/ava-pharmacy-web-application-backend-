@@ -855,6 +855,7 @@ class Promotion(models.Model):
     title = models.CharField(max_length=200)
     code = models.CharField(max_length=40, blank=True, null=True, unique=True)
     description = models.TextField(blank=True)
+    image = models.ImageField(upload_to='promotions/', blank=True, null=True)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_PERCENTAGE)
     value = models.DecimalField(max_digits=10, decimal_places=2)
     scope = models.CharField(max_length=20, choices=SCOPE_CHOICES, default=SCOPE_ALL)
