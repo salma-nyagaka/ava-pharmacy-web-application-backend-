@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Order, PaymentIntent
+from apps.orders.payment_helpers import build_paybill_account_reference
 
 
 @override_settings(
@@ -385,7 +386,7 @@ class MpesaFlowTests(TestCase):
 
         intent = PaymentIntent.objects.get(order=order, provider=PaymentIntent.PROVIDER_PAYBILL)
         self.assertEqual(intent.status, PaymentIntent.STATUS_REQUIRES_ACTION)
-        self.assertEqual(intent.external_reference, order.order_number)
+        self.assertEqual(intent.external_reference, build_paybill_account_reference(order))
 
         validation_payload = {
             'TransactionType': 'Pay Bill',
