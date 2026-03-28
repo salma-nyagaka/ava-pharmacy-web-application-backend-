@@ -11,6 +11,7 @@ from .models import Product, annotate_product_inventory
 
 
 class ProductFilter(django_filters.FilterSet):
+    product_id = django_filters.NumberFilter(field_name='id', lookup_expr='exact')
     min_price = django_filters.NumberFilter(field_name='price', lookup_expr='gte')
     max_price = django_filters.NumberFilter(field_name='price', lookup_expr='lte')
     category = django_filters.CharFilter(field_name='category__slug', lookup_expr='exact')
@@ -25,7 +26,7 @@ class ProductFilter(django_filters.FilterSet):
     class Meta:
         model = Product
         fields = [
-            'category', 'subcategory', 'brand', 'health_concern', 'stock_source', 'inventory_status', 'requires_prescription',
+            'product_id', 'category', 'subcategory', 'brand', 'health_concern', 'stock_source', 'inventory_status', 'requires_prescription',
             'is_active', 'min_price', 'max_price'
         ]
 

@@ -23,7 +23,7 @@ from avapharmacy.security import verify_hmac_signature
 from .filters import ProductFilter
 from .inventory_sync import apply_inventory_sync, normalize_inventory_payload
 from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, ProductInventory, ProductReview, ProductVariant, Promotion, StockMovement, Wishlist, annotate_product_inventory
-from .pos import refresh_pos_inventory_for_products
+from .pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from .serializers import (
     AdminProductSerializer,
     BannerSerializer,
@@ -329,6 +329,20 @@ class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIVi
             message=f'Created product {product.name}',
             metadata={'sku': product.sku},
         )
+
+
+class AdminProductFormMetaView(APIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def get(self, request):
+        strategy = str(getattr(settings, 'POS_LINK_STRATEGY', 'sku_or_pos_id') or 'sku_or_pos_id').strip().lower()
+        return Response({
+            'pos_link_strategy': strategy,
+            'requires_pos_product_id': strategy in {'pos_product_id', 'barcode_and_pos_id'},
+            'requires_barcode': strategy in {'barcode', 'barcode_and_pos_id'},
+            'accepts_sku': strategy in {'sku', 'sku_or_pos_id', 'sku_or_barcode', 'any'},
+            'accepts_barcode': strategy in {'barcode', 'barcode_and_pos_id', 'sku_or_barcode', 'any'},
+        })
 
 
 class AdminProductDetailView(PromotionContextMixin, generics.RetrieveUpdateDestroyAPIView):
@@ -704,7 +718,11 @@ class AdminInventoryListView(generics.ListAPIView):
     def get_queryset(self):
         queryset = annotate_product_inventory(
             annotate_product_reviews(
-                Product.objects.all().select_related('brand', 'category', 'created_by', 'catalog_subcategory').prefetch_related('inventories')
+                Product.objects.all().select_related('brand', 'category', 'created_by', 'catalog_subcategory').prefetch_related(
+                    'health_concerns',
+                    'inventories',
+                    'variants',
+                )
             )
         )
         stock_bucket = self.request.query_params.get('stock_bucket')
@@ -755,6 +773,50 @@ class AdminInventoryPosRefreshView(APIView):
             products,
             many=True,
             context={'request': request, 'active_promotions': []},
+        )
+        return Response({
+            'updated': serializer.data,
+            'refreshed_ids': list(refreshed.keys()),
+        })
+
+
+class AdminInventoryVariantPosRefreshView(APIView):
+    """Manually refresh POS-backed stock for selected variants."""
+
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def post(self, request):
+        if not settings.POS_INVENTORY_LOOKUP_URL:
+            return Response(
+                {'error': {'code': 'pos_not_configured', 'message': 'POS inventory lookup is not configured.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        raw_ids = request.data.get('variant_ids', [])
+        if not isinstance(raw_ids, list) or not raw_ids:
+            return Response(
+                {'error': {'code': 'validation_error', 'message': 'variant_ids array is required.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            ids = [int(value) for value in raw_ids]
+        except (TypeError, ValueError):
+            return Response(
+                {'error': {'code': 'validation_error', 'message': 'variant_ids must be integers.'}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        variants = list(ProductVariant.objects.filter(pk__in=ids).select_related('product'))
+        if not variants:
+            return Response({'updated': [], 'refreshed_ids': []})
+
+        force = bool(request.data.get('force', True))
+        refreshed = refresh_pos_inventory_for_variants(variants, force=force)
+        serializer = AdminProductVariantSerializer(
+            variants,
+            many=True,
+            context={'request': request},
         )
         return Response({
             'updated': serializer.data,
