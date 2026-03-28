@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to the Ava Pharmacy newsletter</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#14213d;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6fb;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e6e8ef;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#e81750,#991b1f);padding:24px;color:#ffffff;">
+              <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;">Ava Pharmacy</p>
+              <h1 style="margin:0;font-size:26px;line-height:1.25;">You are subscribed</h1>
+              <p style="margin:10px 0 0;font-size:15px;line-height:1.6;opacity:.92;">
+                Welcome to the Ava Pharmacy newsletter. We will keep your inbox focused on useful health updates, product news, and selected offers.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px 12px;">
+              <p style="margin:0 0 14px;font-size:15px;line-height:1.7;">
+                This subscription is active for <strong>{{ email }}</strong>.
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;">
+                <tr>
+                  <td style="padding:0 0 12px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff6f8;border:1px solid #ffd1db;border-radius:12px;">
+                      <tr>
+                        <td style="padding:16px 18px;">
+                          <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#991b1f;">What to expect</p>
+                          <p style="margin:0 0 8px;font-size:14px;line-height:1.6;">New product arrivals and curated recommendations</p>
+                          <p style="margin:0 0 8px;font-size:14px;line-height:1.6;">Practical pharmacy tips and wellness reminders</p>
+                          <p style="margin:0;font-size:14px;line-height:1.6;">Occasional promotions on selected products</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 24px;">
+                <a href="{{ shop_url }}"
+                   style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
+                  Explore Products
+                </a>
+              </p>
+              <p style="margin:0 0 10px;font-size:14px;line-height:1.7;color:#4a5568;">
+                If you did not request this subscription, contact us at
+                <a href="mailto:{{ support_email }}" style="color:#e81750;text-decoration:none;">{{ support_email }}</a>.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 24px;">
+              <p style="margin:0;font-size:12px;line-height:1.7;color:#8a91a8;">
+                Ava Pharmacy sends practical updates designed to help customers discover products, offers, and relevant pharmacy guidance.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -1,0 +1,14 @@
+Hello,
+
+Thanks for subscribing to the Ava Pharmacy newsletter.
+
+You will now receive:
+- new product arrivals
+- health tips and pharmacy updates
+- selected offers and seasonal campaigns
+
+Explore the store: {{ shop_url }}
+
+If you did not request this subscription, contact us at {{ support_email }}.
+
+Ava Pharmacy

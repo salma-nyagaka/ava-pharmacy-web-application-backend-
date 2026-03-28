@@ -25,6 +25,8 @@ class NewsletterSubscriptionTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ['customer@example.com'])
         self.assertIn('newsletter', mail.outbox[0].subject.lower())
+        self.assertTrue(mail.outbox[0].alternatives)
+        self.assertIn('You are subscribed', mail.outbox[0].alternatives[0][0])
 
     def test_existing_subscriber_is_reactivated_and_receives_new_confirmation_email(self):
         subscriber = NewsletterSubscriber.objects.create(
@@ -45,3 +47,4 @@ class NewsletterSubscriptionTests(TestCase):
         self.assertEqual(subscriber.source, 'footer')
         self.assertIsNotNone(subscriber.last_confirmation_sent_at)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(mail.outbox[0].alternatives)

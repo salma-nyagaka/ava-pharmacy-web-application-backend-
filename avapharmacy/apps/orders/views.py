@@ -1678,6 +1678,50 @@ class PaymentIntentStatusSyncView(APIView):
         return Response(PaymentIntentSerializer(intent).data)
 
 
+class PaymentIntentCancelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            intent = PaymentIntent.objects.select_for_update().select_related('order').get(pk=pk, order__customer=request.user)
+        except PaymentIntent.DoesNotExist:
+            return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if intent.status == PaymentIntent.STATUS_SUCCEEDED or intent.order.payment_status == Order.PAYMENT_STATUS_PAID:
+            return Response({'detail': 'This payment has already been confirmed and cannot be cancelled.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if intent.status == PaymentIntent.STATUS_CANCELLED:
+            return Response(PaymentIntentSerializer(intent).data)
+
+        if intent.status == PaymentIntent.STATUS_FAILED:
+            intent.status = PaymentIntent.STATUS_CANCELLED
+            intent.last_error = intent.last_error or 'Payment cancelled by customer.'
+            if not intent.processed_at:
+                intent.processed_at = timezone.now()
+            intent.save(update_fields=['status', 'last_error', 'processed_at', 'updated_at'])
+            return Response(PaymentIntentSerializer(intent).data)
+
+        intent.status = PaymentIntent.STATUS_CANCELLED
+        intent.last_error = 'Payment cancelled by customer.'
+        intent.processed_at = timezone.now()
+        intent.save(update_fields=['status', 'last_error', 'processed_at', 'updated_at'])
+
+        order = intent.order
+        if order.payment_status != Order.PAYMENT_STATUS_PAID:
+            order.payment_status = Order.PAYMENT_STATUS_PENDING
+            order.save(update_fields=['payment_status', 'updated_at'])
+
+        create_order_event(
+            order,
+            'payment_cancelled',
+            'Payment cancelled by customer.',
+            actor=request.user,
+            metadata={'intent_reference': intent.reference, 'provider': intent.provider},
+        )
+        return Response(PaymentIntentSerializer(intent).data)
+
+
 class MpesaPaybillValidationView(APIView):
     permission_classes = [permissions.AllowAny]
 

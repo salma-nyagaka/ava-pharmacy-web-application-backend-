@@ -26,6 +26,7 @@ urlpatterns = [
     # Payments
     path('payments/intents/', views.PaymentIntentCreateView.as_view(), name='payment-intents'),
     path('payments/intents/<int:pk>/sync/', views.PaymentIntentStatusSyncView.as_view(), name='payment-intent-sync'),
+    path('payments/intents/<int:pk>/cancel/', views.PaymentIntentCancelView.as_view(), name='payment-intent-cancel'),
     path('orders/payments/flutterwave/initiate/', views.FlutterwaveInitiateView.as_view(), name='orders-payment-flutterwave-initiate'),
     path('orders/payments/flutterwave/callback/', views.FlutterwaveCallbackView.as_view(), name='orders-payment-flutterwave-callback'),
     path('orders/payments/flutterwave/redirect/', views.FlutterwaveRedirectView.as_view(), name='orders-payment-flutterwave-redirect'),
