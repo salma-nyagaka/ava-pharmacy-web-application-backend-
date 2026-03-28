@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.prescriptions.models import Prescription
+from apps.prescriptions.models import Prescription, PrescriptionClarificationMessage, PrescriptionFile
 from apps.products.models import Product
 
 
@@ -101,3 +101,59 @@ class PrescriptionWorkflowTests(TestCase):
         prescription.refresh_from_db()
         self.assertEqual(prescription.status, Prescription.STATUS_PENDING)
         self.assertTrue(prescription.files.exists())
+
+    def test_pharmacist_clarification_and_customer_reply_create_message_thread(self):
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_PENDING,
+        )
+
+        self.client.force_authenticate(self.pharmacist)
+        review_response = self.client.post(
+            reverse('pharmacist-prescription-review', args=[prescription.id]),
+            {
+                'action': 'request_clarification',
+                'notes': 'Please confirm the dosage schedule for the evening medicine.',
+            },
+            format='json',
+        )
+        self.assertEqual(review_response.status_code, 200)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.status, Prescription.STATUS_CLARIFICATION)
+        self.assertEqual(prescription.clarification_messages.count(), 1)
+
+        self.client.force_authenticate(self.customer)
+        reply_response = self.client.post(
+            reverse('prescription-clarification-reply', args=[prescription.id]),
+            {'message': 'The evening medicine should be taken after supper only.'},
+            format='json',
+        )
+        self.assertEqual(reply_response.status_code, 201)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.status, Prescription.STATUS_PENDING)
+        self.assertEqual(prescription.clarification_messages.count(), 2)
+
+        latest_message = prescription.clarification_messages.order_by('-created_at').first()
+        self.assertEqual(latest_message.sender_role, PrescriptionClarificationMessage.SENDER_PATIENT)
+        self.assertIn('after supper', latest_message.message)
+
+    def test_missing_uploaded_file_is_omitted_from_prescription_payload(self):
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_PENDING,
+        )
+        PrescriptionFile.objects.create(
+            prescription=prescription,
+            file='prescriptions/999/missing-scan.png',
+            filename='missing-scan.png',
+        )
+
+        self.client.force_authenticate(self.customer)
+        response = self.client.get(reverse('prescriptions'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.data.get('results', response.data)
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]['files'], [])

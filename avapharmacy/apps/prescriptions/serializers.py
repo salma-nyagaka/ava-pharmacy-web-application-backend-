@@ -1,13 +1,46 @@
 from rest_framework import serializers
-from .models import Prescription, PrescriptionFile, PrescriptionItem, PrescriptionAuditLog
+from .models import (
+    Prescription,
+    PrescriptionFile,
+    PrescriptionItem,
+    PrescriptionAuditLog,
+    PrescriptionClarificationMessage,
+)
 from apps.products.models import Product
 
 
+def _prescription_file_exists(instance):
+    field = getattr(instance, 'file', None)
+    name = getattr(field, 'name', '')
+    if not field or not name:
+        return False
+    try:
+        return field.storage.exists(name)
+    except Exception:
+        return False
+
+
 class PrescriptionFileSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+    filename = serializers.SerializerMethodField()
+
     class Meta:
         model = PrescriptionFile
         fields = ('id', 'file', 'filename', 'uploaded_at')
         read_only_fields = ('id', 'uploaded_at')
+
+    def get_file(self, obj):
+        if not _prescription_file_exists(obj):
+            return ''
+        try:
+            return obj.file.url
+        except Exception:
+            return ''
+
+    def get_filename(self, obj):
+        if not _prescription_file_exists(obj):
+            return ''
+        return obj.filename or obj.file.name.rsplit('/', 1)[-1]
 
 
 class PrescriptionItemSerializer(serializers.ModelSerializer):
@@ -41,10 +74,30 @@ class PrescriptionAuditLogSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'timestamp')
 
 
+class PrescriptionClarificationMessageSerializer(serializers.ModelSerializer):
+    sender_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PrescriptionClarificationMessage
+        fields = (
+            'id', 'sender', 'sender_role', 'sender_name', 'sender_display',
+            'message', 'created_at', 'updated_at',
+        )
+        read_only_fields = fields
+
+    def get_sender_display(self, obj):
+        if obj.sender_name:
+            return obj.sender_name
+        if obj.sender:
+            return obj.sender.full_name or obj.sender.email
+        return obj.get_sender_role_display()
+
+
 class PrescriptionSerializer(serializers.ModelSerializer):
-    files = PrescriptionFileSerializer(many=True, read_only=True)
+    files = serializers.SerializerMethodField()
     items = PrescriptionItemSerializer(many=True, read_only=True)
     audit_logs = PrescriptionAuditLogSerializer(many=True, read_only=True)
+    clarification_messages = PrescriptionClarificationMessageSerializer(many=True, read_only=True)
     patient_name_display = serializers.ReadOnlyField(source='patient.full_name')
     pharmacist_name = serializers.ReadOnlyField(source='pharmacist.full_name')
     is_overdue = serializers.ReadOnlyField()
@@ -55,10 +108,14 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'id', 'reference', 'patient', 'patient_name', 'patient_name_display',
             'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'status', 'dispatch_status',
             'notes', 'pharmacist_notes', 'clarification_message',
-            'files', 'items', 'audit_logs', 'is_overdue',
+            'files', 'items', 'audit_logs', 'clarification_messages', 'is_overdue',
             'resubmitted_at', 'submitted_at', 'updated_at'
         )
         read_only_fields = ('id', 'reference', 'patient', 'submitted_at', 'updated_at')
+
+    def get_files(self, obj):
+        existing_files = [file for file in obj.files.all() if _prescription_file_exists(file)]
+        return PrescriptionFileSerializer(existing_files, many=True, context=self.context).data
 
 
 class PrescriptionUploadItemSerializer(serializers.Serializer):
@@ -157,6 +214,13 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
     items = PharmacistPrescriptionReviewItemSerializer(many=True, required=False)
 
+    def validate(self, attrs):
+        action = attrs.get('action')
+        notes = (attrs.get('notes') or '').strip()
+        if action == self.ACTION_REQUEST_CLARIFICATION and not notes:
+            raise serializers.ValidationError({'notes': 'Enter the clarification message for the patient.'})
+        return attrs
+
 
 class PrescriptionResubmitSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
@@ -165,3 +229,13 @@ class PrescriptionResubmitSerializer(serializers.Serializer):
         required=False,
         max_length=5,
     )
+
+
+class PrescriptionClarificationReplySerializer(serializers.Serializer):
+    message = serializers.CharField()
+
+    def validate_message(self, value):
+        value = (value or '').strip()
+        if not value:
+            raise serializers.ValidationError('Enter your response before sending.')
+        return value

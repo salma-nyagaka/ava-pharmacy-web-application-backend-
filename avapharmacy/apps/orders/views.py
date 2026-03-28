@@ -11,13 +11,14 @@ from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from datetime import timedelta
 import logging
+import re
 from urllib.parse import urlencode
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import Address
-from apps.accounts.permissions import IsAdminUser
+from apps.accounts.models import Address, User
+from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
 from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
 from apps.products.models import Product, ProductVariant, annotate_product_inventory
@@ -44,6 +45,7 @@ from .serializers import (
     CheckoutSerializer,
     CouponApplySerializer,
     OrderNoteCreateSerializer,
+    OrderTrackingLookupSerializer,
     OrderSerializer,
     PaybillWebhookSerializer,
     MpesaC2BRegisterSerializer,
@@ -60,6 +62,7 @@ from .serializers import (
     ShippingMethodSerializer,
 )
 from .stock import commit_order_inventory, release_order_inventory
+from .utils import queue_order_confirmation_email, queue_order_status_email
 
 payments_logger = logging.getLogger('payments')
 
@@ -84,6 +87,141 @@ def create_order_event(order, event_type, message, actor=None, metadata=None):
         message=_truncate_event_message(message),
         metadata=metadata or {},
     )
+
+
+TRACKING_STATUS_LABELS = {
+    Order.STATUS_DRAFT: 'Order received',
+    Order.STATUS_PENDING: 'Order confirmed',
+    Order.STATUS_PAID: 'Payment received',
+    Order.STATUS_PROCESSING: 'Being prepared',
+    Order.STATUS_SHIPPED: 'On the way',
+    Order.STATUS_DELIVERED: 'Delivered',
+    Order.STATUS_CANCELLED: 'Cancelled',
+    Order.STATUS_REFUNDED: 'Refunded',
+}
+
+TRACKING_STATUS_PROGRESS_INDEX = {
+    Order.STATUS_DRAFT: 0,
+    Order.STATUS_PENDING: 0,
+    Order.STATUS_PAID: 0,
+    Order.STATUS_PROCESSING: 1,
+    Order.STATUS_SHIPPED: 2,
+    Order.STATUS_DELIVERED: 3,
+}
+
+TRACKING_BASE_STEPS = [
+    (Order.STATUS_PENDING, 'Order confirmed'),
+    (Order.STATUS_PROCESSING, 'Being prepared'),
+    (Order.STATUS_SHIPPED, 'On the way'),
+    (Order.STATUS_DELIVERED, 'Delivered'),
+]
+
+
+def _normalized_phone_tail(value):
+    digits = re.sub(r'\D+', '', value or '')
+    return digits[-9:] if len(digits) >= 9 else digits
+
+
+def _tracking_queryset():
+    return Order.objects.select_related('customer', 'shipping_method').prefetch_related('events', 'items')
+
+
+def _order_tracking_contact_matches(order, contact_type, contact_value):
+    if contact_type == 'email':
+        return (order.shipping_email or '').strip().lower() == contact_value
+    return _normalized_phone_tail(order.shipping_phone) == contact_value
+
+
+def _build_tracking_steps(order):
+    if order.status in (Order.STATUS_CANCELLED, Order.STATUS_REFUNDED):
+        return [
+            {
+                'status': Order.STATUS_PENDING,
+                'label': 'Order confirmed',
+                'completed_at': str(order.created_at),
+                'is_done': True,
+                'is_current': False,
+            },
+            {
+                'status': order.status,
+                'label': TRACKING_STATUS_LABELS.get(order.status, order.get_status_display()),
+                'completed_at': str(order.updated_at),
+                'is_done': True,
+                'is_current': True,
+            },
+        ]
+
+    current_index = TRACKING_STATUS_PROGRESS_INDEX.get(order.status, 0)
+    events_by_status = {event.event_type: event.created_at for event in order.events.all()}
+    tracking_steps = []
+    for index, (step_status, label) in enumerate(TRACKING_BASE_STEPS):
+        completed_at = None
+        if index <= current_index:
+            completed_at = str(events_by_status.get(f'status_{step_status}', order.created_at))
+        tracking_steps.append({
+            'status': step_status,
+            'label': label,
+            'completed_at': completed_at,
+            'is_done': index < current_index or (index == current_index and order.status == Order.STATUS_DELIVERED),
+            'is_current': index == current_index and order.status != Order.STATUS_DELIVERED,
+        })
+    if order.status == Order.STATUS_DELIVERED and tracking_steps:
+        tracking_steps[-1]['is_done'] = True
+        tracking_steps[-1]['is_current'] = False
+    return tracking_steps
+
+
+def _serialize_tracking_order(order):
+    return {
+        'order_id': order.order_number,
+        'order_number': order.order_number,
+        'current_status': order.status,
+        'current_status_label': TRACKING_STATUS_LABELS.get(order.status, order.get_status_display()),
+        'estimated_delivery': getattr(order.shipping_method, 'estimated_delivery_window', '') or None,
+        'tracking_steps': _build_tracking_steps(order),
+        'events': [
+            {
+                'id': event.id,
+                'event_type': event.event_type,
+                'message': event.message,
+                'metadata': event.metadata,
+                'created_at': event.created_at,
+            }
+            for event in order.events.all().order_by('-created_at')
+        ],
+        'order': {
+            'id': order.id,
+            'order_number': order.order_number,
+            'status': order.status,
+            'status_label': TRACKING_STATUS_LABELS.get(order.status, order.get_status_display()),
+            'payment_method': order.payment_method,
+            'payment_method_label': order.get_payment_method_display(),
+            'payment_status': order.payment_status,
+            'payment_status_label': order.get_payment_status_display(),
+            'delivery_method': order.delivery_method,
+            'delivery_notes': order.delivery_notes,
+            'subtotal': str(order.subtotal),
+            'shipping_fee': str(order.shipping_fee),
+            'total': str(order.total),
+            'placed_at': order.placed_at or order.created_at,
+            'updated_at': order.updated_at,
+            'shipping_first_name': order.shipping_first_name,
+            'shipping_last_name': order.shipping_last_name,
+            'shipping_email': order.shipping_email,
+            'shipping_phone': order.shipping_phone,
+            'shipping_address': order.shipping_address,
+            'items': [
+                {
+                    'id': item.id,
+                    'product_name': item.product_name,
+                    'variant_name': item.variant_name,
+                    'quantity': item.quantity,
+                    'subtotal': str(item.subtotal),
+                }
+                for item in order.items.all()
+            ],
+        },
+    }
 
 
 def _product_availability_error(product, requested_quantity, *, allow_pos_refresh=False):
@@ -241,20 +379,28 @@ def persist_checkout_address(user, data):
     )
 
 
-def notify_order_update(order, title=None, message=None):
+def notify_order_update(order, title=None, message=None, *, send_email=None, send_sms=None):
     if not order.customer:
         return
     try:
         preferences = get_notification_preferences(order.customer)
+        email_enabled = bool(preferences and preferences.order_updates_email) if send_email is None else bool(send_email)
         create_notification(
             recipient=order.customer,
             notification_type='order_status',
             title=title or f'Order {order.order_number} Updated',
             message=message or f'Your order is now {order.status}.',
-            data={'url': f'/orders/{order.id}', 'reference': order.order_number, 'status': order.status},
-            send_email=bool(preferences and preferences.order_updates_email),
-            send_sms=bool(preferences and preferences.order_updates_sms),
+            data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
+            send_email=False,
+            send_sms=bool(preferences and preferences.order_updates_sms) if send_sms is None else bool(send_sms),
         )
+        if email_enabled:
+            queue_order_status_email(
+                order,
+                subject=title or f'Order {order.order_number} Updated',
+                heading=title or f'Order {order.order_number} updated',
+                intro=message or f'Your order is now {order.get_status_display()}.',
+            )
     except Exception:
         return
 
@@ -2121,6 +2267,7 @@ class CheckoutFinalizeView(APIView):
             return Response({'detail': errors}, status=status.HTTP_400_BAD_REQUEST)
 
         commit_order_inventory(order)
+        should_send_confirmation_email = order.status == Order.STATUS_DRAFT and not order.placed_at
 
         order.status = Order.STATUS_PENDING if order.payment_method == Order.PAYMENT_COD else Order.STATUS_PAID
         if order.payment_method == Order.PAYMENT_COD:
@@ -2141,7 +2288,10 @@ class CheckoutFinalizeView(APIView):
             order,
             title=f'Order {order.order_number} placed',
             message=f'Your order total is KSh {order.total}.',
+            send_email=False,
         )
+        if should_send_confirmation_email:
+            queue_order_confirmation_email(order)
         _save_order_push_result(order, 'created')
         return Response(OrderSerializer(order).data)
 
@@ -2261,7 +2411,7 @@ class AdminShippingMethodDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminOrderListView(generics.ListAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsPharmacistOrAdmin]
     serializer_class = AdminOrderSerializer
     filterset_fields = ['status', 'payment_status', 'payment_method', 'delivery_method']
     search_fields = ['order_number', 'shipping_email', 'customer__email']
@@ -2275,7 +2425,7 @@ class AdminOrderListView(generics.ListAPIView):
 
 
 class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsPharmacistOrAdmin]
     queryset = Order.objects.all().select_related('customer', 'coupon', 'shipping_method').prefetch_related(
         'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
     )
@@ -2290,6 +2440,21 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
         instance = self.get_object()
         prev_status = instance.status
         prev_payment_status = instance.payment_status
+        if request.user.role == User.PHARMACIST:
+            allowed_fields = {'status', 'delivery_method', 'delivery_notes'}
+            provided_fields = set(request.data.keys())
+            disallowed = provided_fields - allowed_fields
+            if disallowed:
+                return Response(
+                    {'detail': 'Pharmacists can only update order status and delivery notes.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            next_status = request.data.get('status')
+            if next_status and next_status not in [Order.STATUS_PROCESSING, Order.STATUS_SHIPPED, Order.STATUS_DELIVERED]:
+                return Response(
+                    {'detail': 'Pharmacists can only move orders to processing, shipped, or delivered.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
@@ -2325,7 +2490,7 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
 
 
 class AdminOrderNoteView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsPharmacistOrAdmin]
 
     def post(self, request, pk):
         try:
@@ -2339,7 +2504,8 @@ class AdminOrderNoteView(APIView):
             content=serializer.validated_data['content'],
             created_by=request.user
         )
-        create_order_event(order, 'note_added', 'Admin note added to order.', actor=request.user)
+        actor_label = 'Pharmacist' if request.user.role == User.PHARMACIST else 'Admin'
+        create_order_event(order, 'note_added', f'{actor_label} note added to order.', actor=request.user)
         return Response(AdminOrderSerializer(order).data)
 
 
@@ -3002,7 +3168,9 @@ class OrderCreateView(APIView):
             order,
             title=f'Order {order.order_number} placed',
             message=f'Your order total is KSh {order.total}.',
+            send_email=False,
         )
+        queue_order_confirmation_email(order)
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
@@ -3013,22 +3181,9 @@ class OrderTrackingView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    STATUS_LABELS = {
-        Order.STATUS_PENDING: 'Order Confirmed',
-        Order.STATUS_PROCESSING: 'Being Prepared',
-        Order.STATUS_SHIPPED: 'On The Way',
-        Order.STATUS_DELIVERED: 'Delivered',
-    }
-    STATUS_ORDER = [
-        Order.STATUS_PENDING,
-        Order.STATUS_PROCESSING,
-        Order.STATUS_SHIPPED,
-        Order.STATUS_DELIVERED,
-    ]
-
     def get(self, request, pk):
         try:
-            order = Order.objects.select_related('customer').prefetch_related('events').get(
+            order = _tracking_queryset().get(
                 pk=pk, customer=request.user
             )
         except Order.DoesNotExist:
@@ -3036,40 +3191,37 @@ class OrderTrackingView(APIView):
                 {'error': {'code': 'not_found', 'message': 'Order not found.'}},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        return Response(_serialize_tracking_order(order))
 
-        current_index = self.STATUS_ORDER.index(order.status) if order.status in self.STATUS_ORDER else -1
-        events_by_status = {
-            e.event_type: e.created_at
-            for e in order.events.all()
-        }
 
-        tracking_steps = []
-        for i, s in enumerate(self.STATUS_ORDER):
-            completed_at = None
-            if i <= current_index:
-                completed_at = str(events_by_status.get(f'status_{s}', order.created_at))
-            tracking_steps.append({
-                'status': s,
-                'label': self.STATUS_LABELS.get(s, s.title()),
-                'completed_at': completed_at,
-                'is_done': i <= current_index,
-            })
+class PublicOrderTrackingLookupView(APIView):
+    """Lookup an order's tracking details using order number and contact info."""
 
-        return Response({
-            'order_id': order.order_number,
-            'current_status': order.status,
-            'estimated_delivery': None,
-            'tracking_steps': tracking_steps,
-            'events': [
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = OrderTrackingLookupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        order = _tracking_queryset().filter(
+            order_number__iexact=serializer.validated_data['order_number']
+        ).first()
+        if not order or not _order_tracking_contact_matches(
+            order,
+            serializer.validated_data['contact_type'],
+            serializer.validated_data['contact_value'],
+        ):
+            return Response(
                 {
-                    'event_type': event.event_type,
-                    'message': event.message,
-                    'metadata': event.metadata,
-                    'created_at': event.created_at,
-                }
-                for event in order.events.all().order_by('-created_at')
-            ],
-        })
+                    'error': {
+                        'code': 'not_found',
+                        'message': 'We could not find an order matching those details.',
+                    }
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(_serialize_tracking_order(order))
 
 
 # ─── M-Pesa Initiate (spec-named alias) ───────────────────────────────────────

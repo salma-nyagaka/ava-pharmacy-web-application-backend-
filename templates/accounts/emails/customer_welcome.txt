@@ -1,11 +1,12 @@
-Hi {{ first_name }},
+{% extends "emails/base.txt" %}
 
-Your AVA Pharmacy account has been created successfully. You can now shop for medicines, track orders, upload prescriptions, and more.
+{% block title %}Welcome to AVA Pharmacy{% endblock %}
+{% block intro %}Hi {{ first_name }}, your AVA Pharmacy account is ready.{% endblock %}
 
+{% block content %}
 Start shopping: {{ shop_url }}
+Sign in: {{ login_url }}
+Support: {{ support_email }}
+{% endblock %}
 
-Sign in at: {{ login_url }}
-
-If you did not create this account, contact support at {{ support_email }}.
-
-— AVA Pharmacy Team
+{% block footnote %}AVA Pharmacy{% endblock %}

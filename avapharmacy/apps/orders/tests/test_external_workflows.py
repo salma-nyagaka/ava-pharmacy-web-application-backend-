@@ -29,6 +29,13 @@ class ExternalOrderWorkflowTests(TestCase):
             last_name='Customer',
             role=User.CUSTOMER,
         )
+        self.pharmacist = User.objects.create_user(
+            email='pharmacist@example.com',
+            password='testpass123',
+            first_name='Pharma',
+            last_name='Cist',
+            role=User.PHARMACIST,
+        )
         self.order = Order.objects.create(
             customer=self.customer,
             status=Order.STATUS_PENDING,
@@ -72,6 +79,64 @@ class ExternalOrderWorkflowTests(TestCase):
         self.assertEqual(tracking_response.status_code, 200)
         self.assertIn('events', tracking_response.data)
         self.assertTrue(any(event['event_type'] == 'status_shipped' for event in tracking_response.data['events']))
+
+    def test_public_tracking_lookup_matches_phone_and_returns_order_payload(self):
+        response = self.client.post(
+            reverse('order-tracking-lookup'),
+            {
+                'order_number': self.order.order_number.lower(),
+                'contact': '+254700000000',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['order_number'], self.order.order_number)
+        self.assertEqual(response.data['order']['shipping_phone'], self.order.shipping_phone)
+        self.assertEqual(response.data['current_status'], self.order.status)
+        self.assertIn('tracking_steps', response.data)
+
+    def test_public_tracking_lookup_rejects_wrong_contact(self):
+        response = self.client.post(
+            reverse('order-tracking-lookup'),
+            {
+                'order_number': self.order.order_number,
+                'contact': 'wrong@example.com',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data['error']['code'], 'not_found')
+
+    def test_pharmacist_can_view_and_update_operational_order_status(self):
+        self.client.force_authenticate(self.pharmacist)
+
+        list_response = self.client.get(reverse('admin-orders'))
+        self.assertEqual(list_response.status_code, 200)
+
+        detail_response = self.client.patch(
+            reverse('admin-order-detail', args=[self.order.id]),
+            {'status': Order.STATUS_PROCESSING},
+            format='json',
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.STATUS_PROCESSING)
+        self.assertTrue(OrderEvent.objects.filter(order=self.order, event_type='status_processing').exists())
+
+    def test_pharmacist_cannot_refund_or_change_payment_status(self):
+        self.client.force_authenticate(self.pharmacist)
+
+        payment_update = self.client.patch(
+            reverse('admin-order-detail', args=[self.order.id]),
+            {'payment_status': Order.PAYMENT_STATUS_PAID},
+            format='json',
+        )
+        self.assertEqual(payment_update.status_code, 403)
+
+        refund_response = self.client.post(reverse('admin-order-refund', args=[self.order.id]))
+        self.assertEqual(refund_response.status_code, 403)
 
     def test_admin_failed_order_push_list_and_retry(self):
         push = OutboundOrderPush.objects.create(

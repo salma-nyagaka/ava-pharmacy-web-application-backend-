@@ -225,6 +225,7 @@ class Address(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
     label = models.CharField(max_length=50, blank=True, default='Home')
+    phone = models.CharField(max_length=20, blank=True)
     street = models.CharField(max_length=200)
     city = models.CharField(max_length=100)
     county = models.CharField(max_length=100)

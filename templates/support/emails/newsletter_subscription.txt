@@ -1,14 +1,12 @@
-Hello,
+{% extends "emails/base.txt" %}
 
-Thanks for subscribing to the Ava Pharmacy newsletter.
+{% block title %}Welcome to the AVA Pharmacy newsletter{% endblock %}
+{% block intro %}Thanks for subscribing to the AVA Pharmacy newsletter.{% endblock %}
 
-You will now receive:
-- new product arrivals
-- health tips and pharmacy updates
-- selected offers and seasonal campaigns
-
+{% block content %}
+Email: {{ email }}
 Explore the store: {{ shop_url }}
+Support: {{ support_email }}
+{% endblock %}
 
-If you did not request this subscription, contact us at {{ support_email }}.
-
-Ava Pharmacy
+{% block footnote %}AVA Pharmacy{% endblock %}

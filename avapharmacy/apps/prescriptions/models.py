@@ -149,3 +149,45 @@ class PrescriptionAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.prescription.reference} - {self.action}"
+
+
+class PrescriptionClarificationMessage(models.Model):
+    SENDER_PATIENT = 'patient'
+    SENDER_PHARMACIST = 'pharmacist'
+    SENDER_ADMIN = 'admin'
+    SENDER_SYSTEM = 'system'
+
+    SENDER_CHOICES = [
+        (SENDER_PATIENT, 'Patient'),
+        (SENDER_PHARMACIST, 'Pharmacist'),
+        (SENDER_ADMIN, 'Admin'),
+        (SENDER_SYSTEM, 'System'),
+    ]
+
+    prescription = models.ForeignKey(
+        Prescription,
+        on_delete=models.CASCADE,
+        related_name='clarification_messages',
+    )
+    sender = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prescription_clarification_messages',
+    )
+    sender_role = models.CharField(max_length=20, choices=SENDER_CHOICES, default=SENDER_SYSTEM)
+    sender_name = models.CharField(max_length=200, blank=True)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['prescription', 'created_at']),
+            models.Index(fields=['sender_role', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.prescription.reference} - {self.sender_role}"

@@ -1,0 +1,25 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}{{ email_preheader }} {{ order.order_number }}{% endblock %}
+{% block intro %}{{ email_intro }}{% endblock %}
+
+{% block content %}
+Order number: {{ order.order_number }}
+Payment method: {{ payment_method_label }}
+Payment status: {{ order.get_payment_status_display }}
+Delivery address: {{ order.shipping_address }}
+
+Products:
+{% for item in items %}- {{ item.name }} x {{ item.quantity }} — KSh {{ item.subtotal }}
+{% endfor %}
+
+Subtotal: KSh {{ order.subtotal }}
+Shipping: KSh {{ order.shipping_fee }}
+Total: KSh {{ order.total }}
+
+{{ primary_cta_label }}: {{ account_order_url }}
+Track order: {{ track_order_url }}
+Support: {{ support_email }}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy{% endblock %}

@@ -10,13 +10,22 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 from apps.orders.models import Cart, CartItem
 
-from .models import Prescription, PrescriptionAuditLog, PrescriptionFile, PrescriptionItem
+from .models import (
+    Prescription,
+    PrescriptionAuditLog,
+    PrescriptionFile,
+    PrescriptionItem,
+    PrescriptionClarificationMessage,
+)
 from .serializers import (
     PrescriptionSerializer, PrescriptionUploadSerializer,
     PrescriptionUpdateSerializer, PrescriptionAuditCreateSerializer,
     PharmacistPrescriptionReviewSerializer, PrescriptionResubmitSerializer,
+    PrescriptionClarificationReplySerializer,
 )
 from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistOrAdmin
+from apps.accounts.models import User
+from apps.notifications.utils import create_notification
 from apps.orders.serializers import CartSerializer
 
 ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
@@ -71,14 +80,49 @@ def _replace_prescription_items(prescription, items_data):
         )
 
 
+def _prescription_queryset():
+    return Prescription.objects.select_related('patient', 'pharmacist').prefetch_related(
+        'files',
+        'items__product',
+        'audit_logs',
+        'clarification_messages__sender',
+    )
+
+
+def _sender_role_for_user(user):
+    if not user:
+        return PrescriptionClarificationMessage.SENDER_SYSTEM
+    if getattr(user, 'role', '') == User.PHARMACIST:
+        return PrescriptionClarificationMessage.SENDER_PHARMACIST
+    if getattr(user, 'role', '') == User.ADMIN:
+        return PrescriptionClarificationMessage.SENDER_ADMIN
+    return PrescriptionClarificationMessage.SENDER_PATIENT
+
+
+def _sender_name_for_user(user):
+    if not user:
+        return ''
+    return user.full_name or user.email
+
+
+def _create_clarification_message(prescription, *, sender=None, message=''):
+    if not (message or '').strip():
+        return None
+    return PrescriptionClarificationMessage.objects.create(
+        prescription=prescription,
+        sender=sender if getattr(sender, 'is_authenticated', False) else sender,
+        sender_role=_sender_role_for_user(sender),
+        sender_name=_sender_name_for_user(sender),
+        message=message.strip(),
+    )
+
+
 class PrescriptionListView(generics.ListAPIView):
     serializer_class = PrescriptionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Prescription.objects.filter(
-            patient=self.request.user
-        ).prefetch_related('files', 'items__product', 'audit_logs')
+        queryset = _prescription_queryset().filter(patient=self.request.user)
         source_value = self.request.query_params.get('source')
         if source_value:
             queryset = queryset.filter(source=source_value)
@@ -156,8 +200,8 @@ class PrescriptionDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role in ['pharmacist', 'admin']:
-            return Prescription.objects.all().prefetch_related('files', 'items__product', 'audit_logs')
-        return Prescription.objects.filter(patient=user).prefetch_related('files', 'items__product', 'audit_logs')
+            return _prescription_queryset()
+        return _prescription_queryset().filter(patient=user)
 
 
 class PrescriptionUpdateView(generics.UpdateAPIView):
@@ -213,9 +257,7 @@ class AdminPrescriptionListView(generics.ListAPIView):
     ordering = ['-submitted_at']
 
     def get_queryset(self):
-        return Prescription.objects.all().select_related(
-            'patient', 'pharmacist'
-        ).prefetch_related('files', 'items__product', 'audit_logs')
+        return _prescription_queryset()
 
 
 class PrescriptionItemAddToCartView(APIView):
@@ -302,9 +344,7 @@ class PharmacistPrescriptionQueueView(generics.ListAPIView):
     permission_classes = [IsPharmacist]
 
     def get_queryset(self):
-        queryset = Prescription.objects.select_related('patient', 'pharmacist').prefetch_related(
-            'files', 'items__product', 'audit_logs'
-        ).filter(
+        queryset = _prescription_queryset().filter(
             models.Q(pharmacist=self.request.user) | models.Q(pharmacist__isnull=True)
         )
         status_value = self.request.query_params.get('status')
@@ -377,6 +417,7 @@ class PharmacistPrescriptionReviewView(APIView):
         else:
             prescription.status = Prescription.STATUS_CLARIFICATION
             prescription.clarification_message = notes
+            _create_clarification_message(prescription, sender=request.user, message=notes)
 
         prescription.save(update_fields=[
             'pharmacist', 'pharmacist_notes', 'status', 'clarification_message', 'updated_at',
@@ -420,6 +461,7 @@ class PrescriptionResubmitView(APIView):
         notes = serializer.validated_data.get('notes', '').strip()
         if notes:
             prescription.notes = f'{prescription.notes}\n\nResubmission: {notes}'.strip()
+            _create_clarification_message(prescription, sender=request.user, message=notes)
         prescription.status = Prescription.STATUS_PENDING
         prescription.pharmacist = None
         prescription.clarification_message = ''
@@ -434,3 +476,62 @@ class PrescriptionResubmitView(APIView):
             performed_by=request.user,
         )
         return Response(PrescriptionSerializer(prescription).data)
+
+
+class PrescriptionClarificationReplyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            prescription = (
+                Prescription.objects.select_for_update()
+                .get(pk=pk, patient=request.user)
+            )
+        except Prescription.DoesNotExist:
+            return Response({'detail': 'Prescription not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if prescription.status != Prescription.STATUS_CLARIFICATION:
+            return Response(
+                {'detail': 'This prescription is not awaiting clarification right now.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = PrescriptionClarificationReplySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        message = serializer.validated_data['message']
+
+        _create_clarification_message(prescription, sender=request.user, message=message)
+        prescription.status = Prescription.STATUS_PENDING
+        prescription.clarification_message = ''
+        prescription.resubmitted_at = timezone.now()
+        prescription.save(update_fields=['status', 'clarification_message', 'resubmitted_at', 'updated_at'])
+
+        PrescriptionAuditLog.objects.create(
+            prescription=prescription,
+            action='Clarification response sent by patient',
+            notes=message,
+            performed_by=request.user,
+        )
+
+        recipients = []
+        if prescription.pharmacist:
+            recipients = [prescription.pharmacist]
+        else:
+            recipients = list(
+                User.objects.filter(role=User.PHARMACIST, status=User.STATUS_ACTIVE, is_active=True)
+            )
+        for pharmacist in recipients:
+            create_notification(
+                recipient=pharmacist,
+                notification_type='prescription_status',
+                title=f'Clarification response for {prescription.reference}',
+                message=f'{request.user.full_name or request.user.email} replied to the clarification request.',
+                data={
+                    'reference': prescription.reference,
+                    'prescription_id': prescription.id,
+                    'status': prescription.status,
+                },
+            )
+
+        return Response(PrescriptionSerializer(prescription).data, status=status.HTTP_201_CREATED)

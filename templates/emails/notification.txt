@@ -1,0 +1,25 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}{{ subject }}{% endblock %}
+{% block intro %}{{ intro }}{% endblock %}
+
+{% block content %}
+{% if detail_rows %}
+{% for row in detail_rows %}{{ row.label }}: {{ row.value }}
+{% endfor %}
+
+{% endif %}
+{% if body_lines %}
+{% for line in body_lines %}{{ line }}
+{% endfor %}
+
+{% endif %}
+{% if cta_url and cta_label %}{{ cta_label }}: {{ cta_url }}
+{% endif %}
+{% if secondary_url and secondary_label %}{{ secondary_label }}: {{ secondary_url }}
+{% endif %}
+{% if support_email %}Support: {{ support_email }}
+{% endif %}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy{% endblock %}

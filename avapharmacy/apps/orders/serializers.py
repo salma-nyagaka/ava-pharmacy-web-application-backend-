@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 
 from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
@@ -305,6 +307,33 @@ class AdminOrderUpdateSerializer(serializers.ModelSerializer):
 
 class OrderNoteCreateSerializer(serializers.Serializer):
     content = serializers.CharField()
+
+
+class OrderTrackingLookupSerializer(serializers.Serializer):
+    order_number = serializers.CharField(max_length=30)
+    contact = serializers.CharField(max_length=120)
+
+    def validate(self, attrs):
+        order_number = attrs.get('order_number', '').strip().upper()
+        contact = attrs.get('contact', '').strip()
+        if not order_number:
+            raise serializers.ValidationError({'order_number': 'Order number is required.'})
+        if not contact:
+            raise serializers.ValidationError({'contact': 'Phone number or email address is required.'})
+
+        if '@' in contact:
+            attrs['contact_type'] = 'email'
+            attrs['contact_value'] = serializers.EmailField().run_validation(contact.lower())
+        else:
+            digits = re.sub(r'\D+', '', contact)
+            if len(digits) < 9:
+                raise serializers.ValidationError({'contact': 'Enter the phone number or email address used when ordering.'})
+            attrs['contact_type'] = 'phone'
+            attrs['contact_value'] = digits[-9:]
+
+        attrs['order_number'] = order_number
+        attrs['contact'] = contact
+        return attrs
 
 
 class PaymentIntentCreateSerializer(serializers.Serializer):

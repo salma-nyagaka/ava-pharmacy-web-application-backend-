@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -50,21 +51,22 @@ class OrderCreationFlowTests(TestCase):
         cart = Cart.objects.create(user=self.customer)
         CartItem.objects.create(cart=cart, product=self.product, quantity=2)
 
-        order_response = self.client.post(
-            reverse('order-create'),
-            {
-                'first_name': 'Buyer',
-                'last_name': 'Customer',
-                'email': 'buyer@example.com',
-                'phone': '0727808457',
-                'street': 'Moi Avenue',
-                'city': 'Nairobi',
-                'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_COD,
-                'delivery_method': 'standard',
-            },
-            format='json',
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            order_response = self.client.post(
+                reverse('order-create'),
+                {
+                    'first_name': 'Buyer',
+                    'last_name': 'Customer',
+                    'email': 'buyer@example.com',
+                    'phone': '0727808457',
+                    'street': 'Moi Avenue',
+                    'city': 'Nairobi',
+                    'county': 'Nairobi',
+                    'payment_method': Order.PAYMENT_COD,
+                    'delivery_method': 'standard',
+                },
+                format='json',
+            )
         self.assertEqual(order_response.status_code, 201)
 
         order = Order.objects.get(customer=self.customer)
@@ -80,6 +82,11 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(admin_list_response.status_code, 200)
         admin_detail_response = self.client.get(reverse('admin-order-detail', args=[order.id]))
         self.assertEqual(admin_detail_response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['buyer@example.com'])
+        self.assertIn(order.order_number, mail.outbox[0].subject)
+        self.assertTrue(mail.outbox[0].alternatives)
+        self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])
 
     def test_prescription_cart_item_uses_foreign_keys_and_order_snapshot_preserves_them(self):
         self.product.requires_prescription = True
@@ -170,3 +177,43 @@ class OrderCreationFlowTests(TestCase):
         )
         self.assertEqual(update_response.status_code, 200)
         self.assertEqual(Notification.objects.filter(recipient=self.customer, type='order_status').count(), 2)
+
+    def test_cod_checkout_finalize_succeeds_without_paid_status_or_payment_intent(self):
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(cart=cart, product=self.product, quantity=1)
+
+        draft_response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_COD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+        self.assertEqual(draft_response.status_code, 201)
+
+        order = Order.objects.get(customer=self.customer)
+        self.assertEqual(order.status, Order.STATUS_DRAFT)
+        self.assertEqual(order.payment_status, Order.PAYMENT_STATUS_PENDING)
+        self.assertFalse(order.payment_intents.exists())
+
+        with self.captureOnCommitCallbacks(execute=True):
+            finalize_response = self.client.post(reverse('checkout-finalize', args=[order.id]))
+        self.assertEqual(finalize_response.status_code, 200)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.STATUS_PENDING)
+        self.assertEqual(order.payment_status, Order.PAYMENT_STATUS_PENDING)
+        self.assertTrue(order.inventory_committed)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['buyer@example.com'])
+        self.assertIn(order.order_number, mail.outbox[0].subject)
+        self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])

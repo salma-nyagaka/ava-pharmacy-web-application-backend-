@@ -50,6 +50,11 @@ def prescription_notify_state_changes(sender, instance, created, **kwargs):
         notification_type='prescription_status',
         title=f'Prescription {instance.reference} updated',
         message=message,
-        data={'reference': instance.reference, 'prescription_id': instance.id, 'status': instance.status},
+        data={
+            'url': f'/account/prescriptions?prescription={instance.id}',
+            'reference': instance.reference,
+            'prescription_id': instance.id,
+            'status': instance.get_status_display(),
+        },
         send_email=True,
     )

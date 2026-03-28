@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.accounts.models import PaymentMethod, User
+from apps.accounts.models import Address, PaymentMethod, User
 from apps.notifications.models import NotificationPreference
 
 
@@ -116,3 +116,52 @@ class AccountSelfServiceTests(TestCase):
         self.assertEqual(delete_response.status_code, 204)
         second_method.refresh_from_db()
         self.assertTrue(second_method.is_default)
+
+    def test_customer_can_manage_saved_addresses_with_phone(self):
+        create_response = self.client.post(
+            reverse('addresses'),
+            {
+                'label': 'Home',
+                'phone': '+254700000111',
+                'street': '123 Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'is_default': True,
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201)
+        address = Address.objects.get(user=self.user, street='123 Moi Avenue')
+        self.assertEqual(address.phone, '+254700000111')
+        self.assertTrue(address.is_default)
+
+        second_response = self.client.post(
+            reverse('addresses'),
+            {
+                'label': 'Office',
+                'phone': '+254700000222',
+                'street': '456 Kenyatta Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'is_default': True,
+            },
+            format='json',
+        )
+        self.assertEqual(second_response.status_code, 201)
+        address.refresh_from_db()
+        self.assertFalse(address.is_default)
+        second_address = Address.objects.get(user=self.user, street='456 Kenyatta Avenue')
+        self.assertEqual(second_address.phone, '+254700000222')
+        self.assertTrue(second_address.is_default)
+
+        update_response = self.client.patch(
+            reverse('address-detail', args=[address.id]),
+            {'phone': '+254700000333', 'is_default': True},
+            format='json',
+        )
+        self.assertEqual(update_response.status_code, 200)
+        address.refresh_from_db()
+        second_address.refresh_from_db()
+        self.assertEqual(address.phone, '+254700000333')
+        self.assertTrue(address.is_default)
+        self.assertFalse(second_address.is_default)

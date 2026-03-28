@@ -43,6 +43,7 @@ urlpatterns = [
     # Orders (spec: POST /orders = one-step create)
     path('orders/', views.OrderListView.as_view(), name='orders'),
     path('orders/create/', views.OrderCreateView.as_view(), name='order-create'),
+    path('orders/tracking/lookup/', views.PublicOrderTrackingLookupView.as_view(), name='order-tracking-lookup'),
     path('orders/<int:pk>/', views.OrderDetailView.as_view(), name='order-detail'),
     path('orders/<int:pk>/cancel/', views.OrderCancelView.as_view(), name='order-cancel'),
     path('orders/<int:pk>/tracking/', views.OrderTrackingView.as_view(), name='order-tracking'),
