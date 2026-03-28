@@ -608,6 +608,38 @@ class Product(models.Model):
             return annotated_count
         return self.reviews.filter(is_approved=True).count()
 
+    def get_active_variants(self):
+        """Return active variants ordered for presentation and fallback logic."""
+        if hasattr(self, '_prefetched_objects_cache') and 'variants' in self._prefetched_objects_cache:
+            variants = [variant for variant in self._prefetched_objects_cache['variants'] if variant.is_active]
+            return sorted(variants, key=lambda variant: (variant.sort_order, variant.name, variant.pk or 0))
+        return list(self.variants.filter(is_active=True).order_by('sort_order', 'name', 'pk'))
+
+    def get_representative_variant(self):
+        """Return the lead active variant used for derived display fields."""
+        variants = self.get_active_variants()
+        return variants[0] if variants else None
+
+    def sync_variant_catalog_fields(self, *, save=True):
+        """Mirror representative variant pricing onto the parent product for compatibility."""
+        representative = self.get_representative_variant()
+        next_price = representative.price if representative and representative.price is not None else Decimal('0.00')
+        next_cost_price = representative.cost_price if representative else None
+
+        update_fields = []
+        if self.price != next_price:
+            self.price = next_price
+            update_fields.append('price')
+        if self.cost_price != next_cost_price:
+            self.cost_price = next_cost_price
+            update_fields.append('cost_price')
+
+        if save and update_fields and self.pk:
+            update_fields.append('updated_at')
+            self.save(update_fields=update_fields)
+
+        return representative
+
 
 class ProductInventory(models.Model):
     """Current inventory snapshot for a product location."""
@@ -700,8 +732,13 @@ class ProductVariant(models.Model):
     barcode = models.CharField(max_length=64, blank=True)
     pos_product_id = models.CharField(max_length=80, blank=True)
     name = models.CharField(max_length=120)
+    strength = models.CharField(max_length=50, blank=True, help_text="e.g. 500mg, 10mg/5ml, 2%")
+    dosage_instructions = models.TextField(blank=True)
+    directions = models.TextField(blank=True)
+    warnings = models.TextField(blank=True)
     attributes = models.JSONField(default=dict, blank=True)  # e.g. {"size": "500mg"}
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/variants/', blank=True)
     stock_source = models.CharField(max_length=20, choices=Product.STOCK_CHOICES, default=Product.STOCK_BRANCH)
@@ -731,6 +768,14 @@ class ProductVariant(models.Model):
         elif self.stock_quantity > 0 and self.stock_source == Product.STOCK_OUT:
             self.stock_source = Product.STOCK_BRANCH
         super().save(*args, **kwargs)
+        if self.product_id:
+            self.product.sync_variant_catalog_fields()
+
+    def delete(self, *args, **kwargs):
+        product = self.product
+        super().delete(*args, **kwargs)
+        if product and product.pk:
+            product.sync_variant_catalog_fields()
 
     @property
     def effective_price(self):

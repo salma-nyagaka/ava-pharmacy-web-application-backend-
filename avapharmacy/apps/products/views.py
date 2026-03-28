@@ -345,6 +345,46 @@ class AdminProductFormMetaView(APIView):
         })
 
 
+class AdminPosProductOptionListView(APIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def get(self, request):
+        options = []
+        seen = set()
+
+        variants = ProductVariant.objects.exclude(pos_product_id='').select_related('product').order_by('product__name', 'name')
+        for variant in variants:
+            pos_product_id = (variant.pos_product_id or '').strip()
+            if not pos_product_id or pos_product_id in seen:
+                continue
+            seen.add(pos_product_id)
+            options.append({
+                'pos_product_id': pos_product_id,
+                'label': f'{variant.product.name} · {variant.name}',
+                'product_name': variant.product.name,
+                'variant_name': variant.name,
+                'sku': variant.sku,
+                'source': 'variant',
+            })
+
+        products = Product.objects.exclude(pos_product_id='').order_by('name')
+        for product in products:
+            pos_product_id = (product.pos_product_id or '').strip()
+            if not pos_product_id or pos_product_id in seen:
+                continue
+            seen.add(pos_product_id)
+            options.append({
+                'pos_product_id': pos_product_id,
+                'label': product.name,
+                'product_name': product.name,
+                'variant_name': '',
+                'sku': product.sku,
+                'source': 'product',
+            })
+
+        return Response(options)
+
+
 class AdminProductDetailView(PromotionContextMixin, generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = AdminProductSerializer

@@ -7,6 +7,7 @@ Pricing fields (final_price, discount_total, active_promotions) are computed
 via the calculate_product_pricing service.
 """
 import json
+from decimal import Decimal
 
 from django.conf import settings
 from rest_framework import serializers
@@ -17,18 +18,34 @@ from .services import calculate_product_pricing
 
 
 class ProductImageWithBrandFallbackField(serializers.ImageField):
-    """Return the product image when the asset exists, otherwise fall back to the brand logo."""
+    """Return the product image, falling back to a representative variant image, then brand."""
 
     def to_representation(self, value):
         if self._has_usable_file(value):
             return super().to_representation(value)
 
         instance = getattr(value, 'instance', None)
+        variant_image = self._representative_variant_image(instance)
+        if self._has_usable_file(variant_image):
+            return super().to_representation(variant_image)
+
         brand_logo = getattr(getattr(instance, 'brand', None), 'logo', None)
         if self._has_usable_file(brand_logo):
             return super().to_representation(brand_logo)
 
         return None
+
+    def _representative_variant_image(self, instance):
+        if instance is None:
+            return None
+
+        representative = None
+        get_variant = getattr(instance, 'get_representative_variant', None)
+        if callable(get_variant):
+            representative = get_variant()
+        elif hasattr(instance, 'variants'):
+            representative = instance.variants.filter(is_active=True).order_by('sort_order', 'name', 'pk').first()
+        return getattr(representative, 'image', None)
 
     @staticmethod
     def _has_usable_file(value):
@@ -275,7 +292,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
         fields = (
-            'id', 'sku', 'name', 'attributes', 'price', 'original_price', 'effective_price',
+            'id', 'sku', 'name', 'strength', 'dosage_instructions', 'directions', 'warnings', 'attributes', 'price', 'cost_price', 'original_price', 'effective_price',
             'image', 'stock_source', 'stock_quantity', 'low_stock_threshold',
             'allow_backorder', 'max_backorder_quantity', 'inventory_status',
             'available_quantity', 'is_active', 'sort_order', 'created_at', 'updated_at'
@@ -289,7 +306,7 @@ class AdminProductVariantSerializer(ProductVariantSerializer):
 
     class Meta(ProductVariantSerializer.Meta):
         fields = (
-            'id', 'sku', 'barcode', 'pos_product_id', 'name', 'attributes', 'price', 'original_price', 'effective_price',
+            'id', 'sku', 'barcode', 'pos_product_id', 'name', 'strength', 'dosage_instructions', 'directions', 'warnings', 'attributes', 'price', 'cost_price', 'original_price', 'effective_price',
             'image', 'stock_source', 'stock_quantity', 'low_stock_threshold',
             'allow_backorder', 'max_backorder_quantity', 'inventory_status',
             'available_quantity', 'is_active', 'sort_order', 'created_at', 'updated_at'
@@ -297,6 +314,16 @@ class AdminProductVariantSerializer(ProductVariantSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        price = attrs.get('price', getattr(self.instance, 'price', None))
+        cost_price = attrs.get('cost_price', getattr(self.instance, 'cost_price', None))
+
+        if price is None:
+            raise serializers.ValidationError({'price': ['Selling price is required for each variant.']})
+        if cost_price is not None and cost_price < 0:
+            raise serializers.ValidationError({'cost_price': ['Ensure this value is greater than or equal to 0.']})
+        if attrs.get('image'):
+            validate_uploaded_image(attrs['image'], 'product')
+
         strategy = getattr(settings, 'POS_LINK_STRATEGY', 'sku')
         sku = attrs.get('sku', getattr(self.instance, 'sku', None))
         pos_product_id = attrs.get('pos_product_id', getattr(self.instance, 'pos_product_id', None))
@@ -308,6 +335,14 @@ class AdminProductVariantSerializer(ProductVariantSerializer):
         if isinstance(barcode, str):
             attrs['barcode'] = barcode.strip()
             barcode = attrs['barcode']
+        if isinstance(attrs.get('strength'), str):
+            attrs['strength'] = attrs['strength'].strip()
+        if isinstance(attrs.get('dosage_instructions'), str):
+            attrs['dosage_instructions'] = attrs['dosage_instructions'].strip()
+        if isinstance(attrs.get('directions'), str):
+            attrs['directions'] = attrs['directions'].strip()
+        if isinstance(attrs.get('warnings'), str):
+            attrs['warnings'] = attrs['warnings'].strip()
 
         strategy = (strategy or 'sku').strip().lower()
         if strategy == 'pos_product_id' and not pos_product_id:
@@ -417,6 +452,7 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     image = ProductImageWithBrandFallbackField(required=False, allow_null=True)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, min_value=Decimal('0.00'))
     created_by_name = serializers.SerializerMethodField()
     brand = BrandSerializer(read_only=True)
     brand_id = serializers.PrimaryKeyRelatedField(
@@ -611,8 +647,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             attrs['slug'] = self._generate_unique_slug(attrs.get('name', ''))
         elif 'slug' in attrs and not provided_slug:
             attrs['slug'] = self._generate_unique_slug(attrs.get('name') or self.instance.name)
-        if self.instance is None and not attrs.get('image'):
-            raise serializers.ValidationError({'image': 'Product image is required.'})
+        if self.instance is None and 'price' not in attrs:
+            attrs['price'] = Decimal('0.00')
         if attrs.get('image'):
             validate_uploaded_image(attrs['image'], 'product')
         return attrs

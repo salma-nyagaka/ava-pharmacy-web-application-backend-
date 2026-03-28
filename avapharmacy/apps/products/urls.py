@@ -46,6 +46,7 @@ urlpatterns = [
     path('admin/brands/<int:pk>/', views.AdminBrandDetailView.as_view(), name='admin-brand-detail'),
     path('admin/products/', views.AdminProductListCreateView.as_view(), name='admin-products'),
     path('admin/products/meta/', views.AdminProductFormMetaView.as_view(), name='admin-product-form-meta'),
+    path('admin/products/pos-options/', views.AdminPosProductOptionListView.as_view(), name='admin-pos-product-options'),
     path('admin/products/<int:pk>/', views.AdminProductDetailView.as_view(), name='admin-product-detail'),
     path('admin/products/<int:product_pk>/images/', views.AdminProductImageListCreateView.as_view(), name='admin-product-images'),
     path('admin/products/<int:product_pk>/images/<int:pk>/', views.AdminProductImageDetailView.as_view(), name='admin-product-image-detail'),

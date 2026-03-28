@@ -129,6 +129,72 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertFalse(promotion.is_stackable)
         self.assertTrue(bool(promotion.image))
 
+    def test_admin_can_create_variant_with_medication_fields(self):
+        self.client.force_authenticate(self.admin)
+        product = Product.objects.create(
+            sku='PARENT-001',
+            name='Parent Product',
+            slug='parent-product',
+            price=Decimal('0.00'),
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse('admin-product-variants', kwargs={'product_pk': product.id}),
+            {
+                'name': '500mg - 20 tablets',
+                'sku': 'PARENT-001-500',
+                'strength': '500mg',
+                'dosage_instructions': 'Take 1 tablet twice daily after meals',
+                'directions': 'Swallow with water',
+                'warnings': 'Keep out of reach of children',
+                'pos_product_id': 'POS-500',
+                'price': '250.00',
+                'stock_quantity': 12,
+                'low_stock_threshold': 3,
+                'is_active': True,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        variant = product.variants.get(sku='PARENT-001-500')
+        self.assertEqual(variant.strength, '500mg')
+        self.assertEqual(variant.dosage_instructions, 'Take 1 tablet twice daily after meals')
+        self.assertEqual(variant.directions, 'Swallow with water')
+        self.assertEqual(variant.warnings, 'Keep out of reach of children')
+        self.assertEqual(variant.pos_product_id, 'POS-500')
+
+    def test_admin_pos_product_options_include_variant_links(self):
+        self.client.force_authenticate(self.admin)
+        product = Product.objects.create(
+            sku='PARENT-002',
+            name='Parent Product 2',
+            slug='parent-product-2',
+            price=Decimal('0.00'),
+            is_active=True,
+        )
+        product.pos_product_id = 'POS-PARENT'
+        product.save(update_fields=['pos_product_id'])
+        product.variants.create(
+            sku='PARENT-002-250',
+            name='250mg - 10 tablets',
+            strength='250mg',
+            pos_product_id='POS-250',
+            price=Decimal('150.00'),
+            stock_quantity=5,
+        )
+
+        response = self.client.get(reverse('admin-pos-product-options'))
+        self.assertEqual(response.status_code, 200)
+        items = response.data
+        variant_item = next(entry for entry in items if entry['pos_product_id'] == 'POS-250')
+        product_item = next(entry for entry in items if entry['pos_product_id'] == 'POS-PARENT')
+
+        self.assertEqual(variant_item['source'], 'variant')
+        self.assertEqual(variant_item['variant_name'], '250mg - 10 tablets')
+        self.assertEqual(product_item['source'], 'product')
+
     def test_admin_brand_create_accepts_image_alias(self):
         self.client.force_authenticate(self.admin)
 

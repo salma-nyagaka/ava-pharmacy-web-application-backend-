@@ -1,10 +1,18 @@
 from django.contrib import admin
-from .models import SupportTicket, SupportNote
+from .models import NewsletterSubscriber, SupportTicket, SupportNote
 
 
 class SupportNoteInline(admin.TabularInline):
     model = SupportNote
     extra = 0
+
+
+@admin.register(NewsletterSubscriber)
+class NewsletterSubscriberAdmin(admin.ModelAdmin):
+    list_display = ('email', 'source', 'is_active', 'subscribed_at', 'last_confirmation_sent_at')
+    list_filter = ('is_active', 'source')
+    search_fields = ('email',)
+    readonly_fields = ('subscribed_at', 'last_confirmation_sent_at')
 
 
 @admin.register(SupportTicket)

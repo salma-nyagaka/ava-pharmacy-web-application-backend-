@@ -1,13 +1,61 @@
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import SupportTicket, SupportNote
+from .models import NewsletterSubscriber, SupportTicket, SupportNote
 from .serializers import (
+    NewsletterSubscriptionRequestSerializer,
+    NewsletterSubscriberSerializer,
     SupportTicketSerializer, SupportTicketCreateSerializer,
     SupportTicketUpdateSerializer, SupportNoteCreateSerializer
 )
 from apps.accounts.permissions import IsAdminUser
+from .utils import send_newsletter_subscription_email
+
+
+class NewsletterSubscribeView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = NewsletterSubscriptionRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        with transaction.atomic():
+            subscriber, created = NewsletterSubscriber.objects.get_or_create(
+                email=validated['email'],
+                defaults={
+                    'source': validated.get('source', 'website'),
+                    'is_active': True,
+                },
+            )
+
+            update_fields = []
+            next_source = validated.get('source', subscriber.source)
+            if subscriber.source != next_source:
+                subscriber.source = next_source
+                update_fields.append('source')
+            if not subscriber.is_active:
+                subscriber.is_active = True
+                update_fields.append('is_active')
+
+            send_newsletter_subscription_email(subscriber.email)
+            subscriber.last_confirmation_sent_at = timezone.now()
+            update_fields.append('last_confirmation_sent_at')
+
+            if update_fields:
+                subscriber.save(update_fields=update_fields)
+
+        response_serializer = NewsletterSubscriberSerializer(subscriber)
+        return Response(
+            {
+                'subscriber': response_serializer.data,
+                'message': 'Newsletter subscription confirmed. Check your email for the confirmation message.',
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
 
 class SupportTicketListCreateView(generics.ListCreateAPIView):
