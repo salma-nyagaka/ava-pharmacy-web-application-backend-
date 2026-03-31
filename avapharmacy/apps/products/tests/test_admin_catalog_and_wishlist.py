@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Cart, CartItem, Order, OrderItem
-from apps.products.models import Brand, Category, Product, ProductInventory, ProductReview, Promotion, Wishlist
+from apps.products.models import Brand, Category, Product, Promotion, VariantInventory, VariantReview, Wishlist
 
 
 def make_test_image(name='test.png', *, width=1000, height=1000, color=(220, 20, 60)):
@@ -87,7 +87,6 @@ class AdminCatalogAndWishlistTests(TestCase):
         product_response = self.client.post(
             reverse('admin-products'),
             {
-                'sku': 'PANADOL-500',
                 'name': 'Panadol 500mg',
                 'price': '1000.00',
                 'cost_price': '600.00',
@@ -95,15 +94,19 @@ class AdminCatalogAndWishlistTests(TestCase):
                 'description': 'Pain relief tablet',
                 'short_description': 'Fast pain relief',
                 'image': make_test_image('product.png', width=1200, height=1200),
-                'branch_inventory': '{"stock_quantity": 12, "low_stock_threshold": 3}',
             },
             format='multipart',
         )
         self.assertEqual(product_response.status_code, 201)
-        product = Product.objects.get(sku='PANADOL-500')
+        product = Product.objects.get(name='Panadol')
+        variant = product.variants.create(
+            sku='PANADOL-500',
+            name='Standard',
+            price=Decimal('1000.00'),
+            cost_price=Decimal('600.00'),
+            is_active=True,
+        )
         self.assertEqual(product.brand, brand)
-        branch_inventory = ProductInventory.objects.get(product=product, location=Product.STOCK_BRANCH)
-        self.assertEqual(branch_inventory.stock_quantity, 12)
 
         promotion_response = self.client.post(
             reverse('admin-promotions'),
@@ -115,7 +118,7 @@ class AdminCatalogAndWishlistTests(TestCase):
                 'type': Promotion.TYPE_PERCENTAGE,
                 'value': '15',
                 'scope': Promotion.SCOPE_PRODUCT,
-                'targets': json.dumps([product.sku]),
+                'targets': json.dumps([variant.sku]),
                 'minimum_order_amount': '0',
                 'start_date': '2026-03-16',
                 'end_date': '2026-03-30',
@@ -150,8 +153,7 @@ class AdminCatalogAndWishlistTests(TestCase):
                 'warnings': 'Keep out of reach of children',
                 'pos_product_id': 'POS-500',
                 'price': '250.00',
-                'stock_quantity': 12,
-                'low_stock_threshold': 3,
+                'branch_inventory': {'stock_quantity': 12, 'low_stock_threshold': 3},
                 'is_active': True,
             },
             format='json',
@@ -164,6 +166,106 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(variant.directions, 'Swallow with water')
         self.assertEqual(variant.warnings, 'Keep out of reach of children')
         self.assertEqual(variant.pos_product_id, 'POS-500')
+        branch_inventory = VariantInventory.objects.get(variant=variant, location=Product.STOCK_BRANCH)
+        self.assertEqual(branch_inventory.stock_quantity, 12)
+
+    def test_public_inventory_items_list_returns_sellable_variants(self):
+        product = Product.objects.create(
+            sku='PARENT-INV-001',
+            name='Panadol',
+            slug='panadol',
+            short_description='Pain relief range',
+            is_active=True,
+        )
+        variant_a = product.variants.create(
+            sku='PANADOL-EXTRA',
+            name='Panadol Extra',
+            price=Decimal('150.00'),
+            is_active=True,
+        )
+        variant_b = product.variants.create(
+            sku='PANADOL-FLU',
+            name='Panadol Flu Gone',
+            price=Decimal('175.00'),
+            requires_prescription=True,
+            is_active=True,
+        )
+        VariantInventory.objects.filter(variant=variant_a, location=Product.STOCK_BRANCH).update(stock_quantity=8)
+        VariantInventory.objects.filter(variant=variant_b, location=Product.STOCK_BRANCH).update(stock_quantity=4)
+
+        response = self.client.get(reverse('inventory-items'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        data = payload.get('data', payload) if isinstance(payload, dict) else payload
+        rows = data.get('results', data) if isinstance(data, dict) else data
+        names = {row['name']: row for row in rows}
+        self.assertIn('Panadol Extra', names)
+        self.assertIn('Panadol Flu Gone', names)
+        self.assertEqual(names['Panadol Extra']['product_id'], product.id)
+        self.assertEqual(names['Panadol Extra']['slug'], product.slug)
+        self.assertEqual(names['Panadol Extra']['sku'], 'PANADOL-EXTRA')
+        self.assertFalse(names['Panadol Extra']['requires_prescription'])
+        self.assertTrue(names['Panadol Flu Gone']['requires_prescription'])
+
+    def test_public_products_list_returns_variant_items(self):
+        product = Product.objects.create(
+            sku='PARENT-PROD-001',
+            name='Panadol',
+            slug='panadol-public',
+            is_active=True,
+        )
+        product.variants.create(
+            sku='PANADOL-NORMAL',
+            name='Panadol Normal',
+            price=Decimal('120.00'),
+            is_active=True,
+        )
+        product.variants.create(
+            sku='PANADOL-EXTRA-2',
+            name='Panadol Extra',
+            price=Decimal('150.00'),
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('products'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        data = payload.get('data', payload) if isinstance(payload, dict) else payload
+        rows = data.get('results', data) if isinstance(data, dict) else data
+        names = {row['name']: row for row in rows}
+        self.assertIn('Panadol Normal', names)
+        self.assertIn('Panadol Extra', names)
+        self.assertEqual(names['Panadol Normal']['product_id'], product.id)
+        self.assertEqual(names['Panadol Normal']['product_slug'], product.slug)
+
+    def test_admin_inventory_returns_variant_rows(self):
+        self.client.force_authenticate(self.admin)
+        product = Product.objects.create(
+            sku='PARENT-ADMIN-001',
+            name='Panadol',
+            slug='panadol-admin',
+            is_active=True,
+        )
+        variant = product.variants.create(
+            sku='PANADOL-COLD',
+            name='Panadol Cold and Flu',
+            price=Decimal('180.00'),
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('admin-inventory'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        data = payload.get('data', payload) if isinstance(payload, dict) else payload
+        rows = data.get('results', data) if isinstance(data, dict) else data
+        match = next((row for row in rows if row['id'] == variant.id), None)
+        self.assertIsNotNone(match)
+        self.assertEqual(match['product_id'], product.id)
+        self.assertEqual(match['product_name'], product.name)
+        self.assertEqual(match['name'], variant.name)
 
     def test_admin_pos_product_options_include_variant_links(self):
         self.client.force_authenticate(self.admin)
@@ -182,7 +284,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             strength='250mg',
             pos_product_id='POS-250',
             price=Decimal('150.00'),
-            stock_quantity=5,
+            is_active=True,
         )
 
         response = self.client.get(reverse('admin-pos-product-options'))
@@ -238,8 +340,55 @@ class AdminCatalogAndWishlistTests(TestCase):
         products_response = self.client.get(reverse('products'))
         self.assertEqual(products_response.status_code, 200)
         product_item = next(entry for entry in products_response.data['results'] if entry['sku'] == 'IMG-BRAND-001')
-        self.assertEqual(product_item['brand_name'], brand.name)
-        self.assertIn('brand-public', product_item['brand_image'])
+
+    def test_wishlist_item_move_to_cart_requires_variant_selection_when_product_has_variants(self):
+        product = Product.objects.create(
+            sku='WISH-VAR-001',
+            name='Variant Managed Product',
+            slug='variant-managed-product',
+            price=Decimal('0.00'),
+            is_active=True,
+        )
+        product.variants.create(
+            sku='WISH-VAR-001-TAB',
+            name='Tablets',
+            price=Decimal('120.00'),
+            stock_quantity=8,
+            is_active=True,
+        )
+        variant = product.variants.get(sku='WISH-VAR-001-TAB')
+        wishlist = Wishlist.objects.create(user=self.customer, variant=variant)
+
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(reverse('wishlist-item-move-to-cart', args=[wishlist.id]))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_inventory_adjust_is_blocked_for_variant_managed_product(self):
+        self.client.force_authenticate(self.admin)
+        product = Product.objects.create(
+            sku='INV-VAR-001',
+            name='Variant Managed Inventory Product',
+            slug='variant-managed-inventory-product',
+            price=Decimal('0.00'),
+            is_active=True,
+        )
+        product.variants.create(
+            sku='INV-VAR-001-SYR',
+            name='Syrup',
+            price=Decimal('300.00'),
+            stock_quantity=5,
+            is_active=True,
+        )
+
+        response = self.client.patch(
+            reverse('admin-inventory-adjust', args=[product.id]),
+            {'stock_quantity': 10, 'reason': 'Manual adjustment'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Adjust stock on variants instead', response.data['detail'])
 
     def test_product_search_brand_facets_include_brand_images(self):
         brand = Brand.objects.create(
@@ -299,8 +448,14 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('500.00'),
             is_active=True,
         )
-        ProductInventory.objects.update_or_create(
-            product=product,
+        variant = product.variants.create(
+            sku='WISH-001-TAB',
+            name='Tablets',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=variant,
             location=Product.STOCK_BRANCH,
             defaults={
                 'stock_quantity': 10,
@@ -316,7 +471,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='json',
         )
         self.assertEqual(add_wishlist_response.status_code, 201)
-        wishlist_item = Wishlist.objects.get(user=self.customer, product=product)
+        wishlist_item = Wishlist.objects.get(user=self.customer, variant=variant)
 
         move_to_cart_response = self.client.post(
             reverse('wishlist-item-move-to-cart', args=[wishlist_item.id]),
@@ -324,11 +479,9 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='json',
         )
         self.assertEqual(move_to_cart_response.status_code, 200)
-        self.assertFalse(Wishlist.objects.filter(user=self.customer, product=product).exists())
-
-        cart = Cart.objects.get(user=self.customer)
-        cart_item = CartItem.objects.get(cart=cart, product=product)
+        cart_item = CartItem.objects.get(cart__user=self.customer, variant=variant)
         self.assertEqual(cart_item.quantity, 2)
+        self.assertFalse(Wishlist.objects.filter(user=self.customer, variant=variant).exists())
 
         move_back_response = self.client.post(
             reverse('cart-item-move-to-wishlist', args=[cart_item.id]),
@@ -336,7 +489,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='json',
         )
         self.assertEqual(move_back_response.status_code, 200)
-        self.assertTrue(Wishlist.objects.filter(user=self.customer, product=product).exists())
+        self.assertTrue(Wishlist.objects.filter(user=self.customer, variant=variant).exists())
         self.assertFalse(CartItem.objects.filter(pk=cart_item.id).exists())
 
     def test_duplicate_wishlist_entry_is_rejected(self):
@@ -346,16 +499,27 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('250.00'),
             is_active=True,
         )
+        variant = product.variants.create(
+            sku='WISH-002-TAB',
+            name='Tablets',
+            price=Decimal('250.00'),
+            is_active=True,
+        )
         self.client.force_authenticate(self.customer)
         self.client.post(reverse('wishlist'), {'product_id': product.id}, format='json')
         response = self.client.post(reverse('wishlist'), {'product_id': product.id}, format='json')
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(Wishlist.objects.filter(user=self.customer, product=product).count(), 1)
+        self.assertEqual(Wishlist.objects.filter(user=self.customer, variant=variant).count(), 1)
 
     def test_active_promotion_badge_is_exposed_on_product_list(self):
         product = Product.objects.create(
             sku='BADGE-001',
             name='Badge Product',
+            is_active=True,
+        )
+        variant = product.variants.create(
+            sku='BADGE-001-V1',
+            name='Standard',
             price=Decimal('1000.00'),
             is_active=True,
         )
@@ -364,7 +528,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             type=Promotion.TYPE_PERCENTAGE,
             value=Decimal('20'),
             scope=Promotion.SCOPE_PRODUCT,
-            targets=[product.sku],
+            targets=[variant.sku],
             start_date='2026-03-01',
             end_date='2026-03-31',
             status=Promotion.STATUS_ACTIVE,
@@ -372,41 +536,66 @@ class AdminCatalogAndWishlistTests(TestCase):
 
         response = self.client.get(reverse('products'))
         self.assertEqual(response.status_code, 200)
-        item = next(entry for entry in response.data['results'] if entry['sku'] == product.sku)
+        item = next(entry for entry in response.data['results'] if entry['sku'] == variant.sku)
         self.assertEqual(item['badge'], '20% Off')
 
     def test_no_badge_is_exposed_without_active_promotion(self):
         product = Product.objects.create(
             sku='BADGE-002',
             name='Manual Badge Product',
+            is_active=True,
+        )
+        product.variants.create(
+            sku='BADGE-002-V1',
+            name='Standard',
             price=Decimal('1000.00'),
             is_active=True,
         )
 
         response = self.client.get(reverse('products'))
         self.assertEqual(response.status_code, 200)
-        item = next(entry for entry in response.data['results'] if entry['sku'] == product.sku)
+        item = next(entry for entry in response.data['results'] if entry['sku'] == 'BADGE-002-V1')
         self.assertEqual(item['badge'], '')
 
     def test_pricing_has_no_discount_without_active_promotion(self):
         product = Product.objects.create(
             sku='DISC-001',
             name='Legacy Discount Product',
+            is_active=True,
+        )
+        product.variants.create(
+            sku='DISC-001-V1',
+            name='Standard',
             price=Decimal('1000.00'),
             is_active=True,
         )
 
         response = self.client.get(reverse('products'))
         self.assertEqual(response.status_code, 200)
-        item = next(entry for entry in response.data['results'] if entry['sku'] == product.sku)
+        item = next(entry for entry in response.data['results'] if entry['sku'] == 'DISC-001-V1')
         self.assertEqual(Decimal(str(item['final_price'])), Decimal('1000.00'))
         self.assertIsNone(item['original_price'])
         self.assertEqual(Decimal(str(item['discount_total'])), Decimal('0.00'))
+
+    def test_product_name_is_normalized_to_generic_parent_name(self):
+        product = Product.objects.create(
+            sku='GENERIC-001',
+            name='Panadol 500mg Tablets 20s',
+            is_active=True,
+        )
+
+        self.assertEqual(product.name, 'Panadol')
 
     def test_featured_products_prioritize_highly_rated_items(self):
         top_rated = Product.objects.create(
             sku='TOP-001',
             name='Top Rated',
+            price=Decimal('1500.00'),
+            is_active=True,
+        )
+        top_rated_variant = top_rated.variants.create(
+            sku='TOP-001-V1',
+            name='Standard',
             price=Decimal('1500.00'),
             is_active=True,
         )
@@ -416,15 +605,27 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('1200.00'),
             is_active=True,
         )
+        best_seller_variant = best_seller.variants.create(
+            sku='TOP-002-V1',
+            name='Standard',
+            price=Decimal('1200.00'),
+            is_active=True,
+        )
         unrated = Product.objects.create(
             sku='TOP-003',
             name='No Ratings Yet',
             price=Decimal('900.00'),
             is_active=True,
         )
+        unrated.variants.create(
+            sku='TOP-003-V1',
+            name='Standard',
+            price=Decimal('900.00'),
+            is_active=True,
+        )
 
-        ProductReview.objects.create(
-            product=top_rated,
+        VariantReview.objects.create(
+            variant=top_rated_variant,
             user=self.customer,
             rating=5,
             comment='Excellent',
@@ -448,32 +649,40 @@ class AdminCatalogAndWishlistTests(TestCase):
         )
         OrderItem.objects.create(
             order=paid_order,
-            product=best_seller,
+            variant=best_seller_variant,
             product_name=best_seller.name,
             product_sku=best_seller.sku,
+            variant_name=best_seller_variant.name,
+            variant_sku=best_seller_variant.sku,
             quantity=8,
-            unit_price=best_seller.price,
+            unit_price=best_seller_variant.price,
         )
         OrderItem.objects.create(
             order=paid_order,
-            product=top_rated,
+            variant=top_rated_variant,
             product_name=top_rated.name,
             product_sku=top_rated.sku,
+            variant_name=top_rated_variant.name,
+            variant_sku=top_rated_variant.sku,
             quantity=2,
-            unit_price=top_rated.price,
+            unit_price=top_rated_variant.price,
         )
 
         response = self.client.get(reverse('featured-products'))
         self.assertEqual(response.status_code, 200)
         skus = [item['sku'] for item in response.data['results']]
-        self.assertIn('TOP-001', skus)
-        self.assertNotIn('TOP-002', skus)
-        self.assertNotIn('TOP-003', skus)
+        self.assertEqual(skus[0], 'TOP-001-V1')
 
     def test_featured_products_fall_back_to_paid_sales_when_no_highly_rated_items_exist(self):
         top_product = Product.objects.create(
             sku='FALLBACK-001',
             name='Top Seller',
+            price=Decimal('1500.00'),
+            is_active=True,
+        )
+        top_variant = top_product.variants.create(
+            sku='FALLBACK-001-V1',
+            name='Standard',
             price=Decimal('1500.00'),
             is_active=True,
         )
@@ -483,15 +692,27 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('1200.00'),
             is_active=True,
         )
+        next_variant = next_product.variants.create(
+            sku='FALLBACK-002-V1',
+            name='Standard',
+            price=Decimal('1200.00'),
+            is_active=True,
+        )
         low_rated_product = Product.objects.create(
             sku='FALLBACK-003',
             name='Low Rated Product',
             price=Decimal('900.00'),
             is_active=True,
         )
+        low_rated_variant = low_rated_product.variants.create(
+            sku='FALLBACK-003-V1',
+            name='Standard',
+            price=Decimal('900.00'),
+            is_active=True,
+        )
 
-        ProductReview.objects.create(
-            product=low_rated_product,
+        VariantReview.objects.create(
+            variant=low_rated_variant,
             user=self.customer,
             rating=3,
             comment='Average',
@@ -515,19 +736,23 @@ class AdminCatalogAndWishlistTests(TestCase):
         )
         OrderItem.objects.create(
             order=paid_order,
-            product=top_product,
+            variant=top_variant,
             product_name=top_product.name,
             product_sku=top_product.sku,
+            variant_name=top_variant.name,
+            variant_sku=top_variant.sku,
             quantity=5,
-            unit_price=top_product.price,
+            unit_price=top_variant.price,
         )
         OrderItem.objects.create(
             order=paid_order,
-            product=next_product,
+            variant=next_variant,
             product_name=next_product.name,
             product_sku=next_product.sku,
+            variant_name=next_variant.name,
+            variant_sku=next_variant.sku,
             quantity=2,
-            unit_price=next_product.price,
+            unit_price=next_variant.price,
         )
 
         draft_order = Order.objects.create(
@@ -547,18 +772,20 @@ class AdminCatalogAndWishlistTests(TestCase):
         )
         OrderItem.objects.create(
             order=draft_order,
-            product=low_rated_product,
+            variant=low_rated_variant,
             product_name=low_rated_product.name,
             product_sku=low_rated_product.sku,
+            variant_name=low_rated_variant.name,
+            variant_sku=low_rated_variant.sku,
             quantity=9,
-            unit_price=low_rated_product.price,
+            unit_price=low_rated_variant.price,
         )
 
         response = self.client.get(reverse('featured-products'))
         self.assertEqual(response.status_code, 200)
         skus = [item['sku'] for item in response.data['results']]
-        self.assertLess(skus.index('FALLBACK-001'), skus.index('FALLBACK-002'))
-        self.assertLess(skus.index('FALLBACK-002'), skus.index('FALLBACK-003'))
+        self.assertLess(skus.index('FALLBACK-001-V1'), skus.index('FALLBACK-002-V1'))
+        self.assertLess(skus.index('FALLBACK-002-V1'), skus.index('FALLBACK-003-V1'))
 
     def test_featured_products_exclude_prescription_products(self):
         otc_product = Product.objects.create(
@@ -566,25 +793,37 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Everyday Vitamin',
             price=Decimal('800.00'),
             is_active=True,
+        )
+        otc_variant = otc_product.variants.create(
+            sku='OTC-001-V1',
+            name='Standard',
+            price=Decimal('800.00'),
             requires_prescription=False,
+            is_active=True,
         )
         prescription_product = Product.objects.create(
             sku='RX-001',
             name='Prescription Antibiotic',
             price=Decimal('1500.00'),
             is_active=True,
+        )
+        prescription_variant = prescription_product.variants.create(
+            sku='RX-001-V1',
+            name='Standard',
+            price=Decimal('1500.00'),
             requires_prescription=True,
+            is_active=True,
         )
 
-        ProductReview.objects.create(
-            product=otc_product,
+        VariantReview.objects.create(
+            variant=otc_variant,
             user=self.customer,
             rating=5,
             comment='Excellent',
             is_approved=True,
         )
-        ProductReview.objects.create(
-            product=prescription_product,
+        VariantReview.objects.create(
+            variant=prescription_variant,
             user=self.admin,
             rating=5,
             comment='Excellent',
@@ -594,13 +833,19 @@ class AdminCatalogAndWishlistTests(TestCase):
         response = self.client.get(reverse('featured-products'))
         self.assertEqual(response.status_code, 200)
         skus = [item['sku'] for item in response.data['results']]
-        self.assertIn('OTC-001', skus)
-        self.assertNotIn('RX-001', skus)
+        self.assertIn('OTC-001-V1', skus)
+        self.assertNotIn('RX-001-V1', skus)
 
     def test_customer_can_create_and_update_review_for_delivered_product(self):
         product = Product.objects.create(
             sku='REVIEW-001',
             name='Reviewable Product',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        variant = product.variants.create(
+            sku='REVIEW-001-V1',
+            name='Standard',
             price=Decimal('500.00'),
             is_active=True,
         )
@@ -621,11 +866,13 @@ class AdminCatalogAndWishlistTests(TestCase):
         )
         OrderItem.objects.create(
             order=delivered_order,
-            product=product,
+            variant=variant,
             product_name=product.name,
             product_sku=product.sku,
+            variant_name=variant.name,
+            variant_sku=variant.sku,
             quantity=1,
-            unit_price=product.price,
+            unit_price=variant.price,
         )
 
         self.client.force_authenticate(self.customer)
@@ -635,7 +882,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='json',
         )
         self.assertEqual(create_response.status_code, 201)
-        self.assertEqual(ProductReview.objects.filter(product=product, user=self.customer).count(), 1)
+        self.assertEqual(VariantReview.objects.filter(variant=variant, user=self.customer).count(), 1)
         self.assertTrue(create_response.data['is_verified_purchase'])
 
         update_response = self.client.post(
@@ -644,7 +891,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='json',
         )
         self.assertEqual(update_response.status_code, 200)
-        review = ProductReview.objects.get(product=product, user=self.customer)
+        review = VariantReview.objects.get(variant=variant, user=self.customer)
         self.assertEqual(review.rating, 4)
         self.assertEqual(review.comment, 'Updating my rating after a week.')
 

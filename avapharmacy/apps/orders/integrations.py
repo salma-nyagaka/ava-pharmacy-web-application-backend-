@@ -38,7 +38,7 @@ def build_order_push_payload(order, action):
                     'product_id': item.product_id,
                     'product_sku': item.product_sku,
                     'product_name': item.product_name,
-                    'variant_id': item.product_variant_id,
+                    'variant_id': item.variant_id,
                     'variant_sku': item.variant_sku,
                     'variant_name': item.variant_name,
                     'quantity': item.quantity,

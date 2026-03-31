@@ -26,7 +26,7 @@ def get_product_promotions(product, promotions=None):
 
 
 def calculate_product_pricing(product, promotions=None):
-    selling_price = Decimal(product.price)
+    selling_price = Decimal(getattr(product, 'display_price', getattr(product, 'price', Decimal('0.00'))))
     applicable_promotions = get_product_promotions(product, promotions=promotions)
     if not applicable_promotions:
         return {

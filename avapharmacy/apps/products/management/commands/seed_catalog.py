@@ -1977,10 +1977,10 @@ class Command(BaseCommand):
                 stock_quantity=p.get('stock_qty', 100),
                 created_by=admin,
             )
-            for hc_name in p.get('health_concerns', []):
-                hc = hc_map.get(hc_name)
-                if hc:
-                    product.health_concerns.add(hc)
+            concerns = [hc for hc_name in p.get('health_concerns', []) if (hc := hc_map.get(hc_name))]
+            if concerns:
+                product.health_concerns = concerns
+                product.save()
             created += 1
 
         self.stdout.write(f'  Created {created} products.')

@@ -9,7 +9,7 @@ from apps.accounts.models import User
 from apps.notifications.models import Notification
 from apps.orders.models import Cart, CartItem, Order
 from apps.prescriptions.models import Prescription, PrescriptionItem
-from apps.products.models import Product, ProductInventory
+from apps.products.models import Product, VariantInventory
 
 
 class OrderCreationFlowTests(TestCase):
@@ -37,19 +37,26 @@ class OrderCreationFlowTests(TestCase):
             price=Decimal('700.00'),
             is_active=True,
         )
-        ProductInventory.objects.update_or_create(
-            product=self.product,
+        self.variant = self.product.variants.create(
+            sku='ORDER-001-TAB',
+            name='Tablets',
+            price=Decimal('700.00'),
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=self.variant,
             location=Product.STOCK_BRANCH,
             defaults={
                 'stock_quantity': 20,
                 'low_stock_threshold': 3,
             },
         )
+        self.variant.save()
 
     def test_customer_can_create_order_and_admin_can_view_it(self):
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)
-        CartItem.objects.create(cart=cart, product=self.product, quantity=2)
+        CartItem.objects.create(cart=cart, variant=self.variant, quantity=2)
 
         with self.captureOnCommitCallbacks(execute=True):
             order_response = self.client.post(
@@ -89,8 +96,8 @@ class OrderCreationFlowTests(TestCase):
         self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])
 
     def test_prescription_cart_item_uses_foreign_keys_and_order_snapshot_preserves_them(self):
-        self.product.requires_prescription = True
-        self.product.save(update_fields=['requires_prescription'])
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
 
         prescription = Prescription.objects.create(
             patient=self.customer,
@@ -109,6 +116,7 @@ class OrderCreationFlowTests(TestCase):
             reverse('cart-items'),
             {
                 'product_id': self.product.id,
+                'variant_id': self.variant.id,
                 'quantity': 2,
                 'prescription': prescription.id,
                 'prescription_item': prescription_item.id,
@@ -117,7 +125,7 @@ class OrderCreationFlowTests(TestCase):
         )
         self.assertEqual(add_to_cart_response.status_code, 201)
 
-        cart_item = CartItem.objects.get(cart__user=self.customer, product=self.product)
+        cart_item = CartItem.objects.get(cart__user=self.customer, variant=self.variant)
         self.assertEqual(cart_item.prescription_id, prescription.id)
         self.assertEqual(cart_item.prescription_item_id, prescription_item.id)
         self.assertEqual(cart_item.prescription_reference, prescription.reference)
@@ -140,7 +148,7 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(order_response.status_code, 201)
 
         order = Order.objects.get(customer=self.customer)
-        order_item = order.items.get(product=self.product)
+        order_item = order.items.get(variant=self.variant)
         self.assertEqual(order_item.prescription_id, prescription.id)
         self.assertEqual(order_item.prescription_item_id, prescription_item.id)
         self.assertEqual(order_item.prescription_reference, prescription.reference)
@@ -148,7 +156,7 @@ class OrderCreationFlowTests(TestCase):
     def test_order_creation_and_status_updates_create_customer_notifications(self):
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)
-        CartItem.objects.create(cart=cart, product=self.product, quantity=1)
+        CartItem.objects.create(cart=cart, variant=self.variant, quantity=1)
 
         create_response = self.client.post(
             reverse('order-create'),
@@ -181,7 +189,7 @@ class OrderCreationFlowTests(TestCase):
     def test_cod_checkout_finalize_succeeds_without_paid_status_or_payment_intent(self):
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)
-        CartItem.objects.create(cart=cart, product=self.product, quantity=1)
+        CartItem.objects.create(cart=cart, variant=self.variant, quantity=1)
 
         draft_response = self.client.post(
             reverse('checkout-draft'),
@@ -217,3 +225,17 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ['buyer@example.com'])
         self.assertIn(order.order_number, mail.outbox[0].subject)
         self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])
+
+    def test_customer_must_select_variant_for_variant_managed_product(self):
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(
+            reverse('cart-items'),
+            {
+                'product_id': self.product.id,
+                'quantity': 1,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Select a product variant', response.data['detail'])

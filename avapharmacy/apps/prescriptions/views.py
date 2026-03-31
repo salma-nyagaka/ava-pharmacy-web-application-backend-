@@ -294,10 +294,15 @@ class PrescriptionItemAddToCartView(APIView):
             return Response({'quantity': 'Must be at least 1.'}, status=status.HTTP_400_BAD_REQUEST)
 
         cart = _get_or_create_cart(request.user)
+        variant = item.product.get_representative_variant()
+        if variant is None:
+            return Response(
+                {'detail': f'No active variant is available for {item.product.name}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         existing_item = CartItem.objects.filter(
             cart=cart,
-            product=item.product,
-            product_variant__isnull=True,
+            variant=variant,
             prescription=prescription,
             prescription_item=item,
         ).first()
@@ -323,7 +328,7 @@ class PrescriptionItemAddToCartView(APIView):
         else:
             CartItem.objects.create(
                 cart=cart,
-                product=item.product,
+                variant=variant,
                 quantity=quantity,
                 prescription_reference=prescription.reference,
                 prescription=prescription,

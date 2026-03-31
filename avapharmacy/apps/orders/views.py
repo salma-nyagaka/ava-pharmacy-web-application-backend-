@@ -21,7 +21,7 @@ from apps.accounts.models import Address, User
 from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
 from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
-from apps.products.models import Product, ProductVariant, annotate_product_inventory
+from apps.products.models import Product, Variant, annotate_product_inventory
 from apps.products.pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from avapharmacy.security import verify_hmac_signature
 
@@ -227,6 +227,8 @@ def _serialize_tracking_order(order):
 def _product_availability_error(product, requested_quantity, *, allow_pos_refresh=False):
     if not product.is_active:
         return f'{product.name} is no longer active.'
+    if isinstance(product, Product) and product.uses_variant_inventory:
+        return f'Select a product variant for {product.name} before adding it to cart.'
     if requested_quantity <= product.stock_quantity:
         return None
     if product.allow_backorder and requested_quantity <= product.available_quantity:
@@ -234,7 +236,7 @@ def _product_availability_error(product, requested_quantity, *, allow_pos_refres
     if allow_pos_refresh:
         if isinstance(product, Product):
             refresh_pos_inventory_for_products([product], force=True)
-        elif isinstance(product, ProductVariant):
+        elif isinstance(product, Variant):
             refresh_pos_inventory_for_variants([product], force=True)
         if requested_quantity <= product.stock_quantity:
             return None
@@ -246,7 +248,7 @@ def _product_availability_error(product, requested_quantity, *, allow_pos_refres
 
 
 def _cart_inventory_object(item):
-    return item.product_variant or item.product
+    return item.variant or item.product
 
 
 def _get_prescription_product_match(user, prescription_reference, product, prescription=None, prescription_item=None):
@@ -295,7 +297,7 @@ def validate_cart_items(items):
         error = _product_availability_error(inventory_object, item.quantity, allow_pos_refresh=True)
         if error:
             errors.append(error)
-        if item.product.requires_prescription:
+        if item.variant and item.variant.requires_prescription:
             prescription_error = _prescription_cart_error(
                 getattr(item.cart, 'user', None),
                 item.product,
@@ -337,14 +339,13 @@ def snapshot_cart_to_order(order, cart_items):
     for item in cart_items:
         OrderItem.objects.create(
             order=order,
-            product=item.product,
-            product_variant=item.product_variant,
+            variant=item.variant,
             product_name=item.product.name,
-            product_sku=item.product.sku,
+            product_sku=item.product.get_display_sku(),
             quantity=item.quantity,
-            variant_name=item.product_variant.name if item.product_variant else '',
-            variant_sku=item.product_variant.sku if item.product_variant else '',
-            unit_price=item.product_variant.effective_price if item.product_variant else item.product.price,
+            variant_name=item.variant.name if item.variant else '',
+            variant_sku=item.variant.sku if item.variant else '',
+            unit_price=item.variant.effective_price,
             prescription_reference=item.prescription_reference,
             prescription=item.prescription,
             prescription_item=item.prescription_item,
@@ -972,7 +973,7 @@ class CartItemCreateView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         cart = get_or_create_cart(request.user)
         product_id = request.data.get('product_id')
-        variant_id = request.data.get('product_variant_id')
+        variant_id = request.data.get('variant_id')
         quantity = request.data.get('quantity', 1)
         prescription_reference = request.data.get('prescription_reference') or request.data.get('prescription_id')
         prescription_pk = request.data.get('prescription')
@@ -993,9 +994,14 @@ class CartItemCreateView(generics.CreateAPIView):
         variant = None
         if variant_id:
             try:
-                variant = ProductVariant.objects.get(pk=variant_id, product=product, is_active=True)
-            except ProductVariant.DoesNotExist:
+                variant = Variant.objects.get(pk=variant_id, product=product, is_active=True)
+            except Variant.DoesNotExist:
                 return Response({'detail': 'Variant not found for this product.'}, status=status.HTTP_404_NOT_FOUND)
+        elif product.uses_variant_inventory:
+            return Response(
+                {'detail': f'Select a product variant for {product.name} before adding it to cart.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         prescription = None
         prescription_item = None
@@ -1042,8 +1048,7 @@ class CartItemCreateView(generics.CreateAPIView):
 
         existing_item_filters = {
             'cart': cart,
-            'product': product,
-            'product_variant': variant,
+            'variant': variant,
         }
         if prescription or prescription_item:
             existing_item_filters.update({
@@ -1055,7 +1060,7 @@ class CartItemCreateView(generics.CreateAPIView):
 
         existing_item = CartItem.objects.filter(**existing_item_filters).first()
         requested_total = quantity + (existing_item.quantity if existing_item else 0)
-        if product.requires_prescription:
+        if variant and variant.requires_prescription:
             prescription_error = _prescription_cart_error(
                 request.user,
                 product,
@@ -1077,8 +1082,7 @@ class CartItemCreateView(generics.CreateAPIView):
         else:
             CartItem.objects.create(
                 cart=cart,
-                product=product,
-                product_variant=variant,
+                variant=variant,
                 quantity=quantity,
                 prescription_reference=prescription_reference,
                 prescription=prescription,
@@ -1094,7 +1098,7 @@ class CartItemUpdateView(APIView):
     def patch(self, request, pk):
         cart = get_or_create_cart(request.user)
         try:
-            item = CartItem.objects.select_related('product', 'product_variant').get(pk=pk, cart=cart)
+            item = CartItem.objects.select_related('variant', 'variant__product').get(pk=pk, cart=cart)
         except CartItem.DoesNotExist:
             return Response({'detail': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1106,7 +1110,7 @@ class CartItemUpdateView(APIView):
         except (TypeError, ValueError):
             return Response({'quantity': 'Invalid quantity.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if item.product.requires_prescription:
+        if item.variant and item.variant.requires_prescription:
             prescription_error = _prescription_cart_error(
                 request.user,
                 item.product,
@@ -1195,26 +1199,21 @@ class CheckoutDraftView(APIView):
 
         cart = get_or_create_cart(request.user)
         items = list(
-            cart.items.select_related('product', 'product__brand', 'product__category', 'product_variant')
+            cart.items.select_related('variant', 'variant__product', 'variant__product__brand', 'variant__product__category')
             .order_by('id')
         )
         if not items:
             return Response({'detail': 'Cart is empty.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        products = {
-            product.id: product
-            for product in Product.objects.select_for_update().filter(id__in=[item.product_id for item in items])
-        }
         variants = {
             variant.id: variant
-            for variant in ProductVariant.objects.select_for_update().filter(
-                id__in=[item.product_variant_id for item in items if item.product_variant_id]
+            for variant in Variant.objects.select_for_update().filter(
+                id__in=[item.variant_id for item in items if item.variant_id]
             )
         }
         for item in items:
-            item.product = products[item.product_id]
-            if item.product_variant_id:
-                item.product_variant = variants.get(item.product_variant_id)
+            if item.variant_id:
+                item.variant = variants.get(item.variant_id)
 
         errors = validate_cart_items(items)
         if errors:
@@ -2243,20 +2242,15 @@ class CheckoutFinalizeView(APIView):
         if order.payment_method != Order.PAYMENT_COD and order.payment_status != Order.PAYMENT_STATUS_PAID:
             return Response({'detail': 'Payment must be confirmed before finalizing this order.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        product_ids = [item.product_id for item in order.items.all() if item.product_id]
-        variant_ids = [item.product_variant_id for item in order.items.all() if item.product_variant_id]
-        locked_products = {
-            product.id: product
-            for product in Product.objects.select_for_update().filter(id__in=product_ids)
-        }
+        variant_ids = [item.variant_id for item in order.items.all() if item.variant_id]
         locked_variants = {
             variant.id: variant
-            for variant in ProductVariant.objects.select_for_update().filter(id__in=variant_ids)
+            for variant in Variant.objects.select_for_update().filter(id__in=variant_ids)
         }
 
         errors = []
         for item in order.items.all():
-            inventory_object = locked_variants.get(item.product_variant_id) if item.product_variant_id else locked_products.get(item.product_id)
+            inventory_object = locked_variants.get(item.variant_id)
             if not inventory_object:
                 errors.append(f'{item.product_name} is no longer available.')
                 continue
@@ -2302,7 +2296,7 @@ class OrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(customer=self.request.user).prefetch_related(
-            'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
         ).select_related('coupon', 'shipping_method')
 
 
@@ -2312,7 +2306,7 @@ class OrderDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(customer=self.request.user).prefetch_related(
-            'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
         ).select_related('coupon', 'shipping_method')
 
 
@@ -2420,14 +2414,14 @@ class AdminOrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Order.objects.all().select_related('customer', 'coupon', 'shipping_method').prefetch_related(
-            'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
         )
 
 
 class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsPharmacistOrAdmin]
     queryset = Order.objects.all().select_related('customer', 'coupon', 'shipping_method').prefetch_related(
-        'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+        'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
     )
 
     def get_serializer_class(self):
@@ -2934,7 +2928,7 @@ class AdminInvoiceListView(generics.ListAPIView):
         return (
             Order.objects.exclude(status=Order.STATUS_DRAFT)
             .select_related('customer', 'coupon', 'shipping_method')
-            .prefetch_related('items', 'items__product_variant', 'payment_intents')
+            .prefetch_related('items', 'items__variant', 'payment_intents')
         )
 
 
@@ -2946,7 +2940,7 @@ class AdminInvoiceDetailView(generics.RetrieveAPIView):
         return (
             Order.objects.exclude(status=Order.STATUS_DRAFT)
             .select_related('customer', 'coupon', 'shipping_method')
-            .prefetch_related('items', 'items__product_variant', 'payment_intents')
+            .prefetch_related('items', 'items__variant', 'payment_intents')
         )
 
 
@@ -3050,17 +3044,20 @@ class CartMergeView(APIView):
             except Product.DoesNotExist:
                 continue
 
-            existing = CartItem.objects.filter(cart=cart, product=product, product_variant=None).first()
+            representative_variant = product.get_representative_variant()
+            if representative_variant is None:
+                continue
+            existing = CartItem.objects.filter(cart=cart, variant=representative_variant).first()
             if existing:
                 new_qty = existing.quantity + quantity
-                error = _product_availability_error(product, new_qty, allow_pos_refresh=True)
+                error = _product_availability_error(representative_variant, new_qty, allow_pos_refresh=True)
                 if not error:
                     existing.quantity = new_qty
                     existing.save(update_fields=['quantity'])
             else:
-                available = min(quantity, product.stock_quantity if product.stock_quantity > 0 else quantity)
+                available = min(quantity, representative_variant.stock_quantity if representative_variant.stock_quantity > 0 else quantity)
                 if available > 0:
-                    CartItem.objects.create(cart=cart, product=product, quantity=available)
+                    CartItem.objects.create(cart=cart, variant=representative_variant, quantity=available)
 
         return Response(CartSerializer(cart).data)
 
@@ -3080,7 +3077,7 @@ class OrderCreateView(APIView):
 
         cart = get_or_create_cart(request.user)
         items = list(
-            cart.items.select_related('product', 'product__brand', 'product__category', 'product_variant')
+            cart.items.select_related('variant', 'variant__product', 'variant__product__brand', 'variant__product__category')
             .order_by('id')
         )
         if not items:
@@ -3089,20 +3086,15 @@ class OrderCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        products = {
-            product.id: product
-            for product in Product.objects.select_for_update().filter(id__in=[item.product_id for item in items])
-        }
         variants = {
             variant.id: variant
-            for variant in ProductVariant.objects.select_for_update().filter(
-                id__in=[item.product_variant_id for item in items if item.product_variant_id]
+            for variant in Variant.objects.select_for_update().filter(
+                id__in=[item.variant_id for item in items if item.variant_id]
             )
         }
         for item in items:
-            item.product = products[item.product_id]
-            if item.product_variant_id:
-                item.product_variant = variants.get(item.product_variant_id)
+            if item.variant_id:
+                item.variant = variants.get(item.variant_id)
 
         errors = validate_cart_items(items)
         if errors:

@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils import timezone
 
-from .models import Product, ProductInventory, StockMovement
+from .models import Product, StockMovement, Variant, VariantInventory
 
 
 INVENTORY_LOCATION_ALIASES = {
@@ -87,6 +87,8 @@ def normalize_inventory_payload(payload):
         normalized.append({
             'sku': str(item.get('sku') or '').strip(),
             'product_id': item.get('product_id'),
+            'variant_id': item.get('variant_id'),
+            'barcode': str(item.get('barcode') or '').strip(),
             'pos_product_id': str(item.get('pos_product_id') or item.get('pos_id') or '').strip(),
             'location': location,
             'stock_quantity': _coerce_int(item.get('quantity_on_hand', item.get('stock_quantity', item.get('quantity', 0)))),
@@ -101,18 +103,26 @@ def normalize_inventory_payload(payload):
     return normalized
 
 
-def _find_products_for_payload(rows):
+def _find_variants_for_payload(rows):
     sku_values = {row['sku'] for row in rows if row['sku']}
+    barcode_values = {row['barcode'] for row in rows if row['barcode']}
     pos_values = {row['pos_product_id'] for row in rows if row['pos_product_id']}
     product_ids = {row['product_id'] for row in rows if row['product_id']}
+    variant_ids = {row['variant_id'] for row in rows if row['variant_id']}
 
-    products = Product.objects.filter(
-        models.Q(sku__in=sku_values) | models.Q(pos_product_id__in=pos_values) | models.Q(id__in=product_ids)
-    ).prefetch_related('inventories')
-    by_sku = {product.sku: product for product in products if product.sku}
-    by_pos_id = {product.pos_product_id: product for product in products if product.pos_product_id}
-    by_id = {product.id: product for product in products}
-    return by_sku, by_pos_id, by_id
+    variants = Variant.objects.filter(
+        models.Q(sku__in=sku_values) | models.Q(barcode__in=barcode_values) | models.Q(pos_product_id__in=pos_values) | models.Q(id__in=variant_ids)
+    ).select_related('product').prefetch_related('inventories')
+    by_sku = {variant.sku: variant for variant in variants if variant.sku}
+    by_barcode = {variant.barcode: variant for variant in variants if variant.barcode}
+    by_pos_id = {variant.pos_product_id: variant for variant in variants if variant.pos_product_id}
+    by_id = {variant.id: variant for variant in variants}
+
+    variants_by_product_id = {}
+    if product_ids:
+        for variant in Variant.objects.filter(product_id__in=product_ids, is_active=True).select_related('product').prefetch_related('inventories').order_by('product_id', 'sort_order', 'name', 'pk'):
+            variants_by_product_id.setdefault(variant.product_id, variant)
+    return by_sku, by_barcode, by_pos_id, by_id, variants_by_product_id
 
 
 @transaction.atomic
@@ -120,21 +130,23 @@ def apply_inventory_sync(rows, *, source=StockMovement.SOURCE_POS_SYNC):
     if not rows:
         return []
 
-    by_sku, by_pos_id, by_id = _find_products_for_payload(rows)
+    by_sku, by_barcode, by_pos_id, by_id, variants_by_product_id = _find_variants_for_payload(rows)
     results = []
 
     for row in rows:
-        product = (
+        variant = (
             by_sku.get(row['sku'])
+            or by_barcode.get(row['barcode'])
             or by_pos_id.get(row['pos_product_id'])
-            or by_id.get(row['product_id'])
+            or by_id.get(row['variant_id'])
+            or variants_by_product_id.get(row['product_id'])
         )
-        if product is None:
-            results.append({'matched': False, 'sku': row['sku'], 'product_id': row['product_id']})
+        if variant is None:
+            results.append({'matched': False, 'sku': row['sku'], 'product_id': row['product_id'], 'variant_id': row['variant_id']})
             continue
 
-        inventory, _ = ProductInventory.objects.select_for_update().get_or_create(
-            product=product,
+        inventory, _ = VariantInventory.objects.select_for_update().get_or_create(
+            variant=variant,
             location=row['location'],
             defaults={
                 'source_name': row['source_name'],
@@ -148,7 +160,7 @@ def apply_inventory_sync(rows, *, source=StockMovement.SOURCE_POS_SYNC):
         before_quantity = inventory.stock_quantity
         if before_quantity != row['stock_quantity']:
             StockMovement.objects.create(
-                product=product,
+                variant_inventory=inventory,
                 movement_type=StockMovement.TYPE_ADJUSTMENT,
                 source=source,
                 quantity_change=row['stock_quantity'] - before_quantity,
@@ -167,11 +179,14 @@ def apply_inventory_sync(rows, *, source=StockMovement.SOURCE_POS_SYNC):
         inventory.is_pos_synced = True
         inventory.last_synced_at = row['synced_at']
         inventory.save()
+        variant._clear_inventory_cache()
+        variant.save()
 
         results.append({
             'matched': True,
-            'product_id': product.id,
-            'sku': product.sku,
+            'product_id': variant.product_id,
+            'variant_id': variant.id,
+            'sku': variant.sku,
             'location': inventory.location,
             'quantity': inventory.stock_quantity,
         })

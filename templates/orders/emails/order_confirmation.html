@@ -10,9 +10,29 @@
       <td style="padding:16px 18px;">
         <p style="margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#991b1f;">Order number</p>
         <p style="margin:0 0 16px;font-size:24px;font-weight:800;color:#14213d;">{{ order.order_number }}</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Order date:</strong> {{ placed_at_display }}</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Order status:</strong> {{ order_status_label }}</p>
         <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Payment method:</strong> {{ payment_method_label }}</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Payment status:</strong> {{ order.get_payment_status_display }}</p>
-        <p style="margin:0;font-size:14px;line-height:1.6;"><strong>Delivery address:</strong> {{ order.shipping_address }}</p>
+        <p style="margin:0;font-size:14px;line-height:1.6;"><strong>Payment status:</strong> {{ payment_status_label }}</p>
+      </td>
+    </tr>
+  </table>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;border:1px solid #e6e8ef;border-radius:12px;overflow:hidden;background:#ffffff;">
+    <tr>
+      <td style="padding:16px 18px;border-bottom:1px solid #eef1f5;">
+        <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#14213d;">Customer and delivery details</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Name:</strong> {{ customer_full_name }}</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Email:</strong> {{ shipping_email }}</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Phone:</strong> {{ shipping_phone }}</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Delivery method:</strong> {{ delivery_method_label }}{% if shipping_method_name %} · {{ shipping_method_name }}{% endif %}</p>
+        {% if shipping_window %}
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Estimated delivery:</strong> {{ shipping_window }}</p>
+        {% endif %}
+        <p style="margin:0;font-size:14px;line-height:1.6;"><strong>Delivery address:</strong> {{ shipping_address }}</p>
+        {% if delivery_notes %}
+        <p style="margin:10px 0 0;font-size:14px;line-height:1.6;"><strong>Delivery notes:</strong> {{ delivery_notes }}</p>
+        {% endif %}
       </td>
     </tr>
   </table>
@@ -52,6 +72,17 @@
     </tr>
   </table>
 
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f8fafc;border:1px solid #e6e8ef;border-radius:12px;">
+    <tr>
+      <td style="padding:16px 18px;">
+        <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#14213d;">What happens next</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.7;color:#4a5568;">We are reviewing your order and preparing the items listed above.</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.7;color:#4a5568;">You can use your order number <strong>{{ order.order_number }}</strong> to track progress at any time.</p>
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#4a5568;">If we need clarification about your delivery or stock availability, our team will contact you using the details in this order.</p>
+      </td>
+    </tr>
+  </table>
+
   <p style="margin:0 0 14px;">
     <a href="{{ account_order_url }}"
        style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
@@ -67,4 +98,4 @@
   </p>
 {% endblock %}
 
-{% block footnote %}AVA Pharmacy keeps this order summary so you can review the order number, products, and next steps from your account.{% endblock %}
+{% block footnote %}Ava Pharmacy sent this confirmation because an order was placed using this email address. Keep this message for your order number, delivery details, and support reference.{% endblock %}

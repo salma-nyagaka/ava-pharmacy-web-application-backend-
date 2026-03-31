@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from apps.products.models import Product, ProductInventory, ProductVariant, StockMovement
+from apps.products.models import Product, StockMovement, Variant, VariantInventory
 
 
 @dataclass
@@ -14,17 +14,48 @@ class InventoryAllocation:
 
 
 def _lock_product_inventories(product):
-    return list(
-        ProductInventory.objects.select_for_update()
-        .filter(product=product)
-        .order_by('location')
-    )
+    return []
 
 
 def _consume_product_inventory(product, quantity):
+    raise ValueError(f'Product-level stock commitment is disabled for {product.name}. Select a variant instead.')
+
+
+def _release_product_inventory(product, *, branch_quantity=0, warehouse_quantity=0, backorder_quantity=0):
+    raise ValueError(f'Product-level stock release is disabled for {product.name}. Use variant inventory instead.')
+
+
+def _lock_variant_inventories(variant):
+    inventories = list(
+        VariantInventory.objects.select_for_update()
+        .filter(variant=variant)
+        .order_by('location')
+    )
+    inventory_map = {inventory.location: inventory for inventory in inventories}
+    created = False
+    for location in (Product.STOCK_BRANCH, Product.STOCK_WAREHOUSE):
+        if location not in inventory_map:
+            inventory_map[location] = VariantInventory.objects.create(
+                variant=variant,
+                location=location,
+                stock_quantity=0,
+                low_stock_threshold=5 if location == Product.STOCK_BRANCH else 0,
+            )
+            created = True
+    if created:
+        inventories = list(
+            VariantInventory.objects.select_for_update()
+            .filter(variant=variant)
+            .order_by('location')
+        )
+    return inventories
+
+
+def _consume_variant_inventory(variant, quantity):
     remaining = quantity
     allocation = InventoryAllocation()
-    inventories = _lock_product_inventories(product)
+    inventories = _lock_variant_inventories(variant)
+    movement_inventory = None
 
     for location in (Product.STOCK_BRANCH, Product.STOCK_WAREHOUSE):
         inventory = next((item for item in inventories if item.location == location), None)
@@ -32,18 +63,10 @@ def _consume_product_inventory(product, quantity):
             continue
         take = min(inventory.stock_quantity, remaining)
         if take:
-            before = inventory.stock_quantity
+            if movement_inventory is None:
+                movement_inventory = inventory
             inventory.stock_quantity -= take
             inventory.save(update_fields=['stock_quantity', 'updated_at'])
-            StockMovement.objects.create(
-                product=product,
-                movement_type=StockMovement.TYPE_SALE,
-                source=StockMovement.SOURCE_ORDER,
-                quantity_change=-take,
-                quantity_before=before,
-                quantity_after=inventory.stock_quantity,
-                reason='Order stock commitment',
-            )
             remaining -= take
             allocation.stock_quantity += take
             if location == Product.STOCK_BRANCH:
@@ -58,28 +81,35 @@ def _consume_product_inventory(product, quantity):
                 continue
             take = min(inventory.max_backorder_quantity, remaining)
             if take:
-                before = inventory.max_backorder_quantity
+                if movement_inventory is None:
+                    movement_inventory = inventory
                 inventory.max_backorder_quantity -= take
                 inventory.save(update_fields=['max_backorder_quantity', 'updated_at'])
-                StockMovement.objects.create(
-                    product=product,
-                    movement_type=StockMovement.TYPE_RESERVE,
-                    source=StockMovement.SOURCE_ORDER,
-                    quantity_change=-take,
-                    quantity_before=before,
-                    quantity_after=inventory.max_backorder_quantity,
-                    reason='Order backorder commitment',
-                )
                 remaining -= take
                 allocation.backorder_quantity += take
 
     if remaining > 0:
-        raise ValueError(f'Unable to allocate {quantity} units for {product.name}.')
+        raise ValueError(f'Unable to allocate {quantity} units for {variant}.')
+
+    variant._clear_inventory_cache()
+    before = variant.stock_quantity
+    variant.save()
+    StockMovement.objects.create(
+        variant_inventory=movement_inventory or inventories[0],
+        movement_type=StockMovement.TYPE_SALE,
+        source=StockMovement.SOURCE_ORDER,
+        quantity_change=-quantity,
+        quantity_before=before,
+        quantity_after=variant.stock_quantity,
+        reason=f'Order stock commitment for variant {variant.sku}',
+    )
     return allocation
 
 
-def _release_product_inventory(product, *, branch_quantity=0, warehouse_quantity=0, backorder_quantity=0):
-    inventories = _lock_product_inventories(product)
+def _release_variant_inventory(variant, *, branch_quantity=0, warehouse_quantity=0, backorder_quantity=0):
+    inventories = _lock_variant_inventories(variant)
+    before = variant.stock_quantity
+    movement_inventory = None
     for location, quantity in (
         (Product.STOCK_BRANCH, branch_quantity),
         (Product.STOCK_WAREHOUSE, warehouse_quantity),
@@ -89,75 +119,39 @@ def _release_product_inventory(product, *, branch_quantity=0, warehouse_quantity
         inventory = next((item for item in inventories if item.location == location), None)
         if inventory is None:
             continue
-        before = inventory.stock_quantity
+        if movement_inventory is None:
+            movement_inventory = inventory
         inventory.stock_quantity += quantity
         inventory.save(update_fields=['stock_quantity', 'updated_at'])
-        StockMovement.objects.create(
-            product=product,
-            movement_type=StockMovement.TYPE_RELEASE,
-            source=StockMovement.SOURCE_ORDER,
-            quantity_change=quantity,
-            quantity_before=before,
-            quantity_after=inventory.stock_quantity,
-            reason='Order stock release',
-        )
 
     if backorder_quantity > 0:
         inventory = next((item for item in inventories if item.allow_backorder), None)
         if inventory is not None:
-            before = inventory.max_backorder_quantity
+            if movement_inventory is None:
+                movement_inventory = inventory
             inventory.max_backorder_quantity += backorder_quantity
             inventory.save(update_fields=['max_backorder_quantity', 'updated_at'])
-            StockMovement.objects.create(
-                product=product,
-                movement_type=StockMovement.TYPE_RELEASE,
-                source=StockMovement.SOURCE_ORDER,
-                quantity_change=backorder_quantity,
-                quantity_before=before,
-                quantity_after=inventory.max_backorder_quantity,
-                reason='Order backorder release',
-            )
+
+    variant._clear_inventory_cache()
+    variant.save()
+    StockMovement.objects.create(
+        variant_inventory=movement_inventory or inventories[0],
+        movement_type=StockMovement.TYPE_RELEASE,
+        source=StockMovement.SOURCE_ORDER,
+        quantity_change=branch_quantity + warehouse_quantity + backorder_quantity,
+        quantity_before=before,
+        quantity_after=variant.stock_quantity,
+        reason=f'Order stock release for variant {variant.sku}',
+    )
 
 
 @transaction.atomic
 def commit_order_inventory(order):
-    for item in order.items.select_related('product', 'product_variant'):
-        if item.product_variant_id:
-            variant = ProductVariant.objects.select_for_update().get(pk=item.product_variant_id)
-            before = variant.stock_quantity
-            remaining = item.quantity
-            stock_take = min(variant.stock_quantity, remaining)
-            variant.stock_quantity -= stock_take
-            remaining -= stock_take
-            backorder_take = 0
-            if remaining:
-                backorder_take = min(variant.max_backorder_quantity, remaining)
-                variant.max_backorder_quantity -= backorder_take
-                remaining -= backorder_take
-            if remaining:
-                raise ValueError(f'Unable to allocate {item.quantity} units for {item.product_name}.')
-            variant.save(update_fields=['stock_quantity', 'max_backorder_quantity', 'updated_at'])
-            StockMovement.objects.create(
-                product=item.product,
-                movement_type=StockMovement.TYPE_SALE,
-                source=StockMovement.SOURCE_ORDER,
-                quantity_change=-item.quantity,
-                quantity_before=before,
-                quantity_after=variant.stock_quantity,
-                reason=f'Order stock commitment for variant {variant.sku}',
-                reference=order.order_number,
-            )
-            item.allocated_branch_quantity = stock_take
-            item.allocated_warehouse_quantity = 0
-            item.allocated_backorder_quantity = backorder_take
-            item.save(update_fields=[
-                'allocated_branch_quantity',
-                'allocated_warehouse_quantity',
-                'allocated_backorder_quantity',
-            ])
-            continue
-
-        allocation = _consume_product_inventory(item.product, item.quantity)
+    for item in order.items.select_related('variant'):
+        if not item.variant_id:
+            raise ValueError(f'Order item {item.product_name} is missing a variant. Product-level inventory is disabled.')
+        variant = Variant.objects.select_for_update().get(pk=item.variant_id)
+        allocation = _consume_variant_inventory(variant, item.quantity)
         item.allocated_branch_quantity = allocation.branch_quantity
         item.allocated_warehouse_quantity = allocation.warehouse_quantity
         item.allocated_backorder_quantity = allocation.backorder_quantity
@@ -170,19 +164,16 @@ def commit_order_inventory(order):
 
 @transaction.atomic
 def release_order_inventory(order):
-    for item in order.items.select_related('product', 'product_variant'):
-        if item.product_variant_id:
-            variant = ProductVariant.objects.select_for_update().get(pk=item.product_variant_id)
-            variant.stock_quantity += item.allocated_branch_quantity + item.allocated_warehouse_quantity
-            variant.max_backorder_quantity += item.allocated_backorder_quantity
-            variant.save(update_fields=['stock_quantity', 'max_backorder_quantity', 'updated_at'])
-        elif item.product_id:
-            _release_product_inventory(
-                item.product,
-                branch_quantity=item.allocated_branch_quantity,
-                warehouse_quantity=item.allocated_warehouse_quantity,
-                backorder_quantity=item.allocated_backorder_quantity,
-            )
+    for item in order.items.select_related('variant'):
+        if not item.variant_id:
+            raise ValueError(f'Order item {item.product_name} is missing a variant. Product-level inventory is disabled.')
+        variant = Variant.objects.select_for_update().get(pk=item.variant_id)
+        _release_variant_inventory(
+            variant,
+            branch_quantity=item.allocated_branch_quantity,
+            warehouse_quantity=item.allocated_warehouse_quantity,
+            backorder_quantity=item.allocated_backorder_quantity,
+        )
         item.allocated_branch_quantity = 0
         item.allocated_warehouse_quantity = 0
         item.allocated_backorder_quantity = 0

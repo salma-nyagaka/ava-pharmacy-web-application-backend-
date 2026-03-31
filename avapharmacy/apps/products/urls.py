@@ -15,6 +15,7 @@ urlpatterns = [
     path('health-concerns/', views.HealthConcernListView.as_view(), name='health-concerns'),
     path('product-categories/', views.ProductCategoryListView.as_view(), name='product-categories'),
     path('products/', views.ProductListView.as_view(), name='products'),
+    path('inventory-items/', views.InventoryItemListView.as_view(), name='inventory-items'),
     path('products/featured/', views.FeaturedProductListView.as_view(), name='featured-products'),
     # Search must come before slug route to avoid conflict
     path('products/search/suggestions/', views.ProductSuggestionsView.as_view(), name='product-suggestions'),
