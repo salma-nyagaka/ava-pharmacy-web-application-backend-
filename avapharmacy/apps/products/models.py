@@ -93,6 +93,7 @@ class Category(models.Model):
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_categories')
 
     class Meta:
+        db_table = 'prodcut_variants_categories'
         verbose_name_plural = 'categories'
         ordering = ['name']
         indexes = [
@@ -140,7 +141,7 @@ class Subcategory(models.Model):
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_subcategories')
 
     class Meta:
-        db_table = 'products_subcategory'
+        db_table = 'product_variants_subcategories'
         verbose_name_plural = 'subcategories'
         ordering = ['category__name', 'name']
         indexes = [
