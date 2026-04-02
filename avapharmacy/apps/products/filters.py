@@ -8,7 +8,7 @@ field filtering.
 import django_filters
 from django.db import models
 
-from .models import Product, Variant, annotate_product_inventory
+from .models import Product, Variant, annotate_product_inventory, annotate_variant_inventory
 
 
 class ProductFilter(django_filters.FilterSet):
@@ -72,10 +72,10 @@ class ProductFilter(django_filters.FilterSet):
         return queryset.filter(variants__is_active=True, variants__category__slug=value).distinct()
 
     def filter_subcategory(self, queryset, name, value):
-        return queryset.filter(variants__is_active=True, variants__catalog_subcategory__slug=value).distinct()
+        return queryset.filter(variants__is_active=True, variants__subcategory__slug=value).distinct()
 
     def filter_brand(self, queryset, name, value):
-        return queryset.filter(variants__is_active=True, variants__brand__slug=value).distinct()
+        return queryset.filter(brand__slug=value).distinct()
 
     def filter_health_concern(self, queryset, name, value):
         if not value:
@@ -88,10 +88,10 @@ class VariantInventoryFilter(django_filters.FilterSet):
     min_price = django_filters.NumberFilter(field_name='price', lookup_expr='gte')
     max_price = django_filters.NumberFilter(field_name='price', lookup_expr='lte')
     category = django_filters.CharFilter(field_name='category__slug', lookup_expr='exact')
-    subcategory = django_filters.CharFilter(field_name='catalog_subcategory__slug', lookup_expr='exact')
-    brand = django_filters.CharFilter(field_name='brand__slug', lookup_expr='exact')
+    subcategory = django_filters.CharFilter(field_name='subcategory__slug', lookup_expr='exact')
+    brand = django_filters.CharFilter(field_name='product__brand__slug', lookup_expr='exact')
     health_concern = django_filters.CharFilter(field_name='health_concerns__slug', lookup_expr='exact')
-    stock_source = django_filters.CharFilter(field_name='stock_source', lookup_expr='exact')
+    stock_source = django_filters.CharFilter(method='filter_stock_source')
     inventory_status = django_filters.CharFilter(method='filter_inventory_status')
     requires_prescription = django_filters.BooleanFilter(field_name='requires_prescription')
     is_active = django_filters.BooleanFilter()
@@ -105,6 +105,7 @@ class VariantInventoryFilter(django_filters.FilterSet):
         ]
 
     def filter_inventory_status(self, queryset, name, value):
+        queryset = annotate_variant_inventory(queryset)
         if value == 'out_of_stock':
             return queryset.filter(is_active=True, stock_quantity=0, allow_backorder=False)
         if value == 'backorder':
@@ -115,4 +116,14 @@ class VariantInventoryFilter(django_filters.FilterSet):
             return queryset.filter(is_active=True, stock_quantity__gt=models.F('low_stock_threshold'))
         if value == 'inactive':
             return queryset.filter(is_active=False)
+        return queryset
+
+    def filter_stock_source(self, queryset, name, value):
+        queryset = annotate_variant_inventory(queryset)
+        if value == Product.STOCK_BRANCH:
+            return queryset.filter(branch_stock_quantity__gt=0)
+        if value == Product.STOCK_WAREHOUSE:
+            return queryset.filter(branch_stock_quantity=0, warehouse_stock_quantity__gt=0)
+        if value == Product.STOCK_OUT:
+            return queryset.filter(stock_quantity=0)
         return queryset

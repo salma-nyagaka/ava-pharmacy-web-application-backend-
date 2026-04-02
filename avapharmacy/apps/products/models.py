@@ -76,12 +76,12 @@ def generate_internal_product_sku(name, *, exclude_pk=None):
 
 
 class Category(models.Model):
-    """A product category, optionally nested under a parent category."""
+    """A product category."""
 
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     parent = models.ForeignKey(
-        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='subcategories'
+        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='child_categories'
     )
     image = models.ImageField(upload_to='categories/', blank=True)
     description = models.TextField(blank=True)
@@ -123,60 +123,25 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
 
-class ProductCategory(models.Model):
-    """Top-level product category managed from the admin panel."""
-
-    name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(unique=True)
-    image = models.ImageField(upload_to='categories/')
-    description = models.TextField(blank=True)
-    icon = models.CharField(max_length=50, blank=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_product_categories')
-    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_product_categories')
-
-    class Meta:
-        verbose_name_plural = 'product categories'
-        ordering = ['name']
-        indexes = [
-            models.Index(fields=['is_active', 'name']),
-        ]
-
-    def __str__(self):
-        return self.name
-
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        super().save(*args, **kwargs)
-
-
-class ProductSubcategory(models.Model):
-    """A subcategory that belongs to a ProductCategory."""
+class Subcategory(models.Model):
+    """A subcategory that belongs to a Category."""
 
     category = models.ForeignKey(
-        ProductCategory, on_delete=models.CASCADE, related_name='subcategories'
-    )
-    category_node = models.OneToOneField(
-        Category,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='legacy_product_subcategory',
+        Category, on_delete=models.CASCADE, related_name='subcategories'
     )
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True, max_length=200)
+    image = models.ImageField(upload_to='categories/', blank=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_product_subcategories')
-    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_product_subcategories')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_subcategories')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_subcategories')
 
     class Meta:
-        verbose_name_plural = 'product subcategories'
+        db_table = 'products_subcategory'
+        verbose_name_plural = 'subcategories'
         ordering = ['category__name', 'name']
         indexes = [
             models.Index(fields=['category', 'is_active']),
@@ -185,7 +150,7 @@ class ProductSubcategory(models.Model):
             models.UniqueConstraint(
                 Lower('name'),
                 models.F('category'),
-                name='unique_product_subcategory_name_per_category_ci',
+                name='unique_subcategory_name_per_category_ci',
             ),
         ]
 
@@ -194,15 +159,14 @@ class ProductSubcategory(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(f'{self.category.name}-{self.name}')
+            base = slugify(f'{self.category.name}-{self.name}') or 'subcategory'
             slug = base
             counter = 2
-            while ProductSubcategory.objects.exclude(pk=self.pk).filter(slug=slug).exists():
+            while Subcategory.objects.exclude(pk=self.pk).filter(slug=slug).exists():
                 slug = f'{base}-{counter}'
                 counter += 1
             self.slug = slug
         super().save(*args, **kwargs)
-
 
 class HealthConcern(models.Model):
     """A health concern or condition that products address."""
@@ -288,14 +252,10 @@ class Product(models.Model):
     ]
     LEGACY_VARIANT_FIELD_NAMES = {
         'strength',
-        'brand',
-        'brand_id',
         'category',
         'category_id',
         'subcategory',
         'subcategory_id',
-        'catalog_subcategory',
-        'catalog_subcategory_id',
         'health_concerns',
         'price',
         'cost_price',
@@ -316,6 +276,7 @@ class Product(models.Model):
     pos_product_id = models.CharField(max_length=80, blank=True)
     slug = models.SlugField(unique=True, max_length=200)
     name = models.CharField(max_length=200)
+    brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     image = models.ImageField(upload_to='products/', blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -326,6 +287,7 @@ class Product(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
+            models.Index(fields=['brand', 'is_active']),
             models.Index(fields=['is_active', 'created_at']),
         ]
 
@@ -471,7 +433,7 @@ class Product(models.Model):
 
         m2m_health_concerns = pending.pop('health_concerns', None)
 
-        for relation_name in ('brand', 'category', 'subcategory', 'catalog_subcategory'):
+        for relation_name in ('category', 'subcategory'):
             relation_id_name = f'{relation_name}_id'
             if relation_id_name in pending and relation_name not in pending:
                 setattr(variant, relation_id_name, pending.pop(relation_id_name))
@@ -680,22 +642,6 @@ class Product(models.Model):
         self._set_variant_seed_value('strength', value)
 
     @property
-    def brand(self):
-        return self._representative_variant_value('brand')
-
-    @brand.setter
-    def brand(self, value):
-        self._set_variant_seed_value('brand', value)
-
-    @property
-    def brand_id(self):
-        return self._variant_relation_id('brand')
-
-    @brand_id.setter
-    def brand_id(self, value):
-        self._set_variant_seed_value('brand_id', value)
-
-    @property
     def category(self):
         return self._representative_variant_value('category')
 
@@ -726,22 +672,6 @@ class Product(models.Model):
     @subcategory_id.setter
     def subcategory_id(self, value):
         self._set_variant_seed_value('subcategory_id', value)
-
-    @property
-    def catalog_subcategory(self):
-        return self._representative_variant_value('catalog_subcategory')
-
-    @catalog_subcategory.setter
-    def catalog_subcategory(self, value):
-        self._set_variant_seed_value('catalog_subcategory', value)
-
-    @property
-    def catalog_subcategory_id(self):
-        return self._variant_relation_id('catalog_subcategory')
-
-    @catalog_subcategory_id.setter
-    def catalog_subcategory_id(self, value):
-        self._set_variant_seed_value('catalog_subcategory_id', value)
 
     @property
     def health_concerns(self):
@@ -871,6 +801,35 @@ def annotate_product_inventory(queryset):
     )
 
 
+def annotate_variant_inventory(queryset):
+    branch_filter = models.Q(inventories__location=Product.STOCK_BRANCH)
+    warehouse_filter = models.Q(inventories__location=Product.STOCK_WAREHOUSE)
+    queryset = queryset.annotate(
+        branch_stock_quantity=Coalesce(models.Sum('inventories__stock_quantity', filter=branch_filter), 0),
+        warehouse_stock_quantity=Coalesce(models.Sum('inventories__stock_quantity', filter=warehouse_filter), 0),
+        low_stock_threshold=Coalesce(models.Sum('inventories__low_stock_threshold'), 0),
+        max_backorder_quantity=Coalesce(models.Sum('inventories__max_backorder_quantity'), 0),
+        backorder_inventory_count=Coalesce(
+            models.Count('inventories', filter=models.Q(inventories__allow_backorder=True), distinct=True),
+            0,
+        ),
+    )
+    return queryset.annotate(
+        stock_quantity=models.F('branch_stock_quantity') + models.F('warehouse_stock_quantity'),
+        allow_backorder=models.Case(
+            models.When(backorder_inventory_count__gt=0, then=models.Value(True)),
+            default=models.Value(False),
+            output_field=models.BooleanField(),
+        ),
+        stock_source=models.Case(
+            models.When(branch_stock_quantity__gt=0, then=models.Value(Product.STOCK_BRANCH)),
+            models.When(warehouse_stock_quantity__gt=0, then=models.Value(Product.STOCK_WAREHOUSE)),
+            default=models.Value(Product.STOCK_OUT),
+            output_field=models.CharField(max_length=20),
+        ),
+    )
+
+
 class ProductImage(models.Model):
     """An additional gallery image for a product."""
 
@@ -889,8 +848,7 @@ class ProductImage(models.Model):
 class Variant(models.Model):
     """A specific variant of a product (e.g. size, colour, strength).
 
-    Maintains its own SKU, price,
-    stock levels, and inventory status.
+    Maintains its own SKU and price.
     """
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
@@ -899,15 +857,11 @@ class Variant(models.Model):
     pos_product_id = models.CharField(max_length=80, blank=True)
     name = models.CharField(max_length=120)
     strength = models.CharField(max_length=50, blank=True, help_text="e.g. 500mg, 10mg/5ml, 2%")
-    brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='variants')
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='variants'
     )
     subcategory = models.ForeignKey(
-        'ProductSubcategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='variants'
-    )
-    catalog_subcategory = models.ForeignKey(
-        Category,
+        Subcategory,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -930,11 +884,6 @@ class Variant(models.Model):
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/variants/', blank=True)
     requires_prescription = models.BooleanField(default=False)
-    stock_source = models.CharField(max_length=20, choices=Product.STOCK_CHOICES, default=Product.STOCK_BRANCH)
-    stock_quantity = models.PositiveIntegerField(default=0)
-    low_stock_threshold = models.PositiveIntegerField(default=5)
-    allow_backorder = models.BooleanField(default=False)
-    max_backorder_quantity = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -945,10 +894,8 @@ class Variant(models.Model):
         ordering = ['sort_order', 'name']
         indexes = [
             models.Index(fields=['product', 'is_active']),
-            models.Index(fields=['brand', 'is_active']),
             models.Index(fields=['category', 'is_active']),
-            models.Index(fields=['catalog_subcategory', 'is_active']),
-            models.Index(fields=['stock_source', 'is_active']),
+            models.Index(fields=['subcategory', 'is_active']),
         ]
 
     INVENTORY_FIELD_NAMES = {
@@ -961,6 +908,14 @@ class Variant(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.name}"
+
+    @property
+    def brand(self):
+        return self.product.brand
+
+    @property
+    def brand_id(self):
+        return self.product.brand_id
 
     def _inventory_defaults(self, location=None):
         return {
@@ -1112,11 +1067,11 @@ class Variant(models.Model):
         pending = getattr(self, '_pending_inventory_updates', {}).copy()
         if not self.pk and not pending:
             pending = {
-                'stock_source': self.__dict__.get('stock_source', Product.STOCK_BRANCH),
-                'stock_quantity': self.__dict__.get('stock_quantity', 0),
-                'low_stock_threshold': self.__dict__.get('low_stock_threshold', 5),
-                'allow_backorder': self.__dict__.get('allow_backorder', False),
-                'max_backorder_quantity': self.__dict__.get('max_backorder_quantity', 0),
+                'stock_source': Product.STOCK_BRANCH,
+                'stock_quantity': 0,
+                'low_stock_threshold': 5,
+                'allow_backorder': False,
+                'max_backorder_quantity': 0,
             }
 
         should_save_variant = self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields'))
@@ -1133,14 +1088,6 @@ class Variant(models.Model):
             inventory_map = self._ensure_inventory_rows()
             if pending:
                 self._apply_pending_inventory_updates(inventory_map, pending)
-            inventory_values = self._get_inventory_values()
-            legacy_updates = []
-            for field_name, value in inventory_values.items():
-                if self.__dict__.get(field_name) != value:
-                    self.__dict__[field_name] = value
-                    legacy_updates.append(field_name)
-            if legacy_updates:
-                super().save(update_fields=legacy_updates + ['updated_at'])
 
         self._pending_inventory_updates = {}
 

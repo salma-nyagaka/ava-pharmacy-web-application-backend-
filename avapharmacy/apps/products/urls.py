@@ -8,12 +8,20 @@ operations on all catalog entities and inventory management.
 from django.urls import path
 from . import views
 
+
+def _admin_crud_patterns(route, list_view, detail_view, list_name, detail_name):
+    return [
+        path(f'admin/{route}/', list_view.as_view(), name=f'admin-{list_name}'),
+        path(f'admin/{route}/<int:pk>/', detail_view.as_view(), name=f'admin-{detail_name}-detail'),
+    ]
+
+
 urlpatterns = [
     path('catalog/summary/', views.CatalogSummaryView.as_view(), name='catalog-summary'),
     path('categories/', views.CategoryListView.as_view(), name='categories'),
     path('brands/', views.BrandListView.as_view(), name='brands'),
     path('health-concerns/', views.HealthConcernListView.as_view(), name='health-concerns'),
-    path('product-categories/', views.ProductCategoryListView.as_view(), name='product-categories'),
+    path('catalog-categories/', views.CatalogCategoryListView.as_view(), name='catalog-categories'),
     path('products/', views.ProductListView.as_view(), name='products'),
     path('inventory-items/', views.InventoryItemListView.as_view(), name='inventory-items'),
     path('products/featured/', views.FeaturedProductListView.as_view(), name='featured-products'),
@@ -37,14 +45,27 @@ urlpatterns = [
     path('cms/', views.CMSBlockListView.as_view(), name='cms-blocks'),
     path('promotions/', views.PromotionListView.as_view(), name='promotions'),
     path('webhooks/inventory/', views.InventoryWebhookView.as_view(), name='inventory-webhook'),
-    path('admin/categories/', views.AdminCategoryListCreateView.as_view(), name='admin-categories'),
-    path('admin/categories/<int:pk>/', views.AdminCategoryDetailView.as_view(), name='admin-category-detail'),
-    path('admin/product-categories/', views.AdminProductCategoryListCreateView.as_view(), name='admin-product-categories'),
-    path('admin/product-categories/<int:pk>/', views.AdminProductCategoryDetailView.as_view(), name='admin-product-category-detail'),
-    path('admin/product-subcategories/', views.AdminProductSubcategoryListCreateView.as_view(), name='admin-product-subcategories'),
-    path('admin/product-subcategories/<int:pk>/', views.AdminProductSubcategoryDetailView.as_view(), name='admin-product-subcategory-detail'),
-    path('admin/brands/', views.AdminBrandListCreateView.as_view(), name='admin-brands'),
-    path('admin/brands/<int:pk>/', views.AdminBrandDetailView.as_view(), name='admin-brand-detail'),
+    *_admin_crud_patterns(
+        'categories',
+        views.AdminCategoryListCreateView,
+        views.AdminCategoryDetailView,
+        'categories',
+        'category',
+    ),
+    *_admin_crud_patterns(
+        'sub-categories',
+        views.AdminSubCategoryListCreateView,
+        views.AdminSubCategoryDetailView,
+        'sub-categories',
+        'sub-category',
+    ),
+    *_admin_crud_patterns(
+        'brands',
+        views.AdminBrandListCreateView,
+        views.AdminBrandDetailView,
+        'brands',
+        'brand',
+    ),
     path('admin/products/', views.AdminProductListCreateView.as_view(), name='admin-products'),
     path('admin/products/meta/', views.AdminProductFormMetaView.as_view(), name='admin-product-form-meta'),
     path('admin/products/pos-options/', views.AdminPosProductOptionListView.as_view(), name='admin-pos-product-options'),
@@ -63,12 +84,32 @@ urlpatterns = [
     path('admin/inventory/deduct/', views.AdminInventoryDeductView.as_view(), name='admin-inventory-deduct'),
     path('admin/inventory/<int:pk>/movements/', views.AdminInventoryMovementsView.as_view(), name='admin-inventory-movements'),
     path('admin/inventory/<int:pk>/', views.AdminInventoryAdjustView.as_view(), name='admin-inventory-adjust'),
-    path('admin/banners/', views.AdminBannerListCreateView.as_view(), name='admin-banners'),
-    path('admin/banners/<int:pk>/', views.AdminBannerDetailView.as_view(), name='admin-banner-detail'),
-    path('admin/cms/', views.AdminCMSBlockListCreateView.as_view(), name='admin-cms-blocks'),
-    path('admin/cms/<int:pk>/', views.AdminCMSBlockDetailView.as_view(), name='admin-cms-block-detail'),
-    path('admin/promotions/', views.AdminPromotionListCreateView.as_view(), name='admin-promotions'),
-    path('admin/promotions/<int:pk>/', views.AdminPromotionDetailView.as_view(), name='admin-promotion-detail'),
-    path('admin/health-concerns/', views.AdminHealthConcernListCreateView.as_view(), name='admin-health-concerns'),
-    path('admin/health-concerns/<int:pk>/', views.AdminHealthConcernDetailView.as_view(), name='admin-health-concern-detail'),
+    *_admin_crud_patterns(
+        'banners',
+        views.AdminBannerListCreateView,
+        views.AdminBannerDetailView,
+        'banners',
+        'banner',
+    ),
+    *_admin_crud_patterns(
+        'cms',
+        views.AdminCMSBlockListCreateView,
+        views.AdminCMSBlockDetailView,
+        'cms-blocks',
+        'cms-block',
+    ),
+    *_admin_crud_patterns(
+        'promotions',
+        views.AdminPromotionListCreateView,
+        views.AdminPromotionDetailView,
+        'promotions',
+        'promotion',
+    ),
+    *_admin_crud_patterns(
+        'health-concerns',
+        views.AdminHealthConcernListCreateView,
+        views.AdminHealthConcernDetailView,
+        'health-concerns',
+        'health-concern',
+    ),
 ]

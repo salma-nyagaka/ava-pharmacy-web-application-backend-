@@ -2,7 +2,7 @@
 Management command: fetch_catalog_images
 
 Uses DuckDuckGo image search to download specific, high-quality images
-for every ProductCategory, HealthConcern, Brand, and Product in the catalog.
+for every Category, HealthConcern, Brand, and Product in the catalog.
 Skips records that already have a non-empty image unless --force is passed.
 """
 
@@ -339,26 +339,23 @@ class Command(BaseCommand):
     # ── entity fetchers ───────────────────────────────────────────────────────
 
     def _fetch_categories(self, force: bool):
-        from apps.products.models import Category, ProductCategory
+        from apps.products.models import Category, Subcategory
         self.stdout.write('\n── Product Categories ──')
-        for cat in Category.objects.filter(parent__isnull=True).order_by('name'):
+        for cat in Category.objects.order_by('name'):
             query = CATEGORY_QUERIES.get(cat.name, f'{cat.name} pharmacy medicine')
             rel = f'categories/{cat.slug}.jpg'
             ok = self._get_and_save(query, rel, cat.name, force)
             if ok:
                 self._update_image_field(cat, 'image', rel)
-                legacy = ProductCategory.objects.filter(slug=cat.slug).first()
-                if legacy:
-                    self._update_image_field(legacy, 'image', rel)
 
         self.stdout.write('\n── Product Subcategories ──')
-        for subcategory in Category.objects.exclude(parent__isnull=True).select_related('parent').order_by('parent__name', 'name'):
+        for subcategory in Subcategory.objects.select_related('category').order_by('category__name', 'name'):
             query = SUBCATEGORY_QUERIES.get(
                 subcategory.name,
                 f'{subcategory.name} pharmacy medicine health products',
             )
             rel = f'categories/{subcategory.slug}.jpg'
-            ok = self._get_and_save(query, rel, f'{subcategory.parent.name} / {subcategory.name}', force)
+            ok = self._get_and_save(query, rel, f'{subcategory.category.name} / {subcategory.name}', force)
             if ok:
                 self._update_image_field(subcategory, 'image', rel)
 

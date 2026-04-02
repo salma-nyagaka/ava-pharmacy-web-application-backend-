@@ -1,8 +1,8 @@
 """
 Management command: seed_catalog
 
-Wipes and re-seeds ProductCategory, ProductSubcategory, HealthConcern,
-Brand, and Product tables with realistic pharmacy data (Kenya market).
+Wipes and re-seeds Category, HealthConcern, Brand,
+and Product tables with realistic pharmacy data (Kenya market).
 Downloads high-quality images from picsum.photos CDN.
 """
 
@@ -1807,7 +1807,7 @@ LOREMFLICKR_QUERIES = {
 
 
 class Command(BaseCommand):
-    help = 'Wipe and re-seed catalog: ProductCategory, ProductSubcategory, HealthConcern, Brand, Product'
+    help = 'Wipe and re-seed catalog: Category, HealthConcern, Brand, Product'
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.WARNING('Wiping existing catalog data...'))
@@ -1825,10 +1825,10 @@ class Command(BaseCommand):
     # ── helpers ──────────────────────────────────────────────────────────────
 
     def _wipe(self):
-        from apps.products.models import Product, ProductSubcategory, ProductCategory, HealthConcern, Brand
+        from apps.products.models import Product, Category, HealthConcern, Brand, Subcategory
         Product.objects.all().delete()
-        ProductSubcategory.objects.all().delete()
-        ProductCategory.objects.all().delete()
+        Subcategory.objects.all().delete()
+        Category.objects.all().delete()
         HealthConcern.objects.all().delete()
         Brand.objects.all().delete()
         self.stdout.write('  Existing catalog data deleted.')
@@ -1913,12 +1913,12 @@ class Command(BaseCommand):
         self.stdout.write(f'  Created {len(BRANDS)} brands.')
 
     def _seed_categories(self):
-        from apps.products.models import ProductCategory, ProductSubcategory
+        from apps.products.models import Category, Subcategory
         admin = self._get_admin()
         for c in CATEGORIES:
             img_rel = f'categories/{slugify(c["name"])}.jpg'
             img_field = self._img_field(img_rel, c['img_seed'], 800, 600)
-            cat = ProductCategory.objects.create(
+            cat = Category.objects.create(
                 name=c['name'],
                 icon=c.get('icon', ''),
                 description=c['description'],
@@ -1927,7 +1927,7 @@ class Command(BaseCommand):
                 created_by=admin,
             )
             for sub_name, sub_desc in c['subcategories']:
-                ProductSubcategory.objects.create(
+                Subcategory.objects.create(
                     category=cat,
                     name=sub_name,
                     description=sub_desc,
@@ -1938,12 +1938,12 @@ class Command(BaseCommand):
         self.stdout.write(f'  Created {len(CATEGORIES)} categories, {total_subs} subcategories.')
 
     def _seed_products(self):
-        from apps.products.models import Product, ProductCategory, ProductSubcategory, Brand, HealthConcern
+        from apps.products.models import Product, Category, Brand, HealthConcern, Subcategory
 
         brand_map = {b.name: b for b in Brand.objects.all()}
-        cat_map = {c.name: c for c in ProductCategory.objects.all()}
+        cat_map = {c.name: c for c in Category.objects.all()}
         sub_map = {}
-        for sub in ProductSubcategory.objects.select_related('category').all():
+        for sub in Subcategory.objects.select_related('category').all():
             sub_map[(sub.category.name, sub.name)] = sub
         hc_map = {hc.name: hc for hc in HealthConcern.objects.all()}
 
@@ -1951,6 +1951,7 @@ class Command(BaseCommand):
         created = 0
         for p in PRODUCTS:
             brand = brand_map.get(p['brand'])
+            category = cat_map.get(p['category'])
             subcategory = sub_map.get((p['category'], p['subcategory']))
             img_rel = f'products/{slugify(p["name"])[:60]}.jpg'
             img_field = self._img_field(img_rel, p['img_seed'], 800, 800)
@@ -1959,6 +1960,7 @@ class Command(BaseCommand):
                 name=p['name'],
                 strength=p.get('strength', ''),
                 brand=brand,
+                category=category,
                 subcategory=subcategory,
                 price=p['price'],
                 cost_price=p.get('cost_price'),
@@ -1973,7 +1975,6 @@ class Command(BaseCommand):
                 dosage_frequency=p.get('dosage_frequency', ''),
                 dosage_notes=p.get('dosage_notes', ''),
                 sku=p['sku'],
-                stock_source='branch',
                 stock_quantity=p.get('stock_qty', 100),
                 created_by=admin,
             )

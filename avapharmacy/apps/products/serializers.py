@@ -12,7 +12,7 @@ from decimal import Decimal
 from django.conf import settings
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Variant, VariantInventory, VariantReview, Wishlist
+from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist
 from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
@@ -98,10 +98,7 @@ class CategorySerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_name(self, value):
-        parent = self.instance.parent if self.instance else None
-        if hasattr(self, 'initial_data') and 'parent' in self.initial_data:
-            parent = Category.objects.filter(pk=self.initial_data.get('parent')).first()
-        queryset = Category.objects.filter(name__iexact=value, parent=parent)
+        queryset = Category.objects.filter(name__iexact=value)
         if self.instance is not None:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
@@ -109,37 +106,33 @@ class CategorySerializer(serializers.ModelSerializer):
         return value
 
     def get_subcategories(self, obj):
-        if obj.parent is None:
-            prefetched = getattr(obj, '_prefetched_objects_cache', {}).get('subcategories')
-            subcategories = prefetched if prefetched is not None else obj.subcategories.all()
-            return CategorySerializer([item for item in subcategories if item.is_active], many=True).data
-        return []
+        prefetched = getattr(obj, '_prefetched_objects_cache', {}).get('subcategories')
+        subcategories = prefetched if prefetched is not None else obj.subcategories.all()
+        return SubcategorySerializer([item for item in subcategories if item.is_active], many=True).data
 
 
-class ProductSubcategorySerializer(serializers.ModelSerializer):
+class SubcategorySerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.filter(parent__isnull=True),
-        source='parent',
+        queryset=Category.objects.all(),
     )
-    category_name = serializers.ReadOnlyField(source='parent.name')
+    category_name = serializers.ReadOnlyField(source='category.name')
 
     class Meta:
-        model = Category
+        model = Subcategory
         fields = ('id', 'name', 'slug', 'category', 'category_name', 'image', 'description', 'is_active', 'created_at')
         extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
 
     def validate_name(self, value):
         parent_id = self.initial_data.get('category')
-        qs = Category.objects.filter(parent_id=parent_id, name__iexact=value)
+        qs = Subcategory.objects.filter(category_id=parent_id, name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise serializers.ValidationError('A subcategory with this name already exists in the selected category.')
         return value
 
-
-class ProductCategorySerializer(serializers.ModelSerializer):
-    subcategories = ProductSubcategorySerializer(many=True, read_only=True)
+class CatalogCategorySerializer(serializers.ModelSerializer):
+    subcategories = SubcategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Category
@@ -163,7 +156,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_name(self, value):
-        qs = Category.objects.filter(parent__isnull=True, name__iexact=value)
+        qs = Category.objects.filter(name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
@@ -285,18 +278,16 @@ class VariantInventorySerializer(serializers.ModelSerializer):
 
 
 class VariantSerializer(serializers.ModelSerializer):
-    brand = BrandSerializer(read_only=True)
-    brand_id = serializers.PrimaryKeyRelatedField(
-        queryset=Brand.objects.all(), source='brand', write_only=True, required=False, allow_null=True
-    )
+    brand = BrandSerializer(source='product.brand', read_only=True)
+    brand_id = serializers.IntegerField(source='product.brand_id', read_only=True)
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.filter(parent__isnull=True), source='category', write_only=True, required=False, allow_null=True
+        queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
     )
     subcategory_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.exclude(parent__isnull=True), source='catalog_subcategory', write_only=True, required=False, allow_null=True
+        queryset=Subcategory.objects.all(), source='subcategory', write_only=True, required=False, allow_null=True
     )
-    subcategory_name = serializers.ReadOnlyField(source='catalog_subcategory.name')
+    subcategory_name = serializers.ReadOnlyField(source='subcategory.name')
     health_concern_ids = serializers.PrimaryKeyRelatedField(
         queryset=HealthConcern.objects.all(), source='health_concerns', many=True, write_only=True, required=False
     )
@@ -770,6 +761,7 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
 class AdminInventoryItemSerializer(AdminVariantSerializer):
     product_id = serializers.IntegerField(source='product.id', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
     product_slug = serializers.CharField(source='product.slug', read_only=True)
     brand_name = serializers.ReadOnlyField(source='product.brand.name')
     brand_slug = serializers.ReadOnlyField(source='product.brand.slug')
@@ -779,7 +771,7 @@ class AdminInventoryItemSerializer(AdminVariantSerializer):
 
     class Meta(AdminVariantSerializer.Meta):
         fields = (
-            'id', 'product_id', 'product_name', 'product_slug',
+            'id', 'product_id', 'product_name', 'product_sku', 'product_slug',
             'brand_name', 'brand_slug', 'category_name', 'category_slug',
             'short_description',
             'sku', 'barcode', 'pos_product_id', 'name', 'strength',
@@ -805,12 +797,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     )
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.filter(parent__isnull=True), source='category', write_only=True, required=False, allow_null=True
+        queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
     )
     subcategory_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.exclude(parent__isnull=True), source='catalog_subcategory', write_only=True, required=False, allow_null=True
+        queryset=Subcategory.objects.all(), source='subcategory', write_only=True, required=False, allow_null=True
     )
-    subcategory_name = serializers.ReadOnlyField(source='catalog_subcategory.name')
+    subcategory_name = serializers.ReadOnlyField(source='subcategory.name')
     health_concern_ids = serializers.PrimaryKeyRelatedField(
         queryset=HealthConcern.objects.all(), source='health_concerns', many=True, write_only=True, required=False
     )

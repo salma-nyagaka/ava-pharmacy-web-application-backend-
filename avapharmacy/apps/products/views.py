@@ -23,7 +23,7 @@ from avapharmacy.security import verify_hmac_signature
 
 from .filters import ProductFilter, VariantInventoryFilter
 from .inventory_sync import apply_inventory_sync, normalize_inventory_payload
-from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Variant, VariantInventory, VariantReview, Wishlist, annotate_product_inventory
+from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, annotate_product_inventory, annotate_variant_inventory
 from .pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from .serializers import (
     AdminProductSerializer,
@@ -32,8 +32,7 @@ from .serializers import (
     CMSBlockSerializer,
     CategorySerializer,
     HealthConcernSerializer,
-    ProductCategorySerializer,
-    ProductSubcategorySerializer,
+    CatalogCategorySerializer,
     ProductDetailSerializer,
     ProductImageSerializer,
     ProductListSerializer,
@@ -44,6 +43,7 @@ from .serializers import (
     VariantSerializer,
     PromotionSerializer,
     StockMovementSerializer,
+    SubcategorySerializer,
     WishlistSerializer,
 )
 from .services import get_active_promotions_queryset
@@ -138,8 +138,8 @@ class CategoryListView(generics.ListAPIView):
     serializer_class = CategorySerializer
 
     def get_queryset(self):
-        return Category.objects.filter(parent=None, is_active=True).prefetch_related(
-            Prefetch('subcategories', queryset=Category.objects.filter(is_active=True).order_by('name'))
+        return Category.objects.filter(is_active=True).prefetch_related(
+            Prefetch('subcategories', queryset=Subcategory.objects.filter(is_active=True).order_by('name'))
         )
 
 
@@ -155,13 +155,14 @@ class HealthConcernListView(generics.ListAPIView):
     queryset = HealthConcern.objects.filter(is_active=True)
 
 
-class ProductCategoryListView(generics.ListAPIView):
+class CatalogCategoryListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
-    serializer_class = ProductCategorySerializer
+    serializer_class = CatalogCategorySerializer
 
     def get_queryset(self):
-        return Category.objects.filter(parent__isnull=True, is_active=True).prefetch_related(
-            Prefetch('subcategories', queryset=Category.objects.filter(is_active=True).order_by('name'))
+
+        return Category.objects.filter(is_active=True).prefetch_related(
+            Prefetch('subcategories', queryset=Subcategory.objects.filter(is_active=True).order_by('name'))
         )
 
 
@@ -170,7 +171,7 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
     serializer_class = PublicInventoryItemSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = VariantInventoryFilter
-    search_fields = ['name', 'product__name', 'brand__name', 'category__name', 'sku']
+    search_fields = ['name', 'product__name', 'product__brand__name', 'category__name', 'sku']
     ordering_fields = ['price', 'created_at', 'name']
     ordering = ['-created_at']
 
@@ -183,9 +184,9 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
                 Q(category__isnull=True) | Q(category__is_active=True)
             ).select_related(
                 'product',
-                'brand',
+                'product__brand',
                 'category',
-                'catalog_subcategory',
+                'subcategory',
             ).prefetch_related(
                 'inventories',
                 'health_concerns',
@@ -206,9 +207,9 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
                 Q(category__isnull=True) | Q(category__is_active=True)
             ).select_related(
                 'product',
-                'brand',
+                'product__brand',
                 'category',
-                'catalog_subcategory',
+                'subcategory',
             ).prefetch_related(
                 'inventories',
                 'health_concerns',
@@ -229,9 +230,9 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
         if category:
             queryset = queryset.filter(category__slug=category)
         if subcategory:
-            queryset = queryset.filter(catalog_subcategory__slug=subcategory)
+            queryset = queryset.filter(subcategory__slug=subcategory)
         if brand:
-            queryset = queryset.filter(brand__slug=brand)
+            queryset = queryset.filter(product__brand__slug=brand)
         if health_concern:
             queryset = queryset.filter(health_concerns__slug=health_concern)
         if query:
@@ -240,7 +241,7 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
                 | Q(product__name__icontains=query)
                 | Q(sku__icontains=query)
                 | Q(short_description__icontains=query)
-                | Q(brand__name__icontains=query)
+                | Q(product__brand__name__icontains=query)
             )
         if requires_prescription is not None and str(requires_prescription).strip() != '':
             wants_prescription = str(requires_prescription).strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -278,7 +279,7 @@ class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
         ).prefetch_related(
             Prefetch(
                 'variants',
-                queryset=Variant.objects.select_related('brand', 'category', 'catalog_subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
             )
         )).exclude(
             variants__is_active=True,
@@ -318,7 +319,7 @@ class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
                     'gallery',
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('brand', 'category', 'catalog_subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
                     ),
                 )
             )
@@ -327,12 +328,13 @@ class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
 
 class AdminCategoryListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
-    serializer_class = ProductCategorySerializer
-    queryset = Category.objects.filter(parent__isnull=True).prefetch_related(
-        Prefetch('subcategories', queryset=Category.objects.order_by('name'))
+    serializer_class = CatalogCategorySerializer
+    queryset = Category.objects.prefetch_related(
+        Prefetch('subcategories', queryset=Subcategory.objects.order_by('name'))
     )
-    filterset_fields = ['is_active', 'parent']
+    filterset_fields = ['is_active']
     search_fields = ['name', 'slug']
+
 
     def perform_create(self, serializer):
         category = serializer.save(created_by=self.request.user, updated_by=self.request.user)
@@ -347,9 +349,9 @@ class AdminCategoryListCreateView(generics.ListCreateAPIView):
 
 class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
-    serializer_class = ProductCategorySerializer
-    queryset = Category.objects.filter(parent__isnull=True).prefetch_related(
-        Prefetch('subcategories', queryset=Category.objects.order_by('name'))
+    serializer_class = CatalogCategorySerializer
+    queryset = Category.objects.prefetch_related(
+        Prefetch('subcategories', queryset=Subcategory.objects.order_by('name'))
     )
 
     def perform_update(self, serializer):
@@ -363,54 +365,28 @@ class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
 
-class AdminProductCategoryListCreateView(generics.ListCreateAPIView):
+class AdminSubCategoryListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
-    serializer_class = ProductCategorySerializer
-    queryset = Category.objects.filter(parent__isnull=True).prefetch_related(
-        Prefetch('subcategories', queryset=Category.objects.order_by('name'))
-    )
-    search_fields = ['name', 'slug']
-    filterset_fields = ['is_active']
-
-    def perform_create(self, serializer):
-        cat = serializer.save(created_by=self.request.user, updated_by=self.request.user)
-        log_admin_action(self.request.user, action='product_category_created', entity_type='product_category', entity_id=cat.id, message=f'Created product category {cat.name}')
-
-
-class AdminProductCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAdminOrInventoryStaff]
-    serializer_class = ProductCategorySerializer
-    queryset = Category.objects.filter(parent__isnull=True).prefetch_related(
-        Prefetch('subcategories', queryset=Category.objects.order_by('name'))
-    )
-
-    def perform_update(self, serializer):
-        cat = serializer.save(updated_by=self.request.user)
-        log_admin_action(self.request.user, action='product_category_updated', entity_type='product_category', entity_id=cat.id, message=f'Updated product category {cat.name}')
-
-
-class AdminProductSubcategoryListCreateView(generics.ListCreateAPIView):
-    permission_classes = [IsAdminOrInventoryStaff]
-    serializer_class = ProductSubcategorySerializer
-    search_fields = ['name', 'slug', 'parent__name']
-    filterset_fields = ['is_active', 'parent']
+    serializer_class = SubcategorySerializer
+    search_fields = ['name', 'slug', 'category__name']
+    filterset_fields = ['is_active', 'category']
 
     def get_queryset(self):
-        return Category.objects.filter(parent__isnull=False).select_related('parent')
+        return Subcategory.objects.select_related('category')
 
     def perform_create(self, serializer):
         sub = serializer.save(created_by=self.request.user, updated_by=self.request.user)
-        log_admin_action(self.request.user, action='product_subcategory_created', entity_type='product_subcategory', entity_id=sub.id, message=f'Created subcategory {sub.name} under {sub.parent.name}')
+        log_admin_action(self.request.user, action='subcategory_created', entity_type='subcategory', entity_id=sub.id, message=f'Created subcategory {sub.name} under {sub.category.name}')
 
 
-class AdminProductSubcategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+class AdminSubCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
-    serializer_class = ProductSubcategorySerializer
-    queryset = Category.objects.filter(parent__isnull=False).select_related('parent')
+    serializer_class = SubcategorySerializer
+    queryset = Subcategory.objects.select_related('category')
 
     def perform_update(self, serializer):
         sub = serializer.save(updated_by=self.request.user)
-        log_admin_action(self.request.user, action='product_subcategory_updated', entity_type='product_subcategory', entity_id=sub.id, message=f'Updated subcategory {sub.name}')
+        log_admin_action(self.request.user, action='subcategory_updated', entity_type='subcategory', entity_id=sub.id, message=f'Updated subcategory {sub.name}')
 
 
 class AdminBrandListCreateView(generics.ListCreateAPIView):
@@ -462,7 +438,7 @@ class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIVi
                 Product.objects.all().prefetch_related(
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('brand', 'category', 'catalog_subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
                     ),
                 )
             )
@@ -542,7 +518,7 @@ class AdminProductDetailView(PromotionContextMixin, generics.RetrieveUpdateDestr
             'gallery',
             Prefetch(
                 'variants',
-                queryset=Variant.objects.select_related('brand', 'category', 'catalog_subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
             ),
         )
     )
@@ -625,9 +601,9 @@ class WishlistView(generics.ListCreateAPIView):
     def get_queryset(self):
         return Wishlist.objects.filter(user=self.request.user).select_related(
             'variant',
-            'variant__brand',
+            'variant__product__brand',
             'variant__category',
-            'variant__catalog_subcategory',
+            'variant__subcategory',
             'variant__product',
         ).prefetch_related('variant__inventories', 'variant__product__variants__inventories')
 
@@ -938,22 +914,22 @@ class AdminInventoryListView(generics.ListAPIView):
     serializer_class = AdminInventoryItemSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = VariantInventoryFilter
-    search_fields = ['name', 'sku', 'product__name', 'brand__name']
-    ordering_fields = ['updated_at', 'name', 'stock_quantity', 'available_quantity', 'price']
+    search_fields = ['name', 'sku', 'product__name', 'product__brand__name']
+    ordering_fields = ['updated_at', 'name', 'stock_quantity', 'price']
     ordering = ['name', 'pk']
 
     def get_queryset(self):
-        queryset = annotate_variant_reviews(
+        queryset = annotate_variant_inventory(annotate_variant_reviews(
             Variant.objects.select_related(
                 'product',
-                'brand',
+                'product__brand',
                 'category',
-                'catalog_subcategory',
+                'subcategory',
             ).prefetch_related(
                 'inventories',
                 'health_concerns',
             )
-        )
+        ))
         stock_bucket = self.request.query_params.get('stock_bucket')
         if stock_bucket == 'low':
             queryset = queryset.filter(is_active=True, stock_quantity__gt=0, stock_quantity__lte=models.F('low_stock_threshold'))
@@ -1084,7 +1060,7 @@ class CatalogSummaryView(APIView):
         return Response({
             'products': Product.objects.filter(is_active=True).count(),
             'featured_products': featured_count,
-            'categories': Category.objects.filter(parent__isnull=True, is_active=True).count(),
+            'categories': Category.objects.filter(is_active=True).count(),
             'brands': Brand.objects.filter(is_active=True).count(),
             'low_stock_products': annotate_product_inventory(Product.objects.filter(is_active=True)).filter(
                 total_stock_quantity__gt=0,
@@ -1092,7 +1068,7 @@ class CatalogSummaryView(APIView):
             ).count(),
             'active_promotions': get_active_promotions_queryset().count(),
             'top_categories': list(
-                Category.objects.filter(parent__isnull=True, is_active=True)
+                Category.objects.filter(is_active=True)
                 .annotate(product_count=Count('variants__product', filter=Q(variants__product__is_active=True), distinct=True))
                 .values('id', 'name', 'slug', 'product_count')[:6]
             ),
@@ -1112,7 +1088,7 @@ class ProductDetailByIdView(PromotionContextMixin, generics.RetrieveAPIView):
                     'gallery',
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('brand', 'category', 'catalog_subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
+                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
                     ),
                 )
             )
@@ -1126,7 +1102,7 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
     serializer_class = ProductListSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductFilter
-    search_fields = ['name', 'variants__brand__name', 'sku', 'variants__short_description']
+    search_fields = ['name', 'brand__name', 'sku', 'variants__short_description']
     ordering_fields = ['price', 'created_at', 'name']
     ordering = ['-created_at']
 
@@ -1137,14 +1113,14 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
                 Product.objects.filter(is_active=True).prefetch_related(
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('brand', 'category', 'catalog_subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
+                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
                     )
                 )
             )
         )
         if q and len(q) >= 2:
             qs = qs.filter(
-                Q(name__icontains=q) | Q(variants__brand__name__icontains=q) | Q(sku__icontains=q) | Q(variants__short_description__icontains=q)
+                Q(name__icontains=q) | Q(brand__name__icontains=q) | Q(sku__icontains=q) | Q(variants__short_description__icontains=q)
             )
         return qs
 
@@ -1168,8 +1144,8 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
             .values('variants__category__slug', 'variants__category__name', 'count')[:10]
         )
         brand_facets = list(
-            Brand.objects.filter(variants__product__in=all_qs)
-            .annotate(count=Count('variants__product', filter=Q(variants__product__in=all_qs), distinct=True))
+            Brand.objects.filter(products__in=all_qs)
+            .annotate(count=Count('products', filter=Q(products__in=all_qs), distinct=True))
             .filter(count__gt=0)
             .order_by('-count', 'name')[:10]
         )
@@ -1210,12 +1186,12 @@ class ProductSuggestionsView(APIView):
             return Response({'suggestions': []})
 
         products = Product.objects.filter(
-            Q(name__icontains=q) | Q(variants__brand__name__icontains=q),
+            Q(name__icontains=q) | Q(brand__name__icontains=q),
             is_active=True,
         ).prefetch_related(
             Prefetch(
                 'variants',
-                queryset=Variant.objects.select_related('brand', 'category', 'catalog_subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
+                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
             )
         ).distinct()[:5]
 

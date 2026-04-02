@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Cart, CartItem, Order, OrderItem
-from apps.products.models import Brand, Category, Product, Promotion, VariantInventory, VariantReview, Wishlist
+from apps.products.models import Brand, Category, Product, Promotion, Subcategory, VariantInventory, VariantReview, Wishlist
 
 
 def make_test_image(name='test.png', *, width=1000, height=1000, color=(220, 20, 60)):
@@ -44,7 +44,7 @@ class AdminCatalogAndWishlistTests(TestCase):
     def test_admin_can_create_product_category_and_subcategory(self):
         self.client.force_authenticate(self.admin)
         category_response = self.client.post(
-            reverse('admin-product-categories'),
+            reverse('admin-categories'),
             {
                 'name': 'Pain Relief',
                 'description': 'Pain relief essentials',
@@ -53,11 +53,11 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='multipart',
         )
         self.assertEqual(category_response.status_code, 201)
-        product_category = Category.objects.get(name='Pain Relief', parent__isnull=True)
+        product_category = Category.objects.get(name='Pain Relief')
         self.assertTrue(product_category.slug)
 
         subcategory_response = self.client.post(
-            reverse('admin-product-subcategories'),
+            reverse('admin-sub-categories'),
             {
                 'name': 'Tablets',
                 'category': product_category.id,
@@ -66,8 +66,8 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='json',
         )
         self.assertEqual(subcategory_response.status_code, 201)
-        subcategory = Category.objects.get(name='Tablets', parent=product_category)
-        self.assertEqual(subcategory.parent, product_category)
+        subcategory = Subcategory.objects.get(name='Tablets', category=product_category)
+        self.assertEqual(subcategory.category, product_category)
 
     def test_admin_can_create_brand_product_and_promotion(self):
         self.client.force_authenticate(self.admin)
@@ -917,11 +917,11 @@ class AdminCatalogAndWishlistTests(TestCase):
 
         call_command('rebuild_pharmacy_taxonomy')
 
-        antibiotics = Category.objects.get(slug='rx-antibiotics')
-        oral_care = Category.objects.get(slug='personal-oral-care')
-        rash_care = Category.objects.get(slug='family-nappy-rash-care')
+        antibiotics = Subcategory.objects.get(slug='rx-antibiotics')
+        oral_care = Subcategory.objects.get(slug='personal-oral-care')
+        rash_care = Subcategory.objects.get(slug='family-nappy-rash-care')
 
-        self.assertEqual(Product.objects.get(sku='RX-AB-001').catalog_subcategory, antibiotics)
-        self.assertEqual(Product.objects.get(sku='PC-DC-001').catalog_subcategory, oral_care)
-        self.assertEqual(Product.objects.get(sku='BM-BS-002').catalog_subcategory, rash_care)
-        self.assertEqual(Category.objects.filter(parent__isnull=True).count(), 7)
+        self.assertEqual(Product.objects.get(sku='RX-AB-001').subcategory, antibiotics)
+        self.assertEqual(Product.objects.get(sku='PC-DC-001').subcategory, oral_care)
+        self.assertEqual(Product.objects.get(sku='BM-BS-002').subcategory, rash_care)
+        self.assertEqual(Category.objects.count(), 7)
