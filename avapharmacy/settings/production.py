@@ -9,9 +9,15 @@ from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
+ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='').split(',') if host.strip()]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',')
+    if origin.strip()
+]
 
 SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000

@@ -1,0 +1,15 @@
+[Unit]
+Description=AvaPharmacy staging Gunicorn service
+After=network.target
+
+[Service]
+User=ava
+Group=www-data
+WorkingDirectory=/home/ava/staging/backend
+EnvironmentFile=/home/ava/staging/backend/.env
+ExecStart=/home/ava/staging/backend/venv/bin/gunicorn avapharmacy.wsgi:application --bind 127.0.0.1:8001 --workers 3 --timeout 120
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
