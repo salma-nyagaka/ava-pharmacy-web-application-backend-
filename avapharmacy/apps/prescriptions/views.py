@@ -15,6 +15,7 @@ from .models import (
     PrescriptionAuditLog,
     PrescriptionFile,
     PrescriptionItem,
+    PrescriptionReviewDecision,
     PrescriptionClarificationMessage,
 )
 from .serializers import (
@@ -23,7 +24,7 @@ from .serializers import (
     PharmacistPrescriptionReviewSerializer, PrescriptionResubmitSerializer,
     PrescriptionClarificationReplySerializer,
 )
-from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistOrAdmin
+from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistOrAdmin, IsPrescriptionReviewPharmacist
 from apps.accounts.models import User
 from apps.notifications.utils import create_notification
 from apps.orders.serializers import CartSerializer
@@ -85,6 +86,7 @@ def _prescription_queryset():
         'files',
         'items__product',
         'audit_logs',
+        'review_decisions__pharmacist',
         'clarification_messages__sender',
     )
 
@@ -346,7 +348,7 @@ class PrescriptionItemAddToCartView(APIView):
 
 class PharmacistPrescriptionQueueView(generics.ListAPIView):
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsPharmacist]
+    permission_classes = [IsPrescriptionReviewPharmacist]
 
     def get_queryset(self):
         queryset = _prescription_queryset().filter(
@@ -359,7 +361,7 @@ class PharmacistPrescriptionQueueView(generics.ListAPIView):
 
 
 class PharmacistPrescriptionAssignView(APIView):
-    permission_classes = [IsPharmacist]
+    permission_classes = [IsPrescriptionReviewPharmacist]
 
     @transaction.atomic
     def post(self, request, pk):
@@ -383,7 +385,7 @@ class PharmacistPrescriptionAssignView(APIView):
 
 
 class PharmacistPrescriptionReviewView(APIView):
-    permission_classes = [IsPharmacist]
+    permission_classes = [IsPrescriptionReviewPharmacist]
 
     @transaction.atomic
     def post(self, request, pk):
@@ -401,6 +403,7 @@ class PharmacistPrescriptionReviewView(APIView):
         action = data['action']
         notes = data.get('notes', '').strip()
         items_data = data.get('items')
+        previous_status = prescription.status
 
         prescription.pharmacist = request.user
         prescription.pharmacist_notes = notes
@@ -427,6 +430,14 @@ class PharmacistPrescriptionReviewView(APIView):
         prescription.save(update_fields=[
             'pharmacist', 'pharmacist_notes', 'status', 'clarification_message', 'updated_at',
         ])
+        PrescriptionReviewDecision.objects.create(
+            prescription=prescription,
+            pharmacist=request.user,
+            action=action,
+            from_status=previous_status,
+            to_status=prescription.status,
+            notes=notes,
+        )
         PrescriptionAuditLog.objects.create(
             prescription=prescription,
             action=f'Prescription review: {action}',

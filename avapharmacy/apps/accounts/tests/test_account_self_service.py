@@ -1,8 +1,12 @@
+import re
+
+from django.core import mail
+from django.test import override_settings
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.accounts.models import Address, PaymentMethod, User
+from apps.accounts.models import Address, PaymentMethod, Pharmacist, PharmacistActivationToken, User
 from apps.notifications.models import NotificationPreference
 
 
@@ -165,3 +169,85 @@ class AccountSelfServiceTests(TestCase):
         self.assertEqual(address.phone, '+254700000333')
         self.assertTrue(address.is_default)
         self.assertFalse(second_address.is_default)
+
+
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    FRONTEND_BASE_URL='http://localhost:3000',
+)
+class AdminPharmacistAccountTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email='admin@example.com',
+            password='AdminPass123!',
+            first_name='Admin',
+            last_name='User',
+            role=User.ADMIN,
+            phone='+254700001000',
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_admin_creates_inactive_pharmacist_with_activation_flow(self):
+        response = self.client.post(
+            reverse('admin-users'),
+            {
+                'email': 'pharmacist@example.com',
+                'first_name': 'Pat',
+                'last_name': 'Pharmacist',
+                'phone': '+254700001001',
+                'role': User.PHARMACIST,
+                'pharmacist_permissions': [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        pharmacist_user = User.objects.get(email='pharmacist@example.com')
+        self.assertFalse(pharmacist_user.is_active)
+        self.assertEqual(pharmacist_user.role, User.PHARMACIST)
+        self.assertEqual(
+            pharmacist_user.pharmacist.permissions,
+            [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
+        )
+        self.assertEqual(PharmacistActivationToken.objects.filter(user=pharmacist_user, used_at__isnull=True).count(), 1)
+        self.assertEqual(response.data['activation_email']['sent_to'], pharmacist_user.email)
+        self.assertEqual(len(mail.outbox), 1)
+
+        match = re.search(r'/activate/([^/\s]+)/', mail.outbox[0].body)
+        self.assertIsNotNone(match)
+        raw_token = match.group(1)
+
+        activate_response = self.client.post(
+            reverse('professional-activate'),
+            {
+                'token': raw_token,
+                'new_password': 'NewPharmacistPass123!',
+                'new_password_confirm': 'NewPharmacistPass123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(activate_response.status_code, 200)
+        pharmacist_user.refresh_from_db()
+        self.assertTrue(pharmacist_user.is_active)
+        self.assertTrue(pharmacist_user.check_password('NewPharmacistPass123!'))
+        self.assertFalse(PharmacistActivationToken.objects.filter(user=pharmacist_user, used_at__isnull=True).exists())
+
+    def test_admin_cannot_assign_unknown_pharmacist_permission(self):
+        response = self.client.post(
+            reverse('admin-users'),
+            {
+                'email': 'bad-permission@example.com',
+                'first_name': 'Bad',
+                'last_name': 'Permission',
+                'phone': '+254700001002',
+                'role': User.PHARMACIST,
+                'pharmacist_permissions': ['approve_everything'],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('pharmacist_permissions', response.data['error']['details'])
+        self.assertFalse(User.objects.filter(email='bad-permission@example.com').exists())

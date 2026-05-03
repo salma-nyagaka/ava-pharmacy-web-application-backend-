@@ -12,8 +12,8 @@ class NewsletterSubscriber(models.Model):
     class Meta:
         ordering = ['-subscribed_at']
         indexes = [
-            models.Index(fields=['email']),
-            models.Index(fields=['is_active', '-subscribed_at']),
+            models.Index(fields=['email'], name='support_new_email_4e6b95_idx'),
+            models.Index(fields=['is_active', '-subscribed_at'], name='support_new_is_acti_9b5f3a_idx'),
         ]
 
     def __str__(self):

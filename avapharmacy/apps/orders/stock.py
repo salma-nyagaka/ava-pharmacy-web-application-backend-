@@ -51,6 +51,10 @@ def _lock_variant_inventories(variant):
     return inventories
 
 
+def _variant_stock_quantity(inventories):
+    return sum(inventory.stock_quantity for inventory in inventories)
+
+
 def _consume_variant_inventory(variant, quantity):
     remaining = quantity
     allocation = InventoryAllocation()
@@ -91,16 +95,17 @@ def _consume_variant_inventory(variant, quantity):
     if remaining > 0:
         raise ValueError(f'Unable to allocate {quantity} units for {variant}.')
 
+    before = _variant_stock_quantity(inventories) + allocation.stock_quantity
     variant._clear_inventory_cache()
-    before = variant.stock_quantity
     variant.save()
+    after = _variant_stock_quantity(inventories)
     StockMovement.objects.create(
         variant_inventory=movement_inventory or inventories[0],
         movement_type=StockMovement.TYPE_SALE,
         source=StockMovement.SOURCE_ORDER,
         quantity_change=-quantity,
         quantity_before=before,
-        quantity_after=variant.stock_quantity,
+        quantity_after=after,
         reason=f'Order stock commitment for variant {variant.sku}',
     )
     return allocation
@@ -108,7 +113,7 @@ def _consume_variant_inventory(variant, quantity):
 
 def _release_variant_inventory(variant, *, branch_quantity=0, warehouse_quantity=0, backorder_quantity=0):
     inventories = _lock_variant_inventories(variant)
-    before = variant.stock_quantity
+    before = _variant_stock_quantity(inventories)
     movement_inventory = None
     for location, quantity in (
         (Product.STOCK_BRANCH, branch_quantity),
@@ -134,13 +139,14 @@ def _release_variant_inventory(variant, *, branch_quantity=0, warehouse_quantity
 
     variant._clear_inventory_cache()
     variant.save()
+    after = _variant_stock_quantity(inventories)
     StockMovement.objects.create(
         variant_inventory=movement_inventory or inventories[0],
         movement_type=StockMovement.TYPE_RELEASE,
         source=StockMovement.SOURCE_ORDER,
         quantity_change=branch_quantity + warehouse_quantity + backorder_quantity,
         quantity_before=before,
-        quantity_after=variant.stock_quantity,
+        quantity_after=after,
         reason=f'Order stock release for variant {variant.sku}',
     )
 

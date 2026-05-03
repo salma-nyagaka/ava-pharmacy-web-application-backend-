@@ -239,3 +239,57 @@ class OrderCreationFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('Select a product variant', response.data['detail'])
+
+    def test_cart_merge_preserves_selected_variant_for_variant_managed_product(self):
+        second_variant = self.product.variants.create(
+            sku='ORDER-001-SYRUP',
+            name='Syrup',
+            price=Decimal('900.00'),
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=second_variant,
+            location=Product.STOCK_BRANCH,
+            defaults={
+                'stock_quantity': 5,
+                'low_stock_threshold': 2,
+            },
+        )
+
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(
+            reverse('cart-merge'),
+            {
+                'items': [
+                    {
+                        'product_id': self.product.id,
+                        'variant_id': second_variant.id,
+                        'quantity': 2,
+                    },
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cart_item = CartItem.objects.get(cart__user=self.customer)
+        self.assertEqual(cart_item.variant_id, second_variant.id)
+        self.assertEqual(cart_item.quantity, 2)
+
+    def test_cart_merge_ignores_missing_variant_for_variant_managed_product(self):
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(
+            reverse('cart-merge'),
+            {
+                'items': [
+                    {
+                        'product_id': self.product.id,
+                        'quantity': 1,
+                    },
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(CartItem.objects.filter(cart__user=self.customer).exists())

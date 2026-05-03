@@ -143,6 +143,16 @@ class User(AbstractBaseUser, PermissionsMixin):
 class Pharmacist(models.Model):
     """Dedicated pharmacist table linked to auth users with pharmacist role."""
 
+    PERMISSION_PRESCRIPTION_REVIEW = 'prescription_review'
+    PERMISSION_DISPENSE_ORDERS = 'dispense_orders'
+    PERMISSION_INVENTORY_ADD = 'inventory_add'
+    PERMISSION_CHOICES = [
+        (PERMISSION_PRESCRIPTION_REVIEW, 'Prescription review'),
+        (PERMISSION_DISPENSE_ORDERS, 'Dispense orders'),
+        (PERMISSION_INVENTORY_ADD, 'Add inventory records'),
+    ]
+    VALID_PERMISSIONS = {value for value, _label in PERMISSION_CHOICES}
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='pharmacist')
     # JSON list of permission strings granted to this pharmacist
     permissions = models.JSONField(default=list)
@@ -160,6 +170,23 @@ class Pharmacist(models.Model):
 
     def __str__(self):
         return f"Pharmacist: {self.user.full_name}"
+
+    def clean(self):
+        super().clean()
+        self.permissions = [
+            permission for permission in (self.permissions or [])
+            if permission in self.VALID_PERMISSIONS
+        ]
+
+    def save(self, *args, **kwargs):
+        self.permissions = [
+            permission for permission in (self.permissions or [])
+            if permission in self.VALID_PERMISSIONS
+        ]
+        super().save(*args, **kwargs)
+
+    def has_permission(self, permission):
+        return permission in (self.permissions or [])
 
 
 class Customer(models.Model):
@@ -267,8 +294,8 @@ class PaymentMethod(models.Model):
     class Meta:
         ordering = ['-is_default', '-updated_at']
         indexes = [
-            models.Index(fields=['user', 'is_default']),
-            models.Index(fields=['user', '-updated_at']),
+            models.Index(fields=['user', 'is_default'], name='accounts_pa_user_id_738eaa_idx'),
+            models.Index(fields=['user', '-updated_at'], name='accounts_pa_user_id_0e7c79_idx'),
         ]
         constraints = [
             models.UniqueConstraint(

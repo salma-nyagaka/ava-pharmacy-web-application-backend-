@@ -241,6 +241,13 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Require password for non-pharmacist users created by admins."""
+        permissions = attrs.get('pharmacist_permissions')
+        if permissions is not None:
+            invalid = sorted(set(permissions) - Pharmacist.VALID_PERMISSIONS)
+            if invalid:
+                raise serializers.ValidationError({
+                    'pharmacist_permissions': f'Invalid permission(s): {", ".join(invalid)}.'
+                })
         if self.instance is None:
             role = attrs.get('role')
             password = attrs.get('password')

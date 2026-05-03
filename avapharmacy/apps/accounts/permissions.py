@@ -40,6 +40,21 @@ class IsPharmacist(BasePermission):
         return bool(
             request.user and request.user.is_authenticated
             and request.user.role == User.PHARMACIST
+            and request.user.is_active
+            and request.user.status == User.STATUS_ACTIVE
+        )
+
+
+class IsPrescriptionReviewPharmacist(IsPharmacist):
+    """Allow only active pharmacists granted prescription review permission."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        profile = getattr(request.user, 'pharmacist', None)
+        return bool(
+            profile
+            and profile.has_permission(profile.PERMISSION_PRESCRIPTION_REVIEW)
         )
 
 
@@ -50,6 +65,8 @@ class IsPharmacistOrAdmin(BasePermission):
         return bool(
             request.user and request.user.is_authenticated
             and request.user.role in [User.PHARMACIST, User.ADMIN]
+            and request.user.is_active
+            and request.user.status == User.STATUS_ACTIVE
         )
 
 

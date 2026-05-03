@@ -151,6 +151,42 @@ class PrescriptionAuditLog(models.Model):
         return f"{self.prescription.reference} - {self.action}"
 
 
+class PrescriptionReviewDecision(models.Model):
+    ACTION_APPROVE = 'approve'
+    ACTION_REJECT = 'reject'
+    ACTION_REQUEST_CLARIFICATION = 'request_clarification'
+    ACTION_CHOICES = [
+        (ACTION_APPROVE, 'Approve'),
+        (ACTION_REJECT, 'Reject'),
+        (ACTION_REQUEST_CLARIFICATION, 'Request Clarification'),
+    ]
+
+    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name='review_decisions')
+    pharmacist = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prescription_review_decisions',
+    )
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    from_status = models.CharField(max_length=20, choices=Prescription.STATUS_CHOICES)
+    to_status = models.CharField(max_length=20, choices=Prescription.STATUS_CHOICES)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['prescription', '-created_at'], name='rxrev_rx_created_idx'),
+            models.Index(fields=['pharmacist', '-created_at'], name='rxrev_pharm_created_idx'),
+            models.Index(fields=['action', '-created_at'], name='rxrev_action_created_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.prescription.reference} - {self.action}"
+
+
 class PrescriptionClarificationMessage(models.Model):
     SENDER_PATIENT = 'patient'
     SENDER_PHARMACIST = 'pharmacist'

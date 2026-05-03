@@ -4,6 +4,7 @@ from .models import (
     PrescriptionFile,
     PrescriptionItem,
     PrescriptionAuditLog,
+    PrescriptionReviewDecision,
     PrescriptionClarificationMessage,
 )
 from apps.products.models import Product
@@ -74,6 +75,18 @@ class PrescriptionAuditLogSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'timestamp')
 
 
+class PrescriptionReviewDecisionSerializer(serializers.ModelSerializer):
+    pharmacist_name = serializers.ReadOnlyField(source='pharmacist.full_name')
+
+    class Meta:
+        model = PrescriptionReviewDecision
+        fields = (
+            'id', 'action', 'from_status', 'to_status', 'notes',
+            'pharmacist', 'pharmacist_name', 'created_at',
+        )
+        read_only_fields = fields
+
+
 class PrescriptionClarificationMessageSerializer(serializers.ModelSerializer):
     sender_display = serializers.SerializerMethodField()
 
@@ -97,6 +110,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     files = serializers.SerializerMethodField()
     items = PrescriptionItemSerializer(many=True, read_only=True)
     audit_logs = PrescriptionAuditLogSerializer(many=True, read_only=True)
+    review_decisions = PrescriptionReviewDecisionSerializer(many=True, read_only=True)
     clarification_messages = PrescriptionClarificationMessageSerializer(many=True, read_only=True)
     patient_name_display = serializers.ReadOnlyField(source='patient.full_name')
     pharmacist_name = serializers.ReadOnlyField(source='pharmacist.full_name')
@@ -108,7 +122,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'id', 'reference', 'patient', 'patient_name', 'patient_name_display',
             'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'status', 'dispatch_status',
             'notes', 'pharmacist_notes', 'clarification_message',
-            'files', 'items', 'audit_logs', 'clarification_messages', 'is_overdue',
+            'files', 'items', 'audit_logs', 'review_decisions', 'clarification_messages', 'is_overdue',
             'resubmitted_at', 'submitted_at', 'updated_at'
         )
         read_only_fields = ('id', 'reference', 'patient', 'submitted_at', 'updated_at')
@@ -219,6 +233,23 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
         notes = (attrs.get('notes') or '').strip()
         if action == self.ACTION_REQUEST_CLARIFICATION and not notes:
             raise serializers.ValidationError({'notes': 'Enter the clarification message for the patient.'})
+        if action == self.ACTION_REJECT and not notes:
+            raise serializers.ValidationError({'notes': 'Enter the rejection reason.'})
+        if action == self.ACTION_APPROVE:
+            items = attrs.get('items')
+            if items is not None:
+                missing_products = [
+                    item.get('name') or 'Unnamed item'
+                    for item in items
+                    if not item.get('product_id')
+                ]
+                if missing_products:
+                    raise serializers.ValidationError({
+                        'items': (
+                            'Approved prescriptions require every medication to be mapped to a product. '
+                            f'Missing: {", ".join(missing_products)}.'
+                        )
+                    })
         return attrs
 
 

@@ -229,22 +229,41 @@ def _product_availability_error(product, requested_quantity, *, allow_pos_refres
         return f'{product.name} is no longer active.'
     if isinstance(product, Product) and product.uses_variant_inventory:
         return f'Select a product variant for {product.name} before adding it to cart.'
-    if requested_quantity <= product.stock_quantity:
+    if hasattr(product, '_get_inventory_values'):
+        inventory_values = product._get_inventory_values()
+        stock_quantity = inventory_values.get('stock_quantity', 0)
+        allow_backorder = inventory_values.get('allow_backorder', False)
+        available_quantity = product.available_quantity
+    else:
+        stock_quantity = product.stock_quantity
+        allow_backorder = product.allow_backorder
+        available_quantity = product.available_quantity
+
+    if requested_quantity <= stock_quantity:
         return None
-    if product.allow_backorder and requested_quantity <= product.available_quantity:
+    if allow_backorder and requested_quantity <= available_quantity:
         return None
     if allow_pos_refresh:
         if isinstance(product, Product):
             refresh_pos_inventory_for_products([product], force=True)
         elif isinstance(product, Variant):
             refresh_pos_inventory_for_variants([product], force=True)
-        if requested_quantity <= product.stock_quantity:
+        if hasattr(product, '_get_inventory_values'):
+            inventory_values = product._get_inventory_values()
+            stock_quantity = inventory_values.get('stock_quantity', 0)
+            allow_backorder = inventory_values.get('allow_backorder', False)
+            available_quantity = product.available_quantity
+        else:
+            stock_quantity = product.stock_quantity
+            allow_backorder = product.allow_backorder
+            available_quantity = product.available_quantity
+        if requested_quantity <= stock_quantity:
             return None
-        if product.allow_backorder and requested_quantity <= product.available_quantity:
+        if allow_backorder and requested_quantity <= available_quantity:
             return None
-    if product.stock_quantity == 0 and not product.allow_backorder:
+    if stock_quantity == 0 and not allow_backorder:
         return f'{product.name} is out of stock.'
-    return f'{product.name} only has {product.available_quantity} unit(s) available.'
+    return f'{product.name} only has {available_quantity} unit(s) available.'
 
 
 def _cart_inventory_object(item):
@@ -987,7 +1006,7 @@ class CartItemCreateView(generics.CreateAPIView):
             return Response({'quantity': 'Invalid quantity.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            product = Product.objects.select_related('brand', 'category').get(pk=product_id, is_active=True)
+            product = Product.objects.select_related('brand').get(pk=product_id, is_active=True)
         except Product.DoesNotExist:
             return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1199,7 +1218,7 @@ class CheckoutDraftView(APIView):
 
         cart = get_or_create_cart(request.user)
         items = list(
-            cart.items.select_related('variant', 'variant__product', 'variant__product__brand', 'variant__product__category')
+            cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
             .order_by('id')
         )
         if not items:
@@ -3036,7 +3055,11 @@ class CartMergeView(APIView):
 
         for item_data in items_data:
             product_id = item_data.get('product_id')
-            quantity = int(item_data.get('quantity', 1))
+            variant_id = item_data.get('variant_id')
+            try:
+                quantity = int(item_data.get('quantity', 1))
+            except (TypeError, ValueError):
+                continue
             if not product_id or quantity < 1:
                 continue
             try:
@@ -3044,7 +3067,16 @@ class CartMergeView(APIView):
             except Product.DoesNotExist:
                 continue
 
-            representative_variant = product.get_representative_variant()
+            representative_variant = None
+            if variant_id:
+                representative_variant = Variant.objects.filter(
+                    pk=variant_id,
+                    product=product,
+                    is_active=True,
+                ).first()
+            elif not product.uses_variant_inventory:
+                representative_variant = product.get_representative_variant()
+
             if representative_variant is None:
                 continue
             existing = CartItem.objects.filter(cart=cart, variant=representative_variant).first()
@@ -3055,9 +3087,9 @@ class CartMergeView(APIView):
                     existing.quantity = new_qty
                     existing.save(update_fields=['quantity'])
             else:
-                available = min(quantity, representative_variant.stock_quantity if representative_variant.stock_quantity > 0 else quantity)
-                if available > 0:
-                    CartItem.objects.create(cart=cart, variant=representative_variant, quantity=available)
+                error = _product_availability_error(representative_variant, quantity, allow_pos_refresh=True)
+                if not error:
+                    CartItem.objects.create(cart=cart, variant=representative_variant, quantity=quantity)
 
         return Response(CartSerializer(cart).data)
 
@@ -3077,7 +3109,7 @@ class OrderCreateView(APIView):
 
         cart = get_or_create_cart(request.user)
         items = list(
-            cart.items.select_related('variant', 'variant__product', 'variant__product__brand', 'variant__product__category')
+            cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
             .order_by('id')
         )
         if not items:

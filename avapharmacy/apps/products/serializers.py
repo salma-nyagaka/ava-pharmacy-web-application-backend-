@@ -791,6 +791,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     price = serializers.SerializerMethodField()
     requires_prescription = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
+    updated_by_name = serializers.SerializerMethodField()
     brand = BrandSerializer(read_only=True)
     brand_id = serializers.PrimaryKeyRelatedField(
         queryset=Brand.objects.all(), source='brand', write_only=True, required=False, allow_null=True
@@ -836,7 +837,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'short_description', 'description', 'features', 'directions', 'warnings',
             'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
             'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_active',
-            'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'
+            'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name', 'updated_by', 'updated_by_name'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
         extra_kwargs = {
@@ -901,6 +902,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             return getattr(obj.created_by, 'full_name', '') or obj.created_by.email
         return 'system'
 
+    def get_updated_by_name(self, obj):
+        if obj.updated_by:
+            return getattr(obj.updated_by, 'full_name', '') or obj.updated_by.email
+        return 'system'
+
     def _resolved_health_concerns(self, obj):
         cached = getattr(obj, '_variant_health_concerns_cache', None)
         if cached is None:
@@ -958,7 +964,7 @@ class AdminProductSerializer(ProductDetailSerializer):
             'dosage_quantity', 'dosage_unit', 'dosage_frequency', 'dosage_notes',
             'requires_prescription', 'inventory_status', 'available_quantity', 'can_purchase',
             'final_price', 'discount_total', 'active_promotions', 'has_variants', 'is_active',
-            'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name'
+            'average_rating', 'review_count', 'created_at', 'updated_at', 'created_by', 'created_by_name', 'updated_by', 'updated_by_name'
         )
 
     def validate(self, attrs):

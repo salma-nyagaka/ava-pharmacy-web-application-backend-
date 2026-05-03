@@ -5,8 +5,13 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User
-from apps.prescriptions.models import Prescription, PrescriptionClarificationMessage, PrescriptionFile
+from apps.accounts.models import Pharmacist, User
+from apps.prescriptions.models import (
+    Prescription,
+    PrescriptionClarificationMessage,
+    PrescriptionFile,
+    PrescriptionReviewDecision,
+)
 from apps.products.models import Product
 
 
@@ -26,6 +31,10 @@ class PrescriptionWorkflowTests(TestCase):
             first_name='Rx',
             last_name='Pharmacist',
             role=User.PHARMACIST,
+        )
+        Pharmacist.objects.create(
+            user=self.pharmacist,
+            permissions=[Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
         )
         self.product = Product.objects.create(
             sku='RX-APPROVED-001',
@@ -78,6 +87,68 @@ class PrescriptionWorkflowTests(TestCase):
         self.assertEqual(review_response.status_code, 200)
         prescription.refresh_from_db()
         self.assertEqual(prescription.status, Prescription.STATUS_APPROVED)
+        decision = PrescriptionReviewDecision.objects.get(prescription=prescription)
+        self.assertEqual(decision.action, PrescriptionReviewDecision.ACTION_APPROVE)
+        self.assertEqual(decision.from_status, Prescription.STATUS_PENDING)
+        self.assertEqual(decision.to_status, Prescription.STATUS_APPROVED)
+        self.assertEqual(decision.pharmacist, self.pharmacist)
+
+    def test_pharmacist_requires_prescription_review_permission(self):
+        restricted = User.objects.create_user(
+            email='rx-restricted@example.com',
+            password='testpass123',
+            first_name='Restricted',
+            last_name='Pharmacist',
+            role=User.PHARMACIST,
+        )
+        Pharmacist.objects.create(
+            user=restricted,
+            permissions=[Pharmacist.PERMISSION_DISPENSE_ORDERS],
+        )
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_PENDING,
+        )
+
+        self.client.force_authenticate(restricted)
+        queue_response = self.client.get(reverse('pharmacist-prescriptions'))
+        review_response = self.client.post(
+            reverse('pharmacist-prescription-review', args=[prescription.id]),
+            {'action': 'request_clarification', 'notes': 'Need clearer instructions.'},
+            format='json',
+        )
+
+        self.assertEqual(queue_response.status_code, 403)
+        self.assertEqual(review_response.status_code, 403)
+
+    def test_approval_requires_mapped_medications(self):
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_PENDING,
+        )
+
+        self.client.force_authenticate(self.pharmacist)
+        response = self.client.post(
+            reverse('pharmacist-prescription-review', args=[prescription.id]),
+            {
+                'action': 'approve',
+                'notes': 'Cannot approve unmapped product',
+                'items': [{
+                    'name': 'Unmapped medication',
+                    'dose': '1 tablet',
+                    'frequency': 'daily',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.status, Prescription.STATUS_PENDING)
+        self.assertFalse(PrescriptionReviewDecision.objects.filter(prescription=prescription).exists())
 
     def test_customer_can_resubmit_after_clarification(self):
         prescription = Prescription.objects.create(
