@@ -47,6 +47,13 @@ git clone git@github.com:YOUR_ORG/YOUR_REPO.git /home/ava/staging/backend
 git clone git@github.com:YOUR_ORG/YOUR_REPO.git /home/ava/production/backend
 ```
 
+If either repo was cloned or copied with `sudo`, fix ownership before deploying:
+
+```bash
+sudo chown -R ava:ava /home/ava/staging/backend
+sudo chown -R ava:ava /home/ava/production/backend
+```
+
 Create virtual environments:
 
 ```bash
