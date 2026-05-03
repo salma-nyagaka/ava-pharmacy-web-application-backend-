@@ -11,19 +11,21 @@ from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from datetime import timedelta
 import logging
+import re
 from urllib.parse import urlencode
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import Address
-from apps.accounts.permissions import IsAdminUser
+from apps.accounts.models import Address, User
+from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
 from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
-from apps.products.models import Product, ProductVariant, annotate_product_inventory
+from apps.products.models import Product, Variant, annotate_product_inventory
 from apps.products.pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
+from avapharmacy.security import verify_hmac_signature
 
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
 from .integrations import push_order_to_pos
 from .flutterwave import FlutterwaveAPIError, FlutterwaveClient, FlutterwaveConfigurationError
 from .mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
@@ -43,11 +45,14 @@ from .serializers import (
     CheckoutSerializer,
     CouponApplySerializer,
     OrderNoteCreateSerializer,
+    OrderTrackingLookupSerializer,
     OrderSerializer,
     PaybillWebhookSerializer,
     MpesaC2BRegisterSerializer,
     FlutterwaveInitiateSerializer,
     FlutterwaveStatusSerializer,
+    OrderStatusWebhookSerializer,
+    OutboundOrderPushSerializer,
     PaymentIntentCreateSerializer,
     PaymentIntentSerializer,
     PaymentWebhookSerializer,
@@ -56,6 +61,8 @@ from .serializers import (
     ReturnRequestSerializer,
     ShippingMethodSerializer,
 )
+from .stock import commit_order_inventory, release_order_inventory
+from .utils import queue_order_confirmation_email, queue_order_status_email
 
 payments_logger = logging.getLogger('payments')
 
@@ -82,29 +89,185 @@ def create_order_event(order, event_type, message, actor=None, metadata=None):
     )
 
 
+TRACKING_STATUS_LABELS = {
+    Order.STATUS_DRAFT: 'Order received',
+    Order.STATUS_PENDING: 'Order confirmed',
+    Order.STATUS_PAID: 'Payment received',
+    Order.STATUS_PROCESSING: 'Being prepared',
+    Order.STATUS_SHIPPED: 'On the way',
+    Order.STATUS_DELIVERED: 'Delivered',
+    Order.STATUS_CANCELLED: 'Cancelled',
+    Order.STATUS_REFUNDED: 'Refunded',
+}
+
+TRACKING_STATUS_PROGRESS_INDEX = {
+    Order.STATUS_DRAFT: 0,
+    Order.STATUS_PENDING: 0,
+    Order.STATUS_PAID: 0,
+    Order.STATUS_PROCESSING: 1,
+    Order.STATUS_SHIPPED: 2,
+    Order.STATUS_DELIVERED: 3,
+}
+
+TRACKING_BASE_STEPS = [
+    (Order.STATUS_PENDING, 'Order confirmed'),
+    (Order.STATUS_PROCESSING, 'Being prepared'),
+    (Order.STATUS_SHIPPED, 'On the way'),
+    (Order.STATUS_DELIVERED, 'Delivered'),
+]
+
+
+def _normalized_phone_tail(value):
+    digits = re.sub(r'\D+', '', value or '')
+    return digits[-9:] if len(digits) >= 9 else digits
+
+
+def _tracking_queryset():
+    return Order.objects.select_related('customer', 'shipping_method').prefetch_related('events', 'items')
+
+
+def _order_tracking_contact_matches(order, contact_type, contact_value):
+    if contact_type == 'email':
+        return (order.shipping_email or '').strip().lower() == contact_value
+    return _normalized_phone_tail(order.shipping_phone) == contact_value
+
+
+def _build_tracking_steps(order):
+    if order.status in (Order.STATUS_CANCELLED, Order.STATUS_REFUNDED):
+        return [
+            {
+                'status': Order.STATUS_PENDING,
+                'label': 'Order confirmed',
+                'completed_at': str(order.created_at),
+                'is_done': True,
+                'is_current': False,
+            },
+            {
+                'status': order.status,
+                'label': TRACKING_STATUS_LABELS.get(order.status, order.get_status_display()),
+                'completed_at': str(order.updated_at),
+                'is_done': True,
+                'is_current': True,
+            },
+        ]
+
+    current_index = TRACKING_STATUS_PROGRESS_INDEX.get(order.status, 0)
+    events_by_status = {event.event_type: event.created_at for event in order.events.all()}
+    tracking_steps = []
+    for index, (step_status, label) in enumerate(TRACKING_BASE_STEPS):
+        completed_at = None
+        if index <= current_index:
+            completed_at = str(events_by_status.get(f'status_{step_status}', order.created_at))
+        tracking_steps.append({
+            'status': step_status,
+            'label': label,
+            'completed_at': completed_at,
+            'is_done': index < current_index or (index == current_index and order.status == Order.STATUS_DELIVERED),
+            'is_current': index == current_index and order.status != Order.STATUS_DELIVERED,
+        })
+    if order.status == Order.STATUS_DELIVERED and tracking_steps:
+        tracking_steps[-1]['is_done'] = True
+        tracking_steps[-1]['is_current'] = False
+    return tracking_steps
+
+
+def _serialize_tracking_order(order):
+    return {
+        'order_id': order.order_number,
+        'order_number': order.order_number,
+        'current_status': order.status,
+        'current_status_label': TRACKING_STATUS_LABELS.get(order.status, order.get_status_display()),
+        'estimated_delivery': getattr(order.shipping_method, 'estimated_delivery_window', '') or None,
+        'tracking_steps': _build_tracking_steps(order),
+        'events': [
+            {
+                'id': event.id,
+                'event_type': event.event_type,
+                'message': event.message,
+                'metadata': event.metadata,
+                'created_at': event.created_at,
+            }
+            for event in order.events.all().order_by('-created_at')
+        ],
+        'order': {
+            'id': order.id,
+            'order_number': order.order_number,
+            'status': order.status,
+            'status_label': TRACKING_STATUS_LABELS.get(order.status, order.get_status_display()),
+            'payment_method': order.payment_method,
+            'payment_method_label': order.get_payment_method_display(),
+            'payment_status': order.payment_status,
+            'payment_status_label': order.get_payment_status_display(),
+            'delivery_method': order.delivery_method,
+            'delivery_notes': order.delivery_notes,
+            'subtotal': str(order.subtotal),
+            'shipping_fee': str(order.shipping_fee),
+            'total': str(order.total),
+            'placed_at': order.placed_at or order.created_at,
+            'updated_at': order.updated_at,
+            'shipping_first_name': order.shipping_first_name,
+            'shipping_last_name': order.shipping_last_name,
+            'shipping_email': order.shipping_email,
+            'shipping_phone': order.shipping_phone,
+            'shipping_address': order.shipping_address,
+            'items': [
+                {
+                    'id': item.id,
+                    'product_name': item.product_name,
+                    'variant_name': item.variant_name,
+                    'quantity': item.quantity,
+                    'subtotal': str(item.subtotal),
+                }
+                for item in order.items.all()
+            ],
+        },
+    }
+
+
 def _product_availability_error(product, requested_quantity, *, allow_pos_refresh=False):
     if not product.is_active:
         return f'{product.name} is no longer active.'
-    if requested_quantity <= product.stock_quantity:
+    if isinstance(product, Product) and product.uses_variant_inventory:
+        return f'Select a product variant for {product.name} before adding it to cart.'
+    if hasattr(product, '_get_inventory_values'):
+        inventory_values = product._get_inventory_values()
+        stock_quantity = inventory_values.get('stock_quantity', 0)
+        allow_backorder = inventory_values.get('allow_backorder', False)
+        available_quantity = product.available_quantity
+    else:
+        stock_quantity = product.stock_quantity
+        allow_backorder = product.allow_backorder
+        available_quantity = product.available_quantity
+
+    if requested_quantity <= stock_quantity:
         return None
-    if product.allow_backorder and requested_quantity <= product.available_quantity:
+    if allow_backorder and requested_quantity <= available_quantity:
         return None
     if allow_pos_refresh:
         if isinstance(product, Product):
             refresh_pos_inventory_for_products([product], force=True)
-        elif isinstance(product, ProductVariant):
+        elif isinstance(product, Variant):
             refresh_pos_inventory_for_variants([product], force=True)
-        if requested_quantity <= product.stock_quantity:
+        if hasattr(product, '_get_inventory_values'):
+            inventory_values = product._get_inventory_values()
+            stock_quantity = inventory_values.get('stock_quantity', 0)
+            allow_backorder = inventory_values.get('allow_backorder', False)
+            available_quantity = product.available_quantity
+        else:
+            stock_quantity = product.stock_quantity
+            allow_backorder = product.allow_backorder
+            available_quantity = product.available_quantity
+        if requested_quantity <= stock_quantity:
             return None
-        if product.allow_backorder and requested_quantity <= product.available_quantity:
+        if allow_backorder and requested_quantity <= available_quantity:
             return None
-    if product.stock_quantity == 0 and not product.allow_backorder:
+    if stock_quantity == 0 and not allow_backorder:
         return f'{product.name} is out of stock.'
-    return f'{product.name} only has {product.available_quantity} unit(s) available.'
+    return f'{product.name} only has {available_quantity} unit(s) available.'
 
 
 def _cart_inventory_object(item):
-    return item.product_variant or item.product
+    return item.variant or item.product
 
 
 def _get_prescription_product_match(user, prescription_reference, product, prescription=None, prescription_item=None):
@@ -153,7 +316,7 @@ def validate_cart_items(items):
         error = _product_availability_error(inventory_object, item.quantity, allow_pos_refresh=True)
         if error:
             errors.append(error)
-        if item.product.requires_prescription:
+        if item.variant and item.variant.requires_prescription:
             prescription_error = _prescription_cart_error(
                 getattr(item.cart, 'user', None),
                 item.product,
@@ -195,14 +358,13 @@ def snapshot_cart_to_order(order, cart_items):
     for item in cart_items:
         OrderItem.objects.create(
             order=order,
-            product=item.product,
-            product_variant=item.product_variant,
+            variant=item.variant,
             product_name=item.product.name,
-            product_sku=item.product.sku,
+            product_sku=item.product.get_display_sku(),
             quantity=item.quantity,
-            variant_name=item.product_variant.name if item.product_variant else '',
-            variant_sku=item.product_variant.sku if item.product_variant else '',
-            unit_price=item.product_variant.effective_price if item.product_variant else item.product.price,
+            variant_name=item.variant.name if item.variant else '',
+            variant_sku=item.variant.sku if item.variant else '',
+            unit_price=item.variant.effective_price,
             prescription_reference=item.prescription_reference,
             prescription=item.prescription,
             prescription_item=item.prescription_item,
@@ -237,20 +399,28 @@ def persist_checkout_address(user, data):
     )
 
 
-def notify_order_update(order, title=None, message=None):
+def notify_order_update(order, title=None, message=None, *, send_email=None, send_sms=None):
     if not order.customer:
         return
     try:
         preferences = get_notification_preferences(order.customer)
+        email_enabled = bool(preferences and preferences.order_updates_email) if send_email is None else bool(send_email)
         create_notification(
             recipient=order.customer,
             notification_type='order_status',
             title=title or f'Order {order.order_number} Updated',
             message=message or f'Your order is now {order.status}.',
-            data={'url': f'/orders/{order.id}', 'reference': order.order_number, 'status': order.status},
-            send_email=bool(preferences and preferences.order_updates_email),
-            send_sms=bool(preferences and preferences.order_updates_sms),
+            data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
+            send_email=False,
+            send_sms=bool(preferences and preferences.order_updates_sms) if send_sms is None else bool(send_sms),
         )
+        if email_enabled:
+            queue_order_status_email(
+                order,
+                subject=title or f'Order {order.order_number} Updated',
+                heading=title or f'Order {order.order_number} updated',
+                intro=message or f'Your order is now {order.get_status_display()}.',
+            )
     except Exception:
         return
 
@@ -379,6 +549,7 @@ def _mark_order_paid(order, intent, message, notify_message):
         title=f'Payment received for {order.order_number}',
         message=notify_message,
     )
+    _save_order_push_result(order, 'paid')
 
 
 def _mark_order_payment_failed(order, intent, message):
@@ -391,6 +562,23 @@ def _mark_order_payment_failed(order, intent, message):
         metadata={'provider_reference': intent.provider_reference},
         event_type='payment_failed',
     )
+
+
+def _apply_order_status_transition(order, next_status, *, actor=None, message='', metadata=None):
+    previous_status = order.status
+    if previous_status == next_status:
+        return
+    order.status = next_status
+    order.save(update_fields=['status', 'updated_at'])
+    create_order_event(
+        order,
+        f'status_{next_status}',
+        message or f'Order status changed from {previous_status} to {next_status}.',
+        actor=actor,
+        metadata={'previous_status': previous_status, **(metadata or {})},
+    )
+    notify_order_status(order)
+    _save_order_push_result(order, 'updated')
 
 
 def _build_flutterwave_redirect_url(request, order, intent, fallback=''):
@@ -804,7 +992,7 @@ class CartItemCreateView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         cart = get_or_create_cart(request.user)
         product_id = request.data.get('product_id')
-        variant_id = request.data.get('product_variant_id')
+        variant_id = request.data.get('variant_id')
         quantity = request.data.get('quantity', 1)
         prescription_reference = request.data.get('prescription_reference') or request.data.get('prescription_id')
         prescription_pk = request.data.get('prescription')
@@ -818,16 +1006,21 @@ class CartItemCreateView(generics.CreateAPIView):
             return Response({'quantity': 'Invalid quantity.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            product = Product.objects.select_related('brand', 'category').get(pk=product_id, is_active=True)
+            product = Product.objects.select_related('brand').get(pk=product_id, is_active=True)
         except Product.DoesNotExist:
             return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         variant = None
         if variant_id:
             try:
-                variant = ProductVariant.objects.get(pk=variant_id, product=product, is_active=True)
-            except ProductVariant.DoesNotExist:
+                variant = Variant.objects.get(pk=variant_id, product=product, is_active=True)
+            except Variant.DoesNotExist:
                 return Response({'detail': 'Variant not found for this product.'}, status=status.HTTP_404_NOT_FOUND)
+        elif product.uses_variant_inventory:
+            return Response(
+                {'detail': f'Select a product variant for {product.name} before adding it to cart.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         prescription = None
         prescription_item = None
@@ -874,8 +1067,7 @@ class CartItemCreateView(generics.CreateAPIView):
 
         existing_item_filters = {
             'cart': cart,
-            'product': product,
-            'product_variant': variant,
+            'variant': variant,
         }
         if prescription or prescription_item:
             existing_item_filters.update({
@@ -887,7 +1079,7 @@ class CartItemCreateView(generics.CreateAPIView):
 
         existing_item = CartItem.objects.filter(**existing_item_filters).first()
         requested_total = quantity + (existing_item.quantity if existing_item else 0)
-        if product.requires_prescription:
+        if variant and variant.requires_prescription:
             prescription_error = _prescription_cart_error(
                 request.user,
                 product,
@@ -909,8 +1101,7 @@ class CartItemCreateView(generics.CreateAPIView):
         else:
             CartItem.objects.create(
                 cart=cart,
-                product=product,
-                product_variant=variant,
+                variant=variant,
                 quantity=quantity,
                 prescription_reference=prescription_reference,
                 prescription=prescription,
@@ -926,7 +1117,7 @@ class CartItemUpdateView(APIView):
     def patch(self, request, pk):
         cart = get_or_create_cart(request.user)
         try:
-            item = CartItem.objects.select_related('product', 'product_variant').get(pk=pk, cart=cart)
+            item = CartItem.objects.select_related('variant', 'variant__product').get(pk=pk, cart=cart)
         except CartItem.DoesNotExist:
             return Response({'detail': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -938,7 +1129,7 @@ class CartItemUpdateView(APIView):
         except (TypeError, ValueError):
             return Response({'quantity': 'Invalid quantity.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if item.product.requires_prescription:
+        if item.variant and item.variant.requires_prescription:
             prescription_error = _prescription_cart_error(
                 request.user,
                 item.product,
@@ -1027,26 +1218,21 @@ class CheckoutDraftView(APIView):
 
         cart = get_or_create_cart(request.user)
         items = list(
-            cart.items.select_related('product', 'product__brand', 'product__category', 'product_variant')
+            cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
             .order_by('id')
         )
         if not items:
             return Response({'detail': 'Cart is empty.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        products = {
-            product.id: product
-            for product in Product.objects.select_for_update().filter(id__in=[item.product_id for item in items])
-        }
         variants = {
             variant.id: variant
-            for variant in ProductVariant.objects.select_for_update().filter(
-                id__in=[item.product_variant_id for item in items if item.product_variant_id]
+            for variant in Variant.objects.select_for_update().filter(
+                id__in=[item.variant_id for item in items if item.variant_id]
             )
         }
         for item in items:
-            item.product = products[item.product_id]
-            if item.product_variant_id:
-                item.product_variant = variants.get(item.product_variant_id)
+            if item.variant_id:
+                item.variant = variants.get(item.variant_id)
 
         errors = validate_cart_items(items)
         if errors:
@@ -1656,6 +1842,50 @@ class PaymentIntentStatusSyncView(APIView):
         return Response(PaymentIntentSerializer(intent).data)
 
 
+class PaymentIntentCancelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            intent = PaymentIntent.objects.select_for_update().select_related('order').get(pk=pk, order__customer=request.user)
+        except PaymentIntent.DoesNotExist:
+            return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if intent.status == PaymentIntent.STATUS_SUCCEEDED or intent.order.payment_status == Order.PAYMENT_STATUS_PAID:
+            return Response({'detail': 'This payment has already been confirmed and cannot be cancelled.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if intent.status == PaymentIntent.STATUS_CANCELLED:
+            return Response(PaymentIntentSerializer(intent).data)
+
+        if intent.status == PaymentIntent.STATUS_FAILED:
+            intent.status = PaymentIntent.STATUS_CANCELLED
+            intent.last_error = intent.last_error or 'Payment cancelled by customer.'
+            if not intent.processed_at:
+                intent.processed_at = timezone.now()
+            intent.save(update_fields=['status', 'last_error', 'processed_at', 'updated_at'])
+            return Response(PaymentIntentSerializer(intent).data)
+
+        intent.status = PaymentIntent.STATUS_CANCELLED
+        intent.last_error = 'Payment cancelled by customer.'
+        intent.processed_at = timezone.now()
+        intent.save(update_fields=['status', 'last_error', 'processed_at', 'updated_at'])
+
+        order = intent.order
+        if order.payment_status != Order.PAYMENT_STATUS_PAID:
+            order.payment_status = Order.PAYMENT_STATUS_PENDING
+            order.save(update_fields=['payment_status', 'updated_at'])
+
+        create_order_event(
+            order,
+            'payment_cancelled',
+            'Payment cancelled by customer.',
+            actor=request.user,
+            metadata={'intent_reference': intent.reference, 'provider': intent.provider},
+        )
+        return Response(PaymentIntentSerializer(intent).data)
+
+
 class MpesaPaybillValidationView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -2031,20 +2261,15 @@ class CheckoutFinalizeView(APIView):
         if order.payment_method != Order.PAYMENT_COD and order.payment_status != Order.PAYMENT_STATUS_PAID:
             return Response({'detail': 'Payment must be confirmed before finalizing this order.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        product_ids = [item.product_id for item in order.items.all() if item.product_id]
-        variant_ids = [item.product_variant_id for item in order.items.all() if item.product_variant_id]
-        locked_products = {
-            product.id: product
-            for product in Product.objects.select_for_update().filter(id__in=product_ids)
-        }
+        variant_ids = [item.variant_id for item in order.items.all() if item.variant_id]
         locked_variants = {
             variant.id: variant
-            for variant in ProductVariant.objects.select_for_update().filter(id__in=variant_ids)
+            for variant in Variant.objects.select_for_update().filter(id__in=variant_ids)
         }
 
         errors = []
         for item in order.items.all():
-            inventory_object = locked_variants.get(item.product_variant_id) if item.product_variant_id else locked_products.get(item.product_id)
+            inventory_object = locked_variants.get(item.variant_id)
             if not inventory_object:
                 errors.append(f'{item.product_name} is no longer available.')
                 continue
@@ -2054,12 +2279,8 @@ class CheckoutFinalizeView(APIView):
         if errors:
             return Response({'detail': errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        for item in order.items.all():
-            inventory_object = locked_variants.get(item.product_variant_id) if item.product_variant_id else locked_products.get(item.product_id)
-            if not inventory_object:
-                continue
-            inventory_object.stock_quantity = max(0, inventory_object.stock_quantity - item.quantity)
-            inventory_object.save()
+        commit_order_inventory(order)
+        should_send_confirmation_email = order.status == Order.STATUS_DRAFT and not order.placed_at
 
         order.status = Order.STATUS_PENDING if order.payment_method == Order.PAYMENT_COD else Order.STATUS_PAID
         if order.payment_method == Order.PAYMENT_COD:
@@ -2080,7 +2301,10 @@ class CheckoutFinalizeView(APIView):
             order,
             title=f'Order {order.order_number} placed',
             message=f'Your order total is KSh {order.total}.',
+            send_email=False,
         )
+        if should_send_confirmation_email:
+            queue_order_confirmation_email(order)
         _save_order_push_result(order, 'created')
         return Response(OrderSerializer(order).data)
 
@@ -2091,7 +2315,7 @@ class OrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(customer=self.request.user).prefetch_related(
-            'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
         ).select_related('coupon', 'shipping_method')
 
 
@@ -2101,7 +2325,7 @@ class OrderDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(customer=self.request.user).prefetch_related(
-            'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
         ).select_related('coupon', 'shipping_method')
 
 
@@ -2122,11 +2346,7 @@ class OrderCancelView(APIView):
             )
 
         if order.inventory_committed:
-            for item in order.items.select_related('product', 'product_variant').all():
-                inventory_object = item.product_variant or item.product
-                if inventory_object:
-                    inventory_object.stock_quantity += item.quantity
-                    inventory_object.save()
+            release_order_inventory(order)
 
         order.status = Order.STATUS_CANCELLED
         order.save(update_fields=['status', 'updated_at'])
@@ -2204,7 +2424,7 @@ class AdminShippingMethodDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminOrderListView(generics.ListAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsPharmacistOrAdmin]
     serializer_class = AdminOrderSerializer
     filterset_fields = ['status', 'payment_status', 'payment_method', 'delivery_method']
     search_fields = ['order_number', 'shipping_email', 'customer__email']
@@ -2213,14 +2433,14 @@ class AdminOrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Order.objects.all().select_related('customer', 'coupon', 'shipping_method').prefetch_related(
-            'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
         )
 
 
 class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsPharmacistOrAdmin]
     queryset = Order.objects.all().select_related('customer', 'coupon', 'shipping_method').prefetch_related(
-        'items', 'items__product_variant', 'notes', 'events', 'payment_intents', 'return_requests'
+        'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
     )
 
     def get_serializer_class(self):
@@ -2233,6 +2453,21 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
         instance = self.get_object()
         prev_status = instance.status
         prev_payment_status = instance.payment_status
+        if request.user.role == User.PHARMACIST:
+            allowed_fields = {'status', 'delivery_method', 'delivery_notes'}
+            provided_fields = set(request.data.keys())
+            disallowed = provided_fields - allowed_fields
+            if disallowed:
+                return Response(
+                    {'detail': 'Pharmacists can only update order status and delivery notes.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            next_status = request.data.get('status')
+            if next_status and next_status not in [Order.STATUS_PROCESSING, Order.STATUS_SHIPPED, Order.STATUS_DELIVERED]:
+                return Response(
+                    {'detail': 'Pharmacists can only move orders to processing, shipped, or delivered.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
@@ -2240,11 +2475,12 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
         if order.status != prev_status:
             create_order_event(
                 order,
-                'status_changed',
+                f'status_{order.status}',
                 f'Order status changed from {prev_status} to {order.status}.',
                 actor=request.user,
+                metadata={'previous_status': prev_status},
             )
-            notify_order_update(order)
+            notify_order_status(order)
             _save_order_push_result(order, 'updated')
         if order.payment_status != prev_payment_status:
             create_order_event(
@@ -2267,7 +2503,7 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
 
 
 class AdminOrderNoteView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsPharmacistOrAdmin]
 
     def post(self, request, pk):
         try:
@@ -2281,7 +2517,8 @@ class AdminOrderNoteView(APIView):
             content=serializer.validated_data['content'],
             created_by=request.user
         )
-        create_order_event(order, 'note_added', 'Admin note added to order.', actor=request.user)
+        actor_label = 'Pharmacist' if request.user.role == User.PHARMACIST else 'Admin'
+        create_order_event(order, 'note_added', f'{actor_label} note added to order.', actor=request.user)
         return Response(AdminOrderSerializer(order).data)
 
 
@@ -2299,11 +2536,7 @@ class AdminOrderRefundView(APIView):
             return Response({'detail': 'Only paid orders can be refunded.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if order.inventory_committed:
-            for item in order.items.select_related('product', 'product_variant').all():
-                inventory_object = item.product_variant or item.product
-                if inventory_object:
-                    inventory_object.stock_quantity += item.quantity
-                    inventory_object.save()
+            release_order_inventory(order)
 
         order.payment_status = Order.PAYMENT_STATUS_REFUNDED
         order.status = Order.STATUS_REFUNDED
@@ -2319,6 +2552,66 @@ class AdminOrderRefundView(APIView):
         notify_order_update(order, title=f'Order {order.order_number} refunded', message='Your refund has been processed.')
         _save_order_push_result(order, 'refunded')
         return Response(AdminOrderSerializer(order).data)
+
+
+class AdminOrderPushListView(generics.ListAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = OutboundOrderPushSerializer
+
+    def get_queryset(self):
+        return OutboundOrderPush.objects.select_related('order').filter(
+            status=OutboundOrderPush.STATUS_EXHAUSTED
+        ).order_by('-updated_at')
+
+
+class AdminOrderPushRetryView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            push_record = OutboundOrderPush.objects.select_for_update().select_related('order').get(pk=pk)
+        except OutboundOrderPush.DoesNotExist:
+            return Response({'detail': 'Order push record not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        result = push_order_to_pos(
+            push_record.order,
+            push_record.action,
+            queue_record=push_record,
+            persist_failure=True,
+            max_attempts=max(1, push_record.max_attempts or settings.EXTERNAL_ORDER_MAX_ATTEMPTS),
+        )
+        refreshed = OutboundOrderPush.objects.get(pk=push_record.pk)
+        payload = OutboundOrderPushSerializer(refreshed).data
+        payload['result'] = result
+        return Response(payload)
+
+
+class OrderStatusWebhookView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        signature = request.headers.get('X-Sync-Signature', '')
+        if not verify_hmac_signature(request.body, signature, settings.ORDER_STATUS_WEBHOOK_SECRET):
+            return Response({'detail': 'Invalid order status signature.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = OrderStatusWebhookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            order = Order.objects.select_for_update().get(order_number=data['order_number'])
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        _apply_order_status_transition(
+            order,
+            data['status'],
+            message=data.get('message', '').strip() or f'Order updated to {data["status"]} by fulfillment webhook.',
+            metadata={'webhook': data.get('payload', {})},
+        )
+        return Response(OrderSerializer(order).data)
 
 
 class AdminReturnRequestListView(generics.ListAPIView):
@@ -2628,13 +2921,13 @@ class AdminActivityFeedView(APIView):
             })
 
         prescriptions = list(
-            Prescription.objects.filter(status='pending').order_by('-created_at')[:5]
+            Prescription.objects.filter(status='pending').order_by('-submitted_at')[:5]
         )
         for rx in prescriptions:
             feed.append({
                 'type': 'prescription_pending',
                 'message': f'Prescription awaiting review',
-                'timestamp': rx.created_at.isoformat(),
+                'timestamp': rx.submitted_at.isoformat(),
                 'link': '/admin/prescriptions',
             })
 
@@ -2654,7 +2947,7 @@ class AdminInvoiceListView(generics.ListAPIView):
         return (
             Order.objects.exclude(status=Order.STATUS_DRAFT)
             .select_related('customer', 'coupon', 'shipping_method')
-            .prefetch_related('items', 'items__product_variant', 'payment_intents')
+            .prefetch_related('items', 'items__variant', 'payment_intents')
         )
 
 
@@ -2666,7 +2959,7 @@ class AdminInvoiceDetailView(generics.RetrieveAPIView):
         return (
             Order.objects.exclude(status=Order.STATUS_DRAFT)
             .select_related('customer', 'coupon', 'shipping_method')
-            .prefetch_related('items', 'items__product_variant', 'payment_intents')
+            .prefetch_related('items', 'items__variant', 'payment_intents')
         )
 
 
@@ -2762,7 +3055,11 @@ class CartMergeView(APIView):
 
         for item_data in items_data:
             product_id = item_data.get('product_id')
-            quantity = int(item_data.get('quantity', 1))
+            variant_id = item_data.get('variant_id')
+            try:
+                quantity = int(item_data.get('quantity', 1))
+            except (TypeError, ValueError):
+                continue
             if not product_id or quantity < 1:
                 continue
             try:
@@ -2770,17 +3067,29 @@ class CartMergeView(APIView):
             except Product.DoesNotExist:
                 continue
 
-            existing = CartItem.objects.filter(cart=cart, product=product, product_variant=None).first()
+            representative_variant = None
+            if variant_id:
+                representative_variant = Variant.objects.filter(
+                    pk=variant_id,
+                    product=product,
+                    is_active=True,
+                ).first()
+            elif not product.uses_variant_inventory:
+                representative_variant = product.get_representative_variant()
+
+            if representative_variant is None:
+                continue
+            existing = CartItem.objects.filter(cart=cart, variant=representative_variant).first()
             if existing:
                 new_qty = existing.quantity + quantity
-                error = _product_availability_error(product, new_qty, allow_pos_refresh=True)
+                error = _product_availability_error(representative_variant, new_qty, allow_pos_refresh=True)
                 if not error:
                     existing.quantity = new_qty
                     existing.save(update_fields=['quantity'])
             else:
-                available = min(quantity, product.stock_quantity if product.stock_quantity > 0 else quantity)
-                if available > 0:
-                    CartItem.objects.create(cart=cart, product=product, quantity=available)
+                error = _product_availability_error(representative_variant, quantity, allow_pos_refresh=True)
+                if not error:
+                    CartItem.objects.create(cart=cart, variant=representative_variant, quantity=quantity)
 
         return Response(CartSerializer(cart).data)
 
@@ -2800,7 +3109,7 @@ class OrderCreateView(APIView):
 
         cart = get_or_create_cart(request.user)
         items = list(
-            cart.items.select_related('product', 'product__brand', 'product__category', 'product_variant')
+            cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
             .order_by('id')
         )
         if not items:
@@ -2809,20 +3118,15 @@ class OrderCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        products = {
-            product.id: product
-            for product in Product.objects.select_for_update().filter(id__in=[item.product_id for item in items])
-        }
         variants = {
             variant.id: variant
-            for variant in ProductVariant.objects.select_for_update().filter(
-                id__in=[item.product_variant_id for item in items if item.product_variant_id]
+            for variant in Variant.objects.select_for_update().filter(
+                id__in=[item.variant_id for item in items if item.variant_id]
             )
         }
         for item in items:
-            item.product = products[item.product_id]
-            if item.product_variant_id:
-                item.product_variant = variants.get(item.product_variant_id)
+            if item.variant_id:
+                item.variant = variants.get(item.variant_id)
 
         errors = validate_cart_items(items)
         if errors:
@@ -2874,11 +3178,7 @@ class OrderCreateView(APIView):
 
         # For COD: mark inventory immediately
         if payment_method == Order.PAYMENT_COD:
-            for item in items:
-                inventory_object = item.product_variant or item.product
-                if inventory_object:
-                    inventory_object.stock_quantity = max(0, inventory_object.stock_quantity - item.quantity)
-                    inventory_object.save()
+            commit_order_inventory(order)
             order.inventory_committed = True
             order.save(update_fields=['inventory_committed', 'updated_at'])
 
@@ -2892,7 +3192,9 @@ class OrderCreateView(APIView):
             order,
             title=f'Order {order.order_number} placed',
             message=f'Your order total is KSh {order.total}.',
+            send_email=False,
         )
+        queue_order_confirmation_email(order)
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
@@ -2903,22 +3205,9 @@ class OrderTrackingView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    STATUS_LABELS = {
-        Order.STATUS_PENDING: 'Order Confirmed',
-        Order.STATUS_PROCESSING: 'Being Prepared',
-        Order.STATUS_SHIPPED: 'On The Way',
-        Order.STATUS_DELIVERED: 'Delivered',
-    }
-    STATUS_ORDER = [
-        Order.STATUS_PENDING,
-        Order.STATUS_PROCESSING,
-        Order.STATUS_SHIPPED,
-        Order.STATUS_DELIVERED,
-    ]
-
     def get(self, request, pk):
         try:
-            order = Order.objects.select_related('customer').prefetch_related('events').get(
+            order = _tracking_queryset().get(
                 pk=pk, customer=request.user
             )
         except Order.DoesNotExist:
@@ -2926,31 +3215,37 @@ class OrderTrackingView(APIView):
                 {'error': {'code': 'not_found', 'message': 'Order not found.'}},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        return Response(_serialize_tracking_order(order))
 
-        current_index = self.STATUS_ORDER.index(order.status) if order.status in self.STATUS_ORDER else -1
-        events_by_status = {
-            e.event_type: e.created_at
-            for e in order.events.all()
-        }
 
-        tracking_steps = []
-        for i, s in enumerate(self.STATUS_ORDER):
-            completed_at = None
-            if i <= current_index:
-                completed_at = str(events_by_status.get(f'status_{s}', order.created_at))
-            tracking_steps.append({
-                'status': s,
-                'label': self.STATUS_LABELS.get(s, s.title()),
-                'completed_at': completed_at,
-                'is_done': i <= current_index,
-            })
+class PublicOrderTrackingLookupView(APIView):
+    """Lookup an order's tracking details using order number and contact info."""
 
-        return Response({
-            'order_id': order.order_number,
-            'current_status': order.status,
-            'estimated_delivery': None,
-            'tracking_steps': tracking_steps,
-        })
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = OrderTrackingLookupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        order = _tracking_queryset().filter(
+            order_number__iexact=serializer.validated_data['order_number']
+        ).first()
+        if not order or not _order_tracking_contact_matches(
+            order,
+            serializer.validated_data['contact_type'],
+            serializer.validated_data['contact_value'],
+        ):
+            return Response(
+                {
+                    'error': {
+                        'code': 'not_found',
+                        'message': 'We could not find an order matching those details.',
+                    }
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(_serialize_tracking_order(order))
 
 
 # ─── M-Pesa Initiate (spec-named alias) ───────────────────────────────────────
@@ -3091,15 +3386,12 @@ class AdminOrderStatusView(APIView):
                     {'error': {'code': 'invalid_transition', 'message': f'Cannot transition from {order.status} to {new_status}.'}},
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
-            prev_status = order.status
-            order.status = new_status
-            order.save(update_fields=['status', 'updated_at'])
-            create_order_event(
-                order, 'status_changed',
-                note or f'Status changed from {prev_status} to {new_status}.',
+            _apply_order_status_transition(
+                order,
+                new_status,
                 actor=request.user,
+                message=note or f'Status changed from {order.status} to {new_status}.',
             )
-            notify_order_update(order)
             log_admin_action(
                 request.user, action='order_status_updated', entity_type='order',
                 entity_id=order.id, message=f'Order {order.order_number} → {new_status}',

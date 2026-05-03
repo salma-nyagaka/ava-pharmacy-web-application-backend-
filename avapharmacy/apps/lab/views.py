@@ -13,7 +13,7 @@ from .serializers import (
     LabTestSerializer, LabRequestSerializer, LabRequestCreateSerializer,
     LabRequestUpdateSerializer, LabResultSerializer, LabResultCreateSerializer
 )
-from apps.accounts.permissions import IsAdminUser, IsLabTechOrAdmin
+from apps.accounts.permissions import IsAdminUser, IsLabPartner, IsLabTechOrAdmin
 from apps.accounts.utils import log_admin_action
 from apps.accounts.serializers import (
     ProvisionLabPartnerAccountSerializer, ProvisionLabTechnicianAccountSerializer,
@@ -22,6 +22,14 @@ from apps.accounts.serializers import (
 
 ALLOWED_RESULT_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 MAX_RESULT_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+def _get_lab_partner_or_404(user):
+    try:
+        return LabPartner.objects.prefetch_related('documents', 'technicians__user', 'technicians__documents').get(user=user)
+    except LabPartner.DoesNotExist:
+        from django.http import Http404
+        raise Http404
 
 
 # ─── Lab Partners ─────────────────────────────────────────────────────────────
@@ -256,6 +264,127 @@ class AdminLabTechnicianProvisionAccountView(APIView):
             f'Provisioned login account for lab technician {tech.name}',
             metadata={'user_id': user.id, 'role': user.role},
         )
+
+        response_data = {
+            'detail': 'Professional account provisioned successfully.',
+            'application': LabTechnicianProfileSerializer(tech).data,
+            'user': UserSerializer(user).data,
+            'activation_email': getattr(serializer, 'activation_email_meta', None),
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class LabPartnerDashboardView(APIView):
+    permission_classes = [IsLabPartner]
+
+    def get(self, request):
+        partner = _get_lab_partner_or_404(request.user)
+        technician_user_ids = list(
+            partner.technicians.exclude(user_id=None).values_list('user_id', flat=True)
+        )
+        request_qs = (
+            LabRequest.objects.filter(assigned_technician_id__in=technician_user_ids)
+            .select_related('test', 'assigned_technician', 'patient')
+            .prefetch_related('audit_logs')
+        )
+
+        pending_statuses = [
+            LabRequest.STATUS_AWAITING,
+            LabRequest.STATUS_COLLECTED,
+            LabRequest.STATUS_PROCESSING,
+            LabRequest.STATUS_READY,
+        ]
+
+        return Response({
+            'partner': LabPartnerSerializer(partner).data,
+            'stats': {
+                'technicians_total': partner.technicians.count(),
+                'technicians_active': partner.technicians.filter(status=LabTechnicianProfile.STATUS_ACTIVE).count(),
+                'technicians_pending': partner.technicians.filter(status=LabTechnicianProfile.STATUS_PENDING).count(),
+                'requests_total': request_qs.count(),
+                'requests_pending': request_qs.filter(status__in=pending_statuses).count(),
+                'requests_completed': request_qs.filter(status=LabRequest.STATUS_COMPLETED).count(),
+            },
+            'recent_requests': LabRequestSerializer(
+                request_qs.order_by('-requested_at')[:10],
+                many=True,
+            ).data,
+        })
+
+
+class LabPartnerTechnicianListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsLabPartner]
+    serializer_class = LabTechnicianProfileSerializer
+
+    def get_partner(self):
+        return _get_lab_partner_or_404(self.request.user)
+
+    def get_queryset(self):
+        partner = self.get_partner()
+        return (
+            LabTechnicianProfile.objects.filter(partner=partner)
+            .select_related('user', 'partner')
+            .prefetch_related('documents')
+        )
+
+    def perform_create(self, serializer):
+        partner = self.get_partner()
+        if partner.status != LabPartner.STATUS_VERIFIED:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'detail': 'Only verified lab partners can add lab technicians.'})
+        serializer.save(
+            partner=partner,
+            status=LabTechnicianProfile.STATUS_ACTIVE,
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
+
+
+class LabPartnerTechnicianActionView(APIView):
+    permission_classes = [IsLabPartner]
+
+    def post(self, request, pk):
+        partner = _get_lab_partner_or_404(request.user)
+        try:
+            tech = LabTechnicianProfile.objects.get(pk=pk, partner=partner)
+        except LabTechnicianProfile.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get('action')
+        if action == 'activate':
+            tech.status = LabTechnicianProfile.STATUS_ACTIVE
+            tech.status_note = ''
+            tech.rejection_note = ''
+        elif action == 'suspend':
+            tech.status = LabTechnicianProfile.STATUS_SUSPENDED
+            tech.status_note = (request.data.get('note') or '').strip()
+        else:
+            return Response({'detail': 'Invalid action. Use: activate or suspend.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        tech.updated_by = request.user
+        tech.save(update_fields=['status', 'status_note', 'rejection_note', 'updated_by', 'updated_at'])
+        return Response(LabTechnicianProfileSerializer(tech).data)
+
+
+class LabPartnerTechnicianProvisionAccountView(APIView):
+    permission_classes = [IsLabPartner]
+
+    def post(self, request, pk):
+        partner = _get_lab_partner_or_404(request.user)
+        if partner.status != LabPartner.STATUS_VERIFIED:
+            return Response({'detail': 'Only verified lab partners can provision technician accounts.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            tech = LabTechnicianProfile.objects.select_related('partner').get(pk=pk, partner=partner)
+        except LabTechnicianProfile.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ProvisionLabTechnicianAccountSerializer(
+            data=request.data,
+            context={'tech': tech, 'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        tech, user, _ = serializer.save()
 
         response_data = {
             'detail': 'Professional account provisioned successfully.',

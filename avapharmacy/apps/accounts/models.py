@@ -91,6 +91,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CUSTOMER)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     address = models.TextField(blank=True)
@@ -142,6 +143,16 @@ class User(AbstractBaseUser, PermissionsMixin):
 class Pharmacist(models.Model):
     """Dedicated pharmacist table linked to auth users with pharmacist role."""
 
+    PERMISSION_PRESCRIPTION_REVIEW = 'prescription_review'
+    PERMISSION_DISPENSE_ORDERS = 'dispense_orders'
+    PERMISSION_INVENTORY_ADD = 'inventory_add'
+    PERMISSION_CHOICES = [
+        (PERMISSION_PRESCRIPTION_REVIEW, 'Prescription review'),
+        (PERMISSION_DISPENSE_ORDERS, 'Dispense orders'),
+        (PERMISSION_INVENTORY_ADD, 'Add inventory records'),
+    ]
+    VALID_PERMISSIONS = {value for value, _label in PERMISSION_CHOICES}
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='pharmacist')
     # JSON list of permission strings granted to this pharmacist
     permissions = models.JSONField(default=list)
@@ -159,6 +170,23 @@ class Pharmacist(models.Model):
 
     def __str__(self):
         return f"Pharmacist: {self.user.full_name}"
+
+    def clean(self):
+        super().clean()
+        self.permissions = [
+            permission for permission in (self.permissions or [])
+            if permission in self.VALID_PERMISSIONS
+        ]
+
+    def save(self, *args, **kwargs):
+        self.permissions = [
+            permission for permission in (self.permissions or [])
+            if permission in self.VALID_PERMISSIONS
+        ]
+        super().save(*args, **kwargs)
+
+    def has_permission(self, permission):
+        return permission in (self.permissions or [])
 
 
 class Customer(models.Model):
@@ -224,6 +252,7 @@ class Address(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
     label = models.CharField(max_length=50, blank=True, default='Home')
+    phone = models.CharField(max_length=20, blank=True)
     street = models.CharField(max_length=200)
     city = models.CharField(max_length=100)
     county = models.CharField(max_length=100)
@@ -247,6 +276,37 @@ class Address(models.Model):
 
     def __str__(self):
         return f"{self.user.full_name} - {self.street}, {self.city}"
+
+
+class PaymentMethod(models.Model):
+    """A masked customer payment method saved for faster checkout."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_methods')
+    brand = models.CharField(max_length=30, blank=True, default='unknown')
+    last4 = models.CharField(max_length=4)
+    expiry_month = models.PositiveSmallIntegerField()
+    expiry_year = models.PositiveSmallIntegerField()
+    cardholder_name = models.CharField(max_length=120)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_default', '-updated_at']
+        indexes = [
+            models.Index(fields=['user', 'is_default'], name='accounts_pa_user_id_738eaa_idx'),
+            models.Index(fields=['user', '-updated_at'], name='accounts_pa_user_id_0e7c79_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user'],
+                condition=Q(is_default=True),
+                name='unique_default_payment_method_per_user',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.brand} ending {self.last4}"
 
 
 class UserNote(models.Model):

@@ -1,0 +1,14 @@
+[run]
+source = avapharmacy/apps
+omit =
+    */migrations/*
+    */tests/*
+    manage.py
+    avapharmacy/settings/*
+
+[report]
+show_missing = True
+skip_covered = True
+
+[json]
+output = coverage.json

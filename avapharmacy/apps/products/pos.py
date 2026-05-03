@@ -4,7 +4,7 @@ from urllib import error, request
 from django.conf import settings
 from django.utils import timezone
 
-from .models import Product, ProductInventory, ProductVariant
+from .models import Product, Variant, VariantInventory
 
 
 def _pos_lookup_endpoint():
@@ -169,12 +169,10 @@ def _needs_pos_refresh(product):
 
 def _warehouse_inventory(product):
     if isinstance(product, Product):
-        if hasattr(product, '_prefetched_objects_cache') and 'inventories' in product._prefetched_objects_cache:
-            inventories = list(product._prefetched_objects_cache['inventories'])
-            for inventory in inventories:
-                if inventory.location == Product.STOCK_WAREHOUSE:
-                    return inventory
-        return ProductInventory.objects.filter(product=product, location=Product.STOCK_WAREHOUSE).first()
+        representative = product.get_representative_variant()
+        if representative is None:
+            return None
+        return _warehouse_variant_inventory(representative)
     return None
 
 
@@ -183,14 +181,31 @@ def _needs_pos_refresh_variant(variant):
         return False
     if variant.stock_quantity > variant.low_stock_threshold:
         return False
+    inventory = _warehouse_variant_inventory(variant)
+    if inventory and inventory.last_synced_at:
+        age = (timezone.now() - inventory.last_synced_at).total_seconds()
+        if age < _pos_lookup_ttl_seconds():
+            return False
     return True
 
 
+def _warehouse_variant_inventory(variant):
+    if hasattr(variant, '_prefetched_objects_cache') and 'inventories' in variant._prefetched_objects_cache:
+        inventories = list(variant._prefetched_objects_cache['inventories'])
+        for inventory in inventories:
+            if inventory.location == Product.STOCK_WAREHOUSE:
+                return inventory
+    return VariantInventory.objects.filter(variant=variant, location=Product.STOCK_WAREHOUSE).first()
+
+
 def _apply_pos_quantity(product, quantity, source_name=None):
-    inventory = _warehouse_inventory(product)
+    representative = product.get_representative_variant()
+    if representative is None:
+        return None
+    inventory = _warehouse_variant_inventory(representative)
     if inventory is None:
-        inventory = ProductInventory.objects.create(
-            product=product,
+        inventory = VariantInventory.objects.create(
+            variant=representative,
             location=Product.STOCK_WAREHOUSE,
             stock_quantity=0,
         )
@@ -200,36 +215,44 @@ def _apply_pos_quantity(product, quantity, source_name=None):
     inventory.is_pos_synced = True
     inventory.last_synced_at = timezone.now()
     inventory.save(update_fields=['stock_quantity', 'source_name', 'is_pos_synced', 'last_synced_at', 'updated_at'])
-    if hasattr(product, '_clear_inventory_cache'):
-        product._clear_inventory_cache()
+    representative._clear_inventory_cache()
+    representative.save()
     return inventory
 
 
 def refresh_pos_inventory_for_products(products, *, force=False):
     eligible = []
+    variant_to_product = {}
     for product in products:
-        if force or _needs_pos_refresh(product):
-            item = _build_lookup_item(product)
+        variant = product.get_representative_variant()
+        if variant is None:
+            continue
+        variant_to_product[variant.id] = product
+        if force or _needs_pos_refresh_variant(variant):
+            item = _build_lookup_item(variant)
             if item:
-                eligible.append(product)
+                eligible.append(variant)
 
     if not eligible:
         return {}
 
-    lookup_items = [_build_lookup_item(product) for product in eligible if _build_lookup_item(product)]
+    lookup_items = [_build_lookup_item(variant) for variant in eligible if _build_lookup_item(variant)]
     pos_items = fetch_pos_inventory(lookup_items)
     refreshed = {}
-    for product in eligible:
-        identifier = _identifier_for_object(product)
+    for variant in eligible:
+        identifier = _identifier_for_object(variant)
         if not identifier:
             continue
-        pos_item = pos_items.get(identifier) or _resolve_pos_item(pos_items, product)
+        pos_item = pos_items.get(identifier) or _resolve_pos_item(pos_items, variant)
         if not pos_item:
             continue
         quantity = _extract_quantity(pos_item)
         if quantity is None:
             continue
         source_name = pos_item.get('source_name') if isinstance(pos_item, dict) else None
+        product = variant_to_product.get(variant.id)
+        if product is None:
+            continue
         _apply_pos_quantity(product, quantity, source_name=source_name)
         refreshed[product.id] = {
             'quantity': quantity,
@@ -262,8 +285,22 @@ def refresh_pos_inventory_for_variants(variants, *, force=False):
         quantity = _extract_quantity(pos_item)
         if quantity is None:
             continue
-        variant.stock_quantity = max(0, int(quantity))
-        variant.save(update_fields=['stock_quantity', 'stock_source', 'updated_at'])
+        inventory = _warehouse_variant_inventory(variant)
+        if inventory is None:
+            inventory = VariantInventory.objects.create(
+                variant=variant,
+                location=Product.STOCK_WAREHOUSE,
+                stock_quantity=0,
+            )
+        inventory.stock_quantity = max(0, int(quantity))
+        source_name = pos_item.get('source_name') if isinstance(pos_item, dict) else None
+        if source_name:
+            inventory.source_name = source_name
+        inventory.is_pos_synced = True
+        inventory.last_synced_at = timezone.now()
+        inventory.save(update_fields=['stock_quantity', 'source_name', 'is_pos_synced', 'last_synced_at', 'updated_at'])
+        variant._clear_inventory_cache()
+        variant.save()
         refreshed[variant.id] = {
             'quantity': quantity,
             'stores': pos_item.get('stores', []) if isinstance(pos_item, dict) else [],

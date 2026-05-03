@@ -4,7 +4,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from apps.products.models import Category, Product, ProductCategory, ProductSubcategory
+from apps.products.models import Category, Product, Subcategory
 
 
 @dataclass(frozen=True)
@@ -175,7 +175,7 @@ class Command(BaseCommand):
         ))
 
     def _find_existing_root(self, spec: CategorySpec) -> Optional[Category]:
-        queryset = Category.objects.filter(parent__isnull=True)
+        queryset = Category.objects.all()
         exact = queryset.filter(slug=spec.slug).first() or queryset.filter(name=spec.name).first()
         if exact:
             return exact
@@ -185,30 +185,8 @@ class Command(BaseCommand):
                 return candidate
         return None
 
-    def _find_existing_legacy_root(self, spec: CategorySpec) -> Optional[ProductCategory]:
-        queryset = ProductCategory.objects.all()
-        exact = queryset.filter(slug=spec.slug).first() or queryset.filter(name=spec.name).first()
-        if exact:
-            return exact
-        for alias in spec.legacy_aliases:
-            candidate = queryset.filter(name=alias).first()
-            if candidate:
-                return candidate
-        return None
-
-    def _find_existing_child(self, parent: Category, spec: SubcategorySpec) -> Optional[Category]:
-        queryset = Category.objects.filter(parent=parent)
-        exact = queryset.filter(slug=spec.slug).first() or queryset.filter(name=spec.name).first()
-        if exact:
-            return exact
-        for alias in spec.legacy_aliases:
-            candidate = queryset.filter(name=alias).first()
-            if candidate:
-                return candidate
-        return None
-
-    def _find_existing_legacy_child(self, root: ProductCategory, spec: SubcategorySpec) -> Optional[ProductSubcategory]:
-        queryset = ProductSubcategory.objects.filter(category=root)
+    def _find_existing_child(self, parent: Category, spec: SubcategorySpec) -> Optional[Subcategory]:
+        queryset = Subcategory.objects.filter(category=parent)
         exact = queryset.filter(slug=spec.slug).first() or queryset.filter(name=spec.name).first()
         if exact:
             return exact
@@ -220,14 +198,14 @@ class Command(BaseCommand):
 
     def _upsert_taxonomy(self):
         root_nodes: Dict[str, Category] = {}
-        child_nodes: Dict[str, Category] = {}
+        child_nodes: Dict[str, Subcategory] = {}
         created_roots = 0
         created_children = 0
 
         for spec in PHARMACY_TAXONOMY:
             root = self._find_existing_root(spec)
             if root is None:
-                root = Category(parent=None)
+                root = Category()
                 created_roots += 1
             root.name = spec.name
             root.slug = spec.slug
@@ -236,40 +214,18 @@ class Command(BaseCommand):
             root.save()
             root_nodes[spec.slug] = root
 
-            legacy_root = self._find_existing_legacy_root(spec)
-            if legacy_root is None:
-                legacy_root = ProductCategory()
-            legacy_root.name = spec.name
-            legacy_root.slug = spec.slug
-            legacy_root.description = spec.description
-            legacy_root.is_active = True
-            if not legacy_root.image:
-                legacy_root.image = ''
-            legacy_root.save()
-
             for child_spec in spec.subcategories:
                 child = self._find_existing_child(root, child_spec)
                 if child is None:
-                    child = Category(parent=root)
+                    child = Subcategory(category=root)
                     created_children += 1
-                child.parent = root
+                child.category = root
                 child.name = child_spec.name
                 child.slug = child_spec.slug
                 child.description = child_spec.description
                 child.is_active = True
                 child.save()
                 child_nodes[child.slug] = child
-
-                legacy_child = self._find_existing_legacy_child(legacy_root, child_spec)
-                if legacy_child is None:
-                    legacy_child = ProductSubcategory(category=legacy_root)
-                legacy_child.category = legacy_root
-                legacy_child.category_node = child
-                legacy_child.name = child_spec.name
-                legacy_child.slug = child_spec.slug
-                legacy_child.description = child_spec.description
-                legacy_child.is_active = True
-                legacy_child.save()
 
         return created_roots, created_children, root_nodes, child_nodes
 
@@ -281,48 +237,38 @@ class Command(BaseCommand):
                 return slug
         return None
 
-    def _map_products(self, child_nodes: Dict[str, Category]) -> int:
+    def _map_products(self, child_nodes: Dict[str, Subcategory]) -> int:
         mapped_products = 0
-        for product in Product.objects.all().select_related('catalog_subcategory', 'category'):
+        for product in Product.objects.all().prefetch_related('variants'):
             subcategory_slug = self._subcategory_slug_for_product(product)
             if not subcategory_slug:
                 continue
             subcategory = child_nodes[subcategory_slug]
-            root = subcategory.parent
-            update_fields: List[str] = []
-            if product.catalog_subcategory_id != subcategory.id:
-                product.catalog_subcategory = subcategory
-                update_fields.append('catalog_subcategory')
+            root = subcategory.category
+            changed = False
+            if product.subcategory_id != subcategory.id:
+                product.subcategory = subcategory
+                changed = True
             if product.category_id != root.id:
                 product.category = root
-                update_fields.append('category')
-            if update_fields:
-                product.save(update_fields=update_fields)
+                changed = True
+            if changed:
+                product.save()
                 mapped_products += 1
         return mapped_products
 
-    def _sync_category_images(self, root_nodes: Dict[str, Category], child_nodes: Dict[str, Category]):
-        for spec in PHARMACY_TAXONOMY:
-            root = root_nodes[spec.slug]
-            legacy_root = ProductCategory.objects.filter(slug=spec.slug).first()
-            if legacy_root and legacy_root.image and not root.image:
-                root.image = legacy_root.image
-                root.save(update_fields=['image'])
-
+    def _sync_category_images(self, root_nodes: Dict[str, Category], child_nodes: Dict[str, Subcategory]):
         for child in child_nodes.values():
             if child.image:
                 continue
-            product = Product.objects.filter(catalog_subcategory=child).exclude(image='').exclude(image__isnull=True).first()
+            product = Product.objects.filter(variants__subcategory=child).exclude(image='').exclude(image__isnull=True).first()
             if product and product.image:
                 child.image = product.image
                 child.save(update_fields=['image'])
 
-    def _prune_obsolete(self, root_nodes: Dict[str, Category], child_nodes: Dict[str, Category]):
+    def _prune_obsolete(self, root_nodes: Dict[str, Category], child_nodes: Dict[str, Subcategory]):
         desired_root_slugs = set(root_nodes.keys())
         desired_child_slugs = set(child_nodes.keys())
 
-        ProductSubcategory.objects.exclude(slug__in=desired_child_slugs).delete()
-        ProductCategory.objects.exclude(slug__in=desired_root_slugs).delete()
-
-        Category.objects.filter(parent__isnull=False).exclude(slug__in=desired_child_slugs).delete()
-        Category.objects.filter(parent__isnull=True).exclude(slug__in=desired_root_slugs).delete()
+        Subcategory.objects.exclude(slug__in=desired_child_slugs).delete()
+        Category.objects.exclude(slug__in=desired_root_slugs).delete()

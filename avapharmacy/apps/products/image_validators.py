@@ -2,33 +2,20 @@ from django.core.files.images import get_image_dimensions
 from rest_framework import serializers
 
 
-IMAGE_UPLOAD_SPECS = {
-    'category': {
-        'label': 'Category image',
-        'min_width': 800,
-        'min_height': 800,
-    },
-    'brand': {
-        'label': 'Brand logo',
-        'min_width': 400,
-        'min_height': 400,
-    },
-    'product': {
-        'label': 'Product image',
-        'min_width': 1000,
-        'min_height': 1000,
-    },
+IMAGE_UPLOAD_LABELS = {
+    'category': 'Category image',
+    'brand': 'Brand logo',
+    'product': 'Product image',
+    'promotion': 'Offer image',
 }
 
 
 def validate_uploaded_image(file_obj, spec_key):
+    """Ensure the uploaded file is a readable image without rejecting low-resolution assets."""
     if not file_obj:
         return
 
-    spec = IMAGE_UPLOAD_SPECS[spec_key]
-    label = spec['label']
-    min_width = spec['min_width']
-    min_height = spec['min_height']
+    label = IMAGE_UPLOAD_LABELS.get(spec_key, 'image')
 
     try:
         width, height = get_image_dimensions(file_obj)
@@ -40,9 +27,3 @@ def validate_uploaded_image(file_obj, spec_key):
 
     if not width or not height:
         raise serializers.ValidationError(f'Upload a valid {label.lower()}.')
-
-    if width < min_width or height < min_height:
-        raise serializers.ValidationError(
-            f'{label} is too low resolution and may look blurry. '
-            f'Please re-upload an image at least {min_width} x {min_height} pixels.'
-        )

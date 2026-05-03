@@ -94,13 +94,13 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = (
-            'id', 'reference', 'user', 'name', 'type', 'specialty', 'email', 'phone',
+            'id', 'reference', 'user', 'name', 'type', 'gender', 'date_of_birth', 'specialty', 'email', 'phone',
             'license_number', 'license_board', 'license_country', 'license_expiry', 'id_number',
-            'facility', 'availability', 'bio', 'languages', 'consult_modes',
+            'facility', 'availability', 'availability_schedule', 'bio', 'languages', 'consult_modes',
             'years_experience', 'county', 'address', 'references', 'document_checklist',
-            'payout_method', 'payout_account',
+            'payout_method', 'payout_account', 'currency',
             'background_consent', 'compliance_declaration', 'agreed_to_terms',
-            'status', 'status_note', 'rejection_note',
+            'status', 'is_verified', 'status_note', 'rejection_note', 'suspension_reason',
             'commission', 'consult_fee', 'rating',
             'verified_at', 'submitted_at', 'created_at', 'updated_at',
             'created_by', 'updated_by', 'documents'
@@ -117,13 +117,13 @@ class PediatricianProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = (
-            'id', 'reference', 'user', 'name', 'specialty', 'email', 'phone',
+            'id', 'reference', 'user', 'name', 'gender', 'date_of_birth', 'specialty', 'email', 'phone',
             'license_number', 'license_board', 'license_country', 'license_expiry', 'id_number',
-            'facility', 'availability', 'bio', 'languages', 'consult_modes',
+            'facility', 'availability', 'availability_schedule', 'bio', 'languages', 'consult_modes',
             'years_experience', 'county', 'address', 'references', 'document_checklist',
-            'payout_method', 'payout_account',
+            'payout_method', 'payout_account', 'currency',
             'background_consent', 'compliance_declaration', 'agreed_to_terms',
-            'status', 'status_note', 'rejection_note',
+            'status', 'is_verified', 'status_note', 'rejection_note', 'suspension_reason',
             'commission', 'consult_fee', 'rating',
             'verified_at', 'submitted_at', 'created_at', 'updated_at',
             'created_by', 'updated_by', 'documents'
@@ -248,10 +248,26 @@ class AdminPediatricianUpdateSerializer(serializers.ModelSerializer):
 
 
 class ConsultationMessageSerializer(serializers.ModelSerializer):
+    message = serializers.CharField(required=False, allow_blank=True)
+    attachment = serializers.FileField(required=False, allow_null=True)
+    attachment_url = serializers.FileField(source='attachment', read_only=True)
+
     class Meta:
         model = ConsultationMessage
-        fields = ('id', 'sender', 'sender_name', 'message', 'sent_at')
+        fields = ('id', 'sender', 'sender_name', 'message', 'message_type', 'attachment', 'attachment_url', 'sent_at')
         read_only_fields = ('id', 'sent_at')
+
+    def validate(self, attrs):
+        message = attrs.get('message', '').strip()
+        attachment = attrs.get('attachment')
+        message_type = attrs.get('message_type', ConsultationMessage.TYPE_TEXT)
+        if not message and not attachment:
+            raise serializers.ValidationError('Provide a message or attachment.')
+        if message_type == ConsultationMessage.TYPE_IMAGE and attachment is None:
+            raise serializers.ValidationError({'attachment': 'Image messages require an attachment.'})
+        if message_type == ConsultationMessage.TYPE_FILE and attachment is None:
+            raise serializers.ValidationError({'attachment': 'File messages require an attachment.'})
+        return attrs
 
 
 class ConsultationSerializer(serializers.ModelSerializer):
@@ -265,10 +281,10 @@ class ConsultationSerializer(serializers.ModelSerializer):
         model = Consultation
         fields = (
             'id', 'reference', 'doctor', 'pediatrician', 'doctor_name', 'doctor_specialty',
-            'patient', 'patient_name', 'patient_age', 'issue', 'status', 'priority',
+            'patient', 'patient_name', 'patient_email', 'patient_phone', 'patient_age', 'issue', 'status', 'priority',
             'channel', 'scheduled_at', 'is_pediatric', 'guardian_name', 'child_name',
             'child_age', 'weight_kg', 'consent_status', 'dosage_alert',
-            'last_message_at', 'messages', 'created_at', 'updated_at'
+            'last_message_at', 'ended_at', 'messages', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'reference', 'patient', 'created_at', 'updated_at')
 
@@ -328,7 +344,10 @@ class DoctorPrescriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ClinicianPrescription
-        fields = ('id', 'reference', 'doctor', 'consultation', 'patient_name', 'items', 'status', 'notes', 'created_at')
+        fields = (
+            'id', 'reference', 'doctor', 'consultation', 'patient_name', 'items',
+            'status', 'digital_signature', 'notes', 'sent_at', 'dispensed_at', 'created_at'
+        )
         read_only_fields = ('id', 'reference', 'created_at')
 
 
@@ -337,7 +356,10 @@ class PediatricianPrescriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ClinicianPrescription
-        fields = ('id', 'reference', 'pediatrician', 'consultation', 'patient_name', 'items', 'status', 'notes', 'created_at')
+        fields = (
+            'id', 'reference', 'pediatrician', 'consultation', 'patient_name', 'items',
+            'status', 'digital_signature', 'notes', 'sent_at', 'dispensed_at', 'created_at'
+        )
         read_only_fields = ('id', 'reference', 'created_at')
 
 
@@ -357,3 +379,38 @@ class PediatricianEarningSerializer(serializers.ModelSerializer):
         model = ClinicianEarning
         fields = ('id', 'pediatrician', 'consultation', 'amount', 'description', 'earned_at')
         read_only_fields = ('id', 'earned_at')
+
+
+class DoctorOnboardingProfileStepSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClinicianProfile
+        fields = ('name', 'gender', 'date_of_birth', 'phone', 'bio')
+
+
+class DoctorOnboardingAvailabilityStepSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClinicianProfile
+        fields = ('consult_fee', 'currency', 'availability_schedule')
+
+    def validate_availability_schedule(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('availability_schedule must be a list.')
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError('Each availability slot must be an object.')
+            for key in ('day', 'start_time', 'end_time'):
+                if not item.get(key):
+                    raise serializers.ValidationError(f'Availability slot missing {key}.')
+        return value
+
+
+class DoctorOnboardingPayoutStepSerializer(serializers.ModelSerializer):
+    payout_account_number = serializers.CharField(max_length=255)
+
+    class Meta:
+        model = ClinicianProfile
+        fields = ('payout_method', 'payout_account_number')
+
+
+class DoctorVerificationActionSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True)

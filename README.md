@@ -1,5 +1,7 @@
 # AvaPharma Backend API
 
+![Backend coverage](docs/badges/backend-coverage.svg)
+
 A full-featured pharmacy backend built with Django REST Framework and PostgreSQL. Powers the AvaPharma platform including e-commerce, prescription management, telemedicine consultations, lab services, and customer support.
 
 ## Tech Stack
@@ -47,6 +49,7 @@ Edit `.env` with your database credentials:
 ```env
 DEBUG=True
 SECRET_KEY=your-secret-key
+FIELD_ENCRYPTION_KEY=your-fernet-key
 DATABASE_NAME=avapharmacy
 DATABASE_USER=postgres
 DATABASE_PASSWORD=yourpassword
@@ -82,6 +85,39 @@ python manage.py runserver
 ```
 
 API is now available at `http://localhost:8000/api/`
+
+To run the full local stack, keep the backend running in one terminal and start the frontend in another:
+
+```bash
+cd /Users/salmanyagaka/Downloads/ava-pharmacy-web-application-frontend
+npm install
+npm run dev
+```
+
+Frontend is available at `http://localhost:3000`.
+
+---
+
+## Tests And Coverage
+
+```bash
+# Run the currently passing backend coverage target used by the badge
+python manage.py test \
+  avapharmacy.apps.accounts.tests.test_account_self_service \
+  avapharmacy.apps.prescriptions.tests.test_workflow \
+  avapharmacy.apps.support.tests.test_newsletter_subscription
+
+# Run tests with coverage
+coverage run manage.py test \
+  avapharmacy.apps.accounts.tests.test_account_self_service \
+  avapharmacy.apps.prescriptions.tests.test_workflow \
+  avapharmacy.apps.support.tests.test_newsletter_subscription
+coverage report
+coverage json
+
+# Refresh the README coverage badge
+python scripts/coverage_badge.py coverage.json docs/badges/backend-coverage.svg "backend coverage"
+```
 
 ---
 

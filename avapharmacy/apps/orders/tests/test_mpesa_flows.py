@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Order, PaymentIntent
+from apps.orders.payment_helpers import build_paybill_account_reference
 
 
 @override_settings(
@@ -330,6 +331,36 @@ class MpesaFlowTests(TestCase):
         self.assertEqual(response.status_code, 202)
         mpesa_client_cls.return_value.query_stk_status.assert_not_called()
 
+    @patch('apps.orders.views.MpesaClient')
+    def test_customer_can_cancel_pending_payment_intent(self, mpesa_client_cls):
+        order = self._create_order(payment_method=Order.PAYMENT_MPESA_STK)
+        mpesa_client_cls.return_value.initiate_stk_push.return_value = (
+            '254727808457',
+            {
+                'ResponseCode': '0',
+                'CustomerMessage': 'Success. Request accepted for processing',
+                'MerchantRequestID': 'MID-CANCEL',
+                'CheckoutRequestID': 'CID-CANCEL',
+            },
+        )
+
+        create_response = self.client.post(
+            reverse('payment-intents'),
+            {'order_id': order.id, 'provider': PaymentIntent.PROVIDER_MPESA, 'phone': '0727808457'},
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201)
+
+        intent = PaymentIntent.objects.get(order=order, provider=PaymentIntent.PROVIDER_MPESA)
+        cancel_response = self.client.post(reverse('payment-intent-cancel', args=[intent.id]), {}, format='json')
+        self.assertEqual(cancel_response.status_code, 200)
+
+        intent.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(intent.status, PaymentIntent.STATUS_CANCELLED)
+        self.assertEqual(intent.last_error, 'Payment cancelled by customer.')
+        self.assertEqual(order.payment_status, Order.PAYMENT_STATUS_PENDING)
+
     @override_settings(MPESA_C2B_URLS_REGISTERED=False)
     def test_paybill_create_fails_until_callbacks_marked_registered(self):
         order = self._create_order(payment_method=Order.PAYMENT_MPESA_PAYBILL)
@@ -355,7 +386,7 @@ class MpesaFlowTests(TestCase):
 
         intent = PaymentIntent.objects.get(order=order, provider=PaymentIntent.PROVIDER_PAYBILL)
         self.assertEqual(intent.status, PaymentIntent.STATUS_REQUIRES_ACTION)
-        self.assertEqual(intent.external_reference, order.order_number)
+        self.assertEqual(intent.external_reference, build_paybill_account_reference(order))
 
         validation_payload = {
             'TransactionType': 'Pay Bill',

@@ -32,11 +32,11 @@ class RegisterRateThrottle(AnonRateThrottle):
     """Throttle for the register endpoint — uses the 'register' scope (10/hr)."""
     scope = 'register'
 
-from .models import AdminAuditLog, User, Address, UserNote
+from .models import Address, AdminAuditLog, PaymentMethod, User, UserNote
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer, UserUpdateSerializer,
     AdminUserSerializer, AdminUserCreateSerializer, AddressSerializer,
-    UserNoteSerializer, PasswordChangeSerializer, AdminAuditLogSerializer,
+    PaymentMethodSerializer, UserNoteSerializer, PasswordChangeSerializer, AdminAuditLogSerializer,
     PharmacistActivationSetPasswordSerializer, ProfessionalRegistrationSerializer,
     PublicLabPartnerListSerializer,
 )
@@ -461,6 +461,60 @@ class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
         if serializer.validated_data.get('is_default'):
             Address.objects.filter(user=self.request.user).exclude(pk=self.get_object().pk).update(is_default=False)
         serializer.save()
+
+    def perform_destroy(self, instance):
+        was_default = instance.is_default
+        user = instance.user
+        super().perform_destroy(instance)
+        if was_default:
+            next_address = Address.objects.filter(user=user).order_by('-created_at').first()
+            if next_address:
+                next_address.is_default = True
+                next_address.save(update_fields=['is_default'])
+
+
+class PaymentMethodListCreateView(generics.ListCreateAPIView):
+    """List or create saved payment methods for the authenticated user."""
+
+    serializer_class = PaymentMethodSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return PaymentMethod.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        has_existing = PaymentMethod.objects.filter(user=self.request.user).exists()
+        if serializer.validated_data.get('is_default'):
+            PaymentMethod.objects.filter(user=self.request.user).update(is_default=False)
+        serializer.save(
+            user=self.request.user,
+            is_default=serializer.validated_data.get('is_default', False) or not has_existing,
+        )
+
+
+class PaymentMethodDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Retrieve, update, or delete a saved payment method for the authenticated user."""
+
+    serializer_class = PaymentMethodSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return PaymentMethod.objects.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        if serializer.validated_data.get('is_default'):
+            PaymentMethod.objects.filter(user=self.request.user).exclude(pk=self.get_object().pk).update(is_default=False)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        was_default = instance.is_default
+        user = instance.user
+        super().perform_destroy(instance)
+        if was_default:
+            next_method = PaymentMethod.objects.filter(user=user).order_by('-updated_at').first()
+            if next_method:
+                next_method.is_default = True
+                next_method.save(update_fields=['is_default'])
 
 
 class UserNoteListCreateView(generics.ListCreateAPIView):

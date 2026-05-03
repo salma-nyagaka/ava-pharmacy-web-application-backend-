@@ -15,6 +15,7 @@ LOG_DIR = BASE_DIR / 'logs'
 LOG_DIR.mkdir(exist_ok=True)
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default=None)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -36,7 +37,7 @@ INSTALLED_APPS = [
     'apps.accounts',
     'apps.products',
     'apps.orders',
-    'apps.prescriptions',
+    'apps.prescriptions.apps.PrescriptionsConfig',
     'apps.consultations',
     'apps.lab',
     'apps.support',
@@ -44,11 +45,19 @@ INSTALLED_APPS = [
     'apps.notifications',
 ]
 
+try:  # pragma: no cover - optional dependency in local dev
+    import channels  # noqa: F401
+except ImportError:
+    CHANNELS_AVAILABLE = False
+else:
+    CHANNELS_AVAILABLE = True
+    INSTALLED_APPS.append('channels')
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -57,6 +66,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'avapharmacy.urls'
+ASGI_APPLICATION = 'avapharmacy.asgi.application'
 
 TEMPLATES = [
     {
@@ -205,8 +215,8 @@ EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@avapharmacy.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='rtchxnlghxfbvjku')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='salmanyagaka@gmail.com')
 
 # ─── Notifications ────────────────────────────────────────────────────────────
 SMS_BACKEND = config('SMS_BACKEND', default='console')
@@ -227,6 +237,39 @@ FRONTEND_PHARMACIST_ACTIVATION_PATH = config(
     default='/auth/pharmacist/activate'
 )
 PHARMACIST_ACTIVATION_TTL_HOURS = config('PHARMACIST_ACTIVATION_TTL_HOURS', default=24, cast=int)
+
+# ─── External Inventory / Fulfillment ─────────────────────────────────────────
+INVENTORY_SYNC_URL = config('INVENTORY_SYNC_URL', default='')
+INVENTORY_SYNC_SECRET = config('INVENTORY_SYNC_SECRET', default='')
+INVENTORY_SYNC_TIMEOUT_SECONDS = config('INVENTORY_SYNC_TIMEOUT_SECONDS', default=15, cast=int)
+EXTERNAL_ORDER_URL = config('EXTERNAL_ORDER_URL', default=config('POS_ORDER_PUSH_URL', default=''))
+EXTERNAL_ORDER_TOKEN = config('EXTERNAL_ORDER_TOKEN', default=config('POS_ORDER_PUSH_TOKEN', default=''))
+EXTERNAL_ORDER_TIMEOUT_SECONDS = config(
+    'EXTERNAL_ORDER_TIMEOUT_SECONDS',
+    default=config('POS_ORDER_PUSH_TIMEOUT_SECONDS', default=15, cast=int),
+    cast=int,
+)
+EXTERNAL_ORDER_MAX_ATTEMPTS = config(
+    'EXTERNAL_ORDER_MAX_ATTEMPTS',
+    default=config('POS_ORDER_PUSH_MAX_ATTEMPTS', default=5, cast=int),
+    cast=int,
+)
+EXTERNAL_ORDER_BACKOFF_SECONDS = config(
+    'EXTERNAL_ORDER_BACKOFF_SECONDS',
+    default=config('POS_ORDER_PUSH_BACKOFF_SECONDS', default=1.0, cast=float),
+    cast=float,
+)
+EXTERNAL_ORDER_MAX_BACKOFF_SECONDS = config(
+    'EXTERNAL_ORDER_MAX_BACKOFF_SECONDS',
+    default=config('POS_ORDER_PUSH_MAX_BACKOFF_SECONDS', default=30.0, cast=float),
+    cast=float,
+)
+EXTERNAL_ORDER_QUEUE_MAX_ATTEMPTS = config(
+    'EXTERNAL_ORDER_QUEUE_MAX_ATTEMPTS',
+    default=config('POS_ORDER_PUSH_QUEUE_MAX_ATTEMPTS', default=5, cast=int),
+    cast=int,
+)
+ORDER_STATUS_WEBHOOK_SECRET = config('ORDER_STATUS_WEBHOOK_SECRET', default=INVENTORY_SYNC_SECRET)
 
 # ─── M-Pesa / Daraja ──────────────────────────────────────────────────────────
 MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')
@@ -269,7 +312,8 @@ FLUTTERWAVE_TIMEOUT_SECONDS = config('FLUTTERWAVE_TIMEOUT_SECONDS', default=30, 
 FLUTTERWAVE_REDIRECT_URL = config('FLUTTERWAVE_REDIRECT_URL', default=f'{FRONTEND_BASE_URL}/checkout')
 
 # ─── POS / External Order Push ────────────────────────────────────────────────
-POS_LINK_STRATEGY = config('POS_LINK_STRATEGY', default='pos_product_id')
+FEATURED_PRODUCT_MIN_RATING = config('FEATURED_PRODUCT_MIN_RATING', default=4, cast=int)
+POS_LINK_STRATEGY = config('POS_LINK_STRATEGY', default='sku_or_pos_id')
 POS_ORDER_PUSH_URL = config('POS_ORDER_PUSH_URL', default='')
 POS_ORDER_PUSH_TOKEN = config('POS_ORDER_PUSH_TOKEN', default='')
 POS_ORDER_PUSH_TIMEOUT_SECONDS = config('POS_ORDER_PUSH_TIMEOUT_SECONDS', default=15, cast=int)
@@ -281,6 +325,27 @@ POS_INVENTORY_LOOKUP_URL = config('POS_INVENTORY_LOOKUP_URL', default='')
 POS_INVENTORY_LOOKUP_TOKEN = config('POS_INVENTORY_LOOKUP_TOKEN', default='')
 POS_INVENTORY_LOOKUP_TIMEOUT_SECONDS = config('POS_INVENTORY_LOOKUP_TIMEOUT_SECONDS', default=8, cast=int)
 POS_INVENTORY_LOOKUP_TTL_SECONDS = config('POS_INVENTORY_LOOKUP_TTL_SECONDS', default=300, cast=int)
+
+# ─── Channels ─────────────────────────────────────────────────────────────────
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
+}
+
+# ─── Celery ───────────────────────────────────────────────────────────────────
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='memory://')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='cache+memory://')
+CELERY_BEAT_SCHEDULE = {
+    'inventory-sync-fallback-every-15-minutes': {
+        'task': 'apps.products.tasks.sync_inventory_task',
+        'schedule': 15 * 60,
+    },
+    'retry-outbound-order-pushes-every-5-minutes': {
+        'task': 'apps.orders.tasks.retry_outbound_order_pushes_task',
+        'schedule': 5 * 60,
+    },
+}
 
 # ─── Custom exception handler ─────────────────────────────────────────────────
 REST_FRAMEWORK_EXCEPTION_HANDLER = 'avapharmacy.exception_handler.custom_exception_handler'

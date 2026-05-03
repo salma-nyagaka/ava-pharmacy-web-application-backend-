@@ -12,10 +12,10 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.crypto import get_random_string
+
+from apps.notifications.emailing import send_rendered_email
 
 from .models import AdminAuditLog, PharmacistActivationToken, User
 
@@ -201,14 +201,12 @@ def send_pharmacist_activation_email(*, user, raw_token, request=None, invited_b
     }
 
     subject = f'Activate your AVA Pharmacy {role_name.lower()} account'
-    text_body = render_to_string('accounts/emails/pharmacist_activation.txt', context)
-    html_body = render_to_string('accounts/emails/pharmacist_activation.html', context)
-    send_mail(
+    send_rendered_email(
         subject=subject,
-        message=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
-        html_message=html_body,
+        text_template='accounts/emails/pharmacist_activation.txt',
+        html_template='accounts/emails/pharmacist_activation.html',
+        context=context,
         fail_silently=False,
     )
 
@@ -222,14 +220,12 @@ def send_customer_welcome_email(*, user):
         'shop_url': getattr(settings, 'FRONTEND_SHOP_URL', f'{frontend_base}/products'),
         'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
     }
-    text_body = render_to_string('accounts/emails/customer_welcome.txt', context)
-    html_body = render_to_string('accounts/emails/customer_welcome.html', context)
-    send_mail(
+    send_rendered_email(
         subject='Welcome to AVA Pharmacy',
-        message=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
-        html_message=html_body,
+        text_template='accounts/emails/customer_welcome.txt',
+        html_template='accounts/emails/customer_welcome.html',
+        context=context,
         fail_silently=True,
     )
 
@@ -243,14 +239,12 @@ def send_password_reset_email(*, user, reset_url):
         'expires_hours': expires_hours,
         'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
     }
-    text_body = render_to_string('accounts/emails/password_reset.txt', context)
-    html_body = render_to_string('accounts/emails/password_reset.html', context)
-    send_mail(
+    send_rendered_email(
         subject='AVA Pharmacy - Password Reset',
-        message=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
-        html_message=html_body,
+        text_template='accounts/emails/password_reset.txt',
+        html_template='accounts/emails/password_reset.html',
+        context=context,
         fail_silently=True,
     )
   

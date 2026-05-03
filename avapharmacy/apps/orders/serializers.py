@@ -1,6 +1,8 @@
+import re
+
 from rest_framework import serializers
 
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, PaymentIntent, ReturnRequest, ShippingMethod
+from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
 from .payment_helpers import (
     build_paybill_account_reference,
     get_paybill_account_label,
@@ -9,7 +11,7 @@ from .payment_helpers import (
     resolve_order_number_from_paybill_reference,
 )
 from apps.accounts.models import Address
-from apps.products.serializers import ProductListSerializer, ProductVariantSerializer
+from apps.products.serializers import ProductListSerializer, VariantSerializer
 
 
 class CouponSerializer(serializers.ModelSerializer):
@@ -23,10 +25,9 @@ class CouponSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product = ProductListSerializer(read_only=True)
-    product_id = serializers.IntegerField(write_only=True)
-    product_variant = ProductVariantSerializer(read_only=True)
-    product_variant_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    product = ProductListSerializer(source='variant.product', read_only=True)
+    variant = VariantSerializer(read_only=True)
+    variant_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     subtotal = serializers.ReadOnlyField()
     prescription_id = serializers.CharField(source='prescription_reference', required=False, allow_null=True, allow_blank=True)
     prescription = serializers.IntegerField(source='prescription_id', read_only=True)
@@ -35,7 +36,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = (
-            'id', 'product', 'product_id', 'product_variant', 'product_variant_id', 'quantity', 'prescription_id',
+            'id', 'product', 'variant', 'variant_id', 'quantity', 'prescription_id',
             'prescription', 'prescription_item',
             'subtotal', 'added_at'
         )
@@ -61,7 +62,9 @@ class CartSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     subtotal = serializers.ReadOnlyField()
-    product_variant = ProductVariantSerializer(read_only=True)
+    product_id = serializers.IntegerField(source='variant.product.id', read_only=True)
+    product_slug = serializers.CharField(source='variant.product.slug', read_only=True)
+    variant = VariantSerializer(read_only=True)
     prescription_id = serializers.CharField(source='prescription_reference', read_only=True)
     prescription = serializers.IntegerField(source='prescription_id', read_only=True)
     prescription_item = serializers.IntegerField(source='prescription_item_id', read_only=True)
@@ -69,7 +72,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = (
-            'id', 'product_name', 'product_sku', 'product_variant', 'variant_name', 'variant_sku',
+            'id', 'product_id', 'product_slug', 'product_name', 'product_sku', 'variant', 'variant_name', 'variant_sku',
             'quantity', 'unit_price', 'discount_total', 'prescription_id', 'prescription', 'prescription_item', 'subtotal'
         )
 
@@ -305,6 +308,33 @@ class OrderNoteCreateSerializer(serializers.Serializer):
     content = serializers.CharField()
 
 
+class OrderTrackingLookupSerializer(serializers.Serializer):
+    order_number = serializers.CharField(max_length=30)
+    contact = serializers.CharField(max_length=120)
+
+    def validate(self, attrs):
+        order_number = attrs.get('order_number', '').strip().upper()
+        contact = attrs.get('contact', '').strip()
+        if not order_number:
+            raise serializers.ValidationError({'order_number': 'Order number is required.'})
+        if not contact:
+            raise serializers.ValidationError({'contact': 'Phone number or email address is required.'})
+
+        if '@' in contact:
+            attrs['contact_type'] = 'email'
+            attrs['contact_value'] = serializers.EmailField().run_validation(contact.lower())
+        else:
+            digits = re.sub(r'\D+', '', contact)
+            if len(digits) < 9:
+                raise serializers.ValidationError({'contact': 'Enter the phone number or email address used when ordering.'})
+            attrs['contact_type'] = 'phone'
+            attrs['contact_value'] = digits[-9:]
+
+        attrs['order_number'] = order_number
+        attrs['contact'] = contact
+        return attrs
+
+
 class PaymentIntentCreateSerializer(serializers.Serializer):
     order_id = serializers.IntegerField()
     provider = serializers.ChoiceField(choices=PaymentIntent.PROVIDER_CHOICES)
@@ -369,6 +399,25 @@ class PaymentWebhookSerializer(serializers.Serializer):
     provider_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
     message = serializers.CharField(max_length=255, required=False, allow_blank=True)
     payload = serializers.JSONField(required=False)
+
+
+class OrderStatusWebhookSerializer(serializers.Serializer):
+    order_number = serializers.CharField(max_length=20)
+    status = serializers.ChoiceField(choices=Order.STATUS_CHOICES)
+    message = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    payload = serializers.JSONField(required=False)
+
+
+class OutboundOrderPushSerializer(serializers.ModelSerializer):
+    order_number = serializers.ReadOnlyField(source='order.order_number')
+
+    class Meta:
+        model = OutboundOrderPush
+        fields = (
+            'id', 'order', 'order_number', 'action', 'status', 'attempt_count',
+            'max_attempts', 'next_attempt_at', 'last_attempt_at', 'processed_at',
+            'response_status_code', 'response_body', 'last_error', 'created_at', 'updated_at',
+        )
 
 
 class AdminInvoiceSerializer(serializers.ModelSerializer):

@@ -38,7 +38,7 @@ def build_order_push_payload(order, action):
                     'product_id': item.product_id,
                     'product_sku': item.product_sku,
                     'product_name': item.product_name,
-                    'variant_id': item.product_variant_id,
+                    'variant_id': item.variant_id,
                     'variant_sku': item.variant_sku,
                     'variant_name': item.variant_name,
                     'quantity': item.quantity,
@@ -59,13 +59,13 @@ def _should_retry(status_code):
 
 
 def _compute_backoff_seconds(attempt_number):
-    base = max(0.0, float(settings.POS_ORDER_PUSH_BACKOFF_SECONDS))
-    max_backoff = max(base, float(settings.POS_ORDER_PUSH_MAX_BACKOFF_SECONDS))
+    base = max(0.0, float(settings.EXTERNAL_ORDER_BACKOFF_SECONDS))
+    max_backoff = max(base, float(settings.EXTERNAL_ORDER_MAX_BACKOFF_SECONDS))
     return min(base * (2 ** max(0, attempt_number - 1)), max_backoff)
 
 
 def _upsert_queue_record(order, action, payload, result, queue_record=None):
-    total_max_attempts = max(1, int(settings.POS_ORDER_PUSH_QUEUE_MAX_ATTEMPTS))
+    total_max_attempts = max(1, int(settings.EXTERNAL_ORDER_QUEUE_MAX_ATTEMPTS))
     record = queue_record
     if record is None:
         record = (
@@ -117,7 +117,7 @@ def _push_order_once(endpoint, payload, headers):
         method='POST',
     )
     try:
-        with request.urlopen(req, timeout=settings.POS_ORDER_PUSH_TIMEOUT_SECONDS) as response:
+        with request.urlopen(req, timeout=settings.EXTERNAL_ORDER_TIMEOUT_SECONDS) as response:
             body = response.read().decode('utf-8') or '{}'
             status_code = getattr(response, 'status', 200)
         return {'ok': True, 'status_code': status_code, 'body': body}
@@ -129,15 +129,16 @@ def _push_order_once(endpoint, payload, headers):
 
 
 def push_order_to_pos(order, action, *, queue_record=None, persist_failure=True, max_attempts=None):
-    endpoint = settings.POS_ORDER_PUSH_URL
+    endpoint = settings.EXTERNAL_ORDER_URL or settings.POS_ORDER_PUSH_URL
     if not endpoint:
         return None
 
     payload = build_order_push_payload(order, action)
     headers = {'Content-Type': 'application/json'}
-    if settings.POS_ORDER_PUSH_TOKEN:
-        headers['Authorization'] = f'Bearer {settings.POS_ORDER_PUSH_TOKEN}'
-    max_attempts = max(1, int(max_attempts or settings.POS_ORDER_PUSH_MAX_ATTEMPTS))
+    auth_token = settings.EXTERNAL_ORDER_TOKEN or settings.POS_ORDER_PUSH_TOKEN
+    if auth_token:
+        headers['Authorization'] = f'Bearer {auth_token}'
+    max_attempts = max(1, int(max_attempts or settings.EXTERNAL_ORDER_MAX_ATTEMPTS))
     attempts = []
     last_result = None
 

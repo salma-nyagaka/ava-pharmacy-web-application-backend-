@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from apps.products.models import Product, ProductVariant
+from apps.products.models import Variant
 
 
 class Coupon(models.Model):
@@ -97,7 +97,7 @@ class Cart(models.Model):
 
     @property
     def total(self):
-        return sum(item.subtotal for item in self.items.select_related('product').all())
+        return sum(item.subtotal for item in self.items.select_related('variant').all())
 
     @property
     def item_count(self):
@@ -124,9 +124,8 @@ class Cart(models.Model):
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    product_variant = models.ForeignKey(
-        ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name='cart_items'
+    variant = models.ForeignKey(
+        Variant, on_delete=models.CASCADE, related_name='cart_items'
     )
     quantity = models.PositiveIntegerField(default=1)
     prescription_reference = models.CharField(max_length=20, blank=True, null=True)
@@ -154,23 +153,37 @@ class CartItem(models.Model):
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['cart', 'product', 'product_variant', 'prescription', 'prescription_item'],
-                name='unique_cart_item_product_variant_prescription',
+                fields=['cart', 'variant', 'prescription', 'prescription_item'],
+                name='unique_cart_item_variant_prescription',
             ),
         ]
 
     def __str__(self):
-        label = self.product_variant.name if self.product_variant else self.product.name
+        label = self.variant.name
         return f"{label} x {self.quantity}"
 
     @property
     def subtotal(self):
-        unit_price = self.product_variant.effective_price if self.product_variant else self.product.price
-        return unit_price * self.quantity
+        return self.variant.effective_price * self.quantity
 
     @property
     def inventory_object(self):
-        return self.product_variant or self.product
+        return self.variant
+
+    @property
+    def product(self):
+        return self.variant.product
+
+    @product.setter
+    def product(self, value):
+        if value is None:
+            self.variant = None
+            return
+        self.variant = value.get_representative_variant()
+
+    @property
+    def product_id(self):
+        return self.variant.product_id
 
 
 class ShippingMethod(models.Model):
@@ -314,9 +327,8 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
-    product_variant = models.ForeignKey(
-        ProductVariant, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_items'
+    variant = models.ForeignKey(
+        Variant, on_delete=models.SET_NULL, null=True, related_name='order_items'
     )
     product_name = models.CharField(max_length=200)
     product_sku = models.CharField(max_length=50)
@@ -324,6 +336,9 @@ class OrderItem(models.Model):
     variant_sku = models.CharField(max_length=60, blank=True)
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    allocated_branch_quantity = models.PositiveIntegerField(default=0)
+    allocated_warehouse_quantity = models.PositiveIntegerField(default=0)
+    allocated_backorder_quantity = models.PositiveIntegerField(default=0)
     prescription_reference = models.CharField(max_length=20, blank=True, null=True)
     prescription = models.ForeignKey(
         'prescriptions.Prescription',
@@ -347,6 +362,21 @@ class OrderItem(models.Model):
     @property
     def subtotal(self):
         return self.unit_price * self.quantity
+
+    @property
+    def product(self):
+        return self.variant.product if self.variant_id else None
+
+    @product.setter
+    def product(self, value):
+        if value is None:
+            self.variant = None
+            return
+        self.variant = value.get_representative_variant()
+
+    @property
+    def product_id(self):
+        return self.variant.product_id if self.variant_id else None
 
 
 class OrderNote(models.Model):

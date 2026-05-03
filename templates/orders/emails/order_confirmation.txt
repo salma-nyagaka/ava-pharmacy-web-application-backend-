@@ -1,0 +1,43 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}{{ email_preheader }} {{ order.order_number }}{% endblock %}
+{% block intro %}{{ email_intro }}{% endblock %}
+
+{% block content %}
+Hello {{ customer_full_name }},
+
+Order number: {{ order.order_number }}
+Order date: {{ placed_at_display }}
+Order status: {{ order_status_label }}
+Payment method: {{ payment_method_label }}
+Payment status: {{ payment_status_label }}
+
+Delivery details:
+- Name: {{ customer_full_name }}
+- Email: {{ shipping_email }}
+- Phone: {{ shipping_phone }}
+- Delivery method: {{ delivery_method_label }}{% if shipping_method_name %} - {{ shipping_method_name }}{% endif %}
+{% if shipping_window %}- Estimated delivery: {{ shipping_window }}
+{% endif %}- Address: {{ shipping_address }}
+{% if delivery_notes %}- Delivery notes: {{ delivery_notes }}
+{% endif %}
+
+Products:
+{% for item in items %}- {{ item.name }} x {{ item.quantity }} — KSh {{ item.subtotal }}
+{% endfor %}
+
+Subtotal: KSh {{ order.subtotal }}
+Shipping: KSh {{ order.shipping_fee }}
+Total: KSh {{ order.total }}
+
+What happens next:
+- We are reviewing and preparing your order.
+- You can track this order anytime using {{ order.order_number }}.
+- If we need clarification, we will contact you using the details above.
+
+{{ primary_cta_label }}: {{ account_order_url }}
+Track order: {{ track_order_url }}
+Support: {{ support_email }}
+{% endblock %}
+
+{% block footnote %}Ava Pharmacy order confirmation{% endblock %}

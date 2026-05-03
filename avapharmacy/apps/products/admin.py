@@ -2,10 +2,10 @@
 Django admin registrations for the products app.
 
 Registers Category, Brand, Product (with image and variant inlines),
-ProductReview, Wishlist, Banner, Promotion, and CMSBlock.
+VariantReview, Wishlist, Banner, Promotion, and CMSBlock.
 """
 from django.contrib import admin
-from .models import Banner, Brand, Category, CMSBlock, Product, ProductImage, ProductReview, ProductVariant, Promotion, Wishlist
+from .models import Banner, Brand, Category, CMSBlock, Product, ProductImage, Promotion, Variant, VariantReview, Wishlist
 
 
 @admin.register(Category)
@@ -28,26 +28,30 @@ class ProductImageInline(admin.TabularInline):
     extra = 1
 
 
-class ProductVariantInline(admin.TabularInline):
-    model = ProductVariant
+class VariantInline(admin.TabularInline):
+    model = Variant
     extra = 0
 
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'sku', 'brand', 'category', 'price', 'stock_source', 'stock_quantity', 'is_active')
-    list_filter = ('brand', 'category', 'is_active', 'requires_prescription')
-    search_fields = ('name', 'sku', 'slug')
+    list_display = ('name', 'display_sku', 'brand', 'category', 'display_price', 'stock_source', 'stock_quantity', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'variants__sku', 'slug')
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [ProductImageInline, ProductVariantInline]
+    inlines = [ProductImageInline, VariantInline]
     readonly_fields = ('created_at', 'updated_at')
 
+    @admin.display(description='Lead Variant SKU')
+    def display_sku(self, obj):
+        return obj.get_display_sku()
 
-@admin.register(ProductReview)
-class ProductReviewAdmin(admin.ModelAdmin):
+
+@admin.register(VariantReview)
+class VariantReviewAdmin(admin.ModelAdmin):
     list_display = ('product', 'user', 'rating', 'is_approved', 'created_at')
     list_filter = ('is_approved', 'rating')
-    search_fields = ('product__name', 'user__email')
+    search_fields = ('variant__product__name', 'variant__name', 'user__email')
 
 
 @admin.register(Wishlist)

@@ -9,7 +9,8 @@ import json
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.db.models import Sum
-from .models import AdminAuditLog, Customer, User, Pharmacist, Address, UserNote
+from django.utils import timezone
+from .models import AdminAuditLog, Address, Customer, PaymentMethod, Pharmacist, User, UserNote
 from apps.consultations.serializers import (
     DoctorOnboardingSerializer, DoctorProfileSerializer,
     PediatricianOnboardingSerializer, PediatricianProfileSerializer,
@@ -17,7 +18,6 @@ from apps.consultations.serializers import (
 from apps.lab.models import LabPartner
 from apps.lab.serializers import (
     LabPartnerRegistrationSerializer, LabPartnerSerializer,
-    LabTechnicianRegistrationSerializer, LabTechnicianProfileSerializer,
 )
 from .utils import (
     consume_pharmacist_activation,
@@ -41,6 +41,21 @@ def validate_unique_phone(phone, instance=None):
     if queryset.exists():
         raise serializers.ValidationError('A user with this phone number already exists.')
     return phone
+
+
+def validate_unique_email(email, instance=None):
+    """Validate that an email address remains unique across users."""
+    email = (email or '').strip().lower()
+    if not email:
+        raise serializers.ValidationError('Email is required.')
+
+    queryset = User.objects.filter(email__iexact=email)
+    if instance is not None:
+        queryset = queryset.exclude(pk=instance.pk)
+
+    if queryset.exists():
+        raise serializers.ValidationError('A user with this email address already exists.')
+    return email
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -103,7 +118,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             'id', 'email', 'first_name', 'last_name', 'full_name',
-            'phone', 'role', 'status', 'address', 'total_orders',
+            'phone', 'date_of_birth', 'role', 'status', 'address', 'total_orders',
             'date_joined', 'updated_at'
         )
         read_only_fields = ('id', 'date_joined', 'updated_at')
@@ -114,7 +129,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'phone', 'address')
+        fields = ('email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'address')
+
+    def validate_email(self, value):
+        """Ensure updated email addresses remain unique."""
+        return validate_unique_email(value, instance=self.instance)
 
     def validate_phone(self, value):
         """Ensure updated phone numbers remain unique."""
@@ -222,6 +241,13 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Require password for non-pharmacist users created by admins."""
+        permissions = attrs.get('pharmacist_permissions')
+        if permissions is not None:
+            invalid = sorted(set(permissions) - Pharmacist.VALID_PERMISSIONS)
+            if invalid:
+                raise serializers.ValidationError({
+                    'pharmacist_permissions': f'Invalid permission(s): {", ".join(invalid)}.'
+                })
         if self.instance is None:
             role = attrs.get('role')
             password = attrs.get('password')
@@ -314,8 +340,46 @@ class AddressSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Address
-        fields = ('id', 'label', 'street', 'city', 'county', 'is_default', 'created_at')
+        fields = ('id', 'label', 'phone', 'street', 'city', 'county', 'is_default', 'created_at')
         read_only_fields = ('id', 'created_at')
+
+
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMethod
+        fields = (
+            'id', 'brand', 'last4', 'expiry_month', 'expiry_year',
+            'cardholder_name', 'is_default', 'created_at', 'updated_at',
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def validate_last4(self, value):
+        value = ''.join(ch for ch in str(value or '') if ch.isdigit())
+        if len(value) != 4:
+            raise serializers.ValidationError('Last four digits are required.')
+        return value
+
+    def validate_expiry_month(self, value):
+        if not 1 <= int(value) <= 12:
+            raise serializers.ValidationError('Expiry month must be between 1 and 12.')
+        return value
+
+    def validate_expiry_year(self, value):
+        if int(value) < timezone.now().year:
+            raise serializers.ValidationError('Expiry year cannot be in the past.')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        month = attrs.get('expiry_month', getattr(self.instance, 'expiry_month', None))
+        year = attrs.get('expiry_year', getattr(self.instance, 'expiry_year', None))
+        if month is None or year is None:
+            return attrs
+
+        now = timezone.now()
+        if int(year) == now.year and int(month) < now.month:
+            raise serializers.ValidationError({'expiry_month': ['Expiry date cannot be in the past.']})
+        return attrs
 
 
 class UserNoteSerializer(serializers.ModelSerializer):
@@ -411,7 +475,6 @@ def _professional_type_label(value):
         'doctor': 'Doctor',
         'pediatrician': 'Pediatrician',
         'lab_partner': 'Lab Partner',
-        'lab_technician': 'Lab Technician',
     }
     return labels[value]
 
@@ -421,7 +484,6 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
         ('doctor', 'Doctor'),
         ('pediatrician', 'Pediatrician'),
         ('lab_partner', 'Lab Partner'),
-        ('lab_technician', 'Lab Technician'),
     )
     ROLE_ALIASES = {
         'doctor': 'doctor',
@@ -430,9 +492,6 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
         'lab_partner': 'lab_partner',
         'lab partner': 'lab_partner',
         'lab-partner': 'lab_partner',
-        'lab_technician': 'lab_technician',
-        'lab technician': 'lab_technician',
-        'lab-technician': 'lab_technician',
     }
 
     type = serializers.CharField()
@@ -449,7 +508,6 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
     labName = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
     labLocation = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
     labAccreditation = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
-    labPartnerId = serializers.IntegerField(required=False, allow_null=True)
     experience = serializers.IntegerField(required=False, allow_null=True)
     availability = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
     fee = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
@@ -525,9 +583,6 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
                 errors['idNumber'] = 'ID / Passport number is required.'
             if not attrs['specialty'].strip():
                 errors['specialty'] = 'Select a specialty.'
-            if professional_type == 'lab_technician' and not attrs.get('labPartnerId'):
-                errors['labPartnerId'] = 'Select a lab partner.'
-
         if not attrs['payoutAccount'].strip():
             errors['payoutAccount'] = 'Payout account is required.'
         if errors:
@@ -611,32 +666,6 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
             'notes': attrs['bio'].strip(),
         }
 
-    def _lab_technician_payload(self, attrs):
-        return {
-            'name': attrs['name'].strip(),
-            'email': attrs['email'],
-            'phone': attrs['phone'].strip(),
-            'partner_id': attrs['labPartnerId'],
-            'specialty': attrs['specialty'].strip(),
-            'license_number': attrs['license'].strip(),
-            'license_board': attrs['licenseBoard'].strip(),
-            'license_country': attrs['licenseCountry'].strip(),
-            'license_expiry': attrs['licenseExpiry'],
-            'id_number': attrs['idNumber'].strip(),
-            'availability': attrs['availability'].strip(),
-            'years_experience': attrs.get('experience'),
-            'county': attrs['county'].strip(),
-            'address': attrs['address'].strip(),
-            'bio': attrs['bio'].strip(),
-            'references': self._build_references(attrs),
-            'document_checklist': attrs.get('docChecklist', []),
-            'payout_method': attrs['payoutMethod'],
-            'payout_account': attrs['payoutAccount'].strip(),
-            'background_consent': attrs['backgroundConsent'],
-            'compliance_declaration': attrs['complianceDeclaration'],
-            'agreed_to_terms': attrs['agreedToTerms'],
-        }
-
     def create(self, validated_data):
         request = self.context['request']
         documents = request.FILES.getlist('documents')
@@ -673,16 +702,7 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
             self._response_serializer = LabPartnerSerializer
             return application
 
-        payload = self._lab_technician_payload(validated_data)
-        serializer = LabTechnicianRegistrationSerializer(data={
-            **payload,
-            'documents': documents,
-            'document_names': document_names,
-        }, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        application = serializer.save()
-        self._response_serializer = LabTechnicianProfileSerializer
-        return application
+        raise serializers.ValidationError({'type': 'Select a valid professional type.'})
 
     def build_response(self, instance):
         serializer_class = getattr(self, '_response_serializer')

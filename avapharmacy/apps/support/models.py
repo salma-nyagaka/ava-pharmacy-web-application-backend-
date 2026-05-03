@@ -2,6 +2,29 @@ import uuid
 from django.db import models
 
 
+class NewsletterSubscriber(models.Model):
+    email = models.EmailField(unique=True)
+    source = models.CharField(max_length=100, blank=True, default='website')
+    is_active = models.BooleanField(default=True)
+    subscribed_at = models.DateTimeField(auto_now_add=True)
+    last_confirmation_sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-subscribed_at']
+        indexes = [
+            models.Index(fields=['email'], name='support_new_email_4e6b95_idx'),
+            models.Index(fields=['is_active', '-subscribed_at'], name='support_new_is_acti_9b5f3a_idx'),
+        ]
+
+    def __str__(self):
+        return self.email
+
+    def save(self, *args, **kwargs):
+        self.email = (self.email or '').strip().lower()
+        self.source = (self.source or 'website').strip() or 'website'
+        super().save(*args, **kwargs)
+
+
 class SupportTicket(models.Model):
     CHANNEL_ORDER = 'order'
     CHANNEL_PRESCRIPTION = 'prescription'

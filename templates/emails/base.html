@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AVA Pharmacy{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#14213d;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6fb;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e6e8ef;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#e81750,#991b1f);padding:24px;color:#ffffff;">
+              <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;">{% block eyebrow %}Ava Pharmacy{% endblock %}</p>
+              <h1 style="margin:0;font-size:26px;line-height:1.25;">{% block heading %}Ava Pharmacy{% endblock %}</h1>
+              <p style="margin:10px 0 0;font-size:15px;line-height:1.6;opacity:.92;">
+                {% block intro %}{% endblock %}
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px 16px;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 24px;">
+              <p style="margin:0;font-size:12px;line-height:1.7;color:#8a91a8;">
+                {% block footnote %}AVA Pharmacy transactional email{% endblock %}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

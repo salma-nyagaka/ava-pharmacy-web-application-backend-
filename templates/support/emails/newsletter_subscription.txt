@@ -1,0 +1,12 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}Welcome to the AVA Pharmacy newsletter{% endblock %}
+{% block intro %}Thanks for subscribing to the AVA Pharmacy newsletter.{% endblock %}
+
+{% block content %}
+Email: {{ email }}
+Explore the store: {{ shop_url }}
+Support: {{ support_email }}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy{% endblock %}

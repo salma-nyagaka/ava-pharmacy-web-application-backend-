@@ -4,8 +4,10 @@ from urllib import error, request
 
 from asgiref.sync import async_to_sync
 from django.conf import settings
-from django.core.mail import send_mail
 from django.utils import timezone
+
+from .emailing import build_login_redirect_url, send_rendered_email
+from apps.orders.utils import queue_order_status_email
 
 logger = logging.getLogger(__name__)
 
@@ -90,11 +92,30 @@ def deliver_email(notification, destination, subject, message):
         provider='django_email',
     )
     try:
-        send_mail(
+        data = notification.data or {}
+        raw_url = data.get('url') or ''
+        cta_url = build_login_redirect_url(raw_url) if raw_url else ''
+        detail_rows = []
+        if data.get('reference'):
+            detail_rows.append({'label': 'Reference', 'value': data['reference']})
+        if data.get('status'):
+            detail_rows.append({'label': 'Status', 'value': data['status']})
+
+        send_rendered_email(
             subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[destination],
+            text_template='emails/notification.txt',
+            html_template='emails/notification.html',
+            context={
+                'subject': subject,
+                'heading': subject,
+                'intro': message,
+                'body_lines': [message],
+                'detail_rows': detail_rows,
+                'cta_url': cta_url,
+                'cta_label': 'Open in your account' if cta_url else '',
+                'support_email': getattr(settings, 'ADMIN_EMAIL', settings.DEFAULT_FROM_EMAIL),
+            },
             fail_silently=False,
         )
         mark_delivery_sent(delivery)
@@ -189,10 +210,17 @@ def notify_order_status(order):
         notification_type='order_status',
         title=f"Order {order.order_number} Updated",
         message=f"Your order status is now: {order.get_status_display()}",
-        data={'url': f'/orders/{order.id}', 'reference': order.order_number, 'status': order.status},
-        send_email=bool(preferences and preferences.order_updates_email),
+        data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
+        send_email=False,
         send_sms=bool(preferences and preferences.order_updates_sms),
     )
+    if preferences and preferences.order_updates_email:
+        queue_order_status_email(
+            order,
+            subject=f'Order {order.order_number} Updated',
+            heading=f'Order {order.order_number} updated',
+            intro=f'Your order status is now {order.get_status_display()}.',
+        )
 
 
 def notify_prescription_status(prescription):
@@ -203,7 +231,11 @@ def notify_prescription_status(prescription):
         notification_type='prescription_status',
         title=f"Prescription {prescription.reference} Updated",
         message=f"Your prescription status is now: {prescription.get_status_display()}",
-        data={'url': f'/prescriptions/{prescription.id}', 'reference': prescription.reference, 'status': prescription.status},
+        data={
+            'url': f'/account/prescriptions?prescription={prescription.id}',
+            'reference': prescription.reference,
+            'status': prescription.get_status_display(),
+        },
         send_email=True,
     )
 

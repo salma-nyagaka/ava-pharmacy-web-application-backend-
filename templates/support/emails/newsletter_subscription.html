@@ -1,0 +1,29 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Welcome to the AVA Pharmacy newsletter{% endblock %}
+{% block heading %}You are subscribed{% endblock %}
+{% block intro %}Welcome to the AVA Pharmacy newsletter. We will keep your inbox focused on useful updates and selected offers.{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#4a5568;">
+    This subscription is active for <strong>{{ email }}</strong>.
+  </p>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#fff6f8;border:1px solid #ffd1db;border-radius:12px;">
+    <tr>
+      <td style="padding:16px 18px;">
+        <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#991b1f;">What to expect</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;">New product arrivals and curated recommendations</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;">Practical pharmacy tips and wellness reminders</p>
+        <p style="margin:0;font-size:14px;line-height:1.6;">Occasional promotions on selected products</p>
+      </td>
+    </tr>
+  </table>
+  <p style="margin:18px 0 20px;">
+    <a href="{{ shop_url }}" style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
+      Explore Products
+    </a>
+  </p>
+  <p style="margin:0;font-size:14px;line-height:1.7;color:#4a5568;">If you did not request this subscription, contact <a href="mailto:{{ support_email }}" style="color:#e81750;">{{ support_email }}</a>.</p>
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy sends practical updates designed to help customers discover products, offers, and relevant pharmacy guidance.{% endblock %}

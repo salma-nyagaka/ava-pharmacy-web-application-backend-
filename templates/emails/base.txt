@@ -1,0 +1,7 @@
+{% block title %}AVA Pharmacy{% endblock %}
+
+{% block intro %}{% endblock %}
+
+{% block content %}{% endblock %}
+
+{% block footnote %}AVA Pharmacy{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "emails/base.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+{% block heading %}{{ heading }}{% endblock %}
+{% block intro %}{{ intro }}{% endblock %}
+
+{% block content %}
+  {% if detail_rows %}
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#fff6f8;border:1px solid #ffd1db;border-radius:12px;">
+      {% for row in detail_rows %}
+      <tr>
+        <td style="padding:14px 18px;border-bottom:{% if not forloop.last %}1px solid #ffdbe2{% else %}0{% endif %};">
+          <p style="margin:0 0 4px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#991b1f;">{{ row.label }}</p>
+          <p style="margin:0;font-size:15px;line-height:1.6;color:#14213d;">{{ row.value }}</p>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+
+  {% if body_lines %}
+    {% for line in body_lines %}
+      <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#4a5568;">{{ line }}</p>
+    {% endfor %}
+  {% endif %}
+
+  {% if cta_url and cta_label %}
+    <p style="margin:18px 0 18px;">
+      <a href="{{ cta_url }}"
+         style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
+        {{ cta_label }}
+      </a>
+    </p>
+  {% endif %}
+
+  {% if secondary_url and secondary_label %}
+    <p style="margin:0 0 14px;font-size:14px;line-height:1.6;">
+      <a href="{{ secondary_url }}" style="color:#e81750;text-decoration:none;">{{ secondary_label }}</a>
+    </p>
+  {% endif %}
+
+  {% if support_email %}
+    <p style="margin:0;font-size:14px;line-height:1.7;color:#4a5568;">
+      Need help? Contact
+      <a href="mailto:{{ support_email }}" style="color:#e81750;text-decoration:none;">{{ support_email }}</a>.
+    </p>
+  {% endif %}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy sent this update because activity happened on your account or order.{% endblock %}
