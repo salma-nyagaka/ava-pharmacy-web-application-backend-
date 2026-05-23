@@ -3,7 +3,8 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.support.models import NewsletterSubscriber
+from apps.accounts.models import User
+from apps.support.models import NewsletterSubscriber, SiteSettings
 
 
 class NewsletterSubscriptionTests(TestCase):
@@ -48,3 +49,54 @@ class NewsletterSubscriptionTests(TestCase):
         self.assertIsNotNone(subscriber.last_confirmation_sent_at)
         self.assertEqual(len(mail.outbox), 1)
         self.assertTrue(mail.outbox[0].alternatives)
+
+
+class SiteSettingsTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_public_user_can_fetch_site_settings(self):
+        response = self.client.get(reverse('site-settings'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['support_email'], 'support@avapharmacy.co.ke')
+        self.assertEqual(response.data['active_delivery_zones_list'], ['Nairobi', 'Kiambu', 'Mombasa'])
+
+    def test_anonymous_user_cannot_update_site_settings(self):
+        response = self.client.put(
+            reverse('site-settings'),
+            {'support_email': 'care@example.com'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_update_site_settings(self):
+        admin = User.objects.create_user(
+            email='admin@example.com',
+            password='password',
+            first_name='Admin',
+            last_name='User',
+            role=User.ADMIN,
+        )
+        self.client.force_authenticate(admin)
+
+        response = self.client.put(
+            reverse('site-settings'),
+            {
+                'support_email': 'care@example.com',
+                'support_phone': '+254 711 111 111',
+                'whatsapp_phone': '+254 722 222 222',
+                'support_address': 'Nairobi, Kenya',
+                'support_hours': 'Mon - Fri: 08am - 06pm',
+                'base_delivery_fee': '250.00',
+                'free_delivery_threshold': '2500.00',
+                'active_delivery_zones': 'Nairobi, Nakuru',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        settings = SiteSettings.get_solo()
+        self.assertEqual(settings.support_email, 'care@example.com')
+        self.assertEqual(response.data['active_delivery_zones_list'], ['Nairobi', 'Nakuru'])

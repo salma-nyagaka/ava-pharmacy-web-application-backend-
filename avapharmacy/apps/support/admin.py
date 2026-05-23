@@ -1,10 +1,22 @@
 from django.contrib import admin
-from .models import NewsletterSubscriber, SupportTicket, SupportNote
+from .models import NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
 
 
 class SupportNoteInline(admin.TabularInline):
     model = SupportNote
     extra = 0
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    list_display = ('support_email', 'support_phone', 'base_delivery_fee', 'free_delivery_threshold', 'updated_at')
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return not SiteSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(NewsletterSubscriber)

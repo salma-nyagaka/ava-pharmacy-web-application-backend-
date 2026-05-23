@@ -1,5 +1,28 @@
 from rest_framework import serializers
-from .models import NewsletterSubscriber, SupportTicket, SupportNote
+from .models import NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
+
+
+class SiteSettingsSerializer(serializers.ModelSerializer):
+    active_delivery_zones_list = serializers.ListField(
+        child=serializers.CharField(),
+        read_only=True,
+    )
+
+    class Meta:
+        model = SiteSettings
+        fields = (
+            'support_email',
+            'support_phone',
+            'whatsapp_phone',
+            'support_address',
+            'support_hours',
+            'base_delivery_fee',
+            'free_delivery_threshold',
+            'active_delivery_zones',
+            'active_delivery_zones_list',
+            'updated_at',
+        )
+        read_only_fields = ('active_delivery_zones_list', 'updated_at')
 
 
 class NewsletterSubscriptionRequestSerializer(serializers.Serializer):

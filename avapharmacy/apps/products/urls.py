@@ -19,6 +19,8 @@ def _admin_crud_patterns(route, list_view, detail_view, list_name, detail_name):
 urlpatterns = [
     path('catalog/summary/', views.CatalogSummaryView.as_view(), name='catalog-summary'),
     path('categories/', views.CategoryListView.as_view(), name='categories'),
+    path('product-categories/', views.CategoryListView.as_view(), name='product-categories'),
+    path('products/categories/', views.CategoryListView.as_view(), name='products-categories'),
     path('brands/', views.BrandListView.as_view(), name='brands'),
     path('health-concerns/', views.HealthConcernListView.as_view(), name='health-concerns'),
     path('catalog-categories/', views.CatalogCategoryListView.as_view(), name='catalog-categories'),

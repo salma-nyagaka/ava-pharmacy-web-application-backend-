@@ -2,6 +2,38 @@ import uuid
 from django.db import models
 
 
+class SiteSettings(models.Model):
+    support_email = models.EmailField(default='support@avapharmacy.co.ke')
+    support_phone = models.CharField(max_length=50, default='+254 700 000 000')
+    whatsapp_phone = models.CharField(max_length=50, default='+254 700 000 000')
+    support_address = models.CharField(max_length=255, default='Karen / The Hub, Karen, Nairobi, Kenya')
+    support_hours = models.CharField(max_length=120, default='Mon - Sun: 09am - 5pm')
+    base_delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=300)
+    free_delivery_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=3000)
+    active_delivery_zones = models.TextField(default='Nairobi, Kiambu, Mombasa')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'site settings'
+        verbose_name_plural = 'site settings'
+
+    def __str__(self):
+        return 'Site settings'
+
+    @classmethod
+    def get_solo(cls):
+        settings, _ = cls.objects.get_or_create(pk=1)
+        return settings
+
+    @property
+    def active_delivery_zones_list(self):
+        return [zone.strip() for zone in self.active_delivery_zones.split(',') if zone.strip()]
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+
 class NewsletterSubscriber(models.Model):
     email = models.EmailField(unique=True)
     source = models.CharField(max_length=100, blank=True, default='website')

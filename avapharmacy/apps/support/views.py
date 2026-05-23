@@ -4,8 +4,9 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import NewsletterSubscriber, SupportTicket, SupportNote
+from .models import NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
 from .serializers import (
+    SiteSettingsSerializer,
     NewsletterSubscriptionRequestSerializer,
     NewsletterSubscriberSerializer,
     SupportTicketSerializer, SupportTicketCreateSerializer,
@@ -13,6 +14,19 @@ from .serializers import (
 )
 from apps.accounts.permissions import IsAdminUser
 from .utils import send_newsletter_subscription_email
+
+
+class SiteSettingsView(generics.RetrieveUpdateAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = SiteSettingsSerializer
+
+    def get_object(self):
+        return SiteSettings.get_solo()
+
+    def update(self, request, *args, **kwargs):
+        if not IsAdminUser().has_permission(request, self):
+            return Response({'detail': 'Only admins can update site settings.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
 
 
 class NewsletterSubscribeView(APIView):
