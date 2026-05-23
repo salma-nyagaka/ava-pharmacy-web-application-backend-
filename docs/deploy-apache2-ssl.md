@@ -1,6 +1,6 @@
 # AvaPharmacy Apache2 SSL Deployment
 
-This guide deploys the Django backend to a DigitalOcean Ubuntu droplet using Apache2 as the public reverse proxy, Gunicorn as the app server, and Certbot for Let's Encrypt SSL.
+This guide deploys the Django backend to a DigitalOcean Ubuntu droplet using Apache2 with `mod_wsgi` as the Django application server and Certbot for Let's Encrypt SSL.
 
 ## Domains
 
@@ -19,8 +19,8 @@ Wait until all required names resolve before requesting SSL certificates.
 
 ```bash
 sudo apt update
-sudo apt install -y apache2 python3-venv python3-pip postgresql postgresql-contrib git certbot python3-certbot-apache
-sudo a2enmod proxy proxy_http headers rewrite ssl
+sudo apt install -y apache2 libapache2-mod-wsgi-py3 python3-venv python3-pip postgresql postgresql-contrib git certbot python3-certbot-apache
+sudo a2enmod wsgi headers rewrite ssl
 sudo systemctl restart apache2
 ```
 
@@ -137,16 +137,7 @@ CREATE DATABASE avapharmacy_production OWNER avapharmacy_production;
 
 ## Deploy Scripts
 
-Copy the repo templates:
-
-```bash
-sudo cp /home/ava/staging/backend/deploy/scripts/deploy-staging-backend.sh /home/ava/deploy-staging-backend.sh
-sudo cp /home/ava/production/backend/deploy/scripts/deploy-production-backend.sh /home/ava/deploy-production-backend.sh
-sudo chmod +x /home/ava/deploy-staging-backend.sh /home/ava/deploy-production-backend.sh
-sudo chown ava:ava /home/ava/deploy-staging-backend.sh /home/ava/deploy-production-backend.sh
-```
-
-Allow the deploy user to restart only the two app services without an interactive password:
+Allow the deploy user to validate and reload Apache without an interactive password:
 
 ```bash
 sudo visudo -f /etc/sudoers.d/avapharmacy-deploy
@@ -155,32 +146,15 @@ sudo visudo -f /etc/sudoers.d/avapharmacy-deploy
 Add:
 
 ```text
-ava ALL=(root) NOPASSWD: /bin/systemctl restart avapharmacy-staging
-ava ALL=(root) NOPASSWD: /bin/systemctl restart avapharmacy-production
+ava ALL=(root) NOPASSWD: /usr/sbin/apache2ctl configtest
+ava ALL=(root) NOPASSWD: /bin/systemctl reload apache2
 ```
 
 Run the first deploy manually:
 
 ```bash
-sudo -iu ava /home/ava/deploy-staging-backend.sh
-sudo -iu ava /home/ava/deploy-production-backend.sh
-```
-
-## Systemd
-
-```bash
-sudo cp /home/ava/staging/backend/deploy/systemd/avapharmacy-staging.service /etc/systemd/system/
-sudo cp /home/ava/production/backend/deploy/systemd/avapharmacy-production.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now avapharmacy-staging
-sudo systemctl enable --now avapharmacy-production
-```
-
-Check services:
-
-```bash
-sudo systemctl status avapharmacy-staging
-sudo systemctl status avapharmacy-production
+sudo -iu ava /home/ava/staging/backend/deploy/scripts/deploy-staging-backend.sh
+sudo -iu ava /home/ava/production/backend/deploy/scripts/deploy-production-backend.sh
 ```
 
 ## Apache
@@ -201,7 +175,7 @@ curl -I http://app-staging.avapharmacy.co.ke
 curl -I http://app-production.avapharmacy.co.ke
 ```
 
-The Apache templates proxy to Gunicorn and send `X-Forwarded-Proto: https`. This matches `SECURE_PROXY_SSL_HEADER` in `avapharmacy.settings.production` and prevents Django HTTPS redirect loops after SSL is enabled.
+The Apache templates run Django through separate `mod_wsgi` daemon process groups for staging and production. They also send `X-Forwarded-Proto: https`, which matches `SECURE_PROXY_SSL_HEADER` in `avapharmacy.settings.production` and prevents Django HTTPS redirect loops after SSL is enabled.
 
 ## SSL
 
@@ -254,8 +228,6 @@ main          -> production  -> https://api-production.avapharmacy.co.ke
 ## Useful Logs
 
 ```bash
-sudo journalctl -u avapharmacy-staging -f
-sudo journalctl -u avapharmacy-production -f
 sudo tail -f /var/log/apache2/avapharmacy-staging-error.log
 sudo tail -f /var/log/apache2/avapharmacy-production-error.log
 ```

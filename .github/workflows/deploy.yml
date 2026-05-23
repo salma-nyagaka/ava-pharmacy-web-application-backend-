@@ -69,7 +69,11 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            /home/ava/deploy-staging-backend.sh
+            cd /home/ava/staging/backend
+            git fetch origin develop
+            git reset --hard origin/develop
+            chmod +x deploy/scripts/deploy-staging-backend.sh
+            ./deploy/scripts/deploy-staging-backend.sh
 
   deploy-production:
     name: Deploy production
@@ -90,4 +94,8 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            /home/ava/deploy-production-backend.sh
+            cd /home/ava/production/backend
+            git fetch origin main
+            git reset --hard origin/main
+            chmod +x deploy/scripts/deploy-production-backend.sh
+            ./deploy/scripts/deploy-production-backend.sh

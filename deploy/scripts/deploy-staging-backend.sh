@@ -16,4 +16,5 @@ python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 python manage.py check --deploy
 
-sudo systemctl restart avapharmacy-staging
+sudo /usr/sbin/apache2ctl configtest
+sudo /bin/systemctl reload apache2
