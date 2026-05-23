@@ -35,7 +35,8 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 ### 2. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+python -c "import sys; print(sys.executable)"
 ```
 
 ### 3. Configure environment
