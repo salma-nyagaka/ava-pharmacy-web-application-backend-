@@ -6,6 +6,7 @@ BRANCH=develop
 export DJANGO_SETTINGS_MODULE=avapharmacy.settings.production
 
 cd "$APP_DIR"
+git remote get-url origin | grep -q 'github.com-backend' && git remote set-url origin "$(git remote get-url origin | sed 's/github.com-backend/github.com/g')" || true
 git fetch origin "$BRANCH"
 git reset --hard "origin/$BRANCH"
 

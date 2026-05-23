@@ -70,6 +70,7 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
             cd /home/ava/staging/backend
+            git remote get-url origin | grep -q 'github.com-backend' && git remote set-url origin "$(git remote get-url origin | sed 's/github.com-backend/github.com/g')" || true
             git fetch origin develop
             git reset --hard origin/develop
             chmod +x deploy/scripts/deploy-staging-backend.sh
@@ -95,6 +96,7 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
             cd /home/ava/production/backend
+            git remote get-url origin | grep -q 'github.com-backend' && git remote set-url origin "$(git remote get-url origin | sed 's/github.com-backend/github.com/g')" || true
             git fetch origin main
             git reset --hard origin/main
             chmod +x deploy/scripts/deploy-production-backend.sh
