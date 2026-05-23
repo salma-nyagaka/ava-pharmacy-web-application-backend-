@@ -93,9 +93,9 @@ DATABASE_USER=avapharmacy_staging
 DATABASE_PASSWORD=replace-with-db-password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
-ALLOWED_HOSTS=app-staging.avapharmacy.co.ke,api-staging.avapharmacy.co.ke
-CSRF_TRUSTED_ORIGINS=https://app-staging.avapharmacy.co.ke,https://api-staging.avapharmacy.co.ke
-CORS_ALLOWED_ORIGINS=https://app-staging.avapharmacy.co.ke,https://api-staging.avapharmacy.co.ke
+ALLOWED_HOSTS=api-staging.avapharmacy.co.ke
+CSRF_TRUSTED_ORIGINS=https://api-staging.avapharmacy.co.ke,https://app-staging.avapharmacy.co.ke
+CORS_ALLOWED_ORIGINS=https://app-staging.avapharmacy.co.ke
 BACKEND_BASE_URL=https://api-staging.avapharmacy.co.ke
 ```
 
@@ -111,9 +111,9 @@ DATABASE_USER=avapharmacy_production
 DATABASE_PASSWORD=replace-with-db-password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
-ALLOWED_HOSTS=app-production.avapharmacy.co.ke,api-production.avapharmacy.co.ke
-CSRF_TRUSTED_ORIGINS=https://app-production.avapharmacy.co.ke,https://api-production.avapharmacy.co.ke
-CORS_ALLOWED_ORIGINS=https://app-production.avapharmacy.co.ke,https://api-production.avapharmacy.co.ke
+ALLOWED_HOSTS=api-production.avapharmacy.co.ke
+CSRF_TRUSTED_ORIGINS=https://api-production.avapharmacy.co.ke,https://app-production.avapharmacy.co.ke
+CORS_ALLOWED_ORIGINS=https://app-production.avapharmacy.co.ke
 BACKEND_BASE_URL=https://api-production.avapharmacy.co.ke
 ```
 
