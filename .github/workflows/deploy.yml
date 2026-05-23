@@ -5,7 +5,6 @@ on:
     branches:
       - develop
       - main
-      - master
   workflow_dispatch:
 
 jobs:
@@ -58,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: staging
-      url: https://app-staging.avapharmacy.co.ke
+      url: https://api-staging.avapharmacy.co.ke
     concurrency:
       group: deploy-staging
       cancel-in-progress: false
@@ -75,11 +74,11 @@ jobs:
   deploy-production:
     name: Deploy production
     needs: checks
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://app-production.avapharmacy.co.ke
+      url: https://api-production.avapharmacy.co.ke
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -91,4 +90,4 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            PRODUCTION_BRANCH=${{ github.ref_name }} /home/ava/deploy-production-backend.sh
+            /home/ava/deploy-production-backend.sh

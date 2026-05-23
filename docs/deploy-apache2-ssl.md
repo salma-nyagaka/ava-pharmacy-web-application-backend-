@@ -7,11 +7,13 @@ This guide deploys the Django backend to a DigitalOcean Ubuntu droplet using Apa
 Create DNS `A` records pointing to the droplet public IPv4 address:
 
 ```text
-app-staging.avapharmacy.co.ke     -> DROPLET_PUBLIC_IP
-app-production.avapharmacy.co.ke  -> DROPLET_PUBLIC_IP
+app-staging.avapharmacy.co.ke      -> DROPLET_PUBLIC_IP
+api-staging.avapharmacy.co.ke      -> DROPLET_PUBLIC_IP
+app-production.avapharmacy.co.ke   -> DROPLET_PUBLIC_IP
+api-production.avapharmacy.co.ke   -> DROPLET_PUBLIC_IP
 ```
 
-Wait until both resolve before requesting SSL certificates.
+Wait until all required names resolve before requesting SSL certificates.
 
 ## Server Packages
 
@@ -91,10 +93,10 @@ DATABASE_USER=avapharmacy_staging
 DATABASE_PASSWORD=replace-with-db-password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
-ALLOWED_HOSTS=app-staging.avapharmacy.co.ke
-CSRF_TRUSTED_ORIGINS=https://app-staging.avapharmacy.co.ke
-CORS_ALLOWED_ORIGINS=https://app-staging.avapharmacy.co.ke
-BACKEND_BASE_URL=https://app-staging.avapharmacy.co.ke
+ALLOWED_HOSTS=app-staging.avapharmacy.co.ke,api-staging.avapharmacy.co.ke
+CSRF_TRUSTED_ORIGINS=https://app-staging.avapharmacy.co.ke,https://api-staging.avapharmacy.co.ke
+CORS_ALLOWED_ORIGINS=https://app-staging.avapharmacy.co.ke,https://api-staging.avapharmacy.co.ke
+BACKEND_BASE_URL=https://api-staging.avapharmacy.co.ke
 ```
 
 Minimum production values:
@@ -109,10 +111,10 @@ DATABASE_USER=avapharmacy_production
 DATABASE_PASSWORD=replace-with-db-password
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
-ALLOWED_HOSTS=app-production.avapharmacy.co.ke
-CSRF_TRUSTED_ORIGINS=https://app-production.avapharmacy.co.ke
-CORS_ALLOWED_ORIGINS=https://app-production.avapharmacy.co.ke
-BACKEND_BASE_URL=https://app-production.avapharmacy.co.ke
+ALLOWED_HOSTS=app-production.avapharmacy.co.ke,api-production.avapharmacy.co.ke
+CSRF_TRUSTED_ORIGINS=https://app-production.avapharmacy.co.ke,https://api-production.avapharmacy.co.ke
+CORS_ALLOWED_ORIGINS=https://app-production.avapharmacy.co.ke,https://api-production.avapharmacy.co.ke
+BACKEND_BASE_URL=https://api-production.avapharmacy.co.ke
 ```
 
 Add your payment, email, POS, and frontend URL values from `.env.example`.
@@ -206,8 +208,8 @@ The Apache templates proxy to Gunicorn and send `X-Forwarded-Proto: https`. This
 Request certificates and let Certbot update the Apache virtual hosts:
 
 ```bash
-sudo certbot --apache -d app-staging.avapharmacy.co.ke
-sudo certbot --apache -d app-production.avapharmacy.co.ke
+sudo certbot --apache -d app-staging.avapharmacy.co.ke -d api-staging.avapharmacy.co.ke
+sudo certbot --apache -d app-production.avapharmacy.co.ke -d api-production.avapharmacy.co.ke
 ```
 
 Choose the redirect option so HTTP redirects to HTTPS.
@@ -245,11 +247,9 @@ DROPLET_SSH_KEY   private key allowed to SSH as ava
 The workflow deploys:
 
 ```text
-develop       -> staging     -> https://app-staging.avapharmacy.co.ke
-main/master   -> production  -> https://app-production.avapharmacy.co.ke
+develop       -> staging     -> https://api-staging.avapharmacy.co.ke
+main          -> production  -> https://api-production.avapharmacy.co.ke
 ```
-
-If your production branch is `master`, the workflow passes `PRODUCTION_BRANCH=master` to the production deploy script. If it is `main`, it passes `PRODUCTION_BRANCH=main`.
 
 ## Useful Logs
 
