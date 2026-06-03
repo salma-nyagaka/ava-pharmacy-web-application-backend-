@@ -404,7 +404,7 @@ def notify_order_update(order, title=None, message=None, *, send_email=None, sen
         return
     try:
         preferences = get_notification_preferences(order.customer)
-        email_enabled = bool(preferences and preferences.order_updates_email) if send_email is None else bool(send_email)
+        email_enabled = True if send_email is None else bool(send_email)
         create_notification(
             recipient=order.customer,
             notification_type='order_status',

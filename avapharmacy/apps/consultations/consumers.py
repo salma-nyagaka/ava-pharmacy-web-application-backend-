@@ -6,7 +6,7 @@ from django.contrib.auth.models import AnonymousUser
 try:  # pragma: no cover - optional dependency in local dev
     from channels.db import database_sync_to_async
     from channels.generic.websocket import AsyncJsonWebsocketConsumer
-    from rest_framework_simplejwt.authentication import JWTAuthentication
+    from avapharmacy.authentication import ActiveUserJWTAuthentication as JWTAuthentication
 except Exception:  # pragma: no cover
     AsyncJsonWebsocketConsumer = object
     database_sync_to_async = None

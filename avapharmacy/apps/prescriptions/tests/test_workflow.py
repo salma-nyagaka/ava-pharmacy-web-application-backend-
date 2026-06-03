@@ -1,18 +1,21 @@
 import json
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Pharmacist, User
+from apps.notifications.models import Notification, NotificationPreference
+from apps.orders.models import CartItem
 from apps.prescriptions.models import (
     Prescription,
     PrescriptionClarificationMessage,
     PrescriptionFile,
     PrescriptionReviewDecision,
 )
-from apps.products.models import Product
+from apps.products.models import Product, VariantInventory
 
 
 class PrescriptionWorkflowTests(TestCase):
@@ -43,8 +46,19 @@ class PrescriptionWorkflowTests(TestCase):
             is_active=True,
             requires_prescription=True,
         )
+        self.variant = self.product.get_representative_variant()
+        VariantInventory.objects.update_or_create(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 20, 'low_stock_threshold': 3},
+        )
 
     def test_upload_queue_assign_and_approve_prescription(self):
+        NotificationPreference.objects.create(
+            user=self.customer,
+            email_enabled=False,
+            order_updates_email=False,
+        )
         self.client.force_authenticate(self.customer)
         upload_response = self.client.post(
             reverse('prescription-upload'),
@@ -92,6 +106,16 @@ class PrescriptionWorkflowTests(TestCase):
         self.assertEqual(decision.from_status, Prescription.STATUS_PENDING)
         self.assertEqual(decision.to_status, Prescription.STATUS_APPROVED)
         self.assertEqual(decision.pharmacist, self.pharmacist)
+        cart_item = CartItem.objects.get(cart__user=self.customer, prescription=prescription)
+        self.assertEqual(cart_item.variant, self.variant)
+        self.assertEqual(cart_item.quantity, 1)
+        self.assertEqual(cart_item.prescription_reference, prescription.reference)
+        notifications = Notification.objects.filter(recipient=self.customer, type='prescription_status')
+        self.assertTrue(notifications.filter(message__icontains='has been approved').exists())
+        self.assertTrue(notifications.filter(message__icontains='added to your cart').exists())
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertTrue(all(message.to == [self.customer.email] for message in mail.outbox))
+        self.assertTrue(any('added to your cart' in message.body for message in mail.outbox))
 
     def test_pharmacist_requires_prescription_review_permission(self):
         restricted = User.objects.create_user(
@@ -208,6 +232,8 @@ class PrescriptionWorkflowTests(TestCase):
         latest_message = prescription.clarification_messages.order_by('-created_at').first()
         self.assertEqual(latest_message.sender_role, PrescriptionClarificationMessage.SENDER_PATIENT)
         self.assertIn('after supper', latest_message.message)
+        self.assertTrue(Notification.objects.filter(recipient=self.pharmacist, title__icontains='Clarification response').exists())
+        self.assertTrue(any(message.to == [self.pharmacist.email] for message in mail.outbox))
 
     def test_missing_uploaded_file_is_omitted_from_prescription_payload(self):
         prescription = Prescription.objects.create(

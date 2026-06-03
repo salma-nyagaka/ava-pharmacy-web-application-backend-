@@ -5,6 +5,8 @@ Provides endpoints for user registration, login, logout, profile management,
 address management, admin user CRUD, user suspension/activation, user notes,
 and the admin audit log.
 """
+import logging
+
 from rest_framework import generics, status, permissions
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
@@ -53,6 +55,8 @@ from .utils import (
     send_password_reset_email,
 )
 from apps.lab.models import LabPartner
+
+logger = logging.getLogger(__name__)
 
 
 class RegisterView(generics.CreateAPIView):
@@ -405,12 +409,24 @@ class AdminPharmacistActivationResendView(APIView):
             return Response({'detail': 'This account is already activated.'}, status=status.HTTP_400_BAD_REQUEST)
 
         token, raw_token = issue_pharmacist_activation_token(user, created_by=request.user)
-        send_pharmacist_activation_email(
-            user=user,
-            raw_token=raw_token,
-            request=request,
-            invited_by=request.user,
-        )
+        activation_email = {
+            'sent_to': user.email,
+            'sent': True,
+            'expires_at': token.expires_at,
+        }
+        try:
+            send_pharmacist_activation_email(
+                user=user,
+                raw_token=raw_token,
+                request=request,
+                invited_by=request.user,
+            )
+        except Exception as exc:
+            logger.exception('Failed to resend staff activation email for user %s.', user.id)
+            activation_email.update({
+                'sent': False,
+                'error': str(exc) or exc.__class__.__name__,
+            })
         log_admin_action(
             request.user,
             action='staff_activation_resent',
@@ -420,11 +436,8 @@ class AdminPharmacistActivationResendView(APIView):
             metadata={'expires_at': token.expires_at.isoformat(), 'role': user.role},
         )
         return Response({
-            'detail': 'Activation email resent successfully.',
-            'activation_email': {
-                'sent_to': user.email,
-                'expires_at': token.expires_at,
-            },
+            'detail': 'Activation email resent successfully.' if activation_email['sent'] else 'Activation token created, but email delivery failed.',
+            'activation_email': activation_email,
         })
 
 

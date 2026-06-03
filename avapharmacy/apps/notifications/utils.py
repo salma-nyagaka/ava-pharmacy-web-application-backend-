@@ -39,7 +39,7 @@ def create_notification(recipient, notification_type, title, message, data=None,
         _push_to_websocket(recipient.id, NotificationSerializer(notification).data)
 
         preferences = get_notification_preferences(recipient)
-        if send_email and preferences and preferences.email_enabled:
+        if send_email:
             deliver_email(notification, recipient.email, title, message)
         if send_sms and preferences and preferences.sms_enabled and recipient.phone:
             deliver_sms(notification, recipient.phone, message)
@@ -214,13 +214,12 @@ def notify_order_status(order):
         send_email=False,
         send_sms=bool(preferences and preferences.order_updates_sms),
     )
-    if preferences and preferences.order_updates_email:
-        queue_order_status_email(
-            order,
-            subject=f'Order {order.order_number} Updated',
-            heading=f'Order {order.order_number} updated',
-            intro=f'Your order status is now {order.get_status_display()}.',
-        )
+    queue_order_status_email(
+        order,
+        subject=f'Order {order.order_number} Updated',
+        heading=f'Order {order.order_number} updated',
+        intro=f'Your order status is now {order.get_status_display()}.',
+    )
 
 
 def notify_prescription_status(prescription):

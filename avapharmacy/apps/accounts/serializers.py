@@ -5,6 +5,7 @@ Covers user registration/login, profile read/update, admin user management,
 address management, password change, user notes, and audit log output.
 """
 import json
+import logging
 
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
@@ -26,6 +27,8 @@ from .utils import (
     send_pharmacist_activation_email,
     split_full_name,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def validate_unique_phone(phone, instance=None):
@@ -161,7 +164,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
             'id', 'email', 'first_name', 'last_name', 'full_name',
             'phone', 'role', 'status', 'address', 'total_orders',
             'last_order_date', 'default_address', 'recent_orders', 'total_spend',
-            'date_joined', 'pharmacist_permissions'
+            'date_joined', 'is_active', 'pharmacist_permissions'
         )
 
     def get_pharmacist_permissions(self, obj):
@@ -273,16 +276,27 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 updated_by=actor if getattr(actor, 'is_authenticated', False) else None,
             )
             token, raw_token = issue_pharmacist_activation_token(user, created_by=actor)
-            send_pharmacist_activation_email(
-                user=user,
-                raw_token=raw_token,
-                request=request,
-                invited_by=actor,
-            )
             self.activation_email_meta = {
                 'sent_to': user.email,
+                'sent': True,
                 'expires_at': token.expires_at,
             }
+            try:
+                send_pharmacist_activation_email(
+                    user=user,
+                    raw_token=raw_token,
+                    request=request,
+                    invited_by=actor,
+                )
+            except Exception as exc:
+                logger.exception(
+                    'Failed to send pharmacist activation email for user %s.',
+                    user.id,
+                )
+                self.activation_email_meta.update({
+                    'sent': False,
+                    'error': str(exc) or exc.__class__.__name__,
+                })
         elif user.role == User.CUSTOMER:
             Customer.objects.create(
                 user=user,

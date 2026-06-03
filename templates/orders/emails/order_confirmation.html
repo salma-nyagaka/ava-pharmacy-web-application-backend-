@@ -5,96 +5,92 @@
 {% block intro %}{{ email_intro }}{% endblock %}
 
 {% block content %}
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#fff6f8;border:1px solid #ffd1db;border-radius:12px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 14px;background:#fff6f8;border:1px solid #ffd1db;border-radius:12px;">
     <tr>
-      <td style="padding:16px 18px;">
-        <p style="margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#991b1f;">Order number</p>
-        <p style="margin:0 0 16px;font-size:24px;font-weight:800;color:#14213d;">{{ order.order_number }}</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Order date:</strong> {{ placed_at_display }}</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Order status:</strong> {{ order_status_label }}</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Payment method:</strong> {{ payment_method_label }}</p>
-        <p style="margin:0;font-size:14px;line-height:1.6;"><strong>Payment status:</strong> {{ payment_status_label }}</p>
+      <td style="padding:14px 16px;">
+        <p style="margin:0 0 5px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#991b1f;">Order number</p>
+        <p style="margin:0;font-size:22px;font-weight:800;color:#14213d;">{{ order.order_number }}</p>
+      </td>
+      <td align="right" style="padding:14px 16px;font-size:13px;line-height:1.7;color:#4a5568;">
+        <strong style="color:#14213d;">{{ order_status_label }}</strong><br>
+        {{ placed_at_display }}
       </td>
     </tr>
   </table>
 
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;border:1px solid #e6e8ef;border-radius:12px;overflow:hidden;background:#ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 14px;border:1px solid #e6e8ef;border-radius:12px;overflow:hidden;background:#ffffff;">
     <tr>
-      <td style="padding:16px 18px;border-bottom:1px solid #eef1f5;">
-        <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#14213d;">Customer and delivery details</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Name:</strong> {{ customer_full_name }}</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Email:</strong> {{ shipping_email }}</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Phone:</strong> {{ shipping_phone }}</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Delivery method:</strong> {{ delivery_method_label }}{% if shipping_method_name %} · {{ shipping_method_name }}{% endif %}</p>
-        {% if shipping_window %}
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>Estimated delivery:</strong> {{ shipping_window }}</p>
-        {% endif %}
-        <p style="margin:0;font-size:14px;line-height:1.6;"><strong>Delivery address:</strong> {{ shipping_address }}</p>
-        {% if delivery_notes %}
-        <p style="margin:10px 0 0;font-size:14px;line-height:1.6;"><strong>Delivery notes:</strong> {{ delivery_notes }}</p>
-        {% endif %}
+      <td width="50%" style="padding:12px 14px;border-right:1px solid #eef1f5;vertical-align:top;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:800;color:#14213d;">Payment</p>
+        <p style="margin:0 0 4px;font-size:13px;color:#4a5568;"><strong>Method:</strong> {{ payment_method_label }}</p>
+        <p style="margin:0;font-size:13px;color:#4a5568;"><strong>Status:</strong> {{ payment_status_label }}</p>
+      </td>
+      <td width="50%" style="padding:12px 14px;vertical-align:top;">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:800;color:#14213d;">Customer</p>
+        <p style="margin:0 0 4px;font-size:13px;color:#4a5568;">{{ customer_full_name }}</p>
+        <p style="margin:0;font-size:13px;color:#4a5568;">{{ shipping_email }} · {{ shipping_phone }}</p>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="padding:12px 14px;border-top:1px solid #eef1f5;font-size:13px;line-height:1.55;color:#4a5568;">
+        <strong style="color:#14213d;">Delivery:</strong>
+        {{ delivery_method_label }}{% if shipping_method_name %} · {{ shipping_method_name }}{% endif %}
+        {% if shipping_window %} · {{ shipping_window }}{% endif %}<br>
+        <strong style="color:#14213d;">Address:</strong> {{ shipping_address }}
+        {% if delivery_notes %}<br><strong style="color:#14213d;">Notes:</strong> {{ delivery_notes }}{% endif %}
       </td>
     </tr>
   </table>
 
-  <p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#14213d;">Products in this order</p>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;border:1px solid #e6e8ef;border-radius:12px;overflow:hidden;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 14px;border:1px solid #e6e8ef;border-radius:12px;overflow:hidden;">
+    <tr>
+      <td colspan="3" style="padding:11px 14px;background:#f8fafc;border-bottom:1px solid #eef1f5;font-size:13px;font-weight:800;color:#14213d;">
+        Products in this order
+      </td>
+    </tr>
     {% for item in items %}
     <tr>
-      <td style="padding:14px 16px;border-bottom:1px solid #eef1f5;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-          <tr>
-            {% if item.image_url %}
-            <td width="72" style="padding-right:12px;vertical-align:top;">
-              <img src="{{ item.image_url }}" alt="{{ item.name }}" width="72" height="72" style="display:block;width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid #eef1f5;">
-            </td>
-            {% endif %}
-            <td style="vertical-align:top;">
-              <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#14213d;">{{ item.name }}</p>
-              <p style="margin:0;font-size:13px;color:#5b6576;">Qty {{ item.quantity }} • KSh {{ item.unit_price }} each</p>
-            </td>
-            <td align="right" style="vertical-align:top;font-size:14px;font-weight:700;color:#14213d;">
-              KSh {{ item.subtotal }}
-            </td>
-          </tr>
-        </table>
+      <td style="padding:10px 14px;border-bottom:1px solid #eef1f5;vertical-align:top;">
+        <p style="margin:0;font-size:13px;font-weight:700;color:#14213d;">{{ item.name }}</p>
+        <p style="margin:3px 0 0;font-size:12px;color:#5b6576;">Qty {{ item.quantity }} · KSh {{ item.unit_price }} each</p>
+      </td>
+      <td align="right" style="padding:10px 14px;border-bottom:1px solid #eef1f5;vertical-align:top;font-size:13px;font-weight:700;color:#14213d;white-space:nowrap;">
+        KSh {{ item.subtotal }}
       </td>
     </tr>
     {% endfor %}
     <tr>
-      <td style="padding:14px 16px;font-size:14px;color:#5b6576;">Subtotal <span style="float:right;color:#14213d;">KSh {{ order.subtotal }}</span></td>
+      <td style="padding:10px 14px 3px;font-size:13px;color:#5b6576;">Subtotal</td>
+      <td align="right" style="padding:10px 14px 3px;font-size:13px;color:#14213d;">KSh {{ order.subtotal }}</td>
     </tr>
     <tr>
-      <td style="padding:0 16px 14px;font-size:14px;color:#5b6576;">Shipping <span style="float:right;color:#14213d;">KSh {{ order.shipping_fee }}</span></td>
+      <td style="padding:3px 14px;font-size:13px;color:#5b6576;">Shipping</td>
+      <td align="right" style="padding:3px 14px;font-size:13px;color:#14213d;">KSh {{ order.shipping_fee }}</td>
     </tr>
     <tr>
-      <td style="padding:0 16px 16px;font-size:15px;font-weight:800;color:#14213d;">Total <span style="float:right;">KSh {{ order.total }}</span></td>
+      <td style="padding:8px 14px 12px;font-size:15px;font-weight:800;color:#14213d;">Total</td>
+      <td align="right" style="padding:8px 14px 12px;font-size:15px;font-weight:800;color:#14213d;">KSh {{ order.total }}</td>
     </tr>
   </table>
 
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f8fafc;border:1px solid #e6e8ef;border-radius:12px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 14px;background:#f8fafc;border:1px solid #e6e8ef;border-radius:12px;">
     <tr>
-      <td style="padding:16px 18px;">
-        <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#14213d;">What happens next</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.7;color:#4a5568;">We are reviewing your order and preparing the items listed above.</p>
-        <p style="margin:0 0 8px;font-size:14px;line-height:1.7;color:#4a5568;">You can use your order number <strong>{{ order.order_number }}</strong> to track progress at any time.</p>
-        <p style="margin:0;font-size:14px;line-height:1.7;color:#4a5568;">If we need clarification about your delivery or stock availability, our team will contact you using the details in this order.</p>
+      <td style="padding:12px 14px;font-size:13px;line-height:1.6;color:#4a5568;">
+        <strong style="display:block;margin-bottom:5px;color:#14213d;">What happens next</strong>
+        We are reviewing and preparing your order. Track progress any time with <strong>{{ order.order_number }}</strong>. If we need clarification about delivery or stock availability, our team will contact you using the details above.
       </td>
     </tr>
   </table>
 
-  <p style="margin:0 0 14px;">
+  <p style="margin:0 0 10px;">
     <a href="{{ account_order_url }}"
-       style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
+       style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:11px 16px;border-radius:10px;font-size:14px;">
       {{ primary_cta_label }}
     </a>
   </p>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">
-    Prefer public tracking? <a href="{{ track_order_url }}" style="color:#e81750;text-decoration:none;">Track this order</a>.
-  </p>
-  <p style="margin:0;font-size:14px;line-height:1.7;color:#4a5568;">
-    Need help with this order? Contact
-    <a href="mailto:{{ support_email }}" style="color:#e81750;text-decoration:none;">{{ support_email }}</a>.
+  <p style="margin:0;font-size:13px;line-height:1.6;color:#4a5568;">
+    Public tracking: <a href="{{ track_order_url }}" style="color:#e81750;text-decoration:none;">Track this order</a>
+    · Support: <a href="mailto:{{ support_email }}" style="color:#e81750;text-decoration:none;">{{ support_email }}</a>
   </p>
 {% endblock %}
 

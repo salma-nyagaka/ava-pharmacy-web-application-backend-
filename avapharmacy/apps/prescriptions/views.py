@@ -55,6 +55,94 @@ def _product_availability_error(product, requested_quantity):
     return f'{product.name} only has {product.available_quantity} unit(s) available.'
 
 
+def _variant_availability_error(variant, requested_quantity):
+    if not variant or not variant.is_active:
+        return 'No active variant is available.'
+    if requested_quantity <= variant.available_quantity:
+        return None
+    if variant.available_quantity == 0:
+        return f'{variant.product.name} is out of stock.'
+    return f'{variant.product.name} only has {variant.available_quantity} unit(s) available.'
+
+
+def _add_approved_prescription_items_to_cart(prescription):
+    if not prescription.patient_id:
+        return {'added': 0, 'skipped': ['Prescription has no patient account.']}
+
+    cart = _get_or_create_cart(prescription.patient)
+    added = 0
+    skipped = []
+
+    for item in prescription.items.select_related('product'):
+        if not item.product or not item.product.is_active:
+            skipped.append(f'{item.name} is not linked to an active product.')
+            continue
+
+        variant = item.product.get_representative_variant()
+        if variant is None:
+            skipped.append(f'{item.product.name} has no active variant.')
+            continue
+
+        quantity = max(1, item.quantity or 1)
+        error = _variant_availability_error(variant, quantity)
+        if error:
+            skipped.append(error)
+            continue
+
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            variant=variant,
+            prescription=prescription,
+            prescription_item=item,
+            defaults={
+                'quantity': quantity,
+                'prescription_reference': prescription.reference,
+            },
+        )
+        if not created:
+            update_fields = []
+            if cart_item.quantity != quantity:
+                cart_item.quantity = quantity
+                update_fields.append('quantity')
+            if cart_item.prescription_reference != prescription.reference:
+                cart_item.prescription_reference = prescription.reference
+                update_fields.append('prescription_reference')
+            if update_fields:
+                cart_item.save(update_fields=update_fields)
+        added += 1
+
+    return {'added': added, 'skipped': skipped}
+
+
+def _notify_prescription_cart_ready(prescription, result):
+    if not prescription.patient_id or result['added'] < 1:
+        return
+
+    item_word = 'item' if result['added'] == 1 else 'items'
+    skipped_suffix = ''
+    if result['skipped']:
+        skipped_suffix = f" {len(result['skipped'])} item(s) need staff follow-up."
+
+    create_notification(
+        recipient=prescription.patient,
+        notification_type='prescription_status',
+        title=f'Prescription {prescription.reference} added to cart',
+        message=(
+            f'Your prescription was approved and {result["added"]} approved {item_word} '
+            f'were added to your cart. You can now review your cart and checkout.'
+            f'{skipped_suffix}'
+        ),
+        data={
+            'url': '/cart',
+            'reference': prescription.reference,
+            'prescription_id': prescription.id,
+            'cart_items_added': result['added'],
+            'skipped_items': result['skipped'],
+        },
+        send_email=True,
+    )
+
+
 def _is_controlled_substance(*values):
     haystack = ' '.join(str(value or '').lower() for value in values)
     return any(keyword in haystack for keyword in CONTROLLED_SUBSTANCE_KEYWORDS)
@@ -444,6 +532,26 @@ class PharmacistPrescriptionReviewView(APIView):
             notes=notes,
             performed_by=request.user,
         )
+        if prescription.status == Prescription.STATUS_APPROVED:
+            cart_result = _add_approved_prescription_items_to_cart(prescription)
+            if cart_result['added']:
+                PrescriptionAuditLog.objects.create(
+                    prescription=prescription,
+                    action='Approved prescription items added to customer cart',
+                    notes=(
+                        f'Added {cart_result["added"]} item(s) to cart.'
+                        + (f' Skipped: {"; ".join(cart_result["skipped"])}' if cart_result['skipped'] else '')
+                    ),
+                    performed_by=request.user,
+                )
+            elif cart_result['skipped']:
+                PrescriptionAuditLog.objects.create(
+                    prescription=prescription,
+                    action='Approved prescription items could not be added to customer cart',
+                    notes='; '.join(cart_result['skipped']),
+                    performed_by=request.user,
+                )
+            _notify_prescription_cart_ready(prescription, cart_result)
         return Response(PrescriptionSerializer(prescription).data)
 
 
@@ -548,6 +656,7 @@ class PrescriptionClarificationReplyView(APIView):
                     'prescription_id': prescription.id,
                     'status': prescription.status,
                 },
+                send_email=True,
             )
 
         return Response(PrescriptionSerializer(prescription).data, status=status.HTTP_201_CREATED)

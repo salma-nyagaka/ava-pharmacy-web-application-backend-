@@ -77,6 +77,7 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(order_response.status_code, 201)
 
         order = Order.objects.get(customer=self.customer)
+        self.assertTrue(order.order_number.startswith('AVA-'))
         self.assertEqual(order.status, Order.STATUS_PENDING)
         self.assertEqual(order.payment_method, Order.PAYMENT_COD)
         self.assertEqual(order.total, Decimal('1400.00') + order.shipping_fee)
@@ -94,6 +95,45 @@ class OrderCreationFlowTests(TestCase):
         self.assertIn(order.order_number, mail.outbox[0].subject)
         self.assertTrue(mail.outbox[0].alternatives)
         self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])
+
+    def test_customer_cannot_add_out_of_stock_variant_to_cart(self):
+        VariantInventory.objects.filter(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+        ).update(stock_quantity=0)
+
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(
+            reverse('cart-items'),
+            {
+                'product_id': self.product.id,
+                'variant_id': self.variant.id,
+                'quantity': 1,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('out of stock', response.data['detail'])
+        self.assertFalse(CartItem.objects.filter(cart__user=self.customer, variant=self.variant).exists())
+
+    def test_cart_item_is_removed_and_customer_emailed_when_stock_becomes_unavailable(self):
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(cart=cart, variant=self.variant, quantity=2)
+        inventory = VariantInventory.objects.get(variant=self.variant, location=Product.STOCK_BRANCH)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            inventory.stock_quantity = 0
+            inventory.save(update_fields=['stock_quantity', 'updated_at'])
+
+        self.assertFalse(CartItem.objects.filter(cart=cart, variant=self.variant).exists())
+        notification = Notification.objects.get(recipient=self.customer, type=Notification.SYSTEM)
+        self.assertEqual(notification.title, 'Cart item removed')
+        self.assertIn('out of stock', notification.message)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.customer.email])
+        self.assertIn('Cart item removed', mail.outbox[0].subject)
 
     def test_prescription_cart_item_uses_foreign_keys_and_order_snapshot_preserves_them(self):
         self.variant.requires_prescription = True

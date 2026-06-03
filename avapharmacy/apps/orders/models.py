@@ -7,6 +7,9 @@ from django.utils import timezone
 from apps.products.models import Variant
 
 
+ORDER_NUMBER_PREFIX = 'AVA-'
+
+
 class Coupon(models.Model):
     TYPE_PERCENTAGE = 'percentage'
     TYPE_FIXED = 'fixed'
@@ -317,7 +320,7 @@ class Order(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.order_number:
-            self.order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
+            self.order_number = f"{ORDER_NUMBER_PREFIX}{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
     @property

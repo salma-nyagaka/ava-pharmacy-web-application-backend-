@@ -1,13 +1,24 @@
 import re
+from datetime import timedelta
+from unittest.mock import patch
 
+from django.conf import settings
 from django.core import mail
 from django.test import override_settings
+from django.test import SimpleTestCase
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Address, PaymentMethod, Pharmacist, PharmacistActivationToken, User
 from apps.notifications.models import NotificationPreference
+
+
+class JWTSettingsTests(SimpleTestCase):
+    def test_login_tokens_expire_after_24_hours(self):
+        self.assertEqual(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'], timedelta(hours=24))
+        self.assertEqual(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'], timedelta(hours=24))
 
 
 class AccountSelfServiceTests(TestCase):
@@ -69,6 +80,33 @@ class AccountSelfServiceTests(TestCase):
         self.assertFalse(preferences.sms_enabled)
         self.assertTrue(preferences.marketing_enabled)
         self.assertFalse(preferences.order_updates_sms)
+
+    def test_suspended_user_cannot_login(self):
+        self.user.status = User.STATUS_SUSPENDED
+        self.user.is_active = False
+        self.user.save(update_fields=['status', 'is_active', 'updated_at'])
+
+        client = APIClient()
+        response = client.post(
+            reverse('login'),
+            {'email': self.user.email, 'password': 'testpass123'},
+            format='json',
+        )
+
+        self.assertIn(response.status_code, (401, 403))
+
+    def test_suspended_user_existing_access_token_is_rejected(self):
+        token = str(RefreshToken.for_user(self.user).access_token)
+        self.user.status = User.STATUS_SUSPENDED
+        self.user.is_active = False
+        self.user.save(update_fields=['status', 'is_active', 'updated_at'])
+
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        response = client.get(reverse('me'))
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.data['error']['message'], 'Account suspended. Contact support.')
 
     def test_customer_can_manage_saved_payment_methods(self):
         create_response = self.client.post(
@@ -205,6 +243,7 @@ class AdminPharmacistAccountTests(TestCase):
         self.assertEqual(response.status_code, 201)
         pharmacist_user = User.objects.get(email='pharmacist@example.com')
         self.assertFalse(pharmacist_user.is_active)
+        self.assertFalse(response.data['user']['is_active'])
         self.assertEqual(pharmacist_user.role, User.PHARMACIST)
         self.assertEqual(
             pharmacist_user.pharmacist.permissions,
@@ -212,6 +251,7 @@ class AdminPharmacistAccountTests(TestCase):
         )
         self.assertEqual(PharmacistActivationToken.objects.filter(user=pharmacist_user, used_at__isnull=True).count(), 1)
         self.assertEqual(response.data['activation_email']['sent_to'], pharmacist_user.email)
+        self.assertTrue(response.data['activation_email']['sent'])
         self.assertEqual(len(mail.outbox), 1)
 
         match = re.search(r'/activate/([^/\s]+)/', mail.outbox[0].body)
@@ -251,3 +291,49 @@ class AdminPharmacistAccountTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('pharmacist_permissions', response.data['error']['details'])
         self.assertFalse(User.objects.filter(email='bad-permission@example.com').exists())
+
+    @patch('apps.accounts.serializers.send_pharmacist_activation_email')
+    def test_admin_pharmacist_creation_survives_activation_email_timeout(self, send_activation_email):
+        send_activation_email.side_effect = TimeoutError('SMTP timed out')
+
+        response = self.client.post(
+            reverse('admin-users'),
+            {
+                'email': 'pharmacist-timeout@example.com',
+                'first_name': 'Email',
+                'last_name': 'Timeout',
+                'phone': '+254700001003',
+                'role': User.PHARMACIST,
+                'pharmacist_permissions': [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        pharmacist_user = User.objects.get(email='pharmacist-timeout@example.com')
+        self.assertFalse(pharmacist_user.is_active)
+        self.assertEqual(PharmacistActivationToken.objects.filter(user=pharmacist_user, used_at__isnull=True).count(), 1)
+        self.assertEqual(response.data['activation_email']['sent_to'], pharmacist_user.email)
+        self.assertFalse(response.data['activation_email']['sent'])
+        self.assertIn('SMTP timed out', response.data['activation_email']['error'])
+
+    @patch('apps.accounts.views.send_pharmacist_activation_email')
+    def test_admin_resend_activation_reports_email_delivery_failure(self, send_activation_email):
+        pharmacist_user = User.objects.create_user(
+            email='pending-pharmacist@example.com',
+            first_name='Pending',
+            last_name='Pharmacist',
+            role=User.PHARMACIST,
+            phone='+254700001004',
+            is_active=False,
+        )
+        Pharmacist.objects.create(user=pharmacist_user)
+        send_activation_email.side_effect = TimeoutError('SMTP timed out')
+
+        response = self.client.post(reverse('admin-user-resend-activation', args=[pharmacist_user.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['activation_email']['sent_to'], pharmacist_user.email)
+        self.assertFalse(response.data['activation_email']['sent'])
+        self.assertIn('SMTP timed out', response.data['activation_email']['error'])
+        self.assertEqual(PharmacistActivationToken.objects.filter(user=pharmacist_user, used_at__isnull=True).count(), 1)
