@@ -68,6 +68,28 @@ UNCOVER_VARIANTS = {
     'UNC-SUN-001': 'Uncover Mini Aloe Invisible Sunscreen SPF50+',
 }
 
+DUPLICATE_FAMILY_GROUPS = {
+    'panadol': {
+        'family_name': 'Panadol',
+        'family_sku': 'OTC-PR-001',
+        'product_name_prefix': 'Panadol',
+        'variant_names': {
+            'OTC-PR-001': 'Panadol Extra Pain Reliever Tablets',
+            'dsad': 'Panadol dsad',
+            'PANADOL-500-TMP2': 'Panadol 500',
+        },
+    },
+    'vitamin_c': {
+        'family_name': 'Vitamin C',
+        'family_sku': 'VIT-VC-001',
+        'product_name_prefix': 'Vitamin C',
+        'variant_names': {
+            'VIT-VC-001': 'Vitamin C 1000mg Effervescent Tablets 20s',
+            'WISHTMP-TAB': 'Vitamin C Tablets',
+        },
+    },
+}
+
 
 class Command(BaseCommand):
     help = 'Normalize products as parent families and variants as sellable items.'
@@ -157,9 +179,53 @@ class Command(BaseCommand):
 
         return moved, renamed, removed_empty_products
 
+    def _normalize_duplicate_families(self):
+        moved = 0
+        renamed = 0
+        removed_empty_products = 0
+
+        for config in DUPLICATE_FAMILY_GROUPS.values():
+            family = Product.objects.filter(sku=config['family_sku']).first()
+            if not family:
+                family = Product.objects.filter(name__iexact=config['family_name']).order_by('id').first()
+            if not family:
+                continue
+
+            if family.name != config['family_name']:
+                self._rename_product(family, config['family_name'])
+
+            products = Product.objects.filter(
+                name__istartswith=config['product_name_prefix'],
+            ).exclude(pk=family.pk).order_by('id')
+            old_product_ids = set()
+
+            for product in products:
+                for variant in product.variants.all().order_by('id'):
+                    old_product_ids.add(product.pk)
+                    variant.product = family
+                    variant_name = config['variant_names'].get(variant.sku) or product.name
+                    if variant.name in {'Standard', '', 'N/A'} or variant.name != variant_name:
+                        variant.name = variant_name
+                        renamed += 1
+                    variant.save(update_fields=['product', 'name', 'updated_at'])
+                    moved += 1
+
+            for sort_order, variant in enumerate(family.variants.order_by('id')):
+                if variant.sort_order != sort_order:
+                    variant.sort_order = sort_order
+                    variant.save(update_fields=['sort_order', 'updated_at'])
+
+            for product in Product.objects.filter(pk__in=old_product_ids):
+                if not product.variants.exists():
+                    product.delete()
+                    removed_empty_products += 1
+
+        return moved, renamed, removed_empty_products
+
     def handle(self, *args, **options):
         renamed_products, renamed_variants, cleaned_strengths = self._normalize_standard_variants()
         moved_uncover, renamed_uncover, removed_uncover_products = self._normalize_uncover()
+        moved_duplicates, renamed_duplicates, removed_duplicate_products = self._normalize_duplicate_families()
 
         self.stdout.write(self.style.SUCCESS(
             'Product family normalization complete: '
@@ -168,5 +234,8 @@ class Command(BaseCommand):
             f'{cleaned_strengths} placeholder strengths cleaned, '
             f'{moved_uncover} Uncover variants moved, '
             f'{renamed_uncover} Uncover variants renamed, '
-            f'{removed_uncover_products} empty Uncover product rows removed.'
+            f'{removed_uncover_products} empty Uncover product rows removed, '
+            f'{moved_duplicates} duplicate-family variants moved, '
+            f'{renamed_duplicates} duplicate-family variants renamed, '
+            f'{removed_duplicate_products} duplicate-family product rows removed.'
         ))
