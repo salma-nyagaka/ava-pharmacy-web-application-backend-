@@ -638,7 +638,15 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
     cvNames = serializers.ListField(child=serializers.CharField(), required=False, default=list)
 
     def to_internal_value(self, data):
-        mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+        file_fields = {'documents', 'cv_files'}
+        if hasattr(data, 'lists'):
+            mutable = {
+                key: values if len(values) > 1 else values[0]
+                for key, values in data.lists()
+                if key not in file_fields
+            }
+        else:
+            mutable = dict(data)
         aliases = {
             'license_number': 'license',
             'license_board': 'licenseBoard',
@@ -673,7 +681,7 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
             if hasattr(data, 'getlist'):
                 values = data.getlist(field)
                 if len(values) > 1:
-                    mutable.setlist(field, values)
+                    mutable[field] = values
                     continue
                 if len(values) == 1:
                     raw = values[0]

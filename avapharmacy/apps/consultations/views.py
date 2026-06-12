@@ -1,7 +1,9 @@
 import hashlib
+import json
 from io import BytesIO
 
 from django.conf import settings
+from django.core import signing
 from django.http import FileResponse, Http404, HttpResponse
 from rest_framework import generics, permissions, status
 from rest_framework.pagination import CursorPagination
@@ -43,6 +45,7 @@ from apps.orders.payment_helpers import (
     get_paybill_number,
 )
 from apps.accounts.permissions import IsAdminUser, IsDoctor, IsDoctorOrAdmin
+from apps.accounts.models import User
 from apps.accounts.utils import log_admin_action, send_professional_application_status_email
 from apps.accounts.serializers import (
     ProvisionDoctorAccountSerializer, ProvisionPediatricianAccountSerializer, UserSerializer,
@@ -57,10 +60,71 @@ CONSULTATION_SELECT_RELATED = (
 )
 
 CONSULTATION_PAYBILL_PREFIX = 'AVACONS-'
+PROFESSIONAL_RESUBMISSION_SALT = 'ava-professional-document-resubmission'
 
 
 def _consultation_paybill_reference(intent):
     return f'{CONSULTATION_PAYBILL_PREFIX}{intent.reference}'
+
+
+def _professional_resubmission_token(clinician):
+    return signing.dumps(
+        {
+            'id': clinician.id,
+            'reference': clinician.reference,
+            'provider_type': clinician.provider_type,
+        },
+        salt=PROFESSIONAL_RESUBMISSION_SALT,
+    )
+
+
+def _professional_resubmission_frontend_url(clinician):
+    frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
+    return f'{frontend_base}/professional/resubmit?token={_professional_resubmission_token(clinician)}'
+
+
+def _professional_from_resubmission_token(raw_token):
+    max_age = int(getattr(settings, 'PROFESSIONAL_RESUBMISSION_TOKEN_MAX_AGE', 7 * 24 * 60 * 60))
+    try:
+        payload = signing.loads(raw_token, salt=PROFESSIONAL_RESUBMISSION_SALT, max_age=max_age)
+    except signing.SignatureExpired:
+        raise Http404('This resubmission link has expired.')
+    except signing.BadSignature:
+        raise Http404('Invalid resubmission link.')
+
+    clinician = ClinicianProfile.objects.prefetch_related('documents').filter(
+        pk=payload.get('id'),
+        reference=payload.get('reference'),
+        provider_type=payload.get('provider_type'),
+    ).first()
+    if clinician is None:
+        raise Http404('Application not found.')
+    if clinician.status not in {
+        ClinicianProfile.STATUS_PENDING,
+        ClinicianProfile.STATUS_APPROVED_PENDING_ACTIVATION,
+    }:
+        raise Http404('This application is no longer accepting document updates.')
+    return clinician
+
+
+def _parse_resubmission_document_names(request):
+    raw_names = request.data.get('document_names') or request.data.get('doc_names') or request.data.get('names')
+    if hasattr(request.data, 'getlist'):
+        list_values = request.data.getlist('document_names') or request.data.getlist('doc_names') or request.data.getlist('names')
+        if len(list_values) > 1:
+            return [str(item).strip() for item in list_values if str(item).strip()]
+        if len(list_values) == 1:
+            raw_names = list_values[0]
+    if isinstance(raw_names, list):
+        return [str(item).strip() for item in raw_names if str(item).strip()]
+    if isinstance(raw_names, str) and raw_names.strip():
+        try:
+            parsed = json.loads(raw_names)
+            if isinstance(parsed, list):
+                return [str(item).strip() for item in parsed if str(item).strip()]
+        except json.JSONDecodeError:
+            return [item.strip() for item in raw_names.split(',') if item.strip()]
+    return []
 
 
 def _consultation_callback_url():
@@ -420,6 +484,84 @@ class PediatricianOnboardingView(APIView):
         serializer.is_valid(raise_exception=True)
         profile = serializer.save()
         return Response(PediatricianProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
+
+
+class ProfessionalDocumentResubmissionView(APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def _serialize(self, clinician):
+        serializer_class = (
+            DoctorProfileSerializer
+            if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR
+            else PediatricianProfileSerializer
+        )
+        return {
+            'detail': 'Application found.',
+            'requested_documents_note': clinician.status_note,
+            'application': serializer_class(clinician).data,
+        }
+
+    def get(self, request, token):
+        clinician = _professional_from_resubmission_token(token)
+        return Response(self._serialize(clinician))
+
+    def post(self, request, token):
+        clinician = _professional_from_resubmission_token(token)
+        files = request.FILES.getlist('documents') or request.FILES.getlist('files')
+        cv_files = request.FILES.getlist('cv_files')
+        document_names = _parse_resubmission_document_names(request)
+        applicant_note = (request.data.get('note') or '').strip()
+
+        if not files and not cv_files:
+            return Response(
+                {'documents': 'Upload at least one requested document.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = []
+        with transaction.atomic():
+            for index, file_obj in enumerate(files):
+                created.append(ClinicianDocument.objects.create(
+                    clinician=clinician,
+                    name=document_names[index] if index < len(document_names) else file_obj.name,
+                    file=file_obj,
+                    note=applicant_note,
+                ))
+            for file_obj in cv_files:
+                created.append(ClinicianDocument.objects.create(
+                    clinician=clinician,
+                    name=f'CV: {file_obj.name}',
+                    file=file_obj,
+                    note=applicant_note,
+                ))
+
+            if applicant_note:
+                clinician.status_note = f'Resubmitted documents. Applicant note: {applicant_note}'
+            else:
+                clinician.status_note = 'Requested documents resubmitted by applicant.'
+            clinician.save(update_fields=['status_note', 'updated_at'])
+
+        role_label = clinician.provider_type_label
+        admin_url = f'/admin/doctors?type={"Doctor" if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else "Pediatrician"}'
+        for admin in User.objects.filter(role=User.ADMIN, is_active=True):
+            create_notification(
+                recipient=admin,
+                notification_type='doctor_verified',
+                title=f'{role_label} documents resubmitted',
+                message=f'{clinician.name} uploaded {len(created)} replacement document(s).',
+                data={
+                    'url': admin_url,
+                    'reference': clinician.reference,
+                    'clinician_id': clinician.id,
+                    'provider_type': clinician.provider_type,
+                },
+            )
+
+        payload = self._serialize(ClinicianProfile.objects.prefetch_related('documents').get(pk=clinician.pk))
+        payload['uploaded_count'] = len(created)
+        payload['detail'] = 'Documents resubmitted successfully. Ava Pharmacy admin will review the update.'
+        return Response(payload, status=status.HTTP_201_CREATED)
 
 
 class DoctorOnboardingProfileStepView(APIView):
@@ -1409,7 +1551,7 @@ class AdminDoctorActionView(APIView):
             activation_email = _provision_doctor_activation_account(doctor, request)
 
         elif action == 'request_docs':
-            note = request.data.get('note', '')
+            note = (request.data.get('note') or '').strip()
             doctor.status_note = note
             doctor.updated_by = request.user
             doctor.save(update_fields=['status_note', 'updated_by', 'updated_at'])
@@ -1421,6 +1563,7 @@ class AdminDoctorActionView(APIView):
                 role_label='Doctor',
                 status_label='Requires Additional Information',
                 message=note or 'Please provide the additional information requested by the Ava Pharmacy admin team.',
+                cta_url=_professional_resubmission_frontend_url(doctor),
             )
 
         elif action == 'reject':
@@ -1611,12 +1754,20 @@ class AdminPediatricianActionView(APIView):
             log_admin_action(request.user, 'pediatrician_approved', 'pediatrician_profile', pediatrician.id,
                              f'Approved {pediatrician.name}')
         elif action == 'request_docs':
-            note = request.data.get('note', '')
+            note = (request.data.get('note') or '').strip()
             pediatrician.status_note = note
             pediatrician.updated_by = request.user
             pediatrician.save(update_fields=['status_note', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'pediatrician_docs_requested', 'pediatrician_profile', pediatrician.id,
                              f'Requested documents from {pediatrician.name}')
+            send_professional_application_status_email(
+                email=pediatrician.email,
+                first_name=(pediatrician.name or '').split(' ', 1)[0],
+                role_label='Pediatrician',
+                status_label='Requires Additional Information',
+                message=note or 'Please provide the additional information requested by the Ava Pharmacy admin team.',
+                cta_url=_professional_resubmission_frontend_url(pediatrician),
+            )
         elif action == 'reject':
             note = (request.data.get('note') or '').strip()
             if not note:

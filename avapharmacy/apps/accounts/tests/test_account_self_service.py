@@ -1,7 +1,9 @@
 import re
 from urllib.parse import parse_qs, urlparse
+from unittest.mock import patch
 
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.test import TestCase
 from django.urls import reverse
@@ -10,7 +12,8 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Address, CustomerEmailVerificationToken, PaymentMethod, Pharmacist, PharmacistActivationToken, User
-from apps.notifications.models import NotificationPreference
+from apps.notifications.models import Notification, NotificationPreference
+from apps.consultations.models import ClinicianDocument, ClinicianProfile
 
 
 class AccountSelfServiceTests(TestCase):
@@ -172,6 +175,179 @@ class AccountSelfServiceTests(TestCase):
         self.assertEqual(address.phone, '+254700000333')
         self.assertTrue(address.is_default)
         self.assertFalse(second_address.is_default)
+
+
+class ProfessionalRegistrationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email='professional-admin@example.com',
+            password='AdminPass123!',
+            first_name='Professional',
+            last_name='Admin',
+            role=User.ADMIN,
+            is_staff=True,
+            is_superuser=True,
+        )
+
+    @patch('apps.accounts.views.send_professional_application_received_email')
+    def test_doctor_registration_accepts_multipart_documents_and_cv(self, mock_send_email):
+        response = self.client.post(
+            reverse('professional-register'),
+            {
+                'type': 'doctor',
+                'name': 'Dr Multipart Test',
+                'email': 'multipart.doctor@example.com',
+                'phone': '+254700123456',
+                'license_number': 'KMPDC-MULTIPART-001',
+                'license_board': 'KMPDC',
+                'license_country': 'Kenya',
+                'license_expiry': '2027-12-31',
+                'id_number': 'ID-MULTIPART-001',
+                'specialty': 'General Medicine',
+                'facility': 'Ava Test Clinic',
+                'availability': '0800-1700 weekdays',
+                'years_experience': '7',
+                'payout_method': 'mpesa',
+                'payout_account': '254700123456',
+                'background_consent': 'true',
+                'compliance_declaration': 'true',
+                'agreed_to_terms': 'true',
+                'languages': '["English","Swahili"]',
+                'doc_checklist': '["Medical licence (KMB-issued)","National ID / Passport","CV / Resume"]',
+                'documents': [
+                    SimpleUploadedFile('license.pdf', b'license', content_type='application/pdf'),
+                    SimpleUploadedFile('national-id.pdf', b'id', content_type='application/pdf'),
+                ],
+                'cv_files': [
+                    SimpleUploadedFile('doctor-cv.pdf', b'cv', content_type='application/pdf'),
+                ],
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        profile = ClinicianProfile.objects.get(email='multipart.doctor@example.com')
+        self.assertEqual(profile.provider_type, ClinicianProfile.TYPE_DOCTOR)
+        self.assertEqual(profile.status, ClinicianProfile.STATUS_PENDING)
+        self.assertEqual(ClinicianDocument.objects.filter(clinician=profile).count(), 3)
+        self.assertTrue(ClinicianDocument.objects.filter(clinician=profile, name='CV: doctor-cv.pdf').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.admin,
+            type='doctor_verified',
+            title='New Doctor application',
+            data__reference=profile.reference,
+            data__url='/admin/doctors?type=Doctor',
+        ).exists())
+        mock_send_email.assert_called_once()
+
+    @patch('apps.accounts.views.send_professional_application_received_email', side_effect=RuntimeError('smtp down'))
+    def test_doctor_registration_still_notifies_admin_when_email_fails(self, mock_send_email):
+        response = self.client.post(
+            reverse('professional-register'),
+            {
+                'type': 'doctor',
+                'name': 'Dr Email Failure',
+                'email': 'email.failure.doctor@example.com',
+                'phone': '+254700654321',
+                'license_number': 'KMPDC-EMAIL-FAIL-001',
+                'license_board': 'KMPDC',
+                'license_country': 'Kenya',
+                'license_expiry': '2027-12-31',
+                'id_number': 'ID-EMAIL-FAIL-001',
+                'specialty': 'General Medicine',
+                'payout_method': 'mpesa',
+                'payout_account': '254700654321',
+                'background_consent': 'true',
+                'compliance_declaration': 'true',
+                'agreed_to_terms': 'true',
+                'doc_checklist': '["Medical licence (KMB-issued)","CV / Resume"]',
+                'documents': [SimpleUploadedFile('license.pdf', b'license', content_type='application/pdf')],
+                'cv_files': [SimpleUploadedFile('doctor-cv.pdf', b'cv', content_type='application/pdf')],
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        profile = ClinicianProfile.objects.get(email='email.failure.doctor@example.com')
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.admin,
+            type='doctor_verified',
+            title='New Doctor application',
+            data__reference=profile.reference,
+        ).exists())
+        mock_send_email.assert_called_once()
+
+    @override_settings(FRONTEND_BASE_URL='http://localhost:3000')
+    @patch('apps.consultations.views.send_professional_application_status_email')
+    def test_admin_document_request_email_links_to_resubmission_upload(self, mock_status_email):
+        self.client.force_authenticate(self.admin)
+        profile = ClinicianProfile.objects.create(
+            provider_type=ClinicianProfile.TYPE_DOCTOR,
+            name='Dr Resubmit Test',
+            email='resubmit.doctor@example.com',
+            phone='+254700654399',
+            license_number='KMPDC-RESUBMIT-001',
+            specialty='General Medicine',
+            status=ClinicianProfile.STATUS_PENDING,
+        )
+
+        response = self.client.post(
+            reverse('admin-doctor-action', args=[profile.id]),
+            {'action': 'request_docs', 'note': 'Upload a clearer license copy.'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        mock_status_email.assert_called_once()
+        cta_url = mock_status_email.call_args.kwargs['cta_url']
+        self.assertIn('/professional/resubmit?token=', cta_url)
+
+        raw_token = parse_qs(urlparse(cta_url).query)['token'][0]
+        detail_response = self.client.get(reverse('professional-document-resubmission', kwargs={'token': raw_token}))
+        self.assertEqual(detail_response.status_code, 200, detail_response.content)
+        self.assertEqual(detail_response.data['application']['reference'], profile.reference)
+        self.assertEqual(detail_response.data['requested_documents_note'], 'Upload a clearer license copy.')
+
+    @override_settings(FRONTEND_BASE_URL='http://localhost:3000')
+    def test_applicant_can_resubmit_requested_documents_and_admin_is_notified(self):
+        profile = ClinicianProfile.objects.create(
+            provider_type=ClinicianProfile.TYPE_DOCTOR,
+            name='Dr Resubmission Upload',
+            email='resubmission.upload@example.com',
+            phone='+254700654398',
+            license_number='KMPDC-RESUB-UPLOAD-001',
+            specialty='Dermatology',
+            status=ClinicianProfile.STATUS_PENDING,
+            status_note='Upload current CV and license.',
+        )
+        from apps.consultations.views import _professional_resubmission_token
+
+        token = _professional_resubmission_token(profile)
+        response = self.client.post(
+            reverse('professional-document-resubmission', kwargs={'token': token}),
+            {
+                'documents': [SimpleUploadedFile('updated-license.pdf', b'new license', content_type='application/pdf')],
+                'document_names': ['Updated medical license'],
+                'note': 'Attached updated license.',
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.data['uploaded_count'], 1)
+        self.assertTrue(ClinicianDocument.objects.filter(
+            clinician=profile,
+            name='Updated medical license',
+            note='Attached updated license.',
+        ).exists())
+        profile.refresh_from_db()
+        self.assertIn('Applicant note', profile.status_note)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.admin,
+            title='Doctor documents resubmitted',
+            data__reference=profile.reference,
+        ).exists())
 
 
 class AccountSessionInvalidationTests(TestCase):

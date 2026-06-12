@@ -7,6 +7,7 @@ urlpatterns = [
     path('doctors/<int:pk>/', views.DoctorDetailView.as_view(), name='doctor-detail'),
     path('doctors/register/', views.DoctorOnboardingView.as_view(), name='doctor-register'),
     path('professionals/register/doctor/', views.DoctorOnboardingView.as_view(), name='doctor-register-alt'),
+    path('professionals/applications/resubmissions/<path:token>/', views.ProfessionalDocumentResubmissionView.as_view(), name='professional-document-resubmission'),
     path('doctor/onboarding/profile/', views.DoctorOnboardingProfileStepView.as_view(), name='doctor-onboarding-profile'),
     path('doctor/onboarding/documents/', views.DoctorOnboardingDocumentsStepView.as_view(), name='doctor-onboarding-documents'),
     path('doctor/onboarding/availability/', views.DoctorOnboardingAvailabilityStepView.as_view(), name='doctor-onboarding-availability'),

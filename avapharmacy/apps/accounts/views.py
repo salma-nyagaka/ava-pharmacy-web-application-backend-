@@ -131,28 +131,36 @@ class ProfessionalRegistrationView(APIView):
         serializer.is_valid(raise_exception=True)
         application = serializer.save()
         response_payload = serializer.build_response(application)
+        first_name = (getattr(application, 'name', '') or '').split(' ', 1)[0]
+        role_label = response_payload['registration_type_display']
+        review_url = '/admin/doctors?type=Pediatrician' if response_payload['registration_type'] == 'pediatrician' else '/admin/doctors?type=Doctor'
         try:
-            first_name = (getattr(application, 'name', '') or '').split(' ', 1)[0]
             send_professional_application_received_email(
                 email=application.email,
                 first_name=first_name,
-                role_label=response_payload['registration_type_display'],
+                role_label=role_label,
                 reference=getattr(application, 'reference', '') or str(application.pk),
             )
-            for admin in User.objects.filter(role=User.ADMIN, is_active=True):
+        except Exception:
+            pass
+
+        for admin in User.objects.filter(role=User.ADMIN, is_active=True):
+            try:
                 create_notification(
                     recipient=admin,
                     notification_type='doctor_verified',
-                    title=f'New {response_payload["registration_type_display"]} application',
+                    title=f'New {role_label} application',
                     message=f'{application.name} submitted credentials for review.',
                     data={
-                        'url': '/admin/doctors',
+                        'url': review_url,
                         'reference': getattr(application, 'reference', '') or str(application.pk),
+                        'application_id': application.pk,
+                        'professional_type': response_payload['registration_type'],
                     },
                     send_email=False,
                 )
-        except Exception:
-            pass
+            except Exception:
+                pass
         return Response(response_payload, status=status.HTTP_201_CREATED)
 
 
