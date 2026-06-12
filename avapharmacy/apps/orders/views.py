@@ -21,6 +21,7 @@ from apps.accounts.models import Address, User
 from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
 from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
+from apps.consultations.views import apply_consultation_paybill_confirmation, validate_consultation_paybill_payload
 from apps.products.models import Product, Variant, annotate_product_inventory
 from apps.products.pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from avapharmacy.security import verify_hmac_signature
@@ -1897,6 +1898,13 @@ class MpesaPaybillValidationView(APIView):
         order = _resolve_paybill_order(account_reference=account_reference)
 
         if order is None:
+            consultation_result = validate_consultation_paybill_payload(raw_payload)
+            if consultation_result is not None:
+                accepted, message = consultation_result
+                return Response({
+                    'ResultCode': 0 if accepted else 1,
+                    'ResultDesc': message,
+                })
             payments_logger.warning(
                 'Unmatched M-Pesa paybill validation callback account_reference=%s payload=%s',
                 account_reference,
@@ -1938,6 +1946,9 @@ class MpesaPaybillConfirmationView(APIView):
         order = _resolve_paybill_order(account_reference=account_reference)
 
         if order is None:
+            consultation_result = apply_consultation_paybill_confirmation(raw_payload, source='daraja_confirmation')
+            if consultation_result is not None:
+                return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
             payments_logger.error(
                 'Unmatched M-Pesa paybill confirmation account_reference=%s provider_reference=%s payload=%s',
                 account_reference,

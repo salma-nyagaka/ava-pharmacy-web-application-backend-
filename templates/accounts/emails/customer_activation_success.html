@@ -1,0 +1,19 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Account Activated{% endblock %}
+{% block heading %}Your account is active{% endblock %}
+{% block intro %}Hi {{ first_name }}, your AVA Pharmacy account is ready.{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#4a5568;">
+    You can now shop for medicines, upload prescriptions, track orders, and manage your profile.
+  </p>
+  <p style="margin:18px 0 20px;">
+    <a href="{{ dashboard_url }}" style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
+      Open Dashboard
+    </a>
+  </p>
+  <p style="margin:0;font-size:14px;line-height:1.6;">You can also start shopping at <a href="{{ shop_url }}" style="color:#e81750;">{{ shop_url }}</a>.</p>
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy customer account notification{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}Verify Your AVA Pharmacy Email{% endblock %}
+{% block intro %}Hi {{ first_name }}, finish setting up your AVA Pharmacy account.{% endblock %}
+
+{% block content %}
+Verify email: {{ verify_url }}
+Link expires in {{ expires_hours }} hours.
+Support: {{ support_email }}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy{% endblock %}

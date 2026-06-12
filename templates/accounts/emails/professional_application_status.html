@@ -1,0 +1,21 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Application {{ status_label }}{% endblock %}
+{% block heading %}{{ role_label }} application {{ status_label|lower }}{% endblock %}
+{% block intro %}Hi {{ first_name }}, there is an update on your Ava Pharmacy {{ role_label|lower }} application.{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#4a5568;">{{ message }}</p>
+  {% if cta_url %}
+    <p style="margin:18px 0 20px;">
+      <a href="{{ cta_url }}" style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
+        Continue Application
+      </a>
+    </p>
+  {% endif %}
+  <p style="margin:0;font-size:14px;line-height:1.7;color:#4a5568;">
+    For support, contact <a href="mailto:{{ support_email }}" style="color:#e81750;">{{ support_email }}</a>.
+  </p>
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy Professional Onboarding{% endblock %}

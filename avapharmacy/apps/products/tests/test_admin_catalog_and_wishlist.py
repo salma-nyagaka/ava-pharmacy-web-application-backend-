@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -523,14 +524,15 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('1000.00'),
             is_active=True,
         )
+        today = timezone.now().date()
         Promotion.objects.create(
             title='Badge Promotion',
             type=Promotion.TYPE_PERCENTAGE,
             value=Decimal('20'),
             scope=Promotion.SCOPE_PRODUCT,
             targets=[variant.sku],
-            start_date='2026-03-01',
-            end_date='2026-03-31',
+            start_date=today,
+            end_date=today,
             status=Promotion.STATUS_ACTIVE,
         )
 

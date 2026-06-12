@@ -81,9 +81,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     ]
 
     STATUS_ACTIVE = 'active'
+    STATUS_PENDING_VERIFICATION = 'pending_verification'
     STATUS_SUSPENDED = 'suspended'
     STATUS_CHOICES = [
         (STATUS_ACTIVE, 'Active'),
+        (STATUS_PENDING_VERIFICATION, 'Pending Verification'),
         (STATUS_SUSPENDED, 'Suspended'),
     ]
 
@@ -92,6 +94,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=40, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CUSTOMER)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     address = models.TextField(blank=True)
@@ -154,6 +157,9 @@ class Pharmacist(models.Model):
     VALID_PERMISSIONS = {value for value, _label in PERMISSION_CHOICES}
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='pharmacist')
+    license_number = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    branch_location = models.CharField(max_length=200, blank=True)
+    position = models.CharField(max_length=120, blank=True)
     # JSON list of permission strings granted to this pharmacist
     permissions = models.JSONField(default=list)
     created_by = models.ForeignKey(
@@ -167,6 +173,10 @@ class Pharmacist(models.Model):
 
     class Meta:
         db_table = 'accounts_pharmacist'
+        indexes = [
+            models.Index(fields=['license_number']),
+            models.Index(fields=['branch_location']),
+        ]
 
     def __str__(self):
         return f"Pharmacist: {self.user.full_name}"
@@ -208,6 +218,29 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"Customer: {self.user.full_name}"
+
+
+class CustomerEmailVerificationToken(models.Model):
+    """One-time email verification token for customer registration."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_verification_tokens')
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    sent_to = models.EmailField()
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_customer_email_verification_token'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'expires_at']),
+            models.Index(fields=['user', 'used_at']),
+        ]
+
+    @property
+    def is_expired(self):
+        return self.expires_at <= timezone.now()
 
 
 class PharmacistActivationToken(models.Model):

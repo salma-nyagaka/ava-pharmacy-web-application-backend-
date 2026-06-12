@@ -19,12 +19,18 @@ urlpatterns = [
     path('consultations/', views.ConsultationListCreateView.as_view(), name='consultations'),
     path('consultations/<int:pk>/', views.ConsultationDetailView.as_view(), name='consultation-detail'),
     path('consultations/<int:pk>/messages/', views.ConsultationMessageListCreateView.as_view(), name='consultation-messages'),
+    path('consultations/messages/<int:pk>/attachment/', views.ConsultationMessageAttachmentView.as_view(), name='consultation-message-attachment'),
     path('consultations/<int:pk>/end/', views.ConsultationEndView.as_view(), name='consultation-end'),
     path('consultations/<int:pk>/consent/', views.GuardianConsentView.as_view(), name='consultation-consent'),
+    path('consultations/payments/intents/', views.ConsultationPaymentIntentCreateView.as_view(), name='consultation-payment-intents'),
+    path('consultations/payments/intents/<int:pk>/sync/', views.ConsultationPaymentIntentStatusView.as_view(), name='consultation-payment-intent-sync'),
+    path('consultations/payments/finalize/', views.ConsultationPaymentFinalizeView.as_view(), name='consultation-payment-finalize'),
+    path('consultations/payments/mpesa/callback/', views.ConsultationMpesaCallbackView.as_view(), name='consultation-payment-mpesa-callback'),
 
     # Doctor dashboard (serves /doctor frontend route)
     path('doctor/dashboard/', views.DoctorDashboardView.as_view(), name='doctor-dashboard'),
     path('doctor/consultations/', views.DoctorConsultationListView.as_view(), name='doctor-consultations'),
+    path('doctor/catalog/variants/', views.ClinicianVariantSearchView.as_view(), name='doctor-catalog-variants'),
     path('doctor/prescriptions/', views.ClinicianPrescriptionListCreateView.as_view(), name='doctor-prescriptions'),
     path('doctor/prescriptions/<int:pk>/send/', views.ClinicianPrescriptionSendView.as_view(), name='doctor-prescription-send'),
     path('doctor/prescriptions/<int:pk>/pdf/', views.ClinicianPrescriptionPDFView.as_view(), name='doctor-prescription-pdf'),

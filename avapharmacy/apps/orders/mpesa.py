@@ -163,7 +163,7 @@ class MpesaClient:
             return f'254{digits}'
         raise MpesaAPIError('Phone number must be a valid Kenyan mobile number.')
 
-    def initiate_stk_push(self, payment_intent, phone, account_reference, description):
+    def initiate_stk_push(self, payment_intent, phone, account_reference, description, callback_url=None):
         self.validate_stk_configuration()
         normalized_phone = self.normalize_phone(phone)
         timestamp = self._timestamp()
@@ -176,7 +176,7 @@ class MpesaClient:
             'PartyA': normalized_phone,
             'PartyB': self.shortcode,
             'PhoneNumber': normalized_phone,
-            'CallBackURL': self.callback_url,
+            'CallBackURL': callback_url or self.callback_url,
             'AccountReference': account_reference[:12],
             'TransactionDesc': description[:13],
         }

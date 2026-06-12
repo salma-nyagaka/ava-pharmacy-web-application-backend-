@@ -15,12 +15,14 @@ from apps.consultations.serializers import (
     DoctorOnboardingSerializer, DoctorProfileSerializer,
     PediatricianOnboardingSerializer, PediatricianProfileSerializer,
 )
+from apps.consultations.models import ClinicianProfile
 from apps.lab.models import LabPartner
 from apps.lab.serializers import (
     LabPartnerRegistrationSerializer, LabPartnerSerializer,
 )
 from .utils import (
     consume_pharmacist_activation,
+    get_valid_customer_verification,
     get_valid_pharmacist_activation,
     issue_pharmacist_activation_token,
     send_pharmacist_activation_email,
@@ -67,10 +69,16 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
+    delivery_address = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    city = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    county = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'phone', 'password', 'password_confirm', 'role')
+        fields = (
+            'email', 'first_name', 'last_name', 'phone', 'password', 'password_confirm',
+            'role', 'address', 'date_of_birth', 'gender', 'delivery_address', 'city', 'county'
+        )
 
     def validate_role(self, value):
         """Reject roles that are not allowed during self-registration."""
@@ -87,17 +95,46 @@ class RegisterSerializer(serializers.ModelSerializer):
         """Ensure the two password fields match."""
         if attrs['password'] != attrs.pop('password_confirm'):
             raise serializers.ValidationError({'password': 'Passwords do not match.'})
+        if attrs.get('role', User.CUSTOMER) == User.CUSTOMER:
+            delivery_address = (attrs.get('delivery_address') or attrs.get('address') or '').strip()
+            city = (attrs.get('city') or '').strip()
+            county = (attrs.get('county') or '').strip()
+            errors = {}
+            if not delivery_address:
+                errors['delivery_address'] = 'Delivery address is required.'
+            if not city:
+                errors['city'] = 'County or city is required.'
+            if errors:
+                raise serializers.ValidationError(errors)
+            attrs['address'] = delivery_address
+            attrs['city'] = city
+            attrs['county'] = county
         return attrs
 
     def create(self, validated_data):
         """Create the user and, if pharmacist, an associated Pharmacist."""
+        delivery_address = validated_data.pop('delivery_address', '')
+        city = validated_data.pop('city', '')
+        county = validated_data.pop('county', '')
         user = User.objects.create_user(**validated_data)
         request = self.context.get('request')
         actor = request.user if request and getattr(request.user, 'is_authenticated', False) else None
         if user.role == User.PHARMACIST:
             Pharmacist.objects.create(user=user, created_by=actor, updated_by=actor)
         elif user.role == User.CUSTOMER:
+            user.status = User.STATUS_PENDING_VERIFICATION
+            user.is_active = False
+            user.save(update_fields=['status', 'is_active', 'updated_at'])
             Customer.objects.create(user=user, created_by=actor, updated_by=actor)
+            Address.objects.create(
+                user=user,
+                label='Default delivery',
+                phone=user.phone,
+                street=delivery_address or user.address,
+                city=city,
+                county=county,
+                is_default=True,
+            )
         return user
 
 
@@ -119,7 +156,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'email', 'first_name', 'last_name', 'full_name',
             'phone', 'date_of_birth', 'role', 'status', 'address', 'total_orders',
-            'date_joined', 'updated_at'
+            'gender', 'date_joined', 'updated_at'
         )
         read_only_fields = ('id', 'date_joined', 'updated_at')
 
@@ -129,7 +166,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'address')
+        fields = ('email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'gender', 'address')
 
     def validate_email(self, value):
         """Ensure updated email addresses remain unique."""
@@ -150,6 +187,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
     total_orders = serializers.ReadOnlyField()
     pharmacist_permissions = serializers.SerializerMethodField()
+    pharmacist_license_number = serializers.SerializerMethodField()
+    pharmacist_branch_location = serializers.SerializerMethodField()
+    pharmacist_position = serializers.SerializerMethodField()
+    is_active = serializers.BooleanField(read_only=True)
     last_order_date = serializers.SerializerMethodField()
     default_address = serializers.SerializerMethodField()
     recent_orders = serializers.SerializerMethodField()
@@ -159,9 +200,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             'id', 'email', 'first_name', 'last_name', 'full_name',
-            'phone', 'role', 'status', 'address', 'total_orders',
+            'phone', 'role', 'status', 'is_active', 'address', 'total_orders',
             'last_order_date', 'default_address', 'recent_orders', 'total_spend',
-            'date_joined', 'pharmacist_permissions'
+            'date_joined', 'pharmacist_permissions', 'pharmacist_license_number',
+            'pharmacist_branch_location', 'pharmacist_position'
         )
 
     def get_pharmacist_permissions(self, obj):
@@ -169,6 +211,21 @@ class AdminUserSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'pharmacist'):
             return obj.pharmacist.permissions
         return []
+
+    def get_pharmacist_license_number(self, obj):
+        if hasattr(obj, 'pharmacist'):
+            return obj.pharmacist.license_number or ''
+        return ''
+
+    def get_pharmacist_branch_location(self, obj):
+        if hasattr(obj, 'pharmacist'):
+            return obj.pharmacist.branch_location or ''
+        return ''
+
+    def get_pharmacist_position(self, obj):
+        if hasattr(obj, 'pharmacist'):
+            return obj.pharmacist.position or ''
+        return ''
 
     def get_last_order_date(self, obj):
         """Return the created_at timestamp of the user's most recent order."""
@@ -230,10 +287,17 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     pharmacist_permissions = serializers.ListField(
         child=serializers.CharField(), required=False, write_only=True
     )
+    pharmacist_license_number = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    pharmacist_branch_location = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    pharmacist_position = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'phone', 'role', 'address', 'password', 'pharmacist_permissions')
+        fields = (
+            'email', 'first_name', 'last_name', 'phone', 'role', 'address', 'password',
+            'pharmacist_permissions', 'pharmacist_license_number',
+            'pharmacist_branch_location', 'pharmacist_position'
+        )
 
     def validate_phone(self, value):
         """Ensure admin-created or updated users have a unique phone number."""
@@ -242,14 +306,24 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         """Require password for non-pharmacist users created by admins."""
         permissions = attrs.get('pharmacist_permissions')
+        role = attrs.get('role', getattr(self.instance, 'role', None))
         if permissions is not None:
             invalid = sorted(set(permissions) - Pharmacist.VALID_PERMISSIONS)
             if invalid:
                 raise serializers.ValidationError({
                     'pharmacist_permissions': f'Invalid permission(s): {", ".join(invalid)}.'
                 })
+        license_number = (attrs.get('pharmacist_license_number') or '').strip()
+        if role == User.PHARMACIST:
+            if self.instance is None and not license_number:
+                raise serializers.ValidationError({'pharmacist_license_number': 'Pharmacy license number is required.'})
+            if license_number:
+                queryset = Pharmacist.objects.filter(license_number__iexact=license_number)
+                if self.instance is not None:
+                    queryset = queryset.exclude(user=self.instance)
+                if queryset.exists():
+                    raise serializers.ValidationError({'pharmacist_license_number': 'A pharmacist with this license number already exists.'})
         if self.instance is None:
-            role = attrs.get('role')
             password = attrs.get('password')
             if role != User.PHARMACIST and not password:
                 raise serializers.ValidationError({'password': 'Password is required for this role.'})
@@ -258,6 +332,9 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create user and optional Pharmacist with the given permissions."""
         permissions = validated_data.pop('pharmacist_permissions', [])
+        license_number = (validated_data.pop('pharmacist_license_number', '') or '').strip()
+        branch_location = (validated_data.pop('pharmacist_branch_location', '') or '').strip()
+        position = (validated_data.pop('pharmacist_position', '') or '').strip()
         password = validated_data.pop('password', None)
         request = self.context.get('request')
         actor = getattr(request, 'user', None)
@@ -268,6 +345,9 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             user.save(update_fields=['is_active', 'updated_at'])
             Pharmacist.objects.create(
                 user=user,
+                license_number=license_number,
+                branch_location=branch_location,
+                position=position,
                 permissions=permissions,
                 created_by=actor if getattr(actor, 'is_authenticated', False) else None,
                 updated_by=actor if getattr(actor, 'is_authenticated', False) else None,
@@ -294,6 +374,9 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update user fields, optionally reset password, and sync pharmacist permissions."""
         permissions = validated_data.pop('pharmacist_permissions', None)
+        license_number = validated_data.pop('pharmacist_license_number', None)
+        branch_location = validated_data.pop('pharmacist_branch_location', None)
+        position = validated_data.pop('pharmacist_position', None)
         password = validated_data.pop('password', None)
         request = self.context.get('request')
         actor = getattr(request, 'user', None)
@@ -313,10 +396,19 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
             )
             if permissions is not None:
                 profile.permissions = permissions
+            if license_number is not None:
+                profile.license_number = license_number.strip() or None
+            if branch_location is not None:
+                profile.branch_location = branch_location.strip()
+            if position is not None:
+                profile.position = position.strip()
             profile.updated_by = actor
             if created and not profile.created_by:
                 profile.created_by = actor
-            profile.save(update_fields=['permissions', 'updated_by', 'created_by', 'updated_at'])
+            profile.save(update_fields=[
+                'permissions', 'license_number', 'branch_location', 'position',
+                'updated_by', 'created_by', 'updated_at'
+            ])
         else:
             Pharmacist.objects.filter(user=instance).delete()
 
@@ -413,10 +505,13 @@ class PharmacistActivationSetPasswordSerializer(serializers.Serializer):
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True, validators=[validate_password])
     new_password_confirm = serializers.CharField(write_only=True)
+    accepted_terms = serializers.BooleanField()
 
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password_confirm']:
             raise serializers.ValidationError({'new_password': 'Passwords do not match.'})
+        if not attrs.get('accepted_terms'):
+            raise serializers.ValidationError({'accepted_terms': 'You must accept the terms and conditions.'})
         token_obj = get_valid_pharmacist_activation(attrs['token'])
         if token_obj is None:
             raise serializers.ValidationError({'token': 'Activation link is invalid or expired.'})
@@ -432,6 +527,17 @@ class PharmacistActivationSetPasswordSerializer(serializers.Serializer):
         user.is_active = True
         user.status = User.STATUS_ACTIVE
         user.save(update_fields=['password', 'is_active', 'status', 'updated_at'])
+        if user.role in {User.DOCTOR, User.PEDIATRICIAN}:
+            try:
+                from apps.consultations.models import ClinicianProfile
+
+                ClinicianProfile.objects.filter(user=user).update(
+                    status=ClinicianProfile.STATUS_ACTIVE,
+                    is_verified=True,
+                    updated_at=timezone.now(),
+                )
+            except Exception:
+                pass
         consume_pharmacist_activation(token)
         return user
 
@@ -533,6 +639,35 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
 
     def to_internal_value(self, data):
         mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+        aliases = {
+            'license_number': 'license',
+            'license_board': 'licenseBoard',
+            'license_country': 'licenseCountry',
+            'license_expiry': 'licenseExpiry',
+            'id_number': 'idNumber',
+            'lab_name': 'labName',
+            'lab_location': 'labLocation',
+            'lab_accreditation': 'labAccreditation',
+            'years_experience': 'experience',
+            'consult_modes': 'consultModes',
+            'payout_method': 'payoutMethod',
+            'payout_account': 'payoutAccount',
+            'ref1_name': 'ref1Name',
+            'ref1_email': 'ref1Email',
+            'ref1_phone': 'ref1Phone',
+            'ref2_name': 'ref2Name',
+            'ref2_email': 'ref2Email',
+            'ref2_phone': 'ref2Phone',
+            'background_consent': 'backgroundConsent',
+            'compliance_declaration': 'complianceDeclaration',
+            'doc_checklist': 'docChecklist',
+            'document_names': 'documentNames',
+            'cv_names': 'cvNames',
+            'agreed_to_terms': 'agreedToTerms',
+        }
+        for source, target in aliases.items():
+            if source in mutable and target not in mutable:
+                mutable[target] = mutable.get(source)
         for field in ('languages', 'consultModes', 'docChecklist', 'documentNames', 'cvNames'):
             raw = mutable.get(field)
             if hasattr(data, 'getlist'):
@@ -562,6 +697,11 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
     def validate(self, attrs):
         professional_type = attrs['type']
         errors = {}
+        normalized_email = attrs['email'].strip().lower()
+        attrs['email'] = normalized_email
+
+        if User.objects.filter(email__iexact=normalized_email).exists():
+            errors['email'] = 'An account with this email already exists.'
 
         if professional_type == 'lab_partner':
             if not attrs['labName'].strip():
@@ -575,6 +715,15 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
         else:
             if not attrs['license'].strip():
                 errors['license'] = 'License number is required.'
+            elif ClinicianProfile.objects.filter(
+                license_number__iexact=attrs['license'].strip(),
+                provider_type=professional_type,
+            ).exists():
+                errors['license'] = 'An application with this medical license number already exists.'
+            elif User.objects.filter(email__iexact=normalized_email).exists():
+                errors['email'] = 'An account with this email already exists.'
+            elif ClinicianProfile.objects.filter(email__iexact=normalized_email).exists():
+                errors['email'] = 'A professional application with this email already exists.'
             if not attrs['licenseBoard'].strip():
                 errors['licenseBoard'] = 'Licensing board is required.'
             if not attrs['licenseExpiry']:
@@ -780,7 +929,10 @@ class ProvisionDoctorAccountSerializer(ProvisionProfessionalAccountSerializer):
         doctor = self.context['doctor']
         if doctor.user_id:
             raise serializers.ValidationError({'detail': 'This application already has a linked user account.'})
-        if doctor.status != 'active':
+        if doctor.status not in {
+            'active',
+            'approved_pending_activation',
+        }:
             raise serializers.ValidationError({'detail': 'Only approved doctor or pediatrician applications can be provisioned.'})
         return attrs
 
@@ -806,7 +958,10 @@ class ProvisionPediatricianAccountSerializer(ProvisionProfessionalAccountSeriali
         pediatrician = self.context['pediatrician']
         if pediatrician.user_id:
             raise serializers.ValidationError({'detail': 'This application already has a linked user account.'})
-        if pediatrician.status != 'active':
+        if pediatrician.status not in {
+            'active',
+            'approved_pending_activation',
+        }:
             raise serializers.ValidationError({'detail': 'Only approved pediatrician applications can be provisioned.'})
         return attrs
 

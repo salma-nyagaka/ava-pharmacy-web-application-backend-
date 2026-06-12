@@ -118,6 +118,13 @@ class PrescriptionItem(models.Model):
         blank=True,
         related_name='prescription_items',
     )
+    variant = models.ForeignKey(
+        'products.Variant',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prescription_items',
+    )
     dose = models.CharField(max_length=100, blank=True)
     frequency = models.CharField(max_length=100, blank=True)
     quantity = models.PositiveIntegerField(default=1)
@@ -126,6 +133,7 @@ class PrescriptionItem(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['prescription', 'product']),
+            models.Index(fields=['prescription', 'variant']),
         ]
 
     def __str__(self):

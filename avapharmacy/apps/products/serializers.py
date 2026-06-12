@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from rest_framework import serializers
+from django.utils.dateparse import parse_date
 from django.utils.text import slugify
 from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist
 from .image_validators import validate_uploaded_image
@@ -181,12 +182,17 @@ class HealthConcernSerializer(serializers.ModelSerializer):
 
 class StockMovementSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
+    variant_name = serializers.CharField(source='variant_inventory.variant.name', read_only=True)
+    product_name = serializers.CharField(source='variant_inventory.variant.product.name', read_only=True)
+    location = serializers.CharField(source='variant_inventory.location', read_only=True)
 
     class Meta:
         model = StockMovement
         fields = (
-            'id', 'movement_type', 'quantity_change', 'quantity_before', 'quantity_after',
-            'reason', 'reference', 'created_at', 'updated_at', 'created_by', 'created_by_name',
+            'id', 'variant_inventory', 'product_name', 'variant_name', 'location',
+            'movement_type', 'batch_number', 'quantity_change', 'quantity_before', 'quantity_after',
+            'source_location', 'destination_location', 'reason', 'reference',
+            'created_at', 'updated_at', 'created_by', 'created_by_name',
         )
 
     def get_created_by_name(self, obj):
@@ -267,12 +273,15 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 
 class VariantInventorySerializer(serializers.ModelSerializer):
+    effective_status = serializers.ReadOnlyField()
+
     class Meta:
         model = VariantInventory
         fields = (
-            'id', 'location', 'source_name', 'stock_quantity', 'low_stock_threshold',
-            'allow_backorder', 'max_backorder_quantity', 'is_pos_synced', 'last_synced_at',
-            'created_at', 'updated_at',
+            'id', 'location', 'batch_number', 'supplier', 'source_name', 'stock_quantity',
+            'reorder_level', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
+            'expiry_date', 'shelf_location', 'status', 'effective_status',
+            'is_pos_synced', 'last_synced_at', 'created_at', 'updated_at',
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
 
@@ -381,7 +390,7 @@ class AdminVariantSerializer(VariantSerializer):
             raise serializers.ValidationError(f'{location_label} inventory must be an object.')
 
         validated = {}
-        integer_fields = ('stock_quantity', 'low_stock_threshold', 'max_backorder_quantity')
+        integer_fields = ('stock_quantity', 'reorder_level', 'low_stock_threshold', 'max_backorder_quantity')
         for field_name in integer_fields:
             if field_name in value:
                 try:
@@ -399,6 +408,19 @@ class AdminVariantSerializer(VariantSerializer):
             else:
                 validated['allow_backorder'] = str(raw_value).lower() in {'true', '1', 'yes', 'on'}
 
+        for field_name in ('batch_number', 'supplier', 'source_name', 'shelf_location', 'status'):
+            if field_name in value:
+                validated[field_name] = value[field_name]
+        if 'expiry_date' in value:
+            raw_expiry = value['expiry_date']
+            if raw_expiry in (None, ''):
+                validated['expiry_date'] = None
+            else:
+                parsed_expiry = parse_date(str(raw_expiry))
+                if parsed_expiry is None:
+                    raise serializers.ValidationError({'expiry_date': ['Use YYYY-MM-DD format.']})
+                validated['expiry_date'] = parsed_expiry
+
         return validated
 
     def _pop_inventory_data(self, validated_data):
@@ -411,9 +433,16 @@ class AdminVariantSerializer(VariantSerializer):
             for inventory in self.instance.inventories.all():
                 locations[inventory.location] = {
                     'stock_quantity': inventory.stock_quantity,
+                    'batch_number': inventory.batch_number,
+                    'supplier': inventory.supplier,
+                    'source_name': inventory.source_name,
+                    'reorder_level': inventory.reorder_level,
                     'low_stock_threshold': inventory.low_stock_threshold,
                     'allow_backorder': inventory.allow_backorder,
                     'max_backorder_quantity': inventory.max_backorder_quantity,
+                    'expiry_date': inventory.expiry_date,
+                    'shelf_location': inventory.shelf_location,
+                    'status': inventory.status,
                 }
         else:
             locations[Product.STOCK_BRANCH].update({
@@ -437,6 +466,39 @@ class AdminVariantSerializer(VariantSerializer):
         validated_data.pop('allow_backorder', None)
         validated_data.pop('max_backorder_quantity', None)
         return locations
+
+    def _save_inventory_row(self, *, variant, location, defaults, movement_type):
+        batch_number = (defaults.pop('batch_number', '') or '').strip()
+        actor = getattr(self.context.get('request'), 'user', None)
+        inventory = VariantInventory.objects.filter(
+            variant=variant,
+            location=location,
+            batch_number=batch_number,
+        ).first()
+        previous_quantity = inventory.stock_quantity if inventory else 0
+        inventory, _ = VariantInventory.objects.update_or_create(
+            variant=variant,
+            location=location,
+            batch_number=batch_number,
+            defaults=defaults,
+        )
+        quantity_change = inventory.stock_quantity - previous_quantity
+        if quantity_change:
+            StockMovement.objects.create(
+                variant_inventory=inventory,
+                movement_type=movement_type,
+                source=StockMovement.SOURCE_MANUAL,
+                batch_number=inventory.batch_number,
+                quantity_change=quantity_change,
+                quantity_before=previous_quantity,
+                quantity_after=inventory.stock_quantity,
+                source_location=location if quantity_change < 0 else '',
+                destination_location=location if quantity_change > 0 else '',
+                reason='Admin inventory update',
+                created_by=actor if getattr(actor, 'is_authenticated', False) else None,
+                updated_by=actor if getattr(actor, 'is_authenticated', False) else None,
+            )
+        return inventory
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -509,10 +571,11 @@ class AdminVariantSerializer(VariantSerializer):
         if health_concerns is not None:
             variant.health_concerns.set(health_concerns)
         for location, defaults in inventory_data.items():
-            VariantInventory.objects.update_or_create(
+            self._save_inventory_row(
                 variant=variant,
                 location=location,
                 defaults=defaults,
+                movement_type=StockMovement.TYPE_INITIAL,
             )
         if hasattr(variant, '_clear_inventory_cache'):
             variant._clear_inventory_cache()
@@ -528,10 +591,11 @@ class AdminVariantSerializer(VariantSerializer):
         if health_concerns is not None:
             instance.health_concerns.set(health_concerns)
         for location, defaults in inventory_data.items():
-            VariantInventory.objects.update_or_create(
+            self._save_inventory_row(
                 variant=instance,
                 location=location,
                 defaults=defaults,
+                movement_type=StockMovement.TYPE_ADJUSTMENT,
             )
         if hasattr(instance, '_clear_inventory_cache'):
             instance._clear_inventory_cache()

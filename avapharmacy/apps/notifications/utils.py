@@ -39,10 +39,15 @@ def create_notification(recipient, notification_type, title, message, data=None,
         _push_to_websocket(recipient.id, NotificationSerializer(notification).data)
 
         preferences = get_notification_preferences(recipient)
+        delivery_title = title
+        delivery_message = message
+        if (data or {}).get('sensitive'):
+            delivery_title = 'Secure account update'
+            delivery_message = 'You have a secure update in your Ava Pharmacy account. Please log in to view details.'
         if send_email and preferences and preferences.email_enabled:
-            deliver_email(notification, recipient.email, title, message)
+            deliver_email(notification, recipient.email, delivery_title, delivery_message)
         if send_sms and preferences and preferences.sms_enabled and recipient.phone:
-            deliver_sms(notification, recipient.phone, message)
+            deliver_sms(notification, recipient.phone, delivery_message)
         return notification
     except Exception as exc:
         logger.error("Failed to create notification for user %s: %s", getattr(recipient, 'id', '?'), exc)
@@ -96,9 +101,9 @@ def deliver_email(notification, destination, subject, message):
         raw_url = data.get('url') or ''
         cta_url = build_login_redirect_url(raw_url) if raw_url else ''
         detail_rows = []
-        if data.get('reference'):
+        if not data.get('sensitive') and data.get('reference'):
             detail_rows.append({'label': 'Reference', 'value': data['reference']})
-        if data.get('status'):
+        if not data.get('sensitive') and data.get('status'):
             detail_rows.append({'label': 'Status', 'value': data['status']})
 
         send_rendered_email(
@@ -235,6 +240,7 @@ def notify_prescription_status(prescription):
             'url': f'/account/prescriptions?prescription={prescription.id}',
             'reference': prescription.reference,
             'status': prescription.get_status_display(),
+            'sensitive': True,
         },
         send_email=True,
     )
@@ -260,8 +266,8 @@ def notify_new_consultation(doctor_user, consultation):
         recipient=doctor_user,
         notification_type='new_consultation',
         title="New Consultation Request",
-        message=f"New consultation from {consultation.patient_name}: {consultation.issue[:100]}",
-        data={'url': f'/doctor/consultations/{consultation.id}', 'reference': consultation.reference},
+        message="A new paid consultation request is available in your doctor dashboard.",
+        data={'url': f'/doctor/consultations/{consultation.id}', 'reference': consultation.reference, 'sensitive': True},
         send_email=True,
     )
 
@@ -272,7 +278,7 @@ def notify_consultation_message(recipient, consultation, sender_name):
         notification_type='consultation_message',
         title=f"New message from {sender_name}",
         message=f"New message in consultation {consultation.reference}",
-        data={'url': f'/consultations/{consultation.id}', 'reference': consultation.reference},
+        data={'url': f'/consultations/{consultation.id}', 'reference': consultation.reference, 'sensitive': True},
     )
 
 

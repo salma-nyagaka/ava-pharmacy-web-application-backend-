@@ -1,7 +1,8 @@
 import hashlib
 from io import BytesIO
 
-from django.http import Http404, HttpResponse
+from django.conf import settings
+from django.http import FileResponse, Http404, HttpResponse
 from rest_framework import generics, permissions, status
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
@@ -16,7 +17,8 @@ from datetime import timedelta
 
 from .models import (
     ClinicianDocument, ClinicianProfile, ClinicianPrescription, ClinicianEarning,
-    Consultation, ConsultationMessage,
+    ConsultationAuditLog,
+    Consultation, ConsultationMessage, ConsultationPaymentIntent,
 )
 from .serializers import (
     DoctorProfileSerializer, DoctorProfileListSerializer, DoctorOnboardingSerializer,
@@ -25,6 +27,8 @@ from .serializers import (
     ConsultationSerializer, ConsultationListSerializer,
     ConsultationCreateSerializer, ConsultationUpdateSerializer,
     ConsultationMessageSerializer,
+    ConsultationPaymentFinalizeSerializer, ConsultationPaymentIntentCreateSerializer,
+    ConsultationPaymentIntentSerializer,
     DoctorPrescriptionSerializer, PediatricianPrescriptionSerializer,
     DoctorEarningSerializer, PediatricianEarningSerializer,
     DoctorOnboardingAvailabilityStepSerializer,
@@ -32,8 +36,14 @@ from .serializers import (
     DoctorOnboardingProfileStepSerializer,
     DoctorVerificationActionSerializer,
 )
+from apps.orders.mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
+from apps.orders.payment_helpers import (
+    get_paybill_account_label,
+    get_paybill_instructions,
+    get_paybill_number,
+)
 from apps.accounts.permissions import IsAdminUser, IsDoctor, IsDoctorOrAdmin
-from apps.accounts.utils import log_admin_action
+from apps.accounts.utils import log_admin_action, send_professional_application_status_email
 from apps.accounts.serializers import (
     ProvisionDoctorAccountSerializer, ProvisionPediatricianAccountSerializer, UserSerializer,
 )
@@ -45,6 +55,126 @@ CONSULTATION_SELECT_RELATED = (
     'clinician',
     'clinician__user',
 )
+
+CONSULTATION_PAYBILL_PREFIX = 'AVACONS-'
+
+
+def _consultation_paybill_reference(intent):
+    return f'{CONSULTATION_PAYBILL_PREFIX}{intent.reference}'
+
+
+def _consultation_callback_url():
+    return (
+        str(getattr(settings, 'CONSULTATION_MPESA_CALLBACK_URL', '') or '').strip()
+        or f"{str(getattr(settings, 'BACKEND_BASE_URL', '')).rstrip('/')}/api/consultations/payments/mpesa/callback/"
+    )
+
+
+def _is_mpesa_processing_response(payload):
+    text = str((payload or {}).get('ResultDesc', '') or '').strip().lower()
+    return any(marker in text for marker in ('processing', 'pending', 'queued', 'being processed'))
+
+
+def _create_paid_consultation_from_intent(intent):
+    if intent.consultation_id:
+        return intent.consultation
+    if intent.status != ConsultationPaymentIntent.STATUS_SUCCEEDED:
+        raise ValueError('Payment has not been confirmed.')
+
+    serializer = ConsultationCreateSerializer(
+        data=intent.consultation_payload,
+        context={'request': type('RequestProxy', (), {'user': intent.initiated_by})()},
+    )
+    serializer.is_valid(raise_exception=True)
+    consultation = serializer.save(
+        patient=intent.initiated_by,
+        patient_email=intent.consultation_payload.get('patient_email', ''),
+        patient_phone=intent.consultation_payload.get('patient_phone', ''),
+    )
+    intent.consultation = consultation
+    intent.save(update_fields=['consultation', 'updated_at'])
+    return consultation
+
+
+def apply_consultation_paybill_confirmation(raw_payload, *, source='paybill_confirmation'):
+    account_reference = str(raw_payload.get('BillRefNumber') or '').strip()
+    provider_reference = str(raw_payload.get('TransID') or '').strip()
+    phone_number = str(raw_payload.get('MSISDN') or '').strip()
+
+    if not account_reference.startswith(CONSULTATION_PAYBILL_PREFIX):
+        return None
+
+    intent = ConsultationPaymentIntent.objects.select_for_update().filter(
+        provider=ConsultationPaymentIntent.PROVIDER_PAYBILL,
+        external_reference=account_reference,
+    ).first()
+    if intent is None:
+        intent_reference = account_reference[len(CONSULTATION_PAYBILL_PREFIX):].strip()
+        intent = ConsultationPaymentIntent.objects.select_for_update().filter(reference=intent_reference).first()
+    if intent is None:
+        return None
+
+    intent.callback_payload = raw_payload
+    intent.provider_reference = provider_reference or intent.provider_reference
+    intent.phone_number = phone_number or intent.phone_number
+    intent.processed_at = timezone.now()
+
+    try:
+        paid_amount = float(raw_payload.get('TransAmount'))
+    except (TypeError, ValueError):
+        paid_amount = None
+    expected_amount = float(intent.amount)
+
+    if paid_amount is None or round(paid_amount, 2) != round(expected_amount, 2):
+        intent.status = ConsultationPaymentIntent.STATUS_REQUIRES_ACTION
+        intent.last_error = f'Expected KES {intent.amount} for this consultation.'
+        accepted = False
+    else:
+        intent.status = ConsultationPaymentIntent.STATUS_SUCCEEDED
+        intent.last_error = ''
+        accepted = True
+
+    intent.payload = {
+        **(intent.payload or {}),
+        'paybill_confirmation': {
+            'source': source,
+            'account_reference': account_reference,
+            'transaction_reference': provider_reference,
+            'amount': raw_payload.get('TransAmount'),
+            'phone_number': phone_number,
+        },
+    }
+    intent.save(update_fields=[
+        'callback_payload', 'provider_reference', 'phone_number', 'processed_at',
+        'status', 'last_error', 'payload', 'updated_at',
+    ])
+    return intent, accepted
+
+
+def validate_consultation_paybill_payload(raw_payload):
+    account_reference = str(raw_payload.get('BillRefNumber') or '').strip()
+    if not account_reference.startswith(CONSULTATION_PAYBILL_PREFIX):
+        return None
+
+    intent = ConsultationPaymentIntent.objects.filter(
+        provider=ConsultationPaymentIntent.PROVIDER_PAYBILL,
+        external_reference=account_reference,
+    ).first()
+    if intent is None:
+        intent_reference = account_reference[len(CONSULTATION_PAYBILL_PREFIX):].strip()
+        intent = ConsultationPaymentIntent.objects.filter(reference=intent_reference).first()
+    if intent is None:
+        return False, 'Invalid consultation account reference.'
+
+    try:
+        paid_amount = float(raw_payload.get('TransAmount'))
+    except (TypeError, ValueError):
+        paid_amount = None
+    if paid_amount is None or round(paid_amount, 2) != round(float(intent.amount), 2):
+        return False, f'Expected KES {intent.amount} for this consultation.'
+    if intent.status == ConsultationPaymentIntent.STATUS_SUCCEEDED:
+        return False, 'This consultation payment is already confirmed.'
+    return True, 'Accepted'
 
 
 def _get_clinician_for_user(user, provider_type=None):
@@ -66,6 +196,29 @@ def _get_provider_for_user(user):
     if getattr(user, 'role', None) == 'pediatrician':
         return _get_pediatrician_or_404(user)
     return _get_doctor_or_404(user)
+
+
+def _client_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def _audit_consultation(request, consultation, action, *, target=None, metadata=None):
+    try:
+        ConsultationAuditLog.objects.create(
+            consultation=consultation,
+            actor=request.user if request.user.is_authenticated else None,
+            action=action,
+            target_type=target.__class__.__name__ if target is not None else '',
+            target_id=str(getattr(target, 'pk', '') or ''),
+            ip_address=_client_ip(request),
+            user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:255],
+            metadata=metadata or {},
+        )
+    except Exception:
+        pass
 
 
 def _get_or_create_onboarding_profile(user):
@@ -104,6 +257,44 @@ def _is_controlled_substance_item(item):
     })
 
 
+def _preferred_specialty_from_issue(issue):
+    marker = 'Preferred specialty:'
+    for line in str(issue or '').splitlines():
+        if marker.lower() in line.lower():
+            return line.split(':', 1)[1].strip()
+    return ''
+
+
+def _doctor_notification_recipients(consultation):
+    preferred_specialty = _preferred_specialty_from_issue(consultation.issue)
+    doctors = ClinicianProfile.objects.doctors().active().select_related('user')
+    if preferred_specialty:
+        doctors = doctors.filter(specialty__iexact=preferred_specialty)
+    return [
+        doctor.user
+        for doctor in doctors
+        if doctor.user_id and doctor.user.is_active and doctor.user.status == 'active'
+    ]
+
+
+def _notify_new_consultation_recipients(consultation):
+    try:
+        from apps.notifications.utils import notify_new_consultation
+        recipients = _doctor_notification_recipients(consultation)
+        if not recipients:
+            provider = consultation.provider_profile
+            if provider and provider.user and provider.user.is_active and provider.user.status == 'active':
+                recipients = [provider.user]
+        seen = set()
+        for recipient in recipients:
+            if recipient.id in seen:
+                continue
+            seen.add(recipient.id)
+            notify_new_consultation(recipient, consultation)
+    except Exception:
+        pass
+
+
 class ConsultationMessageCursorPagination(CursorPagination):
     page_size = 20
     ordering = '-sent_at'
@@ -132,6 +323,29 @@ def _get_clinician_by_identifier(identifier, provider_type):
     queryset = ClinicianProfile.objects.filter(provider_type=provider_type)
     legacy_field = 'legacy_doctor_id' if provider_type == ClinicianProfile.TYPE_DOCTOR else 'legacy_pediatrician_id'
     return queryset.filter(pk=identifier).first() or queryset.filter(**{legacy_field: identifier}).first()
+
+
+def _provision_doctor_activation_account(doctor, request):
+    if doctor.user_id:
+        return None
+    serializer = ProvisionDoctorAccountSerializer(
+        data={},
+        context={'doctor': doctor, 'request': request},
+    )
+    serializer.is_valid(raise_exception=True)
+    _doctor, user, _ = serializer.save()
+    log_admin_action(
+        request.user,
+        'doctor_account_provisioned',
+        'doctor_profile',
+        doctor.id,
+        f'Provisioned activation account for {doctor.name}',
+        metadata={'user_id': user.id, 'role': user.role},
+    )
+    return {
+        'sent_to': user.email,
+        **(getattr(serializer, 'activation_email_meta', None) or {}),
+    }
 
 
 # ─── Public ───────────────────────────────────────────────────────────────────
@@ -402,28 +616,243 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
         return Consultation.objects.filter(patient=self.request.user).select_related(*CONSULTATION_SELECT_RELATED)
 
     def create(self, request, *args, **kwargs):
+        if not request.data.get('is_pediatric') and not request.data.get('payment_intent_id'):
+            return Response(
+                {'detail': 'A confirmed consultation payment is required before starting chat.'},
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        payment_intent = None
+        if request.data.get('payment_intent_id'):
+            try:
+                payment_intent = ConsultationPaymentIntent.objects.select_for_update().get(
+                    pk=request.data.get('payment_intent_id'),
+                    initiated_by=request.user,
+                    status=ConsultationPaymentIntent.STATUS_SUCCEEDED,
+                    consultation__isnull=True,
+                )
+            except ConsultationPaymentIntent.DoesNotExist:
+                return Response({'detail': 'Confirmed consultation payment not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
         consultation = serializer.save(
             patient=request.user,
             patient_name=request.user.full_name,
             patient_email=request.user.email,
             patient_phone=request.user.phone,
         )
+        if payment_intent:
+            payment_intent.consultation = consultation
+            payment_intent.save(update_fields=['consultation', 'updated_at'])
 
-        # Notify doctor of new consultation
-        provider = consultation.provider_profile
-        provider_user = None
-        if provider and provider.user:
-            provider_user = provider.user
-        if provider_user:
-            try:
-                from apps.notifications.utils import notify_new_consultation
-                notify_new_consultation(provider_user, consultation)
-            except Exception:
-                pass
+        _notify_new_consultation_recipients(consultation)
 
         return Response(ConsultationSerializer(consultation).data, status=status.HTTP_201_CREATED)
+
+
+class ConsultationPaymentIntentCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = ConsultationPaymentIntentCreateSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        consultation_data = serializer.validated_data['consultation']
+        clinician = consultation_data['clinician']
+        provider = data['provider']
+
+        if clinician.status != ClinicianProfile.STATUS_ACTIVE:
+            return Response({'detail': 'Selected clinician is not active.'}, status=status.HTTP_400_BAD_REQUEST)
+        if clinician.user_id and (not clinician.user.is_active or clinician.user.status != 'active'):
+            return Response({'detail': 'Selected clinician account is not active.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        amount = clinician.consult_fee
+        if amount <= 0:
+            return Response({'detail': 'This clinician does not have a consultation fee configured.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        stored_consultation_payload = dict(consultation_data)
+        stored_consultation_payload.pop('clinician', None)
+        if stored_consultation_payload.get('scheduled_at'):
+            stored_consultation_payload['scheduled_at'] = stored_consultation_payload['scheduled_at'].isoformat()
+        stored_consultation_payload.update({
+            'doctor': clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None,
+            'pediatrician': clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else None,
+            'patient_name': stored_consultation_payload.get('patient_name') or request.user.full_name,
+            'patient_email': stored_consultation_payload.get('patient_email') or request.user.email,
+            'patient_phone': stored_consultation_payload.get('patient_phone') or request.user.phone,
+        })
+
+        intent = ConsultationPaymentIntent.objects.create(
+            initiated_by=request.user,
+            clinician=clinician,
+            provider=provider,
+            status=ConsultationPaymentIntent.STATUS_REQUIRES_ACTION,
+            amount=amount,
+            currency=clinician.currency or 'KES',
+            phone_number=data.get('phone', ''),
+            consultation_payload=stored_consultation_payload,
+        )
+
+        if provider == ConsultationPaymentIntent.PROVIDER_PAYBILL:
+            if not get_paybill_number():
+                return Response({'detail': 'M-Pesa paybill is not configured.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            if not getattr(settings, 'MPESA_C2B_URLS_REGISTERED', False):
+                return Response(
+                    {'detail': 'M-Pesa paybill callbacks are not registered. Register Daraja C2B URLs before using Paybill.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            try:
+                MpesaClient().validate_c2b_configuration()
+            except MpesaConfigurationError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+            intent.external_reference = _consultation_paybill_reference(intent)
+            intent.payload = {
+                'channel': 'consultation_mpesa_paybill',
+                'paybill_number': get_paybill_number(),
+                'paybill_account_label': get_paybill_account_label(),
+                'paybill_instructions': get_paybill_instructions(),
+            }
+            intent.save(update_fields=['external_reference', 'payload', 'updated_at'])
+            return Response(ConsultationPaymentIntentSerializer(intent).data, status=status.HTTP_201_CREATED)
+
+        try:
+            normalized_phone, response_payload = MpesaClient().initiate_stk_push(
+                payment_intent=intent,
+                phone=data.get('phone', ''),
+                account_reference=intent.reference,
+                description='Consultation',
+                callback_url=_consultation_callback_url(),
+            )
+        except MpesaConfigurationError as exc:
+            intent.status = ConsultationPaymentIntent.STATUS_FAILED
+            intent.last_error = str(exc)
+            intent.save(update_fields=['status', 'last_error', 'updated_at'])
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except MpesaAPIError as exc:
+            intent.status = ConsultationPaymentIntent.STATUS_FAILED
+            intent.last_error = str(exc)
+            intent.save(update_fields=['status', 'last_error', 'updated_at'])
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        intent.phone_number = normalized_phone
+        intent.external_reference = intent.reference
+        intent.client_secret = response_payload.get('CustomerMessage', '')
+        intent.provider_reference = response_payload.get('ResponseCode', '')
+        intent.merchant_request_id = response_payload.get('MerchantRequestID', '')
+        intent.checkout_request_id = response_payload.get('CheckoutRequestID', '')
+        intent.payload = response_payload
+        intent.save(update_fields=[
+            'phone_number', 'external_reference', 'client_secret', 'provider_reference',
+            'merchant_request_id', 'checkout_request_id', 'payload', 'updated_at',
+        ])
+        return Response(ConsultationPaymentIntentSerializer(intent).data, status=status.HTTP_201_CREATED)
+
+
+class ConsultationPaymentIntentStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            intent = ConsultationPaymentIntent.objects.select_for_update().get(pk=pk, initiated_by=request.user)
+        except ConsultationPaymentIntent.DoesNotExist:
+            return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if intent.status in [
+            ConsultationPaymentIntent.STATUS_SUCCEEDED,
+            ConsultationPaymentIntent.STATUS_FAILED,
+            ConsultationPaymentIntent.STATUS_CANCELLED,
+        ]:
+            return Response(ConsultationPaymentIntentSerializer(intent).data)
+
+        if intent.provider == ConsultationPaymentIntent.PROVIDER_PAYBILL:
+            return Response(ConsultationPaymentIntentSerializer(intent).data, status=status.HTTP_202_ACCEPTED)
+
+        try:
+            mpesa_response = MpesaClient().query_stk_status(intent)
+        except MpesaConfigurationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except MpesaAPIError as exc:
+            intent.payload = {**(intent.payload or {}), 'status_sync_error': str(exc)}
+            intent.save(update_fields=['payload', 'updated_at'])
+            return Response(ConsultationPaymentIntentSerializer(intent).data, status=status.HTTP_202_ACCEPTED)
+
+        intent.payload = {**(intent.payload or {}), 'status_query': mpesa_response}
+        result_code = str(mpesa_response.get('ResultCode', ''))
+        if result_code == '0':
+            intent.status = ConsultationPaymentIntent.STATUS_SUCCEEDED
+            intent.last_error = ''
+            intent.provider_reference = mpesa_response.get('MpesaReceiptNumber', intent.provider_reference)
+            intent.processed_at = timezone.now()
+            intent.save(update_fields=['payload', 'status', 'last_error', 'provider_reference', 'processed_at', 'updated_at'])
+        elif _is_mpesa_processing_response(mpesa_response):
+            intent.status = ConsultationPaymentIntent.STATUS_REQUIRES_ACTION
+            intent.last_error = ''
+            intent.save(update_fields=['payload', 'status', 'last_error', 'updated_at'])
+            return Response(ConsultationPaymentIntentSerializer(intent).data, status=status.HTTP_202_ACCEPTED)
+        else:
+            intent.status = ConsultationPaymentIntent.STATUS_FAILED
+            intent.last_error = mpesa_response.get('ResultDesc', 'M-Pesa payment failed.')
+            intent.processed_at = timezone.now()
+            intent.save(update_fields=['payload', 'status', 'last_error', 'processed_at', 'updated_at'])
+
+        return Response(ConsultationPaymentIntentSerializer(intent).data)
+
+
+class ConsultationPaymentFinalizeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = ConsultationPaymentFinalizeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            intent = ConsultationPaymentIntent.objects.select_for_update().get(
+                pk=serializer.validated_data['payment_intent_id'],
+                initiated_by=request.user,
+            )
+        except ConsultationPaymentIntent.DoesNotExist:
+            return Response({'detail': 'Payment intent not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if intent.status != ConsultationPaymentIntent.STATUS_SUCCEEDED:
+            return Response({'detail': 'Payment has not been confirmed yet.'}, status=status.HTTP_402_PAYMENT_REQUIRED)
+
+        consultation = _create_paid_consultation_from_intent(intent)
+        _notify_new_consultation_recipients(consultation)
+        return Response(ConsultationSerializer(consultation).data, status=status.HTTP_201_CREATED)
+
+
+class ConsultationMpesaCallbackView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        callback = parse_mpesa_callback(request.data)
+        try:
+            intent = ConsultationPaymentIntent.objects.select_for_update().get(
+                provider=ConsultationPaymentIntent.PROVIDER_MPESA,
+                checkout_request_id=callback['checkout_request_id'],
+                merchant_request_id=callback['merchant_request_id'],
+            )
+        except ConsultationPaymentIntent.DoesNotExist:
+            return Response({'ResultCode': 1, 'ResultDesc': 'Payment intent not found.'})
+
+        intent.callback_payload = request.data
+        intent.processed_at = timezone.now()
+        intent.provider_reference = callback['metadata'].get('MpesaReceiptNumber', intent.provider_reference)
+        if callback['result_code'] == '0':
+            intent.status = ConsultationPaymentIntent.STATUS_SUCCEEDED
+            intent.last_error = ''
+        else:
+            intent.status = ConsultationPaymentIntent.STATUS_FAILED
+            intent.last_error = callback['result_desc'] or 'M-Pesa payment failed.'
+        intent.save(update_fields=[
+            'callback_payload', 'processed_at', 'provider_reference',
+            'status', 'last_error', 'updated_at',
+        ])
+        return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 class ConsultationDetailView(generics.RetrieveUpdateAPIView):
@@ -431,21 +860,43 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role in ['doctor', 'pediatrician', 'admin']:
-            return Consultation.objects.all().select_related(*CONSULTATION_SELECT_RELATED).prefetch_related('messages')
-        return Consultation.objects.filter(patient=user).select_related(*CONSULTATION_SELECT_RELATED).prefetch_related('messages')
+        base_queryset = Consultation.objects.select_related(*CONSULTATION_SELECT_RELATED).prefetch_related(
+            'messages',
+            'clinician_prescriptions',
+        )
+        if user.role == 'admin':
+            return base_queryset
+        if user.role in ['doctor', 'pediatrician']:
+            provider = _get_provider_for_user(user)
+            if not provider:
+                return Consultation.objects.none()
+            return base_queryset.filter(clinician=provider)
+        return base_queryset.filter(patient=user)
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
             return ConsultationUpdateSerializer
         return ConsultationSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        _audit_consultation(request, instance, ConsultationAuditLog.ACTION_VIEW_DETAIL)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
+        old_status = instance.status
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         consultation = serializer.save()
+        _audit_consultation(
+            request,
+            consultation,
+            ConsultationAuditLog.ACTION_UPDATE_STATUS,
+            metadata={'from_status': old_status, 'to_status': consultation.status},
+        )
 
         # Notify patient of status change
         if 'status' in request.data and consultation.patient:
@@ -456,7 +907,11 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
                     notification_type='consultation_status',
                     title=f"Consultation {consultation.reference} Updated",
                     message=f"Your consultation status is now: {consultation.get_status_display()}",
-                    data={'url': f'/consultations/{consultation.id}', 'reference': consultation.reference},
+                    data={
+                        'url': f'/consultations/{consultation.id}',
+                        'reference': consultation.reference,
+                        'sensitive': True,
+                    },
                 )
             except Exception:
                 pass
@@ -483,6 +938,14 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
             return ConsultationMessage.objects.none()
         return ConsultationMessage.objects.filter(consultation_id=self.kwargs['pk']).select_related('sender')
 
+    def list(self, request, *args, **kwargs):
+        consultation = Consultation.objects.select_related('clinician', 'patient').filter(pk=self.kwargs['pk']).first()
+        if consultation is not None:
+            queryset = self.filter_queryset(self.get_queryset())
+            if queryset.exists():
+                _audit_consultation(request, consultation, ConsultationAuditLog.ACTION_LIST_MESSAGES)
+        return super().list(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         try:
             consultation = Consultation.objects.get(pk=self.kwargs['pk'])
@@ -506,6 +969,13 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
             sender=user,
             sender_name=user.full_name,
         )
+        _audit_consultation(
+            self.request,
+            consultation,
+            ConsultationAuditLog.ACTION_SEND_MESSAGE,
+            target=msg,
+            metadata={'message_type': msg.message_type, 'has_attachment': bool(msg.attachment)},
+        )
         consultation.last_message_at = msg.sent_at
         consultation.save(update_fields=['last_message_at'])
 
@@ -517,7 +987,7 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
                     notification_type='consultation_message',
                     title=f'New message from {user.full_name}',
                     message=f'New message in consultation {consultation.reference}',
-                    data={'reference': consultation.reference, 'consultation_id': consultation.id},
+                    data={'reference': consultation.reference, 'consultation_id': consultation.id, 'sensitive': True},
                 )
             elif (is_doctor or is_pediatrician) and consultation.patient:
                 create_notification(
@@ -525,7 +995,7 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
                     notification_type='consultation_message',
                     title=f'New message from {user.full_name}',
                     message=f'New message in consultation {consultation.reference}',
-                    data={'reference': consultation.reference, 'consultation_id': consultation.id},
+                    data={'reference': consultation.reference, 'consultation_id': consultation.id, 'sensitive': True},
                 )
         except Exception:
             pass
@@ -570,6 +1040,7 @@ class ConsultationEndView(APIView):
         consultation.status = Consultation.STATUS_COMPLETED
         consultation.ended_at = timezone.now()
         consultation.save(update_fields=['status', 'ended_at', 'updated_at'])
+        _audit_consultation(request, consultation, ConsultationAuditLog.ACTION_END)
 
         ClinicianEarning.objects.get_or_create(
             clinician=provider,
@@ -585,7 +1056,7 @@ class ConsultationEndView(APIView):
                 notification_type='consultation_status',
                 title='Consultation completed',
                 message=f'Consultation {consultation.reference} has been completed.',
-                data={'consultation_id': consultation.id, 'reference': consultation.reference},
+                data={'consultation_id': consultation.id, 'reference': consultation.reference, 'sensitive': True},
             )
         _broadcast_consultation_event(
             consultation.id,
@@ -623,6 +1094,53 @@ class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
         serializer.save(clinician=provider, patient_name=patient_name or '')
 
 
+class ClinicianVariantSearchView(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        query = str(request.query_params.get('q') or '').strip()
+        try:
+            limit = min(max(int(request.query_params.get('limit', 12)), 1), 30)
+        except (TypeError, ValueError):
+            limit = 12
+
+        from apps.products.models import Variant
+
+        variants = Variant.objects.select_related(
+            'product',
+            'product__brand',
+        ).prefetch_related('inventories').filter(
+            is_active=True,
+            product__is_active=True,
+        )
+        if query:
+            variants = variants.filter(
+                Q(product__name__icontains=query)
+                | Q(name__icontains=query)
+                | Q(sku__icontains=query)
+                | Q(product__brand__name__icontains=query)
+                | Q(strength__icontains=query)
+            )
+
+        payload = []
+        for variant in variants.order_by('product__name', 'sort_order', 'name')[:limit]:
+            payload.append({
+                'id': variant.id,
+                'product_id': variant.product_id,
+                'product_name': variant.product.name,
+                'variant_name': variant.name,
+                'display_name': f'{variant.product.name} {variant.name}'.strip(),
+                'brand_name': variant.product.brand.name if variant.product.brand else '',
+                'sku': variant.sku,
+                'price': str(variant.price),
+                'requires_prescription': variant.requires_prescription,
+                'inventory_status': variant.inventory_status,
+                'available_quantity': variant.available_quantity,
+                'can_prescribe': variant.available_quantity > 0,
+            })
+        return Response({'results': payload})
+
+
 class ClinicianPrescriptionSendView(APIView):
     permission_classes = [IsDoctor]
 
@@ -633,7 +1151,7 @@ class ClinicianPrescriptionSendView(APIView):
             return Response({'detail': 'No clinician profile found.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            prescription = ClinicianPrescription.objects.select_for_update().select_related(
+            prescription = ClinicianPrescription.objects.select_for_update(of=('self',)).select_related(
                 'consultation', 'consultation__patient'
             ).get(pk=pk, clinician=provider)
         except ClinicianPrescription.DoesNotExist:
@@ -648,7 +1166,7 @@ class ClinicianPrescriptionSendView(APIView):
         from apps.prescriptions.models import Prescription as DispensingPrescription, PrescriptionItem as DispensingPrescriptionItem
 
         linked = getattr(prescription, 'linked_prescriptions', None)
-        existing = linked.order_by('-created_at').first() if linked is not None else None
+        existing = linked.order_by('-submitted_at').first() if linked is not None else None
         if existing is None:
             existing = DispensingPrescription.objects.create(
                 patient=patient,
@@ -667,9 +1185,13 @@ class ClinicianPrescriptionSendView(APIView):
             existing.items.all().delete()
 
         for item in prescription.items:
+            product_id = item.get('product_id')
+            variant_id = item.get('variant_id') or item.get('product_variant_id')
             DispensingPrescriptionItem.objects.create(
                 prescription=existing,
                 name=item.get('drug_name') or item.get('name') or 'Medication',
+                product_id=product_id or None,
+                variant_id=variant_id or None,
                 dose=item.get('dose', ''),
                 frequency=item.get('frequency', ''),
                 quantity=item.get('quantity') or 1,
@@ -680,14 +1202,21 @@ class ClinicianPrescriptionSendView(APIView):
         prescription.digital_signature = hashlib.sha256(signature_material.encode('utf-8')).hexdigest()
         prescription.status = ClinicianPrescription.STATUS_SENT
         prescription.sent_at = timezone.now()
-        prescription.save(update_fields=['digital_signature', 'status', 'sent_at', 'updated_at'])
+        prescription.save(update_fields=['digital_signature', 'status', 'sent_at'])
+        _audit_consultation(
+            request,
+            prescription.consultation,
+            ConsultationAuditLog.ACTION_SEND_PRESCRIPTION,
+            target=prescription,
+            metadata={'prescription_reference': prescription.reference},
+        )
 
         create_notification(
             recipient=patient,
             notification_type='prescription_status',
             title='New e-prescription',
             message=f'Your clinician sent prescription {prescription.reference}.',
-            data={'prescription_id': existing.id, 'reference': existing.reference},
+            data={'prescription_id': existing.id, 'reference': existing.reference, 'sensitive': True},
             send_email=True,
         )
         return Response(self._serialize_response(prescription, request.user))
@@ -709,6 +1238,14 @@ class ClinicianPrescriptionPDFView(APIView):
             prescription = ClinicianPrescription.objects.select_related('consultation').get(pk=pk, clinician=provider)
         except ClinicianPrescription.DoesNotExist:
             return Response({'detail': 'Prescription not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if prescription.consultation_id:
+            _audit_consultation(
+                request,
+                prescription.consultation,
+                ConsultationAuditLog.ACTION_VIEW_DETAIL,
+                target=prescription,
+                metadata={'document': 'clinician_prescription_pdf'},
+            )
 
         try:  # pragma: no cover - optional dependency in local dev
             from reportlab.lib.pagesizes import A4
@@ -747,6 +1284,40 @@ class ClinicianPrescriptionPDFView(APIView):
         response = HttpResponse(buffer.read(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{prescription.reference}.pdf"'
         return response
+
+
+class ConsultationMessageAttachmentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            message = ConsultationMessage.objects.select_related(
+                'consultation',
+                'consultation__patient',
+                'consultation__clinician',
+                'consultation__clinician__user',
+            ).get(pk=pk)
+        except ConsultationMessage.DoesNotExist:
+            return Response({'detail': 'Attachment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        consultation = message.consultation
+        provider = consultation.provider_profile
+        is_provider = bool(provider and provider.user_id == request.user.id)
+        is_patient = consultation.patient_id == request.user.id
+        is_admin = request.user.role == 'admin'
+        if not (is_provider or is_patient or is_admin):
+            return Response({'detail': 'Attachment not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not message.attachment:
+            return Response({'detail': 'Attachment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        _audit_consultation(
+            request,
+            consultation,
+            ConsultationAuditLog.ACTION_DOWNLOAD_ATTACHMENT,
+            target=message,
+            metadata={'message_type': message.message_type},
+        )
+        return FileResponse(message.attachment.open('rb'), as_attachment=True, filename=message.attachment.name.rsplit('/', 1)[-1])
 
 
 class ClinicianEarningsView(generics.ListAPIView):
@@ -791,7 +1362,10 @@ class AdminDoctorDetailView(generics.RetrieveUpdateAPIView):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
-        if request.data.get('status') == ClinicianProfile.STATUS_ACTIVE and not instance.verified_at:
+        if request.data.get('status') in {
+            ClinicianProfile.STATUS_ACTIVE,
+            ClinicianProfile.STATUS_APPROVED_PENDING_ACTIVATION,
+        } and not instance.verified_at:
             instance.verified_at = timezone.now()
             instance.is_verified = True
             instance.save(update_fields=['verified_at', 'is_verified'])
@@ -799,14 +1373,17 @@ class AdminDoctorDetailView(generics.RetrieveUpdateAPIView):
         doctor = serializer.save(updated_by=request.user)
 
         # Notify doctor if newly verified
-        if was_pending and doctor.status == ClinicianProfile.STATUS_ACTIVE and doctor.user:
-            try:
-                from apps.notifications.utils import notify_doctor_verified
-                notify_doctor_verified(doctor)
-            except Exception:
-                pass
+        activation_email = None
+        if was_pending and doctor.status in {
+            ClinicianProfile.STATUS_ACTIVE,
+            ClinicianProfile.STATUS_APPROVED_PENDING_ACTIVATION,
+        }:
+            activation_email = _provision_doctor_activation_account(doctor, request)
 
-        return Response(DoctorProfileSerializer(doctor).data)
+        payload = DoctorProfileSerializer(doctor).data
+        if activation_email:
+            payload['activation_email'] = activation_email
+        return Response(payload)
 
 
 class AdminDoctorActionView(APIView):
@@ -821,7 +1398,7 @@ class AdminDoctorActionView(APIView):
         action = request.data.get('action')
 
         if action == 'approve':
-            doctor.status = ClinicianProfile.STATUS_ACTIVE
+            doctor.status = ClinicianProfile.STATUS_APPROVED_PENDING_ACTIVATION
             doctor.is_verified = True
             doctor.verified_at = timezone.now()
             doctor.status_note = ''
@@ -829,12 +1406,7 @@ class AdminDoctorActionView(APIView):
             doctor.save(update_fields=['status', 'is_verified', 'verified_at', 'status_note', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'doctor_approved', 'doctor_profile', doctor.id,
                              f'Approved {doctor.name}')
-            if doctor.user:
-                try:
-                    from apps.notifications.utils import notify_doctor_verified
-                    notify_doctor_verified(doctor)
-                except Exception:
-                    pass
+            activation_email = _provision_doctor_activation_account(doctor, request)
 
         elif action == 'request_docs':
             note = request.data.get('note', '')
@@ -843,18 +1415,32 @@ class AdminDoctorActionView(APIView):
             doctor.save(update_fields=['status_note', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'doctor_docs_requested', 'doctor_profile', doctor.id,
                              f'Requested documents from {doctor.name}')
+            send_professional_application_status_email(
+                email=doctor.email,
+                first_name=(doctor.name or '').split(' ', 1)[0],
+                role_label='Doctor',
+                status_label='Requires Additional Information',
+                message=note or 'Please provide the additional information requested by the Ava Pharmacy admin team.',
+            )
 
         elif action == 'reject':
             note = (request.data.get('note') or '').strip()
             if not note:
                 return Response({'note': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            doctor.status = ClinicianProfile.STATUS_SUSPENDED
+            doctor.status = ClinicianProfile.STATUS_REJECTED
             doctor.is_verified = False
             doctor.rejection_note = note
             doctor.updated_by = request.user
             doctor.save(update_fields=['status', 'is_verified', 'rejection_note', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'doctor_rejected', 'doctor_profile', doctor.id,
                              f'Rejected {doctor.name}')
+            send_professional_application_status_email(
+                email=doctor.email,
+                first_name=(doctor.name or '').split(' ', 1)[0],
+                role_label='Doctor',
+                status_label='Rejected',
+                message=note,
+            )
 
         else:
             return Response(
@@ -862,7 +1448,10 @@ class AdminDoctorActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        return Response(DoctorProfileSerializer(doctor).data)
+        payload = DoctorProfileSerializer(doctor).data
+        if action == 'approve' and activation_email:
+            payload['activation_email'] = activation_email
+        return Response(payload)
 
 
 class AdminDoctorVerifyView(APIView):
@@ -874,18 +1463,17 @@ class AdminDoctorVerifyView(APIView):
         except ClinicianProfile.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        doctor.status = ClinicianProfile.STATUS_ACTIVE
+        doctor.status = ClinicianProfile.STATUS_APPROVED_PENDING_ACTIVATION
         doctor.is_verified = True
         doctor.verified_at = timezone.now()
         doctor.suspension_reason = ''
         doctor.updated_by = request.user
         doctor.save(update_fields=['status', 'is_verified', 'verified_at', 'suspension_reason', 'updated_by', 'updated_at'])
-        if doctor.user:
-            doctor.user.status = doctor.user.STATUS_ACTIVE
-            doctor.user.is_active = True
-            doctor.user.save(update_fields=['status', 'is_active', 'updated_at'])
-            notify_doctor_verified(doctor)
-        return Response(DoctorProfileSerializer(doctor).data)
+        activation_email = _provision_doctor_activation_account(doctor, request)
+        payload = DoctorProfileSerializer(doctor).data
+        if activation_email:
+            payload['activation_email'] = activation_email
+        return Response(payload)
 
 
 class AdminDoctorSuspendView(APIView):
@@ -903,7 +1491,7 @@ class AdminDoctorSuspendView(APIView):
         if not reason:
             return Response({'reason': 'Suspension reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        doctor.status = ClinicianProfile.STATUS_SUSPENDED
+        doctor.status = ClinicianProfile.STATUS_DEACTIVATED
         doctor.is_verified = False
         doctor.suspension_reason = reason
         doctor.updated_by = request.user

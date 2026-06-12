@@ -77,6 +77,8 @@ class IsDoctor(BasePermission):
         return bool(
             request.user and request.user.is_authenticated
             and request.user.role in [User.DOCTOR, User.PEDIATRICIAN]
+            and request.user.is_active
+            and request.user.status == User.STATUS_ACTIVE
         )
 
 

@@ -1490,8 +1490,16 @@ class AdminInventoryReleaseView(APIView):
                 branch_release = int(item.get('branch_quantity', quantity))
                 warehouse_release = int(item.get('warehouse_quantity', 0))
                 backorder_release = int(item.get('backorder_quantity', 0))
-                branch_inventory, _ = VariantInventory.objects.get_or_create(variant=variant, location=Product.STOCK_BRANCH)
-                warehouse_inventory, _ = VariantInventory.objects.get_or_create(variant=variant, location=Product.STOCK_WAREHOUSE)
+                branch_inventory, _ = VariantInventory.objects.get_or_create(
+                    variant=variant,
+                    location=Product.STOCK_BRANCH,
+                    batch_number='',
+                )
+                warehouse_inventory, _ = VariantInventory.objects.get_or_create(
+                    variant=variant,
+                    location=Product.STOCK_WAREHOUSE,
+                    batch_number='',
+                )
                 if branch_release > 0:
                     branch_inventory.stock_quantity += branch_release
                     branch_inventory.save(update_fields=['stock_quantity', 'updated_at'])
@@ -1542,8 +1550,16 @@ class AdminInventoryDeductView(APIView):
                 qty_before = variant.stock_quantity
                 branch_take = int(item.get('branch_quantity', quantity))
                 warehouse_take = int(item.get('warehouse_quantity', 0))
-                branch_inventory, _ = VariantInventory.objects.get_or_create(variant=variant, location=Product.STOCK_BRANCH)
-                warehouse_inventory, _ = VariantInventory.objects.get_or_create(variant=variant, location=Product.STOCK_WAREHOUSE)
+                branch_inventory, _ = VariantInventory.objects.get_or_create(
+                    variant=variant,
+                    location=Product.STOCK_BRANCH,
+                    batch_number='',
+                )
+                warehouse_inventory, _ = VariantInventory.objects.get_or_create(
+                    variant=variant,
+                    location=Product.STOCK_WAREHOUSE,
+                    batch_number='',
+                )
                 if branch_take > 0:
                     branch_inventory.stock_quantity = max(0, branch_inventory.stock_quantity - branch_take)
                     branch_inventory.save(update_fields=['stock_quantity', 'updated_at'])

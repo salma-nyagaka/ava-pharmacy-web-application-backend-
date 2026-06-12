@@ -1,0 +1,12 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}AVA Pharmacy {{ role_label }} Application {{ status_label }}{% endblock %}
+{% block intro %}Hi {{ first_name }}, there is an update on your Ava Pharmacy {{ role_label|lower }} application.{% endblock %}
+
+{% block content %}
+{{ message }}
+{% if cta_url %}Continue: {{ cta_url }}{% endif %}
+Support: {{ support_email }}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy Professional Onboarding{% endblock %}

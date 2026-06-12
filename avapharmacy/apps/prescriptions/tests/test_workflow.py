@@ -12,7 +12,7 @@ from apps.prescriptions.models import (
     PrescriptionFile,
     PrescriptionReviewDecision,
 )
-from apps.products.models import Product
+from apps.products.models import Product, Variant, VariantInventory
 
 
 class PrescriptionWorkflowTests(TestCase):
@@ -42,6 +42,19 @@ class PrescriptionWorkflowTests(TestCase):
             price='1200.00',
             is_active=True,
             requires_prescription=True,
+        )
+        self.variant = Variant.objects.create(
+            product=self.product,
+            sku='RX-APPROVED-001-500',
+            name='500mg tablets',
+            price='1200.00',
+            requires_prescription=True,
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 10, 'low_stock_threshold': 2},
         )
 
     def test_upload_queue_assign_and_approve_prescription(self):
@@ -76,7 +89,7 @@ class PrescriptionWorkflowTests(TestCase):
                 'notes': 'Verified and approved',
                 'items': [{
                     'name': 'Tramadol',
-                    'product_id': self.product.id,
+                    'variant_id': self.variant.id,
                     'dose': '50mg',
                     'frequency': 'once daily',
                     'quantity': 1,
@@ -92,6 +105,9 @@ class PrescriptionWorkflowTests(TestCase):
         self.assertEqual(decision.from_status, Prescription.STATUS_PENDING)
         self.assertEqual(decision.to_status, Prescription.STATUS_APPROVED)
         self.assertEqual(decision.pharmacist, self.pharmacist)
+        item = prescription.items.get()
+        self.assertEqual(item.product_id, self.product.id)
+        self.assertEqual(item.variant_id, self.variant.id)
 
     def test_pharmacist_requires_prescription_review_permission(self):
         restricted = User.objects.create_user(
@@ -121,6 +137,17 @@ class PrescriptionWorkflowTests(TestCase):
 
         self.assertEqual(queue_response.status_code, 403)
         self.assertEqual(review_response.status_code, 403)
+
+    def test_pharmacist_can_search_catalog_variants_for_prescription_mapping(self):
+        self.client.force_authenticate(self.pharmacist)
+
+        response = self.client.get(reverse('pharmacist-catalog-variants'), {'q': 'approved'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['results'][0]['id'], self.variant.id)
+        self.assertEqual(response.data['results'][0]['product_id'], self.product.id)
+        self.assertEqual(response.data['results'][0]['sku'], self.variant.sku)
+        self.assertTrue(response.data['results'][0]['can_select'])
 
     def test_approval_requires_mapped_medications(self):
         prescription = Prescription.objects.create(

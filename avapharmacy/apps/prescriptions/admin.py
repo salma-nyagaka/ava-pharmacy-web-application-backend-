@@ -30,7 +30,7 @@ class PrescriptionAdmin(admin.ModelAdmin):
 
 @admin.register(PrescriptionItem)
 class PrescriptionItemAdmin(admin.ModelAdmin):
-    list_display = ('prescription', 'name', 'product', 'quantity')
-    list_select_related = ('prescription', 'product')
-    search_fields = ('prescription__reference', 'name', 'product__name', 'product__sku')
+    list_display = ('prescription', 'name', 'product', 'variant', 'quantity')
+    list_select_related = ('prescription', 'product', 'variant')
+    search_fields = ('prescription__reference', 'name', 'product__name', 'product__sku', 'variant__name', 'variant__sku')
     autocomplete_fields = ('product',)

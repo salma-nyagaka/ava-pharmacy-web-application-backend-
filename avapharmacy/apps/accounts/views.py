@@ -10,6 +10,8 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
@@ -41,18 +43,42 @@ from .serializers import (
     PublicLabPartnerListSerializer,
 )
 from .permissions import IsAdminUser
+from .tokens import blacklist_user_refresh_tokens
 from .utils import (
     ACTIVATION_ELIGIBLE_ROLES,
+    consume_customer_verification,
     dashboard_url_for_role,
+    get_valid_customer_verification,
     get_valid_pharmacist_activation,
+    issue_customer_verification_token,
     issue_pharmacist_activation_token,
     log_admin_action,
     role_label,
     send_pharmacist_activation_email,
+    send_customer_activation_success_email,
+    send_customer_verification_email,
+    send_professional_application_received_email,
     send_customer_welcome_email,
     send_password_reset_email,
 )
 from apps.lab.models import LabPartner
+from apps.notifications.utils import create_notification
+
+
+class ActiveUserTokenRefreshSerializer(TokenRefreshSerializer):
+    """Refresh serializer that refuses deleted or inactive accounts."""
+
+    def validate(self, attrs):
+        refresh = self.token_class(attrs['refresh'])
+        user_id = refresh.get('user_id')
+        user = User.objects.filter(pk=user_id).first()
+        if user is None or not user.is_active or user.status != User.STATUS_ACTIVE:
+            raise InvalidToken('User account is inactive or no longer exists.')
+        return super().validate(attrs)
+
+
+class ActiveUserTokenRefreshView(TokenRefreshView):
+    serializer_class = ActiveUserTokenRefreshSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -70,7 +96,16 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         if user.role == 'customer':
-            send_customer_welcome_email(user=user)
+            token, raw_token = issue_customer_verification_token(user)
+            send_customer_verification_email(user=user, raw_token=raw_token, request=request)
+            return Response({
+                'detail': 'Registration successful. Please check your email to verify your account.',
+                'verification_email': {
+                    'sent_to': user.email,
+                    'expires_at': token.expires_at,
+                },
+                'user': UserSerializer(user).data,
+            }, status=status.HTTP_201_CREATED)
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
@@ -95,7 +130,30 @@ class ProfessionalRegistrationView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         application = serializer.save()
-        return Response(serializer.build_response(application), status=status.HTTP_201_CREATED)
+        response_payload = serializer.build_response(application)
+        try:
+            first_name = (getattr(application, 'name', '') or '').split(' ', 1)[0]
+            send_professional_application_received_email(
+                email=application.email,
+                first_name=first_name,
+                role_label=response_payload['registration_type_display'],
+                reference=getattr(application, 'reference', '') or str(application.pk),
+            )
+            for admin in User.objects.filter(role=User.ADMIN, is_active=True):
+                create_notification(
+                    recipient=admin,
+                    notification_type='doctor_verified',
+                    title=f'New {response_payload["registration_type_display"]} application',
+                    message=f'{application.name} submitted credentials for review.',
+                    data={
+                        'url': '/admin/doctors',
+                        'reference': getattr(application, 'reference', '') or str(application.pk),
+                    },
+                    send_email=False,
+                )
+        except Exception:
+            pass
+        return Response(response_payload, status=status.HTTP_201_CREATED)
 
 
 class PublicLabPartnerListView(generics.ListAPIView):
@@ -129,9 +187,19 @@ class LoginView(APIView):
             password=serializer.validated_data['password']
         )
         if not user:
+            pending_user = User.objects.filter(email__iexact=serializer.validated_data['email']).first()
+            if (
+                pending_user
+                and pending_user.role == User.CUSTOMER
+                and pending_user.status == User.STATUS_PENDING_VERIFICATION
+                and pending_user.check_password(serializer.validated_data['password'])
+            ):
+                return Response({'detail': 'Please verify your email before logging in.'}, status=status.HTTP_403_FORBIDDEN)
             return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
         if user.status == User.STATUS_SUSPENDED:
             return Response({'detail': 'Account suspended. Contact support.'}, status=status.HTTP_403_FORBIDDEN)
+        if user.role == User.CUSTOMER and user.status == User.STATUS_PENDING_VERIFICATION:
+            return Response({'detail': 'Please verify your email before logging in.'}, status=status.HTTP_403_FORBIDDEN)
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
@@ -199,6 +267,14 @@ class PharmacistActivationSetPasswordView(APIView):
         serializer = PharmacistActivationSetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        log_admin_action(
+            user,
+            action='professional_account_verified',
+            entity_type='user',
+            entity_id=user.id,
+            message=f'{user.email} activated their professional account.',
+            metadata={'role': user.role},
+        )
         return Response({
             'detail': 'Password set successfully. You can now log in.',
             'user': {
@@ -234,6 +310,7 @@ class PharmacistActivationPageView(View):
             'token': token,
             'new_password': request.POST.get('new_password', ''),
             'new_password_confirm': request.POST.get('new_password_confirm', ''),
+            'accepted_terms': request.POST.get('accepted_terms') == 'on',
         })
         context = {
             'token': token,
@@ -327,7 +404,11 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         """Save changes and write an audit log entry."""
+        previous = self.get_object()
+        previous_is_active = previous.is_active
         user = serializer.save()
+        if previous_is_active and (not user.is_active or user.status != User.STATUS_ACTIVE):
+            blacklist_user_refresh_tokens(user)
         log_admin_action(
             self.request.user,
             action='user_updated',
@@ -335,6 +416,20 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
             entity_id=user.id,
             message=f'Updated user {user.email}',
             metadata={'role': user.role, 'status': user.status},
+        )
+
+    def perform_destroy(self, instance):
+        """Invalidate sessions before permanently deleting an account."""
+        user_id = instance.id
+        email = instance.email
+        blacklist_user_refresh_tokens(instance)
+        instance.delete()
+        log_admin_action(
+            self.request.user,
+            action='user_deleted',
+            entity_type='user',
+            entity_id=user_id,
+            message=f'Deleted user {email}',
         )
 
 
@@ -352,6 +447,7 @@ class AdminUserSuspendView(APIView):
         user.status = User.STATUS_SUSPENDED
         user.is_active = False
         user.save()
+        blacklist_user_refresh_tokens(user)
         log_admin_action(
             request.user,
             action='user_suspended',
@@ -359,7 +455,7 @@ class AdminUserSuspendView(APIView):
             entity_id=user.id,
             message=f'Suspended user {user.email}',
         )
-        return Response({'detail': 'User suspended.'})
+        return Response(AdminUserSerializer(user).data)
 
 
 class AdminUserActivateView(APIView):
@@ -383,7 +479,7 @@ class AdminUserActivateView(APIView):
             entity_id=user.id,
             message=f'Activated user {user.email}',
         )
-        return Response({'detail': 'User activated.'})
+        return Response(AdminUserSerializer(user).data)
 
 
 class AdminPharmacistActivationResendView(APIView):
@@ -615,12 +711,26 @@ class ResetPasswordView(APIView):
 
 
 class VerifyEmailView(APIView):
-    """Confirm the user's email using a token (stub — always succeeds in development)."""
+    """Confirm a customer's email using a one-time verification token."""
 
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        return Response({'data': {'email_verified': True}, 'message': 'Email verified successfully.'})
+        raw_token = request.data.get('token') or request.query_params.get('token')
+        token = get_valid_customer_verification(raw_token)
+        if token is None:
+            return Response({'token': 'Verification link is invalid or expired.'}, status=status.HTTP_400_BAD_REQUEST)
+        user = token.user
+        user.status = User.STATUS_ACTIVE
+        user.is_active = True
+        user.save(update_fields=['status', 'is_active', 'updated_at'])
+        consume_customer_verification(raw_token)
+        send_customer_activation_success_email(user=user)
+        send_customer_welcome_email(user=user)
+        return Response({
+            'data': {'email_verified': True, 'user': UserSerializer(user).data},
+            'message': 'Email verified successfully. You can now log in.',
+        })
 
 
 class ResendVerificationView(APIView):
@@ -630,6 +740,15 @@ class ResendVerificationView(APIView):
     throttle_classes = [RegisterRateThrottle]
 
     def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        user = User.objects.filter(email__iexact=email, role=User.CUSTOMER).first()
+        if user and user.status == User.STATUS_PENDING_VERIFICATION:
+            token, raw_token = issue_customer_verification_token(user)
+            send_customer_verification_email(user=user, raw_token=raw_token, request=request)
+            return Response({
+                'message': 'Verification email resent if the address is registered.',
+                'verification_email': {'sent_to': user.email, 'expires_at': token.expires_at},
+            })
         return Response({'message': 'Verification email resent if the address is registered.'})
 
 
@@ -654,6 +773,7 @@ class AccountDeleteView(APIView):
 
     def delete(self, request):
         user = request.user
+        blacklist_user_refresh_tokens(user)
         user.is_active = False
         user.status = User.STATUS_SUSPENDED
         user.email = f'deleted_{user.pk}_{user.email}'

@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.products.models import Product, VariantInventory
+from apps.products.models import Product, StockMovement, VariantInventory
 
 
 class InventorySyncTests(TestCase):
@@ -90,6 +90,37 @@ class InventorySyncTests(TestCase):
         self.assertTrue(response.data['in_stock'])
         self.assertEqual(response.data['quantity'], 13)
         self.assertEqual(len(response.data['location_stock']), 2)
+
+    def test_admin_variant_stock_update_creates_movement_record(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            reverse('admin-product-variant-detail', args=[self.product.id, self.variant.id]),
+            {
+                'branch_inventory': {
+                    'batch_number': 'SYNC-BATCH-001',
+                    'stock_quantity': 12,
+                    'low_stock_threshold': 2,
+                    'reorder_level': 4,
+                    'expiry_date': '2027-12-31',
+                    'shelf_location': 'Main A1',
+                },
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        inventory = VariantInventory.objects.get(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+            batch_number='SYNC-BATCH-001',
+        )
+        self.assertEqual(inventory.stock_quantity, 12)
+        movement = StockMovement.objects.get(variant_inventory=inventory)
+        self.assertEqual(movement.movement_type, StockMovement.TYPE_ADJUSTMENT)
+        self.assertEqual(movement.quantity_change, 12)
+        self.assertEqual(movement.batch_number, 'SYNC-BATCH-001')
+        self.assertEqual(movement.destination_location, Product.STOCK_BRANCH)
 
     @override_settings(INVENTORY_SYNC_URL='https://inventory.example.com/sync')
     @patch('apps.products.inventory_sync.request.urlopen')

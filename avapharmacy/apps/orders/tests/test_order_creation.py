@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import date
 
 from django.core import mail
 from django.test import TestCase
@@ -9,7 +10,7 @@ from apps.accounts.models import User
 from apps.notifications.models import Notification
 from apps.orders.models import Cart, CartItem, Order
 from apps.prescriptions.models import Prescription, PrescriptionItem
-from apps.products.models import Product, VariantInventory
+from apps.products.models import Product, StockMovement, VariantInventory
 
 
 class OrderCreationFlowTests(TestCase):
@@ -94,6 +95,62 @@ class OrderCreationFlowTests(TestCase):
         self.assertIn(order.order_number, mail.outbox[0].subject)
         self.assertTrue(mail.outbox[0].alternatives)
         self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])
+
+    def test_order_commit_deducts_variant_batches_by_earliest_expiry_first(self):
+        VariantInventory.objects.filter(variant=self.variant).delete()
+        early_batch = VariantInventory.objects.create(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+            batch_number='EARLY-2026',
+            stock_quantity=3,
+            low_stock_threshold=1,
+            expiry_date=date(2026, 8, 30),
+            shelf_location='A1',
+        )
+        later_batch = VariantInventory.objects.create(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+            batch_number='LATE-2027',
+            stock_quantity=5,
+            low_stock_threshold=1,
+            expiry_date=date(2027, 12, 31),
+            shelf_location='A2',
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(cart=cart, variant=self.variant, quantity=4)
+
+        response = self.client.post(
+            reverse('order-create'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_COD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        early_batch.refresh_from_db()
+        later_batch.refresh_from_db()
+        self.assertEqual(early_batch.stock_quantity, 0)
+        self.assertEqual(later_batch.stock_quantity, 4)
+
+        movements = StockMovement.objects.filter(
+            variant_inventory__variant=self.variant,
+            movement_type=StockMovement.TYPE_SALE,
+        ).order_by('created_at', 'id')
+        self.assertEqual(list(movements.values_list('batch_number', 'quantity_change')), [
+            ('EARLY-2026', -3),
+            ('LATE-2027', -1),
+        ])
 
     def test_prescription_cart_item_uses_foreign_keys_and_order_snapshot_preserves_them(self):
         self.variant.requires_prescription = True

@@ -1,0 +1,24 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Application Received{% endblock %}
+{% block heading %}{{ role_label }} application received{% endblock %}
+{% block intro %}Hi {{ first_name }}, thank you for applying to join Ava Pharmacy.{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#4a5568;">
+    We received your {{ role_label|lower }} application and our admin team will review your credentials, licence, and supporting documents.
+  </p>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;border-collapse:collapse;">
+    <tr>
+      <td style="padding:12px 14px;background:#fff5f8;border:1px solid #ffd7e2;border-radius:10px;">
+        <strong style="display:block;color:#1f2937;font-size:13px;margin-bottom:4px;">Application reference</strong>
+        <span style="color:#e81750;font-size:16px;font-weight:800;">{{ reference }}</span>
+      </td>
+    </tr>
+  </table>
+  <p style="margin:0;font-size:14px;line-height:1.7;color:#4a5568;">
+    If we need additional information, we will contact you by email. Approval emails include a secure 24-hour activation link for setting your password.
+  </p>
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy Professional Onboarding{% endblock %}

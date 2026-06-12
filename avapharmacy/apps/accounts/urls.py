@@ -5,7 +5,6 @@ Covers auth endpoints (register, login, logout, token refresh, profile,
 password change, addresses) and admin-only user management endpoints.
 """
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 urlpatterns = [
@@ -20,8 +19,8 @@ urlpatterns = [
     path('auth/pharmacist/activate/<str:token>/', views.PharmacistActivationPageView.as_view(), name='pharmacist-activate-page'),
     path('auth/professional/activate/', views.ProfessionalActivationSetPasswordView.as_view(), name='professional-activate'),
     path('auth/professional/activate/<str:token>/', views.ProfessionalActivationPageView.as_view(), name='professional-activate-page'),
-    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    path('auth/refresh/', TokenRefreshView.as_view(), name='token-refresh-alias'),
+    path('auth/token/refresh/', views.ActiveUserTokenRefreshView.as_view(), name='token-refresh'),
+    path('auth/refresh/', views.ActiveUserTokenRefreshView.as_view(), name='token-refresh-alias'),
     path('auth/me/', views.MeView.as_view(), name='me'),
     path('auth/me/password/', views.PasswordChangeView.as_view(), name='password-change'),
     path('auth/me/addresses/', views.AddressListCreateView.as_view(), name='addresses'),
