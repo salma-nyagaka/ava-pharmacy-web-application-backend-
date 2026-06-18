@@ -1242,7 +1242,7 @@ class ClinicianVariantSearchView(APIView):
     def get(self, request):
         query = str(request.query_params.get('q') or '').strip()
         try:
-            limit = min(max(int(request.query_params.get('limit', 12)), 1), 30)
+            limit = min(max(int(request.query_params.get('limit', 12)), 1), 1000)
         except (TypeError, ValueError):
             limit = 12
 

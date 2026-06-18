@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
@@ -89,6 +89,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             reverse('admin-products'),
             {
                 'name': 'Panadol 500mg',
+                'sku': 'ADMIN-KEYED-SKU',
                 'price': '1000.00',
                 'cost_price': '600.00',
                 'brand_id': brand.id,
@@ -99,7 +100,10 @@ class AdminCatalogAndWishlistTests(TestCase):
             format='multipart',
         )
         self.assertEqual(product_response.status_code, 201)
+        self.assertNotIn('cost_price', product_response.data)
         product = Product.objects.get(name='Panadol')
+        self.assertTrue(product.sku.startswith('PRD-PANADOL'))
+        self.assertNotEqual(product.sku, 'ADMIN-KEYED-SKU')
         variant = product.variants.create(
             sku='PANADOL-500',
             name='Standard',
@@ -132,6 +136,33 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(promotion.badge, '15% Off')
         self.assertFalse(promotion.is_stackable)
         self.assertTrue(bool(promotion.image))
+
+    @override_settings(POS_LINK_STRATEGY='barcode')
+    def test_admin_product_barcode_is_not_part_of_product_form(self):
+        self.client.force_authenticate(self.admin)
+
+        meta_response = self.client.get(reverse('admin-product-form-meta'))
+        self.assertEqual(meta_response.status_code, 200)
+        self.assertFalse(meta_response.data['requires_barcode'])
+        self.assertFalse(meta_response.data['accepts_barcode'])
+
+        response = self.client.post(
+            reverse('admin-products'),
+            {
+                'name': 'No Product Barcode Product',
+                'price': '500.00',
+                'cost_price': '250.00',
+                'description': 'Created without product barcode',
+                'short_description': 'No product barcode',
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn('barcode', response.data)
+        product = Product.objects.get(name='No Product Barcode Product')
+        self.assertEqual(product.barcode, '')
+        self.assertTrue(product.sku.startswith('PRD-NOPRODUCTBARCODEPRODUCT'))
 
     def test_admin_can_create_variant_with_medication_fields(self):
         self.client.force_authenticate(self.admin)
@@ -170,6 +201,20 @@ class AdminCatalogAndWishlistTests(TestCase):
         branch_inventory = VariantInventory.objects.get(variant=variant, location=Product.STOCK_BRANCH)
         self.assertEqual(branch_inventory.stock_quantity, 12)
 
+    def test_admin_cannot_delete_product(self):
+        self.client.force_authenticate(self.admin)
+        product = Product.objects.create(
+            sku='NO-DELETE-001',
+            name='Do Not Delete',
+            slug='do-not-delete',
+            is_active=True,
+        )
+
+        response = self.client.delete(reverse('admin-product-detail', kwargs={'pk': product.id}))
+
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(Product.objects.filter(pk=product.id).exists())
+
     def test_public_inventory_items_list_returns_sellable_variants(self):
         product = Product.objects.create(
             sku='PARENT-INV-001',
@@ -191,8 +236,16 @@ class AdminCatalogAndWishlistTests(TestCase):
             requires_prescription=True,
             is_active=True,
         )
-        VariantInventory.objects.filter(variant=variant_a, location=Product.STOCK_BRANCH).update(stock_quantity=8)
-        VariantInventory.objects.filter(variant=variant_b, location=Product.STOCK_BRANCH).update(stock_quantity=4)
+        VariantInventory.objects.update_or_create(
+            variant=variant_a,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 8, 'low_stock_threshold': 2},
+        )
+        VariantInventory.objects.update_or_create(
+            variant=variant_b,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 4, 'low_stock_threshold': 2},
+        )
 
         response = self.client.get(reverse('inventory-items'))
 
@@ -241,6 +294,175 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(names['Panadol Normal']['product_id'], product.id)
         self.assertEqual(names['Panadol Normal']['product_slug'], product.slug)
 
+    def test_public_catalog_hides_products_from_inactive_brands(self):
+        active_brand = Brand.objects.create(
+            name='Visible Brand',
+            slug='visible-brand',
+            is_active=True,
+        )
+        inactive_brand = Brand.objects.create(
+            name='Hidden Brand',
+            slug='hidden-brand',
+            is_active=False,
+        )
+        visible_product = Product.objects.create(
+            sku='VISIBLE-PARENT',
+            name='Visible Product',
+            slug='visible-product',
+            brand=active_brand,
+            is_active=True,
+        )
+        visible_variant = visible_product.variants.create(
+            sku='VISIBLE-V1',
+            name='Visible Variant',
+            price=Decimal('120.00'),
+            is_active=True,
+        )
+        hidden_product = Product.objects.create(
+            sku='HIDDEN-PARENT',
+            name='Hidden Product',
+            slug='hidden-product',
+            brand=inactive_brand,
+            is_active=True,
+        )
+        hidden_variant = hidden_product.variants.create(
+            sku='HIDDEN-V1',
+            name='Hidden Variant',
+            price=Decimal('150.00'),
+            is_active=True,
+        )
+
+        brands_response = self.client.get(reverse('brands'))
+        self.assertEqual(brands_response.status_code, 200)
+        brand_rows = brands_response.data.get('results', brands_response.data)
+        brand_slugs = {brand['slug'] for brand in brand_rows}
+        self.assertIn(active_brand.slug, brand_slugs)
+        self.assertNotIn(inactive_brand.slug, brand_slugs)
+
+        products_response = self.client.get(reverse('products'))
+        self.assertEqual(products_response.status_code, 200)
+        product_skus = {item['sku'] for item in products_response.data['results']}
+        self.assertIn(visible_variant.sku, product_skus)
+        self.assertNotIn('HIDDEN-V1', product_skus)
+
+        inactive_brand_response = self.client.get(reverse('products'), {'brand': inactive_brand.slug})
+        self.assertEqual(inactive_brand_response.status_code, 200)
+        self.assertEqual(inactive_brand_response.data['results'], [])
+
+        inventory_response = self.client.get(reverse('inventory-items'))
+        self.assertEqual(inventory_response.status_code, 200)
+        inventory_skus = {item['sku'] for item in inventory_response.data['results']}
+        self.assertIn(visible_variant.sku, inventory_skus)
+        self.assertNotIn('HIDDEN-V1', inventory_skus)
+
+        featured_response = self.client.get(reverse('featured-products'))
+        self.assertEqual(featured_response.status_code, 200)
+        featured_skus = {item['sku'] for item in featured_response.data['results']}
+        self.assertIn(visible_variant.sku, featured_skus)
+        self.assertNotIn('HIDDEN-V1', featured_skus)
+
+        search_response = self.client.get(reverse('product-search'), {'q': 'Hidden'})
+        self.assertEqual(search_response.status_code, 200)
+        search_payload = search_response.data.get('results', search_response.data)
+        search_skus = {item['sku'] for item in search_payload['products']}
+        self.assertNotIn('HIDDEN-V1', search_skus)
+
+        suggestions_response = self.client.get(reverse('product-suggestions'), {'q': 'Hidden'})
+        self.assertEqual(suggestions_response.status_code, 200)
+        self.assertEqual(suggestions_response.data['suggestions'], [])
+
+        detail_response = self.client.get(reverse('product-detail', kwargs={'slug': hidden_product.slug}))
+        self.assertEqual(detail_response.status_code, 404)
+
+        detail_by_id_response = self.client.get(reverse('product-detail-by-id', kwargs={'pk': hidden_product.id}))
+        self.assertEqual(detail_by_id_response.status_code, 404)
+
+        self.client.force_authenticate(self.customer)
+        wishlist_response = self.client.post(reverse('wishlist'), {'variant_id': hidden_variant.id}, format='json')
+        self.assertEqual(wishlist_response.status_code, 404)
+
+    def test_public_catalog_hides_deactivated_products(self):
+        active_product = Product.objects.create(
+            sku='ACTIVE-PARENT',
+            name='Active Product',
+            slug='active-product',
+            is_active=True,
+        )
+        active_variant = active_product.variants.create(
+            sku='ACTIVE-V1',
+            name='Active Variant',
+            price=Decimal('120.00'),
+            is_active=True,
+        )
+        inactive_product = Product.objects.create(
+            sku='INACTIVE-PARENT',
+            name='Inactive Product',
+            slug='inactive-product',
+            is_active=False,
+        )
+        inactive_variant = inactive_product.variants.create(
+            sku='INACTIVE-V1',
+            name='Inactive Variant',
+            price=Decimal('150.00'),
+            is_active=True,
+        )
+
+        products_response = self.client.get(reverse('products'))
+        self.assertEqual(products_response.status_code, 200)
+        product_skus = {item['sku'] for item in products_response.data['results']}
+        self.assertIn(active_variant.sku, product_skus)
+        self.assertNotIn(inactive_variant.sku, product_skus)
+
+        inventory_response = self.client.get(reverse('inventory-items'))
+        self.assertEqual(inventory_response.status_code, 200)
+        inventory_skus = {item['sku'] for item in inventory_response.data['results']}
+        self.assertIn(active_variant.sku, inventory_skus)
+        self.assertNotIn(inactive_variant.sku, inventory_skus)
+
+        featured_response = self.client.get(reverse('featured-products'))
+        self.assertEqual(featured_response.status_code, 200)
+        featured_skus = {item['sku'] for item in featured_response.data['results']}
+        self.assertIn(active_variant.sku, featured_skus)
+        self.assertNotIn(inactive_variant.sku, featured_skus)
+
+        search_response = self.client.get(reverse('product-search'), {'q': 'Inactive'})
+        self.assertEqual(search_response.status_code, 200)
+        search_payload = search_response.data.get('results', search_response.data)
+        search_skus = {item['sku'] for item in search_payload['products']}
+        self.assertNotIn(inactive_variant.sku, search_skus)
+
+        suggestions_response = self.client.get(reverse('product-suggestions'), {'q': 'Inactive'})
+        self.assertEqual(suggestions_response.status_code, 200)
+        self.assertEqual(suggestions_response.data['suggestions'], [])
+
+        detail_response = self.client.get(reverse('product-detail', kwargs={'slug': inactive_product.slug}))
+        self.assertEqual(detail_response.status_code, 404)
+
+        detail_by_id_response = self.client.get(reverse('product-detail-by-id', kwargs={'pk': inactive_product.id}))
+        self.assertEqual(detail_by_id_response.status_code, 404)
+
+        availability_response = self.client.get(reverse('product-availability'), {'product_ids': f'{active_product.id},{inactive_product.id}'})
+        self.assertEqual(availability_response.status_code, 200)
+        availability_ids = {item['product_id'] for item in availability_response.data['availability']}
+        self.assertIn(active_product.id, availability_ids)
+        self.assertNotIn(inactive_product.id, availability_ids)
+
+        availability_detail_response = self.client.get(reverse('product-availability-detail', kwargs={'pk': inactive_product.id}))
+        self.assertEqual(availability_detail_response.status_code, 404)
+
+        self.client.force_authenticate(self.customer)
+        wishlist_response = self.client.post(reverse('wishlist'), {'variant_id': inactive_variant.id}, format='json')
+        self.assertEqual(wishlist_response.status_code, 404)
+
+        stale_wishlist = Wishlist.objects.create(user=self.customer, variant=inactive_variant)
+        move_to_cart_response = self.client.post(reverse('wishlist-item-move-to-cart', args=[stale_wishlist.id]))
+        self.assertEqual(move_to_cart_response.status_code, 400)
+
+        cart, _ = Cart.objects.get_or_create(user=self.customer)
+        stale_cart_item = CartItem.objects.create(cart=cart, variant=inactive_variant, quantity=1)
+        move_to_wishlist_response = self.client.post(reverse('cart-item-move-to-wishlist', args=[stale_cart_item.id]))
+        self.assertEqual(move_to_wishlist_response.status_code, 404)
+
     def test_admin_inventory_returns_variant_rows(self):
         self.client.force_authenticate(self.admin)
         product = Product.objects.create(
@@ -267,6 +489,10 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(match['product_id'], product.id)
         self.assertEqual(match['product_name'], product.name)
         self.assertEqual(match['name'], variant.name)
+        self.assertEqual(match['inventories'], [])
+        self.assertIsNone(match['stock_quantity'])
+        self.assertIsNone(match['low_stock_threshold'])
+        self.assertIsNone(match['inventory_status'])
 
     def test_admin_pos_product_options_include_variant_links(self):
         self.client.force_authenticate(self.admin)

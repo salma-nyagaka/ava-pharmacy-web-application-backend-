@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.consultations.models import ClinicianProfile, Consultation
+from apps.consultations.models import ClinicianProfile, Consultation, ConsultationPaymentIntent
 
 
 class ClinicianMergeCompatibilityTests(TestCase):
@@ -11,7 +11,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
         self.client = APIClient()
         self.admin = User.objects.create_user(
             email='consult-admin@example.com',
-            password='testpass123',
+            password='Testpass123!',
             first_name='Admin',
             last_name='Consult',
             role=User.ADMIN,
@@ -19,7 +19,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
         )
         self.patient = User.objects.create_user(
             email='patient@example.com',
-            password='testpass123',
+            password='Testpass123!',
             first_name='Patient',
             last_name='User',
             role=User.CUSTOMER,
@@ -95,11 +95,27 @@ class ClinicianMergeCompatibilityTests(TestCase):
             status=ClinicianProfile.STATUS_ACTIVE,
         )
         self.client.force_authenticate(self.patient)
+        intent = ConsultationPaymentIntent.objects.create(
+            initiated_by=self.patient,
+            clinician=clinician,
+            provider=ConsultationPaymentIntent.PROVIDER_PAYBILL,
+            status=ConsultationPaymentIntent.STATUS_SUCCEEDED,
+            amount='1.00',
+            consultation_payload={
+                'doctor': 101,
+                'patient_name': 'Patient User',
+                'patient_age': 30,
+                'issue': 'Recurring headaches',
+                'priority': Consultation.PRIORITY_ROUTINE,
+            },
+            processed_at=None,
+        )
 
         response = self.client.post(
             reverse('consultations'),
             {
                 'doctor': 101,
+                'payment_intent_id': intent.id,
                 'patient_name': 'Patient User',
                 'patient_age': 30,
                 'issue': 'Recurring headaches',
@@ -141,3 +157,38 @@ class ClinicianMergeCompatibilityTests(TestCase):
         self.assertEqual(pediatrician_response.status_code, 200)
         self.assertEqual(doctor_response.data['id'], doctor.id)
         self.assertEqual(pediatrician_response.data['id'], pediatrician.id)
+
+    def test_user_can_own_multiple_clinician_profiles(self):
+        clinician_user = User.objects.create_user(
+            email='multi-clinician@example.com',
+            password='Testpass123!',
+            first_name='Multi',
+            last_name='Clinician',
+            role=User.DOCTOR,
+        )
+        doctor = ClinicianProfile.objects.create(
+            user=clinician_user,
+            provider_type=ClinicianProfile.TYPE_DOCTOR,
+            name='Dr Multi Clinician',
+            specialty='General Practice',
+            email='multi-doctor@example.com',
+            phone='0712000006',
+            license_number='KMD-10400',
+            status=ClinicianProfile.STATUS_ACTIVE,
+        )
+        pediatrician = ClinicianProfile.objects.create(
+            user=clinician_user,
+            provider_type=ClinicianProfile.TYPE_PEDIATRICIAN,
+            name='Dr Multi Clinician',
+            specialty='Pediatrics',
+            email='multi-pediatrician@example.com',
+            phone='0712000007',
+            license_number='KMD-10500',
+            status=ClinicianProfile.STATUS_ACTIVE,
+        )
+
+        self.assertEqual(clinician_user.clinician_profiles.count(), 2)
+        self.assertEqual(
+            set(clinician_user.clinician_profiles.values_list('id', flat=True)),
+            {doctor.id, pediatrician.id},
+        )

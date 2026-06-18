@@ -491,6 +491,27 @@ class CustomerRegistrationVerificationTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_customer_registration_rejects_password_without_required_character_mix(self):
+        response = self.client.post(
+            reverse('register'),
+            {
+                'email': 'weak.password@example.com',
+                'first_name': 'Weak',
+                'last_name': 'Password',
+                'phone': '+254700000103',
+                'password': 'weakpass1',
+                'password_confirm': 'weakpass1',
+                'role': User.CUSTOMER,
+                'delivery_address': 'Ava Towers, Westlands',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(email='weak.password@example.com').exists())
+
 
 @override_settings(
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',

@@ -93,6 +93,21 @@ def annotate_variant_reviews(queryset):
     )
 
 
+def public_product_queryset():
+    return Product.objects.filter(is_active=True).filter(
+        Q(brand__isnull=True) | Q(brand__is_active=True)
+    )
+
+
+def public_variant_queryset():
+    return Variant.objects.filter(
+        is_active=True,
+        product__is_active=True,
+    ).filter(
+        Q(product__brand__isnull=True) | Q(product__brand__is_active=True)
+    )
+
+
 def annotate_product_variant_catalog(queryset):
     return queryset.annotate(
         price=Coalesce(
@@ -106,6 +121,9 @@ def annotate_product_variant_catalog(queryset):
 def _product_availability_error(product, requested_quantity):
     if not product.is_active:
         return f'{product.name} is no longer active.'
+    parent_product = getattr(product, 'product', None)
+    if parent_product is not None and not parent_product.is_active:
+        return f'{parent_product.name} is no longer active.'
     if isinstance(product, Product) and product.uses_variant_inventory:
         return f'Select a product variant for {product.name} before adding it to cart.'
     inventory_values_getter = getattr(product, '_get_inventory_values', None)
@@ -177,10 +195,7 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
 
     def get_queryset(self):
         return annotate_variant_reviews(
-            Variant.objects.filter(
-                is_active=True,
-                product__is_active=True,
-            ).filter(
+            public_variant_queryset().filter(
                 Q(category__isnull=True) | Q(category__is_active=True)
             ).select_related(
                 'product',
@@ -200,10 +215,7 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
 
     def get_queryset(self):
         queryset = annotate_variant_reviews(
-            Variant.objects.filter(
-                is_active=True,
-                product__is_active=True,
-            ).filter(
+            public_variant_queryset().filter(
                 Q(category__isnull=True) | Q(category__is_active=True)
             ).select_related(
                 'product',
@@ -274,9 +286,7 @@ class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
     serializer_class = ProductListSerializer
 
     def get_queryset(self):
-        queryset = annotate_product_variant_catalog(Product.objects.filter(
-            is_active=True,
-        ).prefetch_related(
+        queryset = annotate_product_variant_catalog(public_product_queryset().prefetch_related(
             Prefetch(
                 'variants',
                 queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
@@ -315,7 +325,7 @@ class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
     def get_queryset(self):
         return annotate_product_variant_catalog(
             annotate_product_reviews(
-                Product.objects.filter(is_active=True).prefetch_related(
+                public_product_queryset().prefetch_related(
                     'gallery',
                     Prefetch(
                         'variants',
@@ -464,9 +474,9 @@ class AdminProductFormMetaView(APIView):
         return Response({
             'pos_link_strategy': strategy,
             'requires_pos_product_id': strategy in {'pos_product_id', 'barcode_and_pos_id'},
-            'requires_barcode': strategy in {'barcode', 'barcode_and_pos_id'},
+            'requires_barcode': False,
             'accepts_sku': strategy in {'sku', 'sku_or_pos_id', 'sku_or_barcode', 'any'},
-            'accepts_barcode': strategy in {'barcode', 'barcode_and_pos_id', 'sku_or_barcode', 'any'},
+            'accepts_barcode': False,
         })
 
 
@@ -534,18 +544,24 @@ class AdminProductDetailView(PromotionContextMixin, generics.RetrieveUpdateDestr
             metadata={'sku': product.get_display_sku()},
         )
 
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Products cannot be deleted. Deactivate the product instead.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
 
 class ProductReviewListCreateView(generics.ListCreateAPIView):
     serializer_class = VariantReviewSerializer
 
     def _resolve_target_variant(self):
         raw_pk = self.kwargs['pk']
-        product = Product.objects.filter(pk=raw_pk, is_active=True).prefetch_related('variants').first()
+        product = public_product_queryset().filter(pk=raw_pk).prefetch_related('variants').first()
         if product is not None:
             variant = product.get_representative_variant()
             if variant is not None:
                 return variant
-        return Variant.objects.filter(pk=raw_pk, is_active=True).select_related('product').first()
+        return public_variant_queryset().filter(pk=raw_pk).select_related('product').first()
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -599,7 +615,13 @@ class WishlistView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Wishlist.objects.filter(user=self.request.user).select_related(
+        return Wishlist.objects.filter(
+            user=self.request.user,
+            variant__is_active=True,
+            variant__product__is_active=True,
+        ).filter(
+            Q(variant__product__brand__isnull=True) | Q(variant__product__brand__is_active=True)
+        ).select_related(
             'variant',
             'variant__product__brand',
             'variant__category',
@@ -616,11 +638,13 @@ class WishlistView(generics.ListCreateAPIView):
         if not variant_id:
             product_id = payload.get('product_id')
             if product_id:
-                product = Product.objects.filter(pk=product_id, is_active=True).prefetch_related('variants').first()
+                product = public_product_queryset().filter(pk=product_id).prefetch_related('variants').first()
                 variant = product.get_representative_variant() if product else None
                 variant_id = variant.id if variant else None
         if not variant_id:
             return Response({'detail': 'variant_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not public_variant_queryset().filter(pk=variant_id).exists():
+            return Response({'detail': 'Variant not found.'}, status=status.HTTP_404_NOT_FOUND)
         payload['variant_id'] = variant_id
         if Wishlist.objects.filter(user=request.user, variant_id=variant_id).exists():
             return Response({'detail': 'Already in wishlist.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -698,6 +722,8 @@ class CartItemMoveToWishlistView(APIView):
         except CartItem.DoesNotExist:
             return Response({'detail': 'Cart item not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if not public_variant_queryset().filter(pk=cart_item.variant_id).exists():
+            return Response({'detail': 'Variant not found.'}, status=status.HTTP_404_NOT_FOUND)
         Wishlist.objects.get_or_create(user=request.user, variant=cart_item.variant)
         cart_item.delete()
         return Response({'detail': 'Item moved to wishlist.'}, status=status.HTTP_200_OK)
@@ -1053,23 +1079,29 @@ class CatalogSummaryView(APIView):
 
     def get(self, request):
         featured_count = (
-            annotate_product_units_sold(Product.objects.filter(is_active=True))
+            annotate_product_units_sold(public_product_queryset())
             .filter(units_sold__gt=0)
             .count()
         )
         return Response({
-            'products': Product.objects.filter(is_active=True).count(),
+            'products': public_product_queryset().count(),
             'featured_products': featured_count,
             'categories': Category.objects.filter(is_active=True).count(),
             'brands': Brand.objects.filter(is_active=True).count(),
-            'low_stock_products': annotate_product_inventory(Product.objects.filter(is_active=True)).filter(
+            'low_stock_products': annotate_product_inventory(public_product_queryset()).filter(
                 total_stock_quantity__gt=0,
                 total_stock_quantity__lte=models.F('total_low_stock_threshold'),
             ).count(),
             'active_promotions': get_active_promotions_queryset().count(),
             'top_categories': list(
                 Category.objects.filter(is_active=True)
-                .annotate(product_count=Count('variants__product', filter=Q(variants__product__is_active=True), distinct=True))
+                .annotate(product_count=Count(
+                    'variants__product',
+                    filter=Q(variants__product__is_active=True) & (
+                        Q(variants__product__brand__isnull=True) | Q(variants__product__brand__is_active=True)
+                    ),
+                    distinct=True,
+                ))
                 .values('id', 'name', 'slug', 'product_count')[:6]
             ),
         })
@@ -1084,7 +1116,7 @@ class ProductDetailByIdView(PromotionContextMixin, generics.RetrieveAPIView):
     def get_queryset(self):
         return annotate_product_variant_catalog(
             annotate_product_reviews(
-                Product.objects.filter(is_active=True).prefetch_related(
+                public_product_queryset().prefetch_related(
                     'gallery',
                     Prefetch(
                         'variants',
@@ -1110,7 +1142,7 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
         q = self.request.query_params.get('q', '').strip()
         qs = annotate_product_variant_catalog(
             annotate_product_reviews(
-                Product.objects.filter(is_active=True).prefetch_related(
+                public_product_queryset().prefetch_related(
                     Prefetch(
                         'variants',
                         queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
@@ -1144,7 +1176,7 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
             .values('variants__category__slug', 'variants__category__name', 'count')[:10]
         )
         brand_facets = list(
-            Brand.objects.filter(products__in=all_qs)
+            Brand.objects.filter(is_active=True, products__in=all_qs)
             .annotate(count=Count('products', filter=Q(products__in=all_qs), distinct=True))
             .filter(count__gt=0)
             .order_by('-count', 'name')[:10]
@@ -1185,9 +1217,8 @@ class ProductSuggestionsView(APIView):
         if len(q) < 2:
             return Response({'suggestions': []})
 
-        products = Product.objects.filter(
+        products = public_product_queryset().filter(
             Q(name__icontains=q) | Q(brand__name__icontains=q),
-            is_active=True,
         ).prefetch_related(
             Prefetch(
                 'variants',
@@ -1222,7 +1253,7 @@ class ProductAvailabilityView(APIView):
         except (ValueError, TypeError):
             return Response({'error': {'code': 'validation_error', 'message': 'product_ids must be comma-separated integers.'}}, status=400)
 
-        products = list(Product.objects.filter(pk__in=ids).prefetch_related(Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories').order_by('sort_order', 'name', 'pk'))))
+        products = list(public_product_queryset().filter(pk__in=ids).prefetch_related(Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories').order_by('sort_order', 'name', 'pk'))))
         pos_refresh = refresh_pos_inventory_for_products(products)
         availability = []
         for product in products:
@@ -1247,7 +1278,7 @@ class ProductAvailabilityDetailView(APIView):
 
     def get(self, request, pk):
         try:
-            product = Product.objects.prefetch_related(Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories').order_by('sort_order', 'name', 'pk'))).get(pk=pk, is_active=True)
+            product = public_product_queryset().prefetch_related(Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories').order_by('sort_order', 'name', 'pk'))).get(pk=pk)
         except Product.DoesNotExist:
             return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
 

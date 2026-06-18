@@ -121,8 +121,8 @@ class ClinicianProfile(BaseClinicianProfile):
         (TYPE_PEDIATRICIAN, 'Pediatrician'),
     ]
 
-    user = models.OneToOneField(
-        'accounts.User', on_delete=models.CASCADE, related_name='clinician_profile', null=True, blank=True
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE, related_name='clinician_profiles', null=True, blank=True
     )
     provider_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     legacy_doctor_id = models.PositiveIntegerField(null=True, blank=True, unique=True)

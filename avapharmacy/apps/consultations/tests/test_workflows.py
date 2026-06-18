@@ -364,6 +364,192 @@ class ConsultationWorkflowTests(TestCase):
         self.assertIsNotNone(intent.consultation_id)
         self.assertEqual(intent.consultation.patient, self.patient)
 
+    def test_customer_books_paid_doctor_consultation_chat_and_doctor_prescribes(self):
+        self.doctor.status = ClinicianProfile.STATUS_ACTIVE
+        self.doctor.consult_fee = '1.00'
+        self.doctor.save(update_fields=['status', 'consult_fee', 'updated_at'])
+        product = Product.objects.create(
+            name='Doctor Flow Amoxicillin',
+            sku='DOC-FLOW-AMOX',
+            slug='doctor-flow-amoxicillin',
+            is_active=True,
+        )
+        variant = Variant.objects.create(
+            product=product,
+            sku='DOC-FLOW-AMOX-500',
+            name='500mg capsules',
+            price='150.00',
+            requires_prescription=True,
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 6, 'low_stock_threshold': 2},
+        )
+
+        self.client.force_authenticate(self.patient)
+        blocked_response = self.client.post(
+            reverse('consultations'),
+            {
+                'doctor': self.doctor.id,
+                'patient_name': self.patient.full_name,
+                'patient_age': 32,
+                'issue': 'Sore throat and fever',
+                'priority': Consultation.PRIORITY_ROUTINE,
+            },
+            format='json',
+        )
+        self.assertEqual(blocked_response.status_code, 402)
+
+        intent = ConsultationPaymentIntent.objects.create(
+            initiated_by=self.patient,
+            clinician=self.doctor,
+            provider=ConsultationPaymentIntent.PROVIDER_PAYBILL,
+            status=ConsultationPaymentIntent.STATUS_SUCCEEDED,
+            amount='1.00',
+            consultation_payload={
+                'doctor': self.doctor.id,
+                'patient_name': self.patient.full_name,
+                'patient_email': self.patient.email,
+                'patient_phone': self.patient.phone,
+                'patient_age': 32,
+                'issue': 'Sore throat and fever',
+                'priority': Consultation.PRIORITY_ROUTINE,
+            },
+        )
+        create_response = self.client.post(
+            reverse('consultations'),
+            {
+                'payment_intent_id': intent.id,
+                'doctor': self.doctor.id,
+                'patient_name': self.patient.full_name,
+                'patient_age': 32,
+                'issue': 'Sore throat and fever',
+                'priority': Consultation.PRIORITY_ROUTINE,
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.content)
+        consultation_id = create_response.data['id']
+        intent.refresh_from_db()
+        self.assertEqual(intent.consultation_id, consultation_id)
+
+        patient_message = self.client.post(
+            reverse('consultation-messages', args=[consultation_id]),
+            {'message': 'I also have chills.', 'message_type': 'text'},
+            format='json',
+        )
+        self.assertEqual(patient_message.status_code, 201, patient_message.content)
+
+        self.client.force_authenticate(self.doctor_user)
+        doctor_message = self.client.post(
+            reverse('consultation-messages', args=[consultation_id]),
+            {'message': 'I will prescribe an antibiotic course.', 'message_type': 'text'},
+            format='json',
+        )
+        self.assertEqual(doctor_message.status_code, 201, doctor_message.content)
+
+        prescription_response = self.client.post(
+            reverse('doctor-prescriptions'),
+            {
+                'consultation': consultation_id,
+                'patient_name': self.patient.full_name,
+                'items': [{
+                    'variant_id': variant.id,
+                    'dose': '500mg',
+                    'frequency': 'twice daily',
+                    'duration': '5 days',
+                    'quantity': 2,
+                }],
+                'notes': 'Complete the course.',
+            },
+            format='json',
+        )
+        self.assertEqual(prescription_response.status_code, 201, prescription_response.content)
+        prescription = ClinicianPrescription.objects.get(pk=prescription_response.data['id'])
+        send_response = self.client.post(reverse('doctor-prescription-send', args=[prescription.id]), format='json')
+        self.assertEqual(send_response.status_code, 200, send_response.content)
+
+        dispensing_rx = Prescription.objects.get(clinician_prescription=prescription)
+        self.assertEqual(dispensing_rx.status, Prescription.STATUS_APPROVED)
+        self.assertEqual(dispensing_rx.items.get().variant_id, variant.id)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.patient,
+            type='prescription_status',
+            data__prescription_id=dispensing_rx.id,
+        ).exists())
+
+    def test_customer_books_paid_pediatrician_consultation_and_chat(self):
+        pediatrician_user = User.objects.create_user(
+            email='pediatric-flow-user@example.com',
+            password='testpass123',
+            first_name='Pediatric',
+            last_name='Clinician',
+            role=User.PEDIATRICIAN,
+            phone='0711111133',
+        )
+        pediatrician = ClinicianProfile.objects.create(
+            provider_type=ClinicianProfile.TYPE_PEDIATRICIAN,
+            user=pediatrician_user,
+            name='Dr Pediatric Flow',
+            specialty='Paediatrics',
+            email=pediatrician_user.email,
+            phone=pediatrician_user.phone,
+            license_number='PED-FLOW-001',
+            status=ClinicianProfile.STATUS_ACTIVE,
+            consult_fee='1.00',
+        )
+        self.client.force_authenticate(self.patient)
+        intent = ConsultationPaymentIntent.objects.create(
+            initiated_by=self.patient,
+            clinician=pediatrician,
+            provider=ConsultationPaymentIntent.PROVIDER_PAYBILL,
+            status=ConsultationPaymentIntent.STATUS_SUCCEEDED,
+            amount='1.00',
+            consultation_payload={
+                'pediatrician': pediatrician.id,
+                'patient_name': self.patient.full_name,
+                'patient_email': self.patient.email,
+                'patient_phone': self.patient.phone,
+                'issue': 'Child has fever',
+                'priority': Consultation.PRIORITY_ROUTINE,
+                'is_pediatric': True,
+                'guardian_name': self.patient.full_name,
+                'child_name': 'Flow Child',
+                'child_age': 6,
+                'weight_kg': '21.50',
+            },
+        )
+        finalize_response = self.client.post(
+            reverse('consultation-payment-finalize'),
+            {'payment_intent_id': intent.id},
+            format='json',
+        )
+        self.assertEqual(finalize_response.status_code, 201, finalize_response.content)
+        self.assertTrue(finalize_response.data['is_pediatric'])
+        self.assertEqual(finalize_response.data['pediatrician'], pediatrician.id)
+        consultation_id = finalize_response.data['id']
+
+        guardian_message = self.client.post(
+            reverse('consultation-messages', args=[consultation_id]),
+            {'message': 'The fever started last night.', 'message_type': 'text'},
+            format='json',
+        )
+        self.assertEqual(guardian_message.status_code, 201, guardian_message.content)
+
+        self.client.force_authenticate(pediatrician_user)
+        pediatrician_message = self.client.post(
+            reverse('consultation-messages', args=[consultation_id]),
+            {'message': 'Please keep the child hydrated while I review symptoms.', 'message_type': 'text'},
+            format='json',
+        )
+        self.assertEqual(pediatrician_message.status_code, 201, pediatrician_message.content)
+        dashboard_response = self.client.get(reverse('doctor-consultations'))
+        self.assertEqual(dashboard_response.status_code, 200)
+        results = dashboard_response.data.get('results', dashboard_response.data)
+        self.assertTrue(any(item['id'] == consultation_id for item in results))
+
     def test_consultation_create_auto_routes_doctor_by_specialty_without_patient_selection(self):
         self.doctor.status = ClinicianProfile.STATUS_ACTIVE
         self.doctor.specialty = 'Dermatology'

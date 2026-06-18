@@ -6,6 +6,8 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Pharmacist, User
+from apps.notifications.models import Notification
+from apps.orders.models import CartItem
 from apps.prescriptions.models import (
     Prescription,
     PrescriptionClarificationMessage,
@@ -108,6 +110,78 @@ class PrescriptionWorkflowTests(TestCase):
         item = prescription.items.get()
         self.assertEqual(item.product_id, self.product.id)
         self.assertEqual(item.variant_id, self.variant.id)
+
+        self.client.force_authenticate(self.customer)
+        add_response = self.client.post(
+            reverse('prescription-item-add-to-cart', args=[prescription.id, item.id]),
+            {'quantity': 1},
+            format='json',
+        )
+        self.assertEqual(add_response.status_code, 201, add_response.content)
+        cart_item = CartItem.objects.get(cart__user=self.customer, prescription=prescription)
+        self.assertEqual(cart_item.variant_id, self.variant.id)
+        self.assertEqual(cart_item.prescription_item_id, item.id)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.customer,
+            type='prescription_status',
+            data__prescription_id=prescription.id,
+        ).exists())
+
+    def test_customer_cannot_add_approved_prescription_item_to_cart_when_variant_is_out_of_stock(self):
+        out_of_stock_product = Product.objects.create(
+            sku='RX-OUT-001',
+            name='Out Of Stock Medication',
+            price='900.00',
+            is_active=True,
+            requires_prescription=True,
+        )
+        out_of_stock_variant = Variant.objects.create(
+            product=out_of_stock_product,
+            sku='RX-OUT-001-500',
+            name='500mg tablets',
+            price='900.00',
+            requires_prescription=True,
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=out_of_stock_variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 0, 'low_stock_threshold': 2},
+        )
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_PENDING,
+        )
+
+        self.client.force_authenticate(self.pharmacist)
+        review_response = self.client.post(
+            reverse('pharmacist-prescription-review', args=[prescription.id]),
+            {
+                'action': 'approve',
+                'notes': 'Approved but stock has run out',
+                'items': [{
+                    'name': 'Out Of Stock Medication',
+                    'variant_id': out_of_stock_variant.id,
+                    'dose': '500mg',
+                    'frequency': 'once daily',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+        self.assertEqual(review_response.status_code, 200, review_response.content)
+        item = prescription.items.get()
+
+        self.client.force_authenticate(self.customer)
+        add_response = self.client.post(
+            reverse('prescription-item-add-to-cart', args=[prescription.id, item.id]),
+            {'quantity': 1},
+            format='json',
+        )
+        self.assertEqual(add_response.status_code, 400)
+        self.assertIn('out of stock', add_response.data['detail'].lower())
+        self.assertFalse(CartItem.objects.filter(cart__user=self.customer, variant=out_of_stock_variant).exists())
 
     def test_pharmacist_requires_prescription_review_permission(self):
         restricted = User.objects.create_user(

@@ -326,16 +326,25 @@ class Product(models.Model):
         return rows
 
     def _get_inventory_map(self):
-        location_map = {
-            location: self._inventory_defaults(location).copy()
-            for location in dict(self.INVENTORY_LOCATION_CHOICES)
-        }
+        location_map = {}
         for inventory in self._get_inventory_rows():
             row = location_map.setdefault(inventory.location, self._inventory_defaults(inventory.location).copy())
+            if not row.get('_has_inventory_row'):
+                row.update({
+                    'stock_quantity': 0,
+                    'low_stock_threshold': 0,
+                    'allow_backorder': False,
+                    'max_backorder_quantity': 0,
+                    '_has_inventory_row': True,
+                })
             row['stock_quantity'] += inventory.stock_quantity
             row['low_stock_threshold'] += inventory.low_stock_threshold
             row['allow_backorder'] = row['allow_backorder'] or inventory.allow_backorder
             row['max_backorder_quantity'] += inventory.max_backorder_quantity
+        for location in dict(self.INVENTORY_LOCATION_CHOICES):
+            location_map.setdefault(location, self._inventory_defaults(location).copy())
+        for row in location_map.values():
+            row.pop('_has_inventory_row', None)
         return location_map
 
     def _clear_inventory_cache(self):
@@ -984,17 +993,29 @@ class Variant(models.Model):
         return inventory_map
 
     def _get_location_inventory_values(self):
-        values = {
-            location: self._inventory_defaults(location).copy()
-            for location in dict(Product.INVENTORY_LOCATION_CHOICES)
-        }
+        values = {}
         for inventory in self._get_inventory_rows():
             location_values = values.setdefault(inventory.location, self._inventory_defaults(inventory.location).copy())
+            if not location_values.get('_has_inventory_row'):
+                location_values.update({
+                    'stock_quantity': 0,
+                    'low_stock_threshold': 0,
+                    'allow_backorder': False,
+                    'max_backorder_quantity': 0,
+                    '_has_inventory_row': True,
+                })
             location_values['stock_quantity'] += inventory.stock_quantity
             location_values['low_stock_threshold'] += inventory.low_stock_threshold
             location_values['allow_backorder'] = location_values['allow_backorder'] or inventory.allow_backorder
             location_values['max_backorder_quantity'] += inventory.max_backorder_quantity
+        for location in dict(Product.INVENTORY_LOCATION_CHOICES):
+            values.setdefault(location, self._inventory_defaults(location).copy())
+        for location_values in values.values():
+            location_values.pop('_has_inventory_row', None)
         return values
+
+    def has_inventory_rows(self):
+        return bool(self._get_inventory_rows())
 
     def _get_inventory_values(self):
         pending = getattr(self, '_pending_inventory_updates', {})
@@ -1088,15 +1109,6 @@ class Variant(models.Model):
                 kwargs.pop('update_fields')
 
         pending = getattr(self, '_pending_inventory_updates', {}).copy()
-        if not self.pk and not pending:
-            pending = {
-                'stock_source': Product.STOCK_BRANCH,
-                'stock_quantity': 0,
-                'low_stock_threshold': 5,
-                'allow_backorder': False,
-                'max_backorder_quantity': 0,
-            }
-
         should_save_variant = self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields'))
         if should_save_variant:
             super().save(*args, **kwargs)
@@ -1107,10 +1119,9 @@ class Variant(models.Model):
             for field_name in inventory_update_fields:
                 pending.setdefault(field_name, self._inventory_defaults()[field_name])
 
-        if self.pk is not None:
+        if self.pk is not None and pending:
             inventory_map = self._ensure_inventory_rows()
-            if pending:
-                self._apply_pending_inventory_updates(inventory_map, pending)
+            self._apply_pending_inventory_updates(inventory_map, pending)
 
         self._pending_inventory_updates = {}
 

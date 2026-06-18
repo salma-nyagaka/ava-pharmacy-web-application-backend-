@@ -302,8 +302,8 @@ class VariantSerializer(serializers.ModelSerializer):
     )
     health_concerns = HealthConcernSerializer(many=True, read_only=True)
     effective_price = serializers.ReadOnlyField()
-    inventory_status = serializers.ReadOnlyField()
-    available_quantity = serializers.ReadOnlyField()
+    inventory_status = serializers.SerializerMethodField()
+    available_quantity = serializers.SerializerMethodField()
     stock_source = serializers.SerializerMethodField()
     stock_quantity = serializers.SerializerMethodField()
     low_stock_threshold = serializers.SerializerMethodField()
@@ -326,6 +326,14 @@ class VariantSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'updated_at', 'effective_price', 'inventory_status', 'available_quantity')
 
     def _inventory_values(self, obj):
+        if not self._has_inventory_rows(obj):
+            return {
+                'stock_source': None,
+                'stock_quantity': None,
+                'low_stock_threshold': None,
+                'allow_backorder': None,
+                'max_backorder_quantity': None,
+            }
         getter = getattr(obj, '_get_inventory_values', None)
         if callable(getter):
             return getter()
@@ -336,6 +344,24 @@ class VariantSerializer(serializers.ModelSerializer):
             'allow_backorder': getattr(obj, 'allow_backorder', False),
             'max_backorder_quantity': getattr(obj, 'max_backorder_quantity', 0),
         }
+
+    def _has_inventory_rows(self, obj):
+        if hasattr(obj, '_prefetched_objects_cache') and 'inventories' in obj._prefetched_objects_cache:
+            return bool(obj._prefetched_objects_cache['inventories'])
+        checker = getattr(obj, 'has_inventory_rows', None)
+        if callable(checker):
+            return checker()
+        return True
+
+    def get_inventory_status(self, obj):
+        if not self._has_inventory_rows(obj):
+            return None
+        return obj.inventory_status
+
+    def get_available_quantity(self, obj):
+        if not self._has_inventory_rows(obj):
+            return None
+        return obj.available_quantity
 
     def get_stock_source(self, obj):
         return self._inventory_values(obj)['stock_source']
@@ -424,10 +450,10 @@ class AdminVariantSerializer(VariantSerializer):
         return validated
 
     def _pop_inventory_data(self, validated_data):
-        locations = {
-            Product.STOCK_BRANCH: self._inventory_defaults(Product.STOCK_BRANCH),
-            Product.STOCK_WAREHOUSE: self._inventory_defaults(Product.STOCK_WAREHOUSE),
-        }
+        initial_data = getattr(self, 'initial_data', {}) or {}
+        scalar_inventory_fields = {'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity'}
+        supplied_scalar_fields = scalar_inventory_fields.intersection(initial_data.keys())
+        locations = {}
 
         if self.instance is not None:
             for inventory in self.instance.inventories.all():
@@ -444,7 +470,8 @@ class AdminVariantSerializer(VariantSerializer):
                     'shelf_location': inventory.shelf_location,
                     'status': inventory.status,
                 }
-        else:
+        elif supplied_scalar_fields:
+            locations[Product.STOCK_BRANCH] = self._inventory_defaults(Product.STOCK_BRANCH)
             locations[Product.STOCK_BRANCH].update({
                 'stock_quantity': validated_data.get('stock_quantity', 0),
                 'low_stock_threshold': validated_data.get('low_stock_threshold', 5),
@@ -453,11 +480,13 @@ class AdminVariantSerializer(VariantSerializer):
             })
 
         branch_payload = validated_data.pop('branch_inventory', None)
-        if branch_payload:
+        if branch_payload is not None:
+            locations.setdefault(Product.STOCK_BRANCH, self._inventory_defaults(Product.STOCK_BRANCH))
             locations[Product.STOCK_BRANCH].update(branch_payload)
 
         warehouse_payload = validated_data.pop('warehouse_inventory', None)
-        if warehouse_payload:
+        if warehouse_payload is not None:
+            locations.setdefault(Product.STOCK_WAREHOUSE, self._inventory_defaults(Product.STOCK_WAREHOUSE))
             locations[Product.STOCK_WAREHOUSE].update(warehouse_payload)
 
         validated_data.pop('stock_source', None)
@@ -552,9 +581,9 @@ class AdminVariantSerializer(VariantSerializer):
         if strategy == 'pos_product_id' and not pos_product_id:
             raise serializers.ValidationError({'pos_product_id': ['POS product ID is required for this POS link strategy.']})
         if strategy == 'barcode' and not barcode:
-            raise serializers.ValidationError({'barcode': ['Barcode is required for this POS link strategy.']})
-        if strategy == 'barcode_and_pos_id' and (not barcode or not pos_product_id):
-            raise serializers.ValidationError({'barcode': ['Barcode and POS product ID are required for this POS link strategy.']})
+            attrs['barcode'] = attrs.get('barcode', '')
+        if strategy == 'barcode_and_pos_id' and not pos_product_id:
+            raise serializers.ValidationError({'pos_product_id': ['POS product ID is required for this POS link strategy.']})
         if strategy == 'sku_or_pos_id' and not (sku or pos_product_id):
             raise serializers.ValidationError({'pos_product_id': ['Provide a SKU or POS product ID to link with the POS.']})
         if strategy == 'sku_or_barcode' and not (sku or barcode):
@@ -1014,15 +1043,13 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
 
 class AdminProductSerializer(ProductDetailSerializer):
-    cost_price = serializers.SerializerMethodField()
-    barcode = serializers.CharField(required=False, allow_blank=True)
     pos_product_id = serializers.CharField(required=False, allow_blank=True)
 
     class Meta(ProductDetailSerializer.Meta):
         fields = (
-            'id', 'sku', 'barcode', 'pos_product_id', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
+            'id', 'sku', 'pos_product_id', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
-            'price', 'cost_price', 'original_price', 'image', 'gallery', 'variants', 'stock_source',
+            'price', 'original_price', 'image', 'gallery', 'variants', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',
             'short_description', 'description', 'features', 'directions', 'warnings',
             'dosage_quantity', 'dosage_unit', 'dosage_frequency', 'dosage_notes',
@@ -1037,32 +1064,20 @@ class AdminProductSerializer(ProductDetailSerializer):
         strategy = getattr(settings, 'POS_LINK_STRATEGY', 'sku')
         sku = None
         pos_product_id = attrs.get('pos_product_id', getattr(self.instance, 'pos_product_id', None))
-        barcode = attrs.get('barcode', getattr(self.instance, 'barcode', None))
 
         if isinstance(pos_product_id, str):
             attrs['pos_product_id'] = pos_product_id.strip()
             pos_product_id = attrs['pos_product_id']
-        if isinstance(barcode, str):
-            attrs['barcode'] = barcode.strip()
-            barcode = attrs['barcode']
 
         strategy = (strategy or 'sku').strip().lower()
         if strategy == 'pos_product_id' and not pos_product_id:
             raise serializers.ValidationError({'pos_product_id': ['POS product ID is required for this POS link strategy.']})
-        if strategy == 'barcode' and not barcode:
-            raise serializers.ValidationError({'barcode': ['Barcode is required for this POS link strategy.']})
-        if strategy == 'barcode_and_pos_id' and (not barcode or not pos_product_id):
-            raise serializers.ValidationError({'barcode': ['Barcode and POS product ID are required for this POS link strategy.']})
+        if strategy == 'barcode_and_pos_id' and not pos_product_id:
+            raise serializers.ValidationError({'pos_product_id': ['POS product ID is required for this POS link strategy.']})
         if strategy == 'sku_or_pos_id' and not pos_product_id:
             attrs['pos_product_id'] = ''
-        if strategy == 'sku_or_barcode' and not barcode:
-            attrs['barcode'] = attrs.get('barcode', '')
 
         return attrs
-
-    def get_cost_price(self, obj):
-        return obj.display_cost_price
-
 
 class WishlistSerializer(serializers.ModelSerializer):
     product = ProductListSerializer(source='variant.product', read_only=True)

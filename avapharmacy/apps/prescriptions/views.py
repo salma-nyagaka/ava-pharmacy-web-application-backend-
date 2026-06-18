@@ -47,13 +47,24 @@ def _get_or_create_cart(user):
 def _product_availability_error(product, requested_quantity):
     if not product.is_active:
         return f'{product.name} is no longer active.'
-    if requested_quantity <= product.stock_quantity:
+
+    if hasattr(product, '_get_inventory_values'):
+        inventory = product._get_inventory_values()
+        stock_quantity = inventory.get('stock_quantity', 0)
+        allow_backorder = inventory.get('allow_backorder', False)
+        available_quantity = product.available_quantity
+    else:
+        stock_quantity = product.stock_quantity
+        allow_backorder = product.allow_backorder
+        available_quantity = product.available_quantity
+
+    if requested_quantity <= stock_quantity:
         return None
-    if product.allow_backorder and requested_quantity <= product.available_quantity:
+    if allow_backorder and requested_quantity <= available_quantity:
         return None
-    if product.stock_quantity == 0 and not product.allow_backorder:
+    if stock_quantity == 0 and not allow_backorder:
         return f'{product.name} is out of stock.'
-    return f'{product.name} only has {product.available_quantity} unit(s) available.'
+    return f'{product.name} only has {available_quantity} unit(s) available.'
 
 
 def _is_controlled_substance(*values):
