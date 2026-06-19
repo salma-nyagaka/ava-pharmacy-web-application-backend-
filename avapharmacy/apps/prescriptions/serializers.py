@@ -8,6 +8,7 @@ from .models import (
     PrescriptionClarificationMessage,
 )
 from apps.products.models import Product, Variant
+from apps.orders.models import Order
 
 
 def _prescription_file_exists(instance):
@@ -52,15 +53,21 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
     product_image = serializers.ImageField(source='product.image', read_only=True)
     variant_name = serializers.ReadOnlyField(source='variant.name')
     variant_sku = serializers.ReadOnlyField(source='variant.sku')
+    is_paid_for = serializers.SerializerMethodField()
 
     class Meta:
         model = PrescriptionItem
         fields = (
             'id', 'name', 'product_id', 'product_name', 'product_slug', 'product_image',
             'variant_id', 'variant_name', 'variant_sku',
-            'dose', 'frequency', 'quantity', 'is_controlled_substance',
+            'dose', 'frequency', 'quantity', 'is_controlled_substance', 'is_paid_for',
         )
         read_only_fields = ('id',)
+
+    def get_is_paid_for(self, obj):
+        return obj.order_items.filter(
+            order__payment_status=Order.PAYMENT_STATUS_PAID,
+        ).exclude(order__status__in=[Order.STATUS_CANCELLED, Order.STATUS_REFUNDED]).exists()
 
     def validate_product_id(self, value):
         if value in (None, ''):
@@ -166,8 +173,13 @@ class PrescriptionUploadItemSerializer(serializers.Serializer):
             if product_id and product_id != variant.product_id:
                 raise serializers.ValidationError({'product_id': 'Product does not match the selected variant.'})
             attrs['product_id'] = variant.product_id
-        elif product_id and not Product.objects.filter(pk=product_id, is_active=True).exists():
-            raise serializers.ValidationError({'product_id': 'Selected product was not found or is inactive.'})
+        elif product_id:
+            product = Product.objects.filter(pk=product_id, is_active=True).prefetch_related('variants').first()
+            if not product:
+                raise serializers.ValidationError({'product_id': 'Selected product was not found or is inactive.'})
+            representative_variant = product.get_representative_variant()
+            if representative_variant:
+                attrs['variant_id'] = representative_variant.id
         return attrs
 
 

@@ -22,6 +22,7 @@ from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
 from apps.accounts.utils import log_admin_action
 from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status, order_status_message
 from apps.consultations.views import apply_consultation_paybill_confirmation, validate_consultation_paybill_payload
+from apps.prescriptions.models import Prescription
 from apps.products.models import Product, Variant, annotate_product_inventory
 from apps.products.pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from avapharmacy.security import verify_hmac_signature
@@ -116,6 +117,25 @@ TRACKING_BASE_STEPS = [
     (Order.STATUS_SHIPPED, 'On the way'),
     (Order.STATUS_DELIVERED, 'Delivered'),
 ]
+
+ORDER_STATUS_TO_PRESCRIPTION_DISPATCH = {
+    Order.STATUS_PENDING: Prescription.DISPATCH_QUEUED,
+    Order.STATUS_PAID: Prescription.DISPATCH_QUEUED,
+    Order.STATUS_PROCESSING: Prescription.DISPATCH_PACKED,
+    Order.STATUS_SHIPPED: Prescription.DISPATCH_DISPATCHED,
+    Order.STATUS_DELIVERED: Prescription.DISPATCH_DELIVERED,
+}
+
+
+def _sync_prescription_dispatch_for_order(order):
+    dispatch_status = ORDER_STATUS_TO_PRESCRIPTION_DISPATCH.get(order.status)
+    if not dispatch_status:
+        return
+    prescription_ids = order.items.exclude(prescription_id=None).values_list('prescription_id', flat=True).distinct()
+    Prescription.objects.filter(id__in=prescription_ids).exclude(dispatch_status=dispatch_status).update(
+        dispatch_status=dispatch_status,
+        updated_at=timezone.now(),
+    )
 
 
 def _normalized_phone_tail(value):
@@ -370,6 +390,7 @@ def snapshot_cart_to_order(order, cart_items):
             prescription=item.prescription,
             prescription_item=item.prescription_item,
         )
+    _sync_prescription_dispatch_for_order(order)
 
 
 def persist_checkout_address(user, data):
@@ -572,6 +593,7 @@ def _apply_order_status_transition(order, next_status, *, actor=None, message=''
         return
     order.status = next_status
     order.save(update_fields=['status', 'updated_at'])
+    _sync_prescription_dispatch_for_order(order)
     create_order_event(
         order,
         f'status_{next_status}',
@@ -2485,6 +2507,7 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
         order = serializer.save()
 
         if order.status != prev_status:
+            _sync_prescription_dispatch_for_order(order)
             create_order_event(
                 order,
                 f'status_{order.status}',

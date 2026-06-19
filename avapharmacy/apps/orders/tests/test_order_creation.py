@@ -209,6 +209,23 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(order_item.prescription_id, prescription.id)
         self.assertEqual(order_item.prescription_item_id, prescription_item.id)
         self.assertEqual(order_item.prescription_reference, prescription.reference)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_QUEUED)
+
+        self.client.force_authenticate(self.admin)
+        for next_status, expected_dispatch in [
+            (Order.STATUS_PROCESSING, Prescription.DISPATCH_PACKED),
+            (Order.STATUS_SHIPPED, Prescription.DISPATCH_DISPATCHED),
+            (Order.STATUS_DELIVERED, Prescription.DISPATCH_DELIVERED),
+        ]:
+            status_response = self.client.patch(
+                reverse('admin-order-detail', args=[order.id]),
+                {'status': next_status},
+                format='json',
+            )
+            self.assertEqual(status_response.status_code, 200, status_response.content)
+            prescription.refresh_from_db()
+            self.assertEqual(prescription.dispatch_status, expected_dispatch)
 
     def test_order_creation_and_status_updates_create_customer_notifications(self):
         self.client.force_authenticate(self.customer)

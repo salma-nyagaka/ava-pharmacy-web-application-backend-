@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Pharmacist, User
 from apps.notifications.models import Notification
-from apps.orders.models import CartItem
+from apps.orders.models import CartItem, Order, OrderItem
 from apps.prescriptions.models import (
     Prescription,
     PrescriptionClarificationMessage,
@@ -126,6 +126,59 @@ class PrescriptionWorkflowTests(TestCase):
             type='prescription_status',
             data__prescription_id=prescription.id,
         ).exists())
+
+    def test_customer_cannot_add_prescription_item_again_after_paid_order(self):
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        item = prescription.items.create(
+            name='Approved Medication',
+            product=self.product,
+            variant=self.variant,
+            quantity=1,
+        )
+        order = Order.objects.create(
+            customer=self.customer,
+            status=Order.STATUS_PAID,
+            payment_status=Order.PAYMENT_STATUS_PAID,
+            payment_method=Order.PAYMENT_MPESA_STK,
+            shipping_first_name='Rx',
+            shipping_last_name='Customer',
+            shipping_email=self.customer.email,
+            shipping_phone='0700000000',
+            shipping_street='Test Street',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal='1200.00',
+            shipping_fee='0.00',
+            total='1200.00',
+        )
+        OrderItem.objects.create(
+            order=order,
+            variant=self.variant,
+            product_name=self.product.name,
+            product_sku=self.variant.sku,
+            variant_name=self.variant.name,
+            variant_sku=self.variant.sku,
+            quantity=1,
+            unit_price='1200.00',
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=item,
+        )
+
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(
+            reverse('prescription-item-add-to-cart', args=[prescription.id, item.id]),
+            {'quantity': 1},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('already been paid', response.data['detail'])
+        self.assertFalse(CartItem.objects.filter(cart__user=self.customer, prescription_item=item).exists())
 
     def test_customer_cannot_add_approved_prescription_item_to_cart_when_variant_is_out_of_stock(self):
         out_of_stock_product = Product.objects.create(

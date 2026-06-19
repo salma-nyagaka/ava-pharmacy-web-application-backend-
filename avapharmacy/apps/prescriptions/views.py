@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from apps.orders.models import Cart, CartItem
+from apps.orders.models import Cart, CartItem, Order, OrderItem
 from apps.products.models import Variant
 
 from .models import (
@@ -209,6 +209,18 @@ class PrescriptionUploadView(APIView):
             notes=data.get('notes', ''),
             performed_by=request.user,
         )
+        requested_items = ', '.join(
+            item.get('name', '').strip()
+            for item in (items_data or [])
+            if item.get('name', '').strip()
+        )
+        if requested_items:
+            PrescriptionAuditLog.objects.create(
+                prescription=prescription,
+                action='Catalog item requested by patient',
+                notes=requested_items,
+                performed_by=request.user,
+            )
 
         return Response(PrescriptionSerializer(prescription).data, status=status.HTTP_201_CREATED)
 
@@ -346,6 +358,16 @@ class PrescriptionItemAddToCartView(APIView):
         item = prescription.items.filter(pk=item_pk).select_related('product', 'variant', 'variant__product').first()
         if not item:
             return Response({'detail': 'Prescription item not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if OrderItem.objects.filter(
+            prescription=prescription,
+            prescription_item=item,
+            order__customer=request.user,
+            order__payment_status=Order.PAYMENT_STATUS_PAID,
+        ).exclude(order__status__in=[Order.STATUS_CANCELLED, Order.STATUS_REFUNDED]).exists():
+            return Response(
+                {'detail': 'This prescription item has already been paid for and cannot be added again.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not item.product or not item.product.is_active:
             return Response(
                 {'detail': 'This prescription item has not been mapped to an active product yet.'},
