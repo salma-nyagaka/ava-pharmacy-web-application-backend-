@@ -255,9 +255,9 @@ class AdminOrderSerializer(serializers.ModelSerializer):
     events = OrderEventSerializer(many=True, read_only=True)
     payment_intents = PaymentIntentSerializer(many=True, read_only=True)
     return_requests = ReturnRequestSerializer(many=True, read_only=True)
-    customer_name = serializers.ReadOnlyField(source='customer.full_name')
-    customer_email = serializers.ReadOnlyField(source='customer.email')
-    customer_phone = serializers.ReadOnlyField(source='customer.phone')
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
     shipping_address = serializers.ReadOnlyField()
     paybill_number = serializers.SerializerMethodField()
     paybill_account_reference = serializers.SerializerMethodField()
@@ -268,6 +268,15 @@ class AdminOrderSerializer(serializers.ModelSerializer):
 
     def get_paybill_number(self, obj):
         return get_paybill_number()
+
+    def get_customer_name(self, obj):
+        return f'{obj.shipping_first_name} {obj.shipping_last_name}'.strip() or getattr(obj.customer, 'full_name', '') or ''
+
+    def get_customer_email(self, obj):
+        return obj.shipping_email or getattr(obj.customer, 'email', '') or ''
+
+    def get_customer_phone(self, obj):
+        return obj.shipping_phone or getattr(obj.customer, 'phone', '') or ''
 
     def get_paybill_account_reference(self, obj):
         return build_paybill_account_reference(obj)

@@ -6,7 +6,7 @@ from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.utils import timezone
 
-from .emailing import build_login_redirect_url, send_rendered_email
+from .emailing import build_frontend_url, send_rendered_email
 from apps.orders.utils import queue_order_status_email
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ def deliver_email(notification, destination, subject, message):
     try:
         data = notification.data or {}
         raw_url = data.get('url') or ''
-        cta_url = build_login_redirect_url(raw_url) if raw_url else ''
+        cta_url = build_frontend_url(raw_url) if raw_url else ''
         detail_rows = []
         if not data.get('sensitive') and data.get('reference'):
             detail_rows.append({'label': 'Reference', 'value': data['reference']})
@@ -206,25 +206,49 @@ def _push_to_websocket(user_id, notification_data):
         logger.warning("WebSocket push failed for user %s: %s", user_id, exc)
 
 
+def order_status_message(order):
+    status_phrases = {
+        'pending': 'is pending',
+        'processing': 'is being processed',
+        'confirmed': 'has been confirmed',
+        'shipped': 'has been shipped',
+        'delivered': 'has been delivered',
+        'cancelled': 'has been cancelled',
+        'canceled': 'has been cancelled',
+        'completed': 'has been completed',
+        'paid': 'has been paid',
+        'refunded': 'has been refunded',
+    }
+    phrase = status_phrases.get(order.status, f'is now {order.get_status_display().lower()}')
+    return f'Order {order.order_number} {phrase}'
+
+
 def notify_order_status(order):
-    if not order.customer:
-        return
-    preferences = get_notification_preferences(order.customer)
-    create_notification(
-        recipient=order.customer,
-        notification_type='order_status',
-        title=f"Order {order.order_number} Updated",
-        message=f"Your order status is now: {order.get_status_display()}",
-        data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
-        send_email=False,
-        send_sms=bool(preferences and preferences.order_updates_sms),
-    )
-    if preferences and preferences.order_updates_email:
+    preferences = get_notification_preferences(order.customer) if order.customer else None
+    status_message = order_status_message(order)
+    if order.customer:
+        create_notification(
+            recipient=order.customer,
+            notification_type='order_status',
+            title=status_message,
+            message=status_message,
+            data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
+            send_email=False,
+            send_sms=bool(preferences and preferences.order_updates_sms),
+        )
+    if order.status == 'processing' and order.shipping_email:
         queue_order_status_email(
             order,
-            subject=f'Order {order.order_number} Updated',
-            heading=f'Order {order.order_number} updated',
-            intro=f'Your order status is now {order.get_status_display()}.',
+            subject=status_message,
+            heading=status_message,
+            intro='Your order has been marked as processing. Our pharmacy team is now preparing the items for dispatch or pickup.',
+        )
+    elif preferences and preferences.order_updates_email:
+        queue_order_status_email(
+            order,
+            subject=status_message,
+            heading=status_message,
+            intro=status_message,
         )
 
 

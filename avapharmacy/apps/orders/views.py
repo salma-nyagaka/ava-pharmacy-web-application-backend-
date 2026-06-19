@@ -20,7 +20,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import Address, User
 from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
 from apps.accounts.utils import log_admin_action
-from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
+from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status, order_status_message
 from apps.consultations.views import apply_consultation_paybill_confirmation, validate_consultation_paybill_payload
 from apps.products.models import Product, Variant, annotate_product_inventory
 from apps.products.pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
@@ -406,11 +406,12 @@ def notify_order_update(order, title=None, message=None, *, send_email=None, sen
     try:
         preferences = get_notification_preferences(order.customer)
         email_enabled = bool(preferences and preferences.order_updates_email) if send_email is None else bool(send_email)
+        status_message = order_status_message(order)
         create_notification(
             recipient=order.customer,
             notification_type='order_status',
-            title=title or f'Order {order.order_number} Updated',
-            message=message or f'Your order is now {order.status}.',
+            title=title or status_message,
+            message=message or status_message,
             data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
             send_email=False,
             send_sms=bool(preferences and preferences.order_updates_sms) if send_sms is None else bool(send_sms),
@@ -418,9 +419,9 @@ def notify_order_update(order, title=None, message=None, *, send_email=None, sen
         if email_enabled:
             queue_order_status_email(
                 order,
-                subject=title or f'Order {order.order_number} Updated',
-                heading=title or f'Order {order.order_number} updated',
-                intro=message or f'Your order is now {order.get_status_display()}.',
+                subject=title or status_message,
+                heading=title or status_message,
+                intro=message or status_message,
             )
     except Exception:
         return

@@ -202,12 +202,12 @@ class LoginView(APIView):
                 and pending_user.status == User.STATUS_PENDING_VERIFICATION
                 and pending_user.check_password(serializer.validated_data['password'])
             ):
-                return Response({'detail': 'Please verify your email before logging in.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response({'detail': 'Please activate your account via the email we sent you before logging in.'}, status=status.HTTP_403_FORBIDDEN)
             return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
         if user.status == User.STATUS_SUSPENDED:
             return Response({'detail': 'Account suspended. Contact support.'}, status=status.HTTP_403_FORBIDDEN)
         if user.role == User.CUSTOMER and user.status == User.STATUS_PENDING_VERIFICATION:
-            return Response({'detail': 'Please verify your email before logging in.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'Please activate your account via the email we sent you before logging in.'}, status=status.HTTP_403_FORBIDDEN)
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,

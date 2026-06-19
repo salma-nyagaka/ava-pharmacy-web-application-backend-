@@ -13,7 +13,7 @@ from django.conf import settings
 from rest_framework import serializers
 from django.utils.dateparse import parse_date
 from django.utils.text import slugify
-from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist
+from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, generate_internal_variant_sku
 from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
@@ -379,9 +379,43 @@ class VariantSerializer(serializers.ModelSerializer):
         return self._inventory_values(obj)['max_backorder_quantity']
 
 
+class VariantInventoryValueField(serializers.Field):
+    def __init__(self, key, *, coerce=int, min_value=None, **kwargs):
+        self.key = key
+        self.coerce = coerce
+        self.min_value = min_value
+        super().__init__(**kwargs)
+
+    def get_attribute(self, instance):
+        return instance
+
+    def to_representation(self, obj):
+        serializer = self.parent
+        inventory_values = serializer._inventory_values(obj)
+        return inventory_values[self.key]
+
+    def to_internal_value(self, data):
+        if self.coerce is bool:
+            if isinstance(data, bool):
+                return data
+            return str(data).strip().lower() in {'true', '1', 'yes', 'on'}
+        try:
+            value = self.coerce(data)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError('A valid integer is required.')
+        if self.min_value is not None and value < self.min_value:
+            raise serializers.ValidationError(f'Ensure this value is greater than or equal to {self.min_value}.')
+        return value
+
+
 class AdminVariantSerializer(VariantSerializer):
+    sku = serializers.CharField(required=False, allow_blank=True)
     barcode = serializers.CharField(required=False, allow_blank=True)
     pos_product_id = serializers.CharField(required=False, allow_blank=True)
+    stock_quantity = VariantInventoryValueField('stock_quantity', required=False, min_value=0)
+    low_stock_threshold = VariantInventoryValueField('low_stock_threshold', required=False, min_value=0)
+    allow_backorder = VariantInventoryValueField('allow_backorder', required=False, coerce=bool)
+    max_backorder_quantity = VariantInventoryValueField('max_backorder_quantity', required=False, min_value=0)
     branch_inventory = serializers.JSONField(write_only=True, required=False)
     warehouse_inventory = serializers.JSONField(write_only=True, required=False)
 
@@ -550,6 +584,9 @@ class AdminVariantSerializer(VariantSerializer):
         pos_product_id = attrs.get('pos_product_id', getattr(self.instance, 'pos_product_id', None))
         barcode = attrs.get('barcode', getattr(self.instance, 'barcode', None))
 
+        if isinstance(sku, str):
+            attrs['sku'] = sku.strip()
+            sku = attrs['sku']
         if isinstance(pos_product_id, str):
             attrs['pos_product_id'] = pos_product_id.strip()
             pos_product_id = attrs['pos_product_id']
@@ -577,6 +614,13 @@ class AdminVariantSerializer(VariantSerializer):
         if isinstance(attrs.get('dosage_notes'), str):
             attrs['dosage_notes'] = attrs['dosage_notes'].strip()
 
+        product = attrs.get('product', getattr(self.instance, 'product', None))
+        if product is None:
+            product = self.context.get('product')
+        if self.instance is None and product is not None and not sku:
+            attrs['sku'] = generate_internal_variant_sku(product, attrs.get('name'))
+            sku = attrs['sku']
+
         strategy = (strategy or 'sku').strip().lower()
         if strategy == 'pos_product_id' and not pos_product_id:
             raise serializers.ValidationError({'pos_product_id': ['POS product ID is required for this POS link strategy.']})
@@ -596,6 +640,8 @@ class AdminVariantSerializer(VariantSerializer):
     def create(self, validated_data):
         health_concerns = validated_data.pop('health_concerns', None)
         inventory_data = self._pop_inventory_data(validated_data)
+        if not validated_data.get('sku'):
+            validated_data['sku'] = generate_internal_variant_sku(validated_data.get('product'), validated_data.get('name'))
         variant = Variant.objects.create(**validated_data)
         if health_concerns is not None:
             variant.health_concerns.set(health_concerns)
@@ -854,7 +900,6 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
 class AdminInventoryItemSerializer(AdminVariantSerializer):
     product_id = serializers.IntegerField(source='product.id', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
-    product_sku = serializers.CharField(source='product.sku', read_only=True)
     product_slug = serializers.CharField(source='product.slug', read_only=True)
     brand_name = serializers.ReadOnlyField(source='product.brand.name')
     brand_slug = serializers.ReadOnlyField(source='product.brand.slug')
@@ -864,7 +909,7 @@ class AdminInventoryItemSerializer(AdminVariantSerializer):
 
     class Meta(AdminVariantSerializer.Meta):
         fields = (
-            'id', 'product_id', 'product_name', 'product_sku', 'product_slug',
+            'id', 'product_id', 'product_name', 'product_slug',
             'brand_name', 'brand_slug', 'category_name', 'category_slug',
             'short_description',
             'sku', 'barcode', 'pos_product_id', 'name', 'strength',
@@ -1047,7 +1092,7 @@ class AdminProductSerializer(ProductDetailSerializer):
 
     class Meta(ProductDetailSerializer.Meta):
         fields = (
-            'id', 'sku', 'pos_product_id', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
+            'id', 'pos_product_id', 'slug', 'name', 'strength', 'brand', 'brand_id', 'category', 'category_id',
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
             'price', 'original_price', 'image', 'gallery', 'variants', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity',

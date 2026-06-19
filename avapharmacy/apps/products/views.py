@@ -6,6 +6,7 @@ wishlist, banners, CMS blocks, promotions) and admin-only endpoints for full
 CRUD on all catalog entities, inventory adjustment, and CMS management.
 """
 from django.conf import settings
+from django.http import Http404
 from django.db import models
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models import Prefetch
@@ -13,6 +14,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, permissions, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -151,6 +153,11 @@ class PromotionContextMixin:
         return context
 
 
+class ProductListPagination(PageNumberPagination):
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
+
 class CategoryListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = CategorySerializer
@@ -187,6 +194,7 @@ class CatalogCategoryListView(generics.ListAPIView):
 class ProductListView(PromotionContextMixin, generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = PublicInventoryItemSerializer
+    pagination_class = ProductListPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = VariantInventoryFilter
     search_fields = ['name', 'product__name', 'product__brand__name', 'category__name', 'sku']
@@ -475,7 +483,7 @@ class AdminProductFormMetaView(APIView):
             'pos_link_strategy': strategy,
             'requires_pos_product_id': strategy in {'pos_product_id', 'barcode_and_pos_id'},
             'requires_barcode': False,
-            'accepts_sku': strategy in {'sku', 'sku_or_pos_id', 'sku_or_barcode', 'any'},
+            'accepts_sku': False,
             'accepts_barcode': False,
         })
 
@@ -877,6 +885,11 @@ class AdminProductVariantListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = AdminVariantSerializer
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['product'] = generics.get_object_or_404(Product, pk=self.kwargs['product_pk'])
+        return context
+
     def get_queryset(self):
         return Variant.objects.filter(product_id=self.kwargs['product_pk']).prefetch_related('inventories').order_by('sort_order', 'name')
 
@@ -1125,6 +1138,23 @@ class ProductDetailByIdView(PromotionContextMixin, generics.RetrieveAPIView):
                 )
             )
         )
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        pk = self.kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        product = queryset.filter(pk=pk).first()
+        if product:
+            self.check_object_permissions(self.request, product)
+            return product
+
+        variant = public_variant_queryset().filter(pk=pk).values('product_id').first()
+        if variant:
+            product = queryset.filter(pk=variant['product_id']).first()
+            if product:
+                self.check_object_permissions(self.request, product)
+                return product
+
+        raise Http404
 
 
 class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
@@ -1480,7 +1510,7 @@ class AdminInventoryMovementsView(APIView):
 
         movements_qs = StockMovement.objects.filter(variant_inventory__variant__product_id=pk).select_related('created_by', 'variant_inventory', 'variant_inventory__variant')[:100]
         serializer = StockMovementSerializer(movements_qs, many=True)
-        return Response({'product_id': pk, 'product_name': product.name, 'sku': product.sku, 'movements': serializer.data})
+        return Response({'product_id': pk, 'product_name': product.name, 'movements': serializer.data})
 
 
 class AdminInventoryReserveView(APIView):

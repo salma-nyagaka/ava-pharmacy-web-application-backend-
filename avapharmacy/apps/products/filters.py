@@ -33,6 +33,8 @@ class ProductFilter(django_filters.FilterSet):
 
     def filter_inventory_status(self, queryset, name, value):
         queryset = annotate_product_inventory(queryset)
+        if value == 'available':
+            return queryset.filter(total_stock_quantity__gt=0)
         if value == 'out_of_stock':
             return queryset.filter(total_stock_quantity=0, has_backorder_inventory=False)
         if value == 'backorder':
@@ -106,6 +108,8 @@ class VariantInventoryFilter(django_filters.FilterSet):
 
     def filter_inventory_status(self, queryset, name, value):
         queryset = annotate_variant_inventory(queryset)
+        if value == 'available':
+            return queryset.filter(is_active=True, stock_quantity__gt=0)
         if value == 'out_of_stock':
             return queryset.filter(is_active=True, stock_quantity=0, allow_backorder=False)
         if value == 'backorder':

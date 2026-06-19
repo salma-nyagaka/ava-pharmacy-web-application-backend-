@@ -75,6 +75,24 @@ def generate_internal_product_sku(name, *, exclude_pk=None):
     return candidate
 
 
+def generate_internal_variant_sku(product, name, *, exclude_pk=None):
+    product_sku = getattr(product, 'sku', '') or generate_internal_product_sku(getattr(product, 'name', 'product'))
+    variant_slug = slugify(name or 'variant').replace('-', '').upper() or 'VARIANT'
+    base_code = f'{product_sku}-{variant_slug[:18]}'[:54]
+    candidate = base_code
+    counter = 2
+
+    queryset = Variant.objects.all()
+    if exclude_pk is not None:
+        queryset = queryset.exclude(pk=exclude_pk)
+
+    while queryset.filter(sku=candidate).exists():
+        suffix = f'-{counter}'
+        candidate = f'{base_code[:60 - len(suffix)]}{suffix}'
+        counter += 1
+    return candidate
+
+
 class Category(models.Model):
     """A product category."""
 
@@ -1099,6 +1117,8 @@ class Variant(models.Model):
         """Persist variant inventory and keep parent display fields in sync."""
         original_update_fields = kwargs.get('update_fields')
         inventory_update_fields = set()
+        if not self.sku and self.product_id:
+            self.sku = generate_internal_variant_sku(self.product, self.name, exclude_pk=self.pk)
         if original_update_fields is not None:
             update_fields = set(original_update_fields)
             inventory_update_fields = update_fields & self.INVENTORY_FIELD_NAMES

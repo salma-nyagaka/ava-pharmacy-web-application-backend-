@@ -146,7 +146,7 @@ class PrescriptionListView(generics.ListAPIView):
         source_value = self.request.query_params.get('source')
         if source_value:
             queryset = queryset.filter(source=source_value)
-        return queryset
+        return queryset.order_by('-submitted_at', '-id')
 
 
 class PrescriptionUploadView(APIView):
@@ -277,7 +277,7 @@ class AdminPrescriptionListView(generics.ListAPIView):
     ordering = ['-submitted_at']
 
     def get_queryset(self):
-        return _prescription_queryset()
+        return _prescription_queryset().order_by('-submitted_at', '-id')
 
 
 class PharmacistVariantSearchView(APIView):
@@ -286,9 +286,9 @@ class PharmacistVariantSearchView(APIView):
     def get(self, request):
         query = str(request.query_params.get('q') or '').strip()
         try:
-            limit = min(max(int(request.query_params.get('limit', 12)), 1), 30)
+            limit = min(max(int(request.query_params.get('limit', 500)), 1), 500)
         except (TypeError, ValueError):
-            limit = 12
+            limit = 500
 
         variants = Variant.objects.select_related(
             'product',
@@ -427,7 +427,7 @@ class PharmacistPrescriptionQueueView(generics.ListAPIView):
         status_value = self.request.query_params.get('status')
         if status_value:
             queryset = queryset.filter(status=status_value)
-        return queryset.order_by('pharmacist_id', '-submitted_at')
+        return queryset.order_by('pharmacist_id', '-submitted_at', '-id')
 
 
 class PharmacistPrescriptionAssignView(APIView):
