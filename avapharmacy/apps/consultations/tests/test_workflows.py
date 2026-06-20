@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User
+from apps.accounts.models import Pharmacist, User
 from apps.consultations.models import (
     ConsultationAuditLog,
     ClinicianEarning,
@@ -16,6 +16,7 @@ from apps.consultations.models import (
 )
 from apps.consultations.serializers import ConsultationCreateSerializer
 from apps.notifications.models import Notification
+from apps.orders.models import Order, OrderItem
 from apps.prescriptions.models import Prescription
 from apps.products.models import Product, Variant, VariantInventory
 
@@ -45,6 +46,20 @@ class ConsultationWorkflowTests(TestCase):
             first_name='Consult',
             last_name='Patient',
             role=User.CUSTOMER,
+        )
+        self.pharmacist_user = User.objects.create_user(
+            email='consult-rx-pharmacist@example.com',
+            password='testpass123',
+            first_name='Review',
+            last_name='Pharmacist',
+            role=User.PHARMACIST,
+            status=User.STATUS_ACTIVE,
+            is_active=True,
+        )
+        Pharmacist.objects.create(
+            user=self.pharmacist_user,
+            license_number='RX-CONSULT-001',
+            permissions=[Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
         )
         self.doctor = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_DOCTOR,
@@ -137,6 +152,7 @@ class ConsultationWorkflowTests(TestCase):
             consultation=self.consultation,
             patient_name=self.patient.full_name,
             items=[{'drug_name': 'Ibuprofen', 'dose': '400mg', 'frequency': 'twice daily', 'quantity': 10, 'catalog_fallback': True}],
+            notes='Take after meals and avoid if stomach irritation worsens.',
         )
         send_response = self.client.post(reverse('doctor-prescription-send', args=[prescription.id]), format='json')
         self.assertEqual(send_response.status_code, 200)
@@ -147,6 +163,11 @@ class ConsultationWorkflowTests(TestCase):
         self.assertEqual(detail_response.status_code, 200)
         self.assertEqual(detail_response.data['prescriptions'][0]['reference'], prescription.reference)
         self.assertEqual(detail_response.data['prescriptions'][0]['items_count'], 1)
+        self.assertEqual(detail_response.data['prescriptions'][0]['notes'], prescription.notes)
+        self.assertEqual(detail_response.data['prescriptions'][0]['items'][0]['drug_name'], 'Ibuprofen')
+        self.assertEqual(detail_response.data['prescriptions'][0]['items'][0]['dose'], '400mg')
+        self.assertEqual(detail_response.data['prescriptions'][0]['items'][0]['frequency'], 'twice daily')
+        self.assertEqual(detail_response.data['prescriptions'][0]['items'][0]['quantity'], 10)
         self.assertTrue(ConsultationAuditLog.objects.filter(
             consultation=self.consultation,
             actor=self.patient,
@@ -321,6 +342,173 @@ class ConsultationWorkflowTests(TestCase):
         )
         self.assertEqual(bad_response.status_code, 400)
 
+    def test_doctor_prescription_edit_reuses_reference_and_replaces_items(self):
+        self.doctor.status = ClinicianProfile.STATUS_ACTIVE
+        self.doctor.save(update_fields=['status', 'updated_at'])
+        product = Product.objects.create(
+            name='Edit Safe Medicine',
+            sku='EDIT-RX-MED',
+            slug='edit-rx-med',
+            is_active=True,
+        )
+        first_variant = Variant.objects.create(
+            product=product,
+            sku='EDIT-RX-MED-250',
+            name='250mg',
+            price='150.00',
+            requires_prescription=True,
+            is_active=True,
+        )
+        second_variant = Variant.objects.create(
+            product=product,
+            sku='EDIT-RX-MED-500',
+            name='500mg',
+            price='250.00',
+            requires_prescription=True,
+            is_active=True,
+        )
+        for variant in (first_variant, second_variant):
+            VariantInventory.objects.update_or_create(
+                variant=variant,
+                location=Product.STOCK_BRANCH,
+                defaults={'stock_quantity': 8, 'low_stock_threshold': 2},
+            )
+
+        self.client.force_authenticate(self.doctor_user)
+        first_response = self.client.post(
+            reverse('doctor-prescriptions'),
+            {
+                'consultation': self.consultation.id,
+                'patient_name': self.patient.full_name,
+                'items': [{
+                    'variant_id': first_variant.id,
+                    'dose': '250mg',
+                    'frequency': 'once daily',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+        self.assertEqual(first_response.status_code, 201, first_response.content)
+
+        second_response = self.client.post(
+            reverse('doctor-prescriptions'),
+            {
+                'consultation': self.consultation.id,
+                'patient_name': self.patient.full_name,
+                'items': [{
+                    'variant_id': second_variant.id,
+                    'dose': '500mg',
+                    'frequency': 'twice daily',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+
+        self.assertEqual(second_response.status_code, 201, second_response.content)
+        self.assertEqual(second_response.data['id'], first_response.data['id'])
+        self.assertEqual(second_response.data['reference'], first_response.data['reference'])
+        prescription = ClinicianPrescription.objects.get(pk=first_response.data['id'])
+        self.assertEqual(len(prescription.items), 1)
+        self.assertEqual(prescription.items[0]['variant_id'], second_variant.id)
+        self.assertEqual(ClinicianPrescription.objects.filter(consultation=self.consultation, clinician=self.doctor).count(), 1)
+
+    def test_doctor_cannot_edit_prescription_after_customer_payment(self):
+        self.doctor.status = ClinicianProfile.STATUS_ACTIVE
+        self.doctor.save(update_fields=['status', 'updated_at'])
+        product = Product.objects.create(
+            name='Paid Locked Medicine',
+            sku='PAID-RX-MED',
+            slug='paid-rx-med',
+            is_active=True,
+        )
+        variant = Variant.objects.create(
+            product=product,
+            sku='PAID-RX-MED-500',
+            name='500mg',
+            price='250.00',
+            requires_prescription=True,
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 8, 'low_stock_threshold': 2},
+        )
+
+        self.client.force_authenticate(self.doctor_user)
+        create_response = self.client.post(
+            reverse('doctor-prescriptions'),
+            {
+                'consultation': self.consultation.id,
+                'patient_name': self.patient.full_name,
+                'items': [{
+                    'variant_id': variant.id,
+                    'dose': '500mg',
+                    'frequency': 'twice daily',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.content)
+        prescription = ClinicianPrescription.objects.get(pk=create_response.data['id'])
+        send_response = self.client.post(reverse('doctor-prescription-send', args=[prescription.id]), format='json')
+        self.assertEqual(send_response.status_code, 200, send_response.content)
+        dispensing_rx = Prescription.objects.get(clinician_prescription=prescription)
+        dispensing_item = dispensing_rx.items.get()
+        order = Order.objects.create(
+            customer=self.patient,
+            status=Order.STATUS_PAID,
+            payment_status=Order.PAYMENT_STATUS_PAID,
+            payment_method=Order.PAYMENT_MPESA_STK,
+            shipping_first_name='Consult',
+            shipping_last_name='Patient',
+            shipping_email=self.patient.email,
+            shipping_phone='0700000000',
+            shipping_street='Test Street',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal='250.00',
+            shipping_fee='0.00',
+            total='250.00',
+        )
+        OrderItem.objects.create(
+            order=order,
+            variant=variant,
+            product_name=product.name,
+            product_sku=variant.sku,
+            variant_name=variant.name,
+            variant_sku=variant.sku,
+            quantity=1,
+            unit_price='250.00',
+            prescription_reference=dispensing_rx.reference,
+            prescription=dispensing_rx,
+            prescription_item=dispensing_item,
+        )
+
+        edit_response = self.client.post(
+            reverse('doctor-prescriptions'),
+            {
+                'consultation': self.consultation.id,
+                'patient_name': self.patient.full_name,
+                'items': [{
+                    'variant_id': variant.id,
+                    'dose': '500mg',
+                    'frequency': 'nightly',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+        self.assertEqual(edit_response.status_code, 400)
+        self.assertIn('already been paid', str(edit_response.data))
+
+        resend_response = self.client.post(reverse('doctor-prescription-send', args=[prescription.id]), format='json')
+        self.assertEqual(resend_response.status_code, 400)
+        self.assertIn('already been paid', resend_response.data['detail'])
+
     def test_paid_consultation_finalize_requires_successful_payment(self):
         self.doctor.status = ClinicianProfile.STATUS_ACTIVE
         self.doctor.consult_fee = '500.00'
@@ -472,8 +660,24 @@ class ConsultationWorkflowTests(TestCase):
         self.assertEqual(send_response.status_code, 200, send_response.content)
 
         dispensing_rx = Prescription.objects.get(clinician_prescription=prescription)
-        self.assertEqual(dispensing_rx.status, Prescription.STATUS_APPROVED)
+        self.assertEqual(dispensing_rx.status, Prescription.STATUS_PENDING)
         self.assertEqual(dispensing_rx.items.get().variant_id, variant.id)
+        self.assertIsNone(dispensing_rx.pharmacist_id)
+
+        self.client.force_authenticate(self.pharmacist_user)
+        queue_response = self.client.get(reverse('pharmacist-prescriptions'), {'status': Prescription.STATUS_PENDING})
+        self.assertEqual(queue_response.status_code, 200, queue_response.content)
+        queue_rows = queue_response.data.get('results', queue_response.data)
+        self.assertIn(dispensing_rx.id, [row['id'] for row in queue_rows])
+        review_response = self.client.post(
+            reverse('pharmacist-prescription-review', args=[dispensing_rx.id]),
+            {'action': 'approve', 'notes': 'Approved after pharmacist review.'},
+            format='json',
+        )
+        self.assertEqual(review_response.status_code, 200, review_response.content)
+        dispensing_rx.refresh_from_db()
+        self.assertEqual(dispensing_rx.status, Prescription.STATUS_APPROVED)
+        self.assertEqual(dispensing_rx.pharmacist_id, self.pharmacist_user.id)
         self.assertTrue(Notification.objects.filter(
             recipient=self.patient,
             type='prescription_status',
@@ -579,11 +783,15 @@ class ConsultationWorkflowTests(TestCase):
             'patient_name': self.patient.full_name,
             'patient_email': self.patient.email,
             'patient_phone': self.patient.phone,
-            'issue': 'Rash on arm\n\nPreferred specialty: Dermatology',
+            'issue': 'Rash on arm',
+            'requested_specialty': 'Dermatology',
             'priority': Consultation.PRIORITY_ROUTINE,
         })
         self.assertTrue(specialty_serializer.is_valid(), specialty_serializer.errors)
         self.assertEqual(specialty_serializer.validated_data['clinician'], self.doctor)
+        specialty_consultation = specialty_serializer.save(patient=self.patient)
+        self.assertIsNone(specialty_consultation.clinician_id)
+        self.assertEqual(specialty_consultation.requested_specialty, 'Dermatology')
 
         general_serializer = ConsultationCreateSerializer(data={
             'patient_name': self.patient.full_name,
@@ -594,6 +802,59 @@ class ConsultationWorkflowTests(TestCase):
         })
         self.assertTrue(general_serializer.is_valid(), general_serializer.errors)
         self.assertIn(general_serializer.validated_data['clinician'], {self.doctor, cardiology_doctor})
+        general_consultation = general_serializer.save(patient=self.patient)
+        self.assertIsNone(general_consultation.clinician_id)
+
+        self.client.force_authenticate(self.doctor_user)
+        dermatology_queue = self.client.get(reverse('doctor-consultations'))
+        dermatology_ids = {item['id'] for item in dermatology_queue.data.get('results', dermatology_queue.data)}
+        self.assertIn(specialty_consultation.id, dermatology_ids)
+        self.assertIn(general_consultation.id, dermatology_ids)
+        dermatology_rows = dermatology_queue.data.get('results', dermatology_queue.data)
+        general_row = next(item for item in dermatology_rows if item['id'] == general_consultation.id)
+        self.assertEqual(general_row['patient_name'], 'Consult P.')
+        self.assertNotEqual(general_row['patient_name'], self.patient.full_name)
+
+        self.client.force_authenticate(cardiology_user)
+        cardiology_queue = self.client.get(reverse('doctor-consultations'))
+        cardiology_ids = {item['id'] for item in cardiology_queue.data.get('results', cardiology_queue.data)}
+        self.assertNotIn(specialty_consultation.id, cardiology_ids)
+        self.assertIn(general_consultation.id, cardiology_ids)
+        denied_specialty_detail = self.client.get(reverse('consultation-detail', args=[specialty_consultation.id]))
+        self.assertEqual(denied_specialty_detail.status_code, 404)
+
+        detail_response = self.client.get(reverse('consultation-detail', args=[general_consultation.id]))
+        self.assertEqual(detail_response.status_code, 200, detail_response.content)
+        self.assertEqual(detail_response.data['patient_name'], self.patient.full_name)
+        general_consultation.refresh_from_db()
+        self.assertEqual(general_consultation.clinician_id, cardiology_doctor.id)
+        self.assertEqual(general_consultation.status, Consultation.STATUS_IN_PROGRESS)
+
+        self.client.force_authenticate(self.doctor_user)
+        dermatology_queue = self.client.get(reverse('doctor-consultations'))
+        dermatology_ids = {item['id'] for item in dermatology_queue.data.get('results', dermatology_queue.data)}
+        self.assertNotIn(general_consultation.id, dermatology_ids)
+
+        unmatched_serializer = ConsultationCreateSerializer(data={
+            'patient_name': self.patient.full_name,
+            'patient_email': self.patient.email,
+            'patient_phone': self.patient.phone,
+            'issue': 'Headache with dizziness',
+            'requested_specialty': 'Neurology',
+            'priority': Consultation.PRIORITY_ROUTINE,
+        })
+        self.assertTrue(unmatched_serializer.is_valid(), unmatched_serializer.errors)
+        unmatched_consultation = unmatched_serializer.save(patient=self.patient)
+
+        self.client.force_authenticate(self.doctor_user)
+        dermatology_queue = self.client.get(reverse('doctor-consultations'))
+        dermatology_ids = {item['id'] for item in dermatology_queue.data.get('results', dermatology_queue.data)}
+        self.assertIn(unmatched_consultation.id, dermatology_ids)
+
+        self.client.force_authenticate(cardiology_user)
+        cardiology_queue = self.client.get(reverse('doctor-consultations'))
+        cardiology_ids = {item['id'] for item in cardiology_queue.data.get('results', cardiology_queue.data)}
+        self.assertIn(unmatched_consultation.id, cardiology_ids)
 
     def test_new_consultation_notifications_are_routed_by_specialty(self):
         self.doctor.status = ClinicianProfile.STATUS_ACTIVE
@@ -627,11 +888,12 @@ class ConsultationWorkflowTests(TestCase):
             status=ConsultationPaymentIntent.STATUS_SUCCEEDED,
             amount='500.00',
             consultation_payload={
-                'doctor': self.doctor.id,
+                'doctor': None,
                 'patient_name': self.patient.full_name,
                 'patient_email': self.patient.email,
                 'patient_phone': self.patient.phone,
-                'issue': 'Rash on arm\n\nPreferred specialty: Dermatology',
+                'issue': 'Rash on arm',
+                'requested_specialty': 'Dermatology',
                 'priority': Consultation.PRIORITY_ROUTINE,
             },
         )
@@ -651,7 +913,7 @@ class ConsultationWorkflowTests(TestCase):
             status=ConsultationPaymentIntent.STATUS_SUCCEEDED,
             amount='500.00',
             consultation_payload={
-                'doctor': cardiology_doctor.id,
+                'doctor': None,
                 'patient_name': self.patient.full_name,
                 'patient_email': self.patient.email,
                 'patient_phone': self.patient.phone,
@@ -662,6 +924,31 @@ class ConsultationWorkflowTests(TestCase):
         self.client.post(
             reverse('consultation-payment-finalize'),
             {'payment_intent_id': general_intent.id},
+            format='json',
+        )
+        notified = set(Notification.objects.filter(type='new_consultation').values_list('recipient__email', flat=True))
+        self.assertEqual(notified, {self.doctor_user.email, cardiology_user.email})
+
+        Notification.objects.filter(type='new_consultation').delete()
+        unmatched_specialty_intent = ConsultationPaymentIntent.objects.create(
+            initiated_by=self.patient,
+            clinician=cardiology_doctor,
+            provider=ConsultationPaymentIntent.PROVIDER_PAYBILL,
+            status=ConsultationPaymentIntent.STATUS_SUCCEEDED,
+            amount='500.00',
+            consultation_payload={
+                'doctor': None,
+                'patient_name': self.patient.full_name,
+                'patient_email': self.patient.email,
+                'patient_phone': self.patient.phone,
+                'issue': 'Need a specialist',
+                'requested_specialty': 'Neurology',
+                'priority': Consultation.PRIORITY_ROUTINE,
+            },
+        )
+        self.client.post(
+            reverse('consultation-payment-finalize'),
+            {'payment_intent_id': unmatched_specialty_intent.id},
             format='json',
         )
         notified = set(Notification.objects.filter(type='new_consultation').values_list('recipient__email', flat=True))

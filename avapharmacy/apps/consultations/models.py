@@ -226,6 +226,7 @@ class Consultation(models.Model):
     patient_phone = models.CharField(max_length=20, blank=True)
     patient_age = models.PositiveIntegerField(null=True, blank=True)
     issue = models.TextField()
+    requested_specialty = models.CharField(max_length=200, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_WAITING)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default=PRIORITY_ROUTINE)
     channel = models.CharField(max_length=20, default='chat')
@@ -256,6 +257,7 @@ class Consultation(models.Model):
             models.Index(fields=['patient', 'status']),
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['is_pediatric', 'status']),
+            models.Index(fields=['requested_specialty', 'status']),
         ]
 
     def __str__(self):

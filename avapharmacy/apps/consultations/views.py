@@ -9,6 +9,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.throttling import UserRateThrottle
 from django.db import transaction
@@ -16,6 +17,7 @@ from django.utils import timezone
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncDate
 from datetime import timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from .models import (
     ClinicianDocument, ClinicianProfile, ClinicianPrescription, ClinicianEarning,
@@ -38,6 +40,19 @@ from .serializers import (
     DoctorOnboardingProfileStepSerializer,
     DoctorVerificationActionSerializer,
 )
+
+
+def _clinician_prescription_has_paid_order(prescription):
+    from apps.orders.models import Order
+
+    linked = getattr(prescription, 'linked_prescriptions', None)
+    if linked is None:
+        return False
+    return linked.filter(
+        items__order_items__order__payment_status=Order.PAYMENT_STATUS_PAID,
+    ).exclude(
+        items__order_items__order__status__in=[Order.STATUS_CANCELLED, Order.STATUS_REFUNDED],
+    ).exists()
 from apps.orders.mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
 from apps.orders.payment_helpers import (
     get_paybill_account_label,
@@ -212,6 +227,8 @@ def apply_consultation_paybill_confirmation(raw_payload, *, source='paybill_conf
         'callback_payload', 'provider_reference', 'phone_number', 'processed_at',
         'status', 'last_error', 'payload', 'updated_at',
     ])
+    if accepted:
+        _finalize_succeeded_payment_intent(intent)
     return intent, accepted
 
 
@@ -329,15 +346,100 @@ def _preferred_specialty_from_issue(issue):
     return ''
 
 
-def _doctor_notification_recipients(consultation):
-    preferred_specialty = _preferred_specialty_from_issue(consultation.issue)
-    doctors = ClinicianProfile.objects.doctors().active().select_related('user')
+def _requested_specialty_for_consultation(consultation):
+    return (consultation.requested_specialty or _preferred_specialty_from_issue(consultation.issue)).strip()
+
+
+def _active_doctors_with_active_accounts():
+    return ClinicianProfile.objects.doctors().active().select_related('user').filter(
+        user__isnull=False,
+        user__is_active=True,
+        user__status='active',
+    )
+
+
+def _eligible_doctors_for_consultation(consultation):
+    if consultation.clinician_id:
+        clinician = consultation.clinician
+        if (
+            clinician
+            and clinician.provider_type == ClinicianProfile.TYPE_DOCTOR
+            and clinician.user_id
+            and clinician.user.is_active
+            and clinician.user.status == 'active'
+        ):
+            return ClinicianProfile.objects.filter(pk=clinician.pk).select_related('user')
+        return ClinicianProfile.objects.none()
+
+    doctors = _active_doctors_with_active_accounts()
+    preferred_specialty = _requested_specialty_for_consultation(consultation)
     if preferred_specialty:
-        doctors = doctors.filter(specialty__iexact=preferred_specialty)
+        matching_doctors = doctors.filter(specialty__iexact=preferred_specialty)
+        if matching_doctors.exists():
+            return matching_doctors
+    return doctors
+
+
+def _is_consultation_eligible_for_provider(consultation, provider):
+    if not provider:
+        return False
+    if consultation.clinician_id:
+        return consultation.clinician_id == provider.id
+    if (
+        consultation.status != Consultation.STATUS_WAITING
+        or consultation.is_pediatric
+        or provider.provider_type != ClinicianProfile.TYPE_DOCTOR
+    ):
+        return False
+    return _eligible_doctors_for_consultation(consultation).filter(pk=provider.pk).exists()
+
+
+def _doctor_queue_queryset_for_provider(provider):
+    if not provider:
+        return Consultation.objects.none()
+    assigned = Q(clinician=provider)
+    unassigned = Q(clinician__isnull=True, is_pediatric=False, status=Consultation.STATUS_WAITING)
+
+    requested_specialties = set(
+        Consultation.objects
+        .filter(clinician__isnull=True, is_pediatric=False, status=Consultation.STATUS_WAITING)
+        .exclude(requested_specialty='')
+        .values_list('requested_specialty', flat=True)
+    )
+    matched_specialties = set(
+        ClinicianProfile.objects.doctors().active()
+        .filter(specialty__in=requested_specialties)
+        .values_list('specialty', flat=True)
+    )
+    fallback_specialties = requested_specialties - matched_specialties
+    eligible_unassigned = (
+        unassigned
+        & (
+            Q(requested_specialty='')
+            | Q(requested_specialty__iexact=provider.specialty)
+            | Q(requested_specialty__in=fallback_specialties)
+        )
+    )
+    return Consultation.objects.filter(assigned | eligible_unassigned)
+
+
+def _assign_consultation_to_provider_if_open(consultation, provider):
+    if not provider or consultation.clinician_id:
+        return consultation
+    if not _is_consultation_eligible_for_provider(consultation, provider):
+        return consultation
+    consultation.clinician = provider
+    consultation.is_pediatric = provider.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN
+    if consultation.status == Consultation.STATUS_WAITING:
+        consultation.status = Consultation.STATUS_IN_PROGRESS
+    consultation.save(update_fields=['clinician', 'is_pediatric', 'status', 'updated_at'])
+    return consultation
+
+
+def _doctor_notification_recipients(consultation):
     return [
         doctor.user
-        for doctor in doctors
-        if doctor.user_id and doctor.user.is_active and doctor.user.status == 'active'
+        for doctor in _eligible_doctors_for_consultation(consultation)
     ]
 
 
@@ -357,6 +459,16 @@ def _notify_new_consultation_recipients(consultation):
             notify_new_consultation(recipient, consultation)
     except Exception:
         pass
+
+
+def _finalize_succeeded_payment_intent(intent):
+    if intent.status != ConsultationPaymentIntent.STATUS_SUCCEEDED:
+        return None
+    was_finalized = bool(intent.consultation_id)
+    consultation = _create_paid_consultation_from_intent(intent)
+    if not was_finalized:
+        _notify_new_consultation_recipients(consultation)
+    return consultation
 
 
 class ConsultationMessageCursorPagination(CursorPagination):
@@ -381,6 +493,14 @@ def _broadcast_consultation_event(consultation_id, event_type, payload):
             'payload': payload,
         },
     )
+
+
+def _clinician_net_earning_amount(provider):
+    gross = Decimal(provider.consult_fee or 0)
+    commission_percent = Decimal(provider.commission or 0)
+    ava_share = gross * commission_percent / Decimal('100')
+    net = (gross - ava_share).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+    return net if net > 0 else Decimal('0.00')
 
 
 def _get_clinician_by_identifier(identifier, provider_type):
@@ -755,7 +875,9 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
         return ConsultationListSerializer
 
     def get_queryset(self):
-        return Consultation.objects.filter(patient=self.request.user).select_related(*CONSULTATION_SELECT_RELATED)
+        return Consultation.objects.filter(patient=self.request.user).select_related(
+            *CONSULTATION_SELECT_RELATED
+        ).prefetch_related('clinician_prescriptions')
 
     def create(self, request, *args, **kwargs):
         if not request.data.get('is_pediatric') and not request.data.get('payment_intent_id'):
@@ -801,7 +923,7 @@ class ConsultationPaymentIntentCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         consultation_data = serializer.validated_data['consultation']
-        clinician = consultation_data['clinician']
+        clinician = consultation_data.get('_billing_clinician') or consultation_data['clinician']
         provider = data['provider']
 
         if clinician.status != ClinicianProfile.STATUS_ACTIVE:
@@ -815,10 +937,12 @@ class ConsultationPaymentIntentCreateView(APIView):
 
         stored_consultation_payload = dict(consultation_data)
         stored_consultation_payload.pop('clinician', None)
+        stored_consultation_payload.pop('_billing_clinician', None)
+        open_doctor_queue = bool(stored_consultation_payload.pop('_open_doctor_queue', False))
         if stored_consultation_payload.get('scheduled_at'):
             stored_consultation_payload['scheduled_at'] = stored_consultation_payload['scheduled_at'].isoformat()
         stored_consultation_payload.update({
-            'doctor': clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None,
+            'doctor': None if open_doctor_queue else (clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None),
             'pediatrician': clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else None,
             'patient_name': stored_consultation_payload.get('patient_name') or request.user.full_name,
             'patient_email': stored_consultation_payload.get('patient_email') or request.user.email,
@@ -907,6 +1031,8 @@ class ConsultationPaymentIntentStatusView(APIView):
             ConsultationPaymentIntent.STATUS_FAILED,
             ConsultationPaymentIntent.STATUS_CANCELLED,
         ]:
+            if intent.status == ConsultationPaymentIntent.STATUS_SUCCEEDED:
+                _finalize_succeeded_payment_intent(intent)
             return Response(ConsultationPaymentIntentSerializer(intent).data)
 
         if intent.provider == ConsultationPaymentIntent.PROVIDER_PAYBILL:
@@ -918,7 +1044,8 @@ class ConsultationPaymentIntentStatusView(APIView):
             return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except MpesaAPIError as exc:
             intent.payload = {**(intent.payload or {}), 'status_sync_error': str(exc)}
-            intent.save(update_fields=['payload', 'updated_at'])
+            intent.last_error = 'We could not check M-Pesa status right now. We will continue waiting for the payment callback.'
+            intent.save(update_fields=['payload', 'last_error', 'updated_at'])
             return Response(ConsultationPaymentIntentSerializer(intent).data, status=status.HTTP_202_ACCEPTED)
 
         intent.payload = {**(intent.payload or {}), 'status_query': mpesa_response}
@@ -929,6 +1056,7 @@ class ConsultationPaymentIntentStatusView(APIView):
             intent.provider_reference = mpesa_response.get('MpesaReceiptNumber', intent.provider_reference)
             intent.processed_at = timezone.now()
             intent.save(update_fields=['payload', 'status', 'last_error', 'provider_reference', 'processed_at', 'updated_at'])
+            _finalize_succeeded_payment_intent(intent)
         elif _is_mpesa_processing_response(mpesa_response):
             intent.status = ConsultationPaymentIntent.STATUS_REQUIRES_ACTION
             intent.last_error = ''
@@ -994,6 +1122,8 @@ class ConsultationMpesaCallbackView(APIView):
             'callback_payload', 'processed_at', 'provider_reference',
             'status', 'last_error', 'updated_at',
         ])
+        if intent.status == ConsultationPaymentIntent.STATUS_SUCCEEDED:
+            _finalize_succeeded_payment_intent(intent)
         return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
@@ -1012,6 +1142,9 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
             provider = _get_provider_for_user(user)
             if not provider:
                 return Consultation.objects.none()
+            if provider.provider_type == ClinicianProfile.TYPE_DOCTOR:
+                eligible_ids = _doctor_queue_queryset_for_provider(provider).values('id')
+                return base_queryset.filter(id__in=eligible_ids)
             return base_queryset.filter(clinician=provider)
         return base_queryset.filter(patient=user)
 
@@ -1022,6 +1155,14 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        provider = _get_provider_for_user(request.user) if request.user.role in ['doctor', 'pediatrician'] else None
+        if (
+            provider
+            and provider.provider_type == ClinicianProfile.TYPE_DOCTOR
+            and not instance.clinician_id
+            and _is_consultation_eligible_for_provider(instance, provider)
+        ):
+            instance = _assign_consultation_to_provider_if_open(instance, provider)
         _audit_consultation(request, instance, ConsultationAuditLog.ACTION_VIEW_DETAIL)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
@@ -1030,6 +1171,14 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
         old_status = instance.status
+        provider = _get_provider_for_user(request.user) if request.user.role in ['doctor', 'pediatrician'] else None
+        if (
+            provider
+            and provider.provider_type == ClinicianProfile.TYPE_DOCTOR
+            and not instance.clinician_id
+            and request.data.get('status') == Consultation.STATUS_IN_PROGRESS
+        ):
+            instance = _assign_consultation_to_provider_if_open(instance, provider)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         consultation = serializer.save()
@@ -1076,7 +1225,13 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         provider = consultation.provider_profile
         is_provider = bool(provider and provider.user_id == user.id)
-        if consultation.patient_id != user.id and not is_provider and user.role != 'admin':
+        user_provider = _get_provider_for_user(user) if user.role in ['doctor', 'pediatrician'] else None
+        is_eligible_unassigned_doctor = (
+            user_provider
+            and user_provider.provider_type == ClinicianProfile.TYPE_DOCTOR
+            and _is_consultation_eligible_for_provider(consultation, user_provider)
+        )
+        if consultation.patient_id != user.id and not is_provider and not is_eligible_unassigned_doctor and user.role != 'admin':
             return ConsultationMessage.objects.none()
         return ConsultationMessage.objects.filter(consultation_id=self.kwargs['pk']).select_related('sender')
 
@@ -1102,6 +1257,16 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
         is_pediatrician = bool(provider and provider.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN and provider.user == user)
         is_patient = consultation.patient == user
         is_admin = user.role == 'admin'
+        user_provider = _get_provider_for_user(user) if user.role in ['doctor', 'pediatrician'] else None
+        is_eligible_unassigned_doctor = (
+            user_provider
+            and user_provider.provider_type == ClinicianProfile.TYPE_DOCTOR
+            and _is_consultation_eligible_for_provider(consultation, user_provider)
+        )
+        if is_eligible_unassigned_doctor and not consultation.clinician_id:
+            consultation = _assign_consultation_to_provider_if_open(consultation, user_provider)
+            provider = consultation.provider_profile
+            is_doctor = bool(provider and provider.provider_type == ClinicianProfile.TYPE_DOCTOR and provider.user == user)
         if not (is_doctor or is_pediatrician or is_patient or is_admin):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You are not a participant in this consultation.')
@@ -1159,8 +1324,9 @@ class DoctorConsultationListView(generics.ListAPIView):
         provider = _get_provider_for_user(self.request.user)
         if not provider:
             return Consultation.objects.none()
-        filter_kwargs = {'clinician': provider}
-        return Consultation.objects.filter(**filter_kwargs).select_related(*CONSULTATION_SELECT_RELATED)
+        if provider.provider_type == ClinicianProfile.TYPE_DOCTOR:
+            return _doctor_queue_queryset_for_provider(provider).select_related(*CONSULTATION_SELECT_RELATED)
+        return Consultation.objects.filter(clinician=provider).select_related(*CONSULTATION_SELECT_RELATED)
 
 
 class ConsultationEndView(APIView):
@@ -1188,8 +1354,11 @@ class ConsultationEndView(APIView):
             clinician=provider,
             consultation=consultation,
             defaults={
-                'amount': provider.consult_fee,
-                'description': f'Consultation fee for {consultation.reference}',
+                'amount': _clinician_net_earning_amount(provider),
+                'description': (
+                    f'Consultation fee for {consultation.reference}. '
+                    f'Ava commission {provider.commission}% of KES {provider.consult_fee}.'
+                ),
             },
         )
         if consultation.patient:
@@ -1210,6 +1379,10 @@ class ConsultationEndView(APIView):
 
 class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsDoctor]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
     def get_serializer_class(self):
         if self.request.user.role == 'pediatrician':
@@ -1233,6 +1406,32 @@ class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
         patient_name = serializer.validated_data.get('patient_name')
         if consultation and not patient_name:
             patient_name = consultation.patient_name
+        if consultation:
+            consultation = Consultation.objects.select_for_update().get(pk=consultation.pk)
+            existing = (
+                ClinicianPrescription.objects
+                .filter(clinician=provider, consultation=consultation)
+                .exclude(status=ClinicianPrescription.STATUS_DISPENSED)
+                .order_by('-created_at')
+                .first()
+            )
+            if existing:
+                if _clinician_prescription_has_paid_order(existing):
+                    raise ValidationError('This prescription has already been paid for and can no longer be edited.')
+                new_items = serializer.validated_data.get('items') or []
+                existing.items = new_items
+                existing.patient_name = patient_name or existing.patient_name or ''
+                if serializer.validated_data.get('notes'):
+                    existing.notes = serializer.validated_data['notes']
+                existing.digital_signature = ''
+                existing.sent_at = None
+                existing.status = ClinicianPrescription.STATUS_DRAFT
+                existing.save(update_fields=[
+                    'items', 'patient_name', 'notes', 'digital_signature',
+                    'sent_at', 'status',
+                ])
+                serializer.instance = existing
+                return
         serializer.save(clinician=provider, patient_name=patient_name or '')
 
 
@@ -1305,10 +1504,19 @@ class ClinicianPrescriptionSendView(APIView):
         if not prescription.items:
             return Response({'detail': 'Prescription must contain at least one item.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        from apps.prescriptions.models import Prescription as DispensingPrescription, PrescriptionItem as DispensingPrescriptionItem
+        from apps.prescriptions.models import (
+            Prescription as DispensingPrescription,
+            PrescriptionAuditLog as DispensingPrescriptionAuditLog,
+            PrescriptionItem as DispensingPrescriptionItem,
+        )
 
         linked = getattr(prescription, 'linked_prescriptions', None)
         existing = linked.order_by('-submitted_at').first() if linked is not None else None
+        if existing is not None and _clinician_prescription_has_paid_order(prescription):
+            return Response(
+                {'detail': 'This prescription has already been paid for and can no longer be edited.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if existing is None:
             existing = DispensingPrescription.objects.create(
                 patient=patient,
@@ -1316,14 +1524,20 @@ class ClinicianPrescriptionSendView(APIView):
                 doctor_name=provider.name,
                 source=DispensingPrescription.SOURCE_E_PRESCRIPTION,
                 clinician_prescription=prescription,
-                status=DispensingPrescription.STATUS_APPROVED,
+                status=DispensingPrescription.STATUS_PENDING,
                 notes=prescription.notes,
             )
         else:
-            existing.status = DispensingPrescription.STATUS_APPROVED
+            existing.status = DispensingPrescription.STATUS_PENDING
+            existing.pharmacist = None
             existing.notes = prescription.notes
             existing.doctor_name = provider.name
-            existing.save(update_fields=['status', 'notes', 'doctor_name', 'updated_at'])
+            existing.pharmacist_notes = ''
+            existing.clarification_message = ''
+            existing.save(update_fields=[
+                'status', 'pharmacist', 'notes', 'doctor_name',
+                'pharmacist_notes', 'clarification_message', 'updated_at',
+            ])
             existing.items.all().delete()
 
         for item in prescription.items:
@@ -1338,6 +1552,23 @@ class ClinicianPrescriptionSendView(APIView):
                 frequency=item.get('frequency', ''),
                 quantity=item.get('quantity') or 1,
                 is_controlled_substance=_is_controlled_substance_item(item),
+            )
+
+        DispensingPrescriptionAuditLog.objects.create(
+            prescription=existing,
+            action='E-prescription submitted for pharmacist review',
+            notes=f'Sent by {provider.name} from consultation {prescription.consultation.reference}.',
+            performed_by=request.user,
+        )
+
+        pharmacists = User.objects.filter(role=User.PHARMACIST, status=User.STATUS_ACTIVE, is_active=True)
+        for pharmacist in pharmacists:
+            create_notification(
+                recipient=pharmacist,
+                notification_type='prescription_status',
+                title=f'E-prescription needs review: {existing.reference}',
+                message=f'{provider.name} sent a prescription for {patient.full_name}. Review it before checkout.',
+                data={'prescription_id': existing.id, 'reference': existing.reference, 'sensitive': True},
             )
 
         signature_material = f'{provider.license_number}:{timezone.now().isoformat()}'
@@ -1357,7 +1588,7 @@ class ClinicianPrescriptionSendView(APIView):
             recipient=patient,
             notification_type='prescription_status',
             title='New e-prescription',
-            message=f'Your clinician sent prescription {prescription.reference}.',
+            message=f'Your clinician sent prescription {prescription.reference}. A pharmacist will review it before checkout.',
             data={'prescription_id': existing.id, 'reference': existing.reference, 'sensitive': True},
             send_email=True,
         )

@@ -52,6 +52,38 @@ def _validate_unique_professional_email(email, instance=None):
     return email
 
 
+def _serialize_consultation_prescription_item(item):
+    return {
+        'drug_name': item.get('drug_name') or item.get('name') or item.get('catalog_name') or '',
+        'dose': item.get('dose') or item.get('dosage') or '',
+        'frequency': item.get('frequency') or '',
+        'duration': item.get('duration') or '',
+        'quantity': item.get('quantity') or 1,
+        'notes': item.get('notes') or item.get('note') or '',
+        'catalog_name': item.get('catalog_name') or '',
+        'sku': item.get('sku') or '',
+    }
+
+
+def _serialize_consultation_prescription(prescription):
+    raw_items = prescription.items if isinstance(prescription.items, list) else []
+    items = [
+        _serialize_consultation_prescription_item(item)
+        for item in raw_items
+        if isinstance(item, dict)
+    ]
+    return {
+        'id': prescription.id,
+        'reference': prescription.reference,
+        'status': prescription.status,
+        'items_count': len(items),
+        'items': items,
+        'notes': prescription.notes or '',
+        'sent_at': prescription.sent_at.isoformat() if prescription.sent_at else None,
+        'created_at': prescription.created_at.isoformat() if prescription.created_at else None,
+    }
+
+
 class ClinicianCompatibilityField(serializers.Field):
     default_error_messages = {
         'invalid': 'Selected clinician was not found.',
@@ -293,7 +325,7 @@ class ConsultationSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'reference', 'doctor', 'pediatrician', 'doctor_name', 'doctor_specialty',
             'patient', 'patient_name', 'patient_email', 'patient_phone', 'patient_age', 'issue', 'status', 'priority',
-            'channel', 'scheduled_at', 'is_pediatric', 'guardian_name', 'child_name',
+            'channel', 'scheduled_at', 'requested_specialty', 'is_pediatric', 'guardian_name', 'child_name',
             'child_age', 'weight_kg', 'consent_status', 'dosage_alert',
             'last_message_at', 'ended_at', 'messages', 'prescriptions', 'created_at', 'updated_at'
         )
@@ -301,28 +333,54 @@ class ConsultationSerializer(serializers.ModelSerializer):
 
     def get_prescriptions(self, obj):
         prescriptions = obj.clinician_prescriptions.exclude(status=ClinicianPrescription.STATUS_DRAFT)
-        return [
-            {
-                'id': prescription.id,
-                'reference': prescription.reference,
-                'status': prescription.status,
-                'items_count': len(prescription.items or []),
-                'sent_at': prescription.sent_at.isoformat() if prescription.sent_at else None,
-                'created_at': prescription.created_at.isoformat() if prescription.created_at else None,
-            }
-            for prescription in prescriptions
-        ]
+        return [_serialize_consultation_prescription(prescription) for prescription in prescriptions]
 
 
 class ConsultationListSerializer(serializers.ModelSerializer):
     doctor_name = serializers.ReadOnlyField(source='provider_name')
+    patient_name = serializers.SerializerMethodField()
+    issue = serializers.SerializerMethodField()
+    prescriptions = serializers.SerializerMethodField()
 
     class Meta:
         model = Consultation
         fields = (
             'id', 'reference', 'doctor_name', 'patient_name', 'issue',
-            'status', 'priority', 'is_pediatric', 'last_message_at', 'created_at'
+            'status', 'priority', 'requested_specialty', 'is_pediatric', 'last_message_at', 'created_at',
+            'prescriptions'
         )
+
+    def _is_limited_open_queue_record(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return (
+            user
+            and getattr(user, 'role', '') in ['doctor', 'pediatrician']
+            and obj.clinician_id is None
+        )
+
+    def get_patient_name(self, obj):
+        if not self._is_limited_open_queue_record(obj):
+            return obj.patient_name
+        parts = [part for part in (obj.patient_name or 'Patient').split() if part]
+        if not parts:
+            return 'Patient'
+        if len(parts) == 1:
+            return parts[0]
+        return f"{parts[0]} {parts[-1][0]}."
+
+    def get_issue(self, obj):
+        issue = obj.issue or ''
+        if not self._is_limited_open_queue_record(obj):
+            return issue
+        summary = issue.replace('\n', ' ').strip()
+        if len(summary) > 120:
+            return f'{summary[:117].rstrip()}...'
+        return summary
+
+    def get_prescriptions(self, obj):
+        prescriptions = obj.clinician_prescriptions.exclude(status=ClinicianPrescription.STATUS_DRAFT)
+        return [_serialize_consultation_prescription(prescription) for prescription in prescriptions]
 
 
 class ConsultationCreateSerializer(serializers.ModelSerializer):
@@ -333,7 +391,7 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
         model = Consultation
         fields = (
             'doctor', 'pediatrician', 'patient_name', 'patient_email', 'patient_phone',
-            'patient_age', 'issue', 'priority', 'scheduled_at', 'is_pediatric',
+            'patient_age', 'issue', 'requested_specialty', 'priority', 'scheduled_at', 'is_pediatric',
             'guardian_name', 'child_name',
             'child_age', 'weight_kg'
         )
@@ -345,15 +403,22 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
                 return line.split(':', 1)[1].strip()
         return ''
 
-    def _default_doctor_for_issue(self, issue):
+    def _default_doctor_for_issue(self, issue, requested_specialty=''):
         doctors = ClinicianProfile.objects.doctors().active().select_related('user').order_by('id')
-        preferred_specialty = self._preferred_specialty_from_issue(issue)
+        preferred_specialty = (requested_specialty or self._preferred_specialty_from_issue(issue)).strip()
         if preferred_specialty:
             specialty_doctors = doctors.filter(specialty__iexact=preferred_specialty)
             clinician = specialty_doctors.first()
             if clinician:
                 return clinician
         return doctors.first()
+
+    def create(self, validated_data):
+        validated_data.pop('_billing_clinician', None)
+        open_doctor_queue = validated_data.pop('_open_doctor_queue', False)
+        if open_doctor_queue:
+            validated_data['clinician'] = None
+        return super().create(validated_data)
 
     def validate(self, attrs):
         doctor_identifier = attrs.pop('doctor', None)
@@ -371,7 +436,8 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'pediatrician': 'Selected pediatrician was not found.'})
             attrs['is_pediatric'] = True
         elif not attrs.get('is_pediatric'):
-            clinician = self._default_doctor_for_issue(attrs.get('issue'))
+            clinician = self._default_doctor_for_issue(attrs.get('issue'), attrs.get('requested_specialty'))
+            attrs['_open_doctor_queue'] = True
         if clinician is None:
             raise serializers.ValidationError('A doctor or pediatrician is required.')
         if clinician.status != ClinicianProfile.STATUS_ACTIVE:
@@ -380,6 +446,7 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
         if clinician.user_id and (not clinician.user.is_active or clinician.user.status != 'active'):
             field = 'pediatrician' if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else 'doctor'
             raise serializers.ValidationError({field: 'Selected clinician account is not active.'})
+        attrs['_billing_clinician'] = clinician
         attrs['clinician'] = clinician
         return attrs
 
@@ -442,32 +509,54 @@ class ConsultationUpdateSerializer(serializers.ModelSerializer):
 
 class DoctorPrescriptionSerializer(serializers.ModelSerializer):
     doctor = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_DOCTOR, source='clinician', required=False, allow_null=True)
+    is_paid_for = serializers.SerializerMethodField()
 
     class Meta:
         model = ClinicianPrescription
         fields = (
             'id', 'reference', 'doctor', 'consultation', 'patient_name', 'items',
-            'status', 'digital_signature', 'notes', 'sent_at', 'dispensed_at', 'created_at'
+            'status', 'digital_signature', 'notes', 'sent_at', 'dispensed_at', 'created_at',
+            'is_paid_for',
         )
         read_only_fields = ('id', 'reference', 'created_at')
 
     def validate_items(self, value):
         return validate_clinician_prescription_items(value)
 
+    def get_is_paid_for(self, obj):
+        from apps.orders.models import Order
+
+        return obj.linked_prescriptions.filter(
+            items__order_items__order__payment_status=Order.PAYMENT_STATUS_PAID,
+        ).exclude(
+            items__order_items__order__status__in=[Order.STATUS_CANCELLED, Order.STATUS_REFUNDED],
+        ).exists()
+
 
 class PediatricianPrescriptionSerializer(serializers.ModelSerializer):
     pediatrician = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN, source='clinician', required=False, allow_null=True)
+    is_paid_for = serializers.SerializerMethodField()
 
     class Meta:
         model = ClinicianPrescription
         fields = (
             'id', 'reference', 'pediatrician', 'consultation', 'patient_name', 'items',
-            'status', 'digital_signature', 'notes', 'sent_at', 'dispensed_at', 'created_at'
+            'status', 'digital_signature', 'notes', 'sent_at', 'dispensed_at', 'created_at',
+            'is_paid_for',
         )
         read_only_fields = ('id', 'reference', 'created_at')
 
     def validate_items(self, value):
         return validate_clinician_prescription_items(value)
+
+    def get_is_paid_for(self, obj):
+        from apps.orders.models import Order
+
+        return obj.linked_prescriptions.filter(
+            items__order_items__order__payment_status=Order.PAYMENT_STATUS_PAID,
+        ).exclude(
+            items__order_items__order__status__in=[Order.STATUS_CANCELLED, Order.STATUS_REFUNDED],
+        ).exists()
 
 
 def validate_clinician_prescription_items(items):

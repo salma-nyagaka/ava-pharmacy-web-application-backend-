@@ -449,7 +449,7 @@ class PharmacistPrescriptionQueueView(generics.ListAPIView):
         status_value = self.request.query_params.get('status')
         if status_value:
             queryset = queryset.filter(status=status_value)
-        return queryset.order_by('pharmacist_id', '-submitted_at', '-id')
+        return queryset.order_by('-updated_at', '-submitted_at', '-id')
 
 
 class PharmacistPrescriptionAssignView(APIView):

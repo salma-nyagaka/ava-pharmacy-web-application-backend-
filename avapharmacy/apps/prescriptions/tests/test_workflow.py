@@ -1,8 +1,10 @@
 import json
+from datetime import timedelta
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Pharmacist, User
@@ -126,6 +128,38 @@ class PrescriptionWorkflowTests(TestCase):
             type='prescription_status',
             data__prescription_id=prescription.id,
         ).exists())
+
+    def test_pharmacist_queue_orders_latest_activity_first(self):
+        older_assigned = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            doctor_name='Dr Older',
+            pharmacist=self.pharmacist,
+            status=Prescription.STATUS_PENDING,
+        )
+        newer_unassigned = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            doctor_name='Dr Newer',
+            status=Prescription.STATUS_PENDING,
+        )
+        now = timezone.now()
+        Prescription.objects.filter(pk=older_assigned.pk).update(
+            submitted_at=now - timedelta(days=1),
+            updated_at=now - timedelta(days=1),
+        )
+        Prescription.objects.filter(pk=newer_unassigned.pk).update(
+            submitted_at=now - timedelta(minutes=5),
+            updated_at=now - timedelta(minutes=5),
+        )
+
+        self.client.force_authenticate(self.pharmacist)
+        queue_response = self.client.get(reverse('pharmacist-prescriptions'))
+
+        self.assertEqual(queue_response.status_code, 200)
+        rows = queue_response.data.get('results', queue_response.data)
+        self.assertEqual(rows[0]['id'], newer_unassigned.id)
+        self.assertEqual(rows[1]['id'], older_assigned.id)
 
     def test_customer_cannot_add_prescription_item_again_after_paid_order(self):
         prescription = Prescription.objects.create(
