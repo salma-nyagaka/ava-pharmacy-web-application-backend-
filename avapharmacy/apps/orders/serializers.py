@@ -216,6 +216,7 @@ class CheckoutSerializer(serializers.Serializer):
     delivery_method = serializers.CharField(max_length=30, default='standard')
     shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)
+    prescription_reference = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     def validate(self, attrs):
         request = self.context.get('request')
@@ -242,6 +243,7 @@ class CheckoutSerializer(serializers.Serializer):
         attrs['city'] = attrs['city'].strip()
         attrs['county'] = attrs['county'].strip()
         attrs['address_label'] = attrs.get('address_label', '').strip()
+        attrs['prescription_reference'] = attrs.get('prescription_reference', '').strip()
         return attrs
 
 

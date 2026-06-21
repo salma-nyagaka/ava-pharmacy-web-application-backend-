@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.notifications.models import Notification
-from apps.orders.models import Cart, CartItem, Order
+from apps.orders.models import Cart, CartItem, Order, PaymentIntent
 from apps.prescriptions.models import Prescription, PrescriptionItem
 from apps.products.models import Product, StockMovement, VariantInventory
 
@@ -287,6 +287,131 @@ class OrderCreationFlowTests(TestCase):
                 dispatch_status=Prescription.DISPATCH_NOT_STARTED,
             ).exists()
         )
+
+    def test_paid_order_removes_matching_prescription_items_from_cart(self):
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
+
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        prescription_item = PrescriptionItem.objects.create(
+            prescription=prescription,
+            product=self.product,
+            variant=self.variant,
+            name=self.product.name,
+            quantity=1,
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=prescription_item,
+        )
+
+        draft_response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_CARD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+        self.assertEqual(draft_response.status_code, 201, draft_response.content)
+        self.assertTrue(CartItem.objects.filter(cart=cart, prescription_item=prescription_item).exists())
+
+        order = Order.objects.get(customer=self.customer)
+        payment_response = self.client.post(
+            reverse('payment-intents'),
+            {'order_id': order.id, 'provider': PaymentIntent.PROVIDER_MANUAL},
+            format='json',
+        )
+        self.assertEqual(payment_response.status_code, 201, payment_response.content)
+
+        self.assertFalse(CartItem.objects.filter(cart=cart, prescription_item=prescription_item).exists())
+
+    def test_checkout_draft_can_scope_to_one_prescription(self):
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
+
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        prescription_item = PrescriptionItem.objects.create(
+            prescription=prescription,
+            product=self.product,
+            variant=self.variant,
+            name=self.product.name,
+            quantity=1,
+        )
+        other_product = Product.objects.create(
+            sku='ORDER-OTHER-001',
+            name='Other Cart Product',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        other_variant = other_product.variants.create(
+            sku='ORDER-OTHER-001-TAB',
+            name='Other Tablets',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=other_variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 20, 'low_stock_threshold': 3},
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=prescription_item,
+        )
+        CartItem.objects.create(cart=cart, variant=other_variant, quantity=1)
+
+        draft_response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_CARD,
+                'delivery_method': 'standard',
+                'prescription_reference': prescription.reference,
+            },
+            format='json',
+        )
+        self.assertEqual(draft_response.status_code, 201, draft_response.content)
+
+        order = Order.objects.get(customer=self.customer)
+        self.assertEqual(order.items.count(), 1)
+        self.assertEqual(order.items.get().prescription_reference, prescription.reference)
+        self.assertTrue(CartItem.objects.filter(cart=cart, variant=other_variant).exists())
 
     def test_order_creation_and_status_updates_create_customer_notifications(self):
         self.client.force_authenticate(self.customer)

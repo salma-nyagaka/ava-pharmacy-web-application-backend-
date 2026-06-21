@@ -138,6 +138,38 @@ def _sync_prescription_dispatch_for_order(order):
     )
 
 
+def _remove_paid_order_items_from_cart(order):
+    if not order.customer_id:
+        return 0
+
+    cart = Cart.objects.filter(user=order.customer).first()
+    if not cart:
+        return 0
+
+    filters = Q()
+    for item in order.items.all():
+        if not item.variant_id:
+            continue
+
+        item_filter = Q(variant_id=item.variant_id)
+        if item.prescription_item_id:
+            item_filter &= Q(prescription_item_id=item.prescription_item_id)
+        elif item.prescription_id:
+            item_filter &= Q(prescription_id=item.prescription_id)
+        elif item.prescription_reference:
+            item_filter &= Q(prescription_reference=item.prescription_reference)
+        else:
+            item_filter &= Q(prescription__isnull=True, prescription_item__isnull=True)
+
+        filters |= item_filter
+
+    if not filters:
+        return 0
+
+    deleted_count, _ = CartItem.objects.filter(cart=cart).filter(filters).delete()
+    return deleted_count
+
+
 def _normalized_phone_tail(value):
     digits = re.sub(r'\D+', '', value or '')
     return digits[-9:] if len(digits) >= 9 else digits
@@ -351,9 +383,15 @@ def validate_cart_items(items):
     return errors
 
 
-def build_order_totals(cart, shipping_method=None):
-    subtotal = cart.total
-    discount_total = cart.discount_total
+def build_order_totals(cart, shipping_method=None, items=None):
+    if items is None:
+        subtotal = cart.total
+        discount_total = cart.discount_total
+    else:
+        subtotal = sum(item.subtotal for item in items)
+        discount_total = Decimal('0.00')
+        if cart.coupon and cart.coupon.is_available(cart.user):
+            discount_total = cart.coupon.calculate_discount(subtotal)
     discounted_subtotal = subtotal - discount_total
     if shipping_method:
         shipping_fee = shipping_method.calculate_fee(discounted_subtotal)
@@ -562,6 +600,7 @@ def _mark_order_paid(order, intent, message, notify_message):
         order.placed_at = timezone.now()
     order.save(update_fields=['payment_status', 'payment_reference', 'status', 'placed_at', 'updated_at'])
     _sync_prescription_dispatch_for_order(order)
+    _remove_paid_order_items_from_cart(order)
     create_order_event(
         order,
         'payment_succeeded',
@@ -1246,8 +1285,15 @@ class CheckoutDraftView(APIView):
             cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
             .order_by('id')
         )
+        prescription_reference = data.get('prescription_reference', '')
+        if prescription_reference:
+            items = [item for item in items if item.prescription_reference == prescription_reference]
         if not items:
-            return Response({'detail': 'Cart is empty.'}, status=status.HTTP_400_BAD_REQUEST)
+            detail = (
+                f'No cart items found for prescription {prescription_reference}.'
+                if prescription_reference else 'Cart is empty.'
+            )
+            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
 
         variants = {
             variant.id: variant
@@ -1273,7 +1319,7 @@ class CheckoutDraftView(APIView):
         else:
             shipping_method = ShippingMethod.objects.filter(code=data.get('delivery_method', 'standard'), is_active=True).first()
 
-        subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method)
+        subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method, items=items)
         order = Order.objects.create(
             customer=request.user,
             coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
@@ -1407,6 +1453,7 @@ class PaymentIntentCreateView(APIView):
             order.payment_reference = intent.reference
             order.save(update_fields=['payment_status', 'payment_reference', 'updated_at'])
             _sync_prescription_dispatch_for_order(order)
+            _remove_paid_order_items_from_cart(order)
             create_order_event(order, 'payment_captured', 'Manual payment marked as paid.', actor=request.user)
         elif provider == PaymentIntent.PROVIDER_PAYBILL:
             if order.payment_method != Order.PAYMENT_MPESA_PAYBILL:

@@ -863,6 +863,13 @@ class ConsultationWorkflowTests(TestCase):
         self.assertEqual(dispensing_rx.patient_name, 'Flow Child')
         self.assertEqual(dispensing_rx.items.get().variant_id, variant.id)
 
+        self.client.force_authenticate(self.patient)
+        customer_prescriptions = self.client.get(reverse('prescriptions'))
+        self.assertEqual(customer_prescriptions.status_code, 200)
+        customer_rows = customer_prescriptions.data.get('results', customer_prescriptions.data)
+        customer_row = next(item for item in customer_rows if item['id'] == dispensing_rx.id)
+        self.assertEqual(customer_row['clinician_prescription'], prescription.id)
+
         self.assertTrue(Notification.objects.filter(
             recipient=pediatrician_user,
             type='new_consultation',

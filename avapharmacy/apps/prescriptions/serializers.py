@@ -139,12 +139,12 @@ class PrescriptionSerializer(serializers.ModelSerializer):
         model = Prescription
         fields = (
             'id', 'reference', 'patient', 'patient_name', 'patient_name_display',
-            'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'clinician_type', 'status', 'dispatch_status',
+            'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'clinician_type', 'clinician_prescription', 'status', 'dispatch_status',
             'notes', 'pharmacist_notes', 'clarification_message',
             'files', 'items', 'audit_logs', 'review_decisions', 'clarification_messages', 'is_overdue',
             'resubmitted_at', 'submitted_at', 'updated_at'
         )
-        read_only_fields = ('id', 'reference', 'patient', 'submitted_at', 'updated_at')
+        read_only_fields = ('id', 'reference', 'patient', 'clinician_prescription', 'submitted_at', 'updated_at')
 
     def get_files(self, obj):
         existing_files = [file for file in obj.files.all() if _prescription_file_exists(file)]
