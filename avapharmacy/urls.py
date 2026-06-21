@@ -9,6 +9,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.shortcuts import redirect
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 handler400 = 'django.views.defaults.bad_request'
@@ -16,8 +17,18 @@ handler403 = 'django.views.defaults.permission_denied'
 handler404 = 'django.views.defaults.page_not_found'
 handler500 = 'django.views.defaults.server_error'
 
+
+def frontend_consultation_redirect(request):
+    tab = request.GET.get('tab', '').lower()
+    if tab in {'paediatric', 'pediatric'}:
+        return redirect('/pediatric-consultation')
+    return redirect('/doctor-consultation')
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('doctor-consultation', frontend_consultation_redirect, name='frontend-doctor-consultation-redirect'),
+    path('doctor-consultation/', frontend_consultation_redirect, name='frontend-doctor-consultation-slash-redirect'),
 
     # API schema / docs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

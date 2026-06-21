@@ -227,6 +227,67 @@ class OrderCreationFlowTests(TestCase):
             prescription.refresh_from_db()
             self.assertEqual(prescription.dispatch_status, expected_dispatch)
 
+    def test_checkout_finalize_removes_approved_prescription_from_awaiting_checkout_bucket(self):
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
+
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        prescription_item = PrescriptionItem.objects.create(
+            prescription=prescription,
+            product=self.product,
+            variant=self.variant,
+            name=self.product.name,
+            quantity=1,
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=prescription_item,
+        )
+
+        draft_response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_COD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+        self.assertEqual(draft_response.status_code, 201, draft_response.content)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_NOT_STARTED)
+
+        order = Order.objects.get(customer=self.customer)
+        finalize_response = self.client.post(reverse('checkout-finalize', args=[order.id]))
+        self.assertEqual(finalize_response.status_code, 200, finalize_response.content)
+
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_QUEUED)
+        self.assertFalse(
+            Prescription.objects.filter(
+                pk=prescription.pk,
+                status=Prescription.STATUS_APPROVED,
+                dispatch_status=Prescription.DISPATCH_NOT_STARTED,
+            ).exists()
+        )
+
     def test_order_creation_and_status_updates_create_customer_notifications(self):
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)

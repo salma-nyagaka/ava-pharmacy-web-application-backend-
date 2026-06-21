@@ -561,6 +561,7 @@ def _mark_order_paid(order, intent, message, notify_message):
     if not order.placed_at:
         order.placed_at = timezone.now()
     order.save(update_fields=['payment_status', 'payment_reference', 'status', 'placed_at', 'updated_at'])
+    _sync_prescription_dispatch_for_order(order)
     create_order_event(
         order,
         'payment_succeeded',
@@ -1405,6 +1406,7 @@ class PaymentIntentCreateView(APIView):
             order.payment_status = Order.PAYMENT_STATUS_PAID
             order.payment_reference = intent.reference
             order.save(update_fields=['payment_status', 'payment_reference', 'updated_at'])
+            _sync_prescription_dispatch_for_order(order)
             create_order_event(order, 'payment_captured', 'Manual payment marked as paid.', actor=request.user)
         elif provider == PaymentIntent.PROVIDER_PAYBILL:
             if order.payment_method != Order.PAYMENT_MPESA_PAYBILL:
@@ -2323,6 +2325,7 @@ class CheckoutFinalizeView(APIView):
         if not order.placed_at:
             order.placed_at = timezone.now()
         order.save(update_fields=['status', 'payment_status', 'inventory_committed', 'placed_at', 'updated_at'])
+        _sync_prescription_dispatch_for_order(order)
 
         cart = get_or_create_cart(request.user)
         cart.items.all().delete()

@@ -241,6 +241,273 @@ Use the same payment, chat, prescription, completion, audit, notification, and e
 5. Pediatrician chats, creates prescription, sends it for pharmacist review, and ends the consultation.
 6. Pediatrician can open a dedicated child/guardian info page from the dashboard.
 
+## Pediatrician Must Match Doctor Logic
+
+The pediatrician module should not be a lighter version of doctor consultations. It must reuse the same production flow end to end, with the child/guardian layer added on top.
+
+### Full pediatrician flow
+
+1. Pediatrician application is submitted, reviewed, approved, and linked to a login account the same way doctor accounts are handled.
+2. Guardian creates or selects a registered child profile before booking.
+3. Guardian chooses an active pediatrician.
+4. Backend creates a consultation payment intent using that pediatrician's `consult_fee`.
+5. M-Pesa STK or Paybill confirms payment.
+6. Backend finalizes the payment and creates the pediatric consultation.
+7. Consultation stores the guardian as `patient`, the selected child as `child_patient`, and snapshots of both guardian and child data.
+8. Backend notifies the assigned pediatrician that a new pediatric consultation is waiting.
+9. Pediatrician sees the consultation in their pediatrician dashboard and consultations queue.
+10. Pediatrician opens the consultation detail and sees symptoms, guardian info, child info, consent status, chat, attachments, and prescription history.
+11. Guardian and pediatrician chat through the same message endpoint and websocket events as doctor consultations.
+12. Pediatrician creates a draft prescription using the same catalog variant validation as doctor prescriptions.
+13. Pediatrician can edit the draft until it is sent or paid for through checkout.
+14. Pediatrician sends the prescription.
+15. Backend converts it into the pharmacy dispensing prescription queue.
+16. Pharmacists receive a review notification.
+17. Guardian receives prescription status notifications and can continue to checkout.
+18. Pediatrician ends the consultation.
+19. Backend creates pediatrician earnings using the same commission/net earning logic as doctors.
+20. Backend writes audit logs for detail views, message reads, messages sent, prescription sends, attachment downloads, status updates, and consultation completion.
+
+### Logic parity table
+
+| Area | Doctor behavior | Pediatrician behavior |
+| --- | --- | --- |
+| Profile model | `ClinicianProfile(provider_type='doctor')` | `ClinicianProfile(provider_type='pediatrician')` |
+| Login role | `doctor` | `pediatrician` |
+| Public listing | Active doctors only | Active pediatricians only |
+| Consultation owner | Customer user | Guardian customer user |
+| Real patient | Customer | Child profile owned by guardian |
+| Payment | Required before chat | Required before chat |
+| Payment amount | Doctor `consult_fee` | Pediatrician `consult_fee` |
+| Consultation assignment | Selected doctor or open doctor queue | Selected pediatrician, or pediatrician queue if added later |
+| Dashboard | Profile, stats, recent consultations, earnings | Same, plus consent pending, dosage alerts, child/guardian summaries |
+| Queue | Assigned and eligible open consultations | Assigned pediatric consultations |
+| Chat | Same `ConsultationMessage` model | Same model, guardian chats on behalf of child |
+| Attachments | Protected endpoint and audit log | Same protected endpoint and audit log |
+| Prescriptions | `ClinicianPrescription` draft/send/PDF | Same model and actions, serialized as pediatrician prescription |
+| Pharmacy handoff | Creates dispensing `Prescription` for pharmacist review | Same handoff, but display child name as patient context |
+| Notifications | New consult, messages, status, prescription | Same notifications, addressed to guardian and pediatrician |
+| Earnings | Created when consultation ends | Same, using pediatrician fee and commission |
+| Audit logs | Detail, messages, status, end, prescription, attachment | Same audit events |
+
+### Prescription assignment parity
+
+Pediatrician prescriptions must behave exactly like doctor prescriptions:
+
+- pediatrician can search catalog variants
+- medication item must use a valid active variant, unless marked as non-catalog fallback
+- quantity must be available in stock
+- one editable draft should be reused per consultation until it is paid for
+- sent prescriptions become immutable once the linked dispensing prescription has a paid order
+- sending creates or updates a pharmacy dispensing `Prescription`
+- dispensing items keep product and variant IDs for checkout
+- pharmacist queue receives the prescription for review
+- guardian receives the prescription notification
+- prescription PDF uses the pediatrician's name, license number, child name, and digital signature
+
+For pediatric consultations, use:
+
+- `ClinicianPrescription.patient_name = child full name`
+- dispensing `Prescription.patient = guardian user`
+- dispensing `Prescription.patient_name = child full name` if pharmacy screens need the child name
+- notifications sent to the guardian user
+
+### Notification parity
+
+Pediatrician flow must emit the same notification types as doctor flow, with pediatric context in the payload:
+
+| Trigger | Recipient | Payload requirements |
+| --- | --- | --- |
+| Payment finalized and consultation created | Pediatrician user | `consultation_id`, `reference`, `child_patient_id`, `is_pediatric=true`, `sensitive=true` |
+| Guardian sends chat message | Pediatrician user | `consultation_id`, `reference`, `child_patient_id`, `sensitive=true` |
+| Pediatrician sends chat message | Guardian user | `consultation_id`, `reference`, `child_patient_id`, `sensitive=true` |
+| Consultation status changes | Guardian user | new status, `consultation_id`, `reference`, `sensitive=true` |
+| Pediatrician sends prescription | Guardian user and pharmacists | prescription ID/reference, consultation reference, child name or `child_patient_id`, `sensitive=true` |
+| Consultation completed | Guardian user | `consultation_id`, `reference`, `sensitive=true` |
+
+Never send child health data in a notification title. Keep sensitive child data inside protected API responses.
+
+### Audit parity
+
+Pediatrician actions should create the same audit log rows as doctor actions:
+
+- `view_detail`
+- `list_messages`
+- `send_message`
+- `update_status`
+- `end_consultation`
+- `send_prescription`
+- `download_attachment`
+
+Recommended pediatric audit metadata:
+
+```json
+{
+  "is_pediatric": true,
+  "child_patient_id": 123,
+  "guardian_id": 456
+}
+```
+
+### Route parity
+
+Some shared behavior currently works through doctor-named endpoints because `IsDoctor` allows both `doctor` and `pediatrician` roles. For a clean frontend, add pediatrician aliases that call the same views/services:
+
+| Current/shared behavior | Pediatrician alias to add |
+| --- | --- |
+| `GET /api/doctor/consultations/` | `GET /api/pediatrician/consultations/` |
+| `GET /api/doctor/catalog/variants/` | `GET /api/pediatrician/catalog/variants/` |
+| `POST /api/doctor/prescriptions/<id>/send/` | `POST /api/pediatrician/prescriptions/<id>/send/` |
+| `GET /api/doctor/prescriptions/<id>/pdf/` | `GET /api/pediatrician/prescriptions/<id>/pdf/` |
+
+The aliases should not duplicate business logic. They should point to the same class-based views or shared service functions.
+
+## Current Missing Items In This Codebase
+
+The current implementation is partially working for customer-to-pediatrician consultations, but it is not complete from beginning to end for the frontend requirement.
+
+### What already works
+
+- Active pediatricians can be listed through `GET /api/pediatricians/`.
+- A customer can create a pediatric consultation by posting `pediatrician`, `is_pediatric`, `guardian_name`, `child_name`, and `child_age`.
+- Pediatric consultations are saved in the same `Consultation` table.
+- Pediatrician users can access assigned pediatric consultations through the shared doctor consultation view because `IsDoctor` allows both `doctor` and `pediatrician`.
+- Pediatrician prescriptions use the same `ClinicianPrescription` model.
+- Pediatrician earnings use the same `ClinicianEarning` model.
+- Chat messages, attachment protection, audit logging, and consultation completion mostly reuse the doctor flow.
+
+### Missing backend API routes
+
+Doctor and pediatrician must have different public API routes for the frontend, even if the backend implementation uses shared service functions internally.
+
+Currently missing pediatrician-specific routes:
+
+| Missing route | Current route the frontend/backend relies on |
+| --- | --- |
+| `GET /api/pediatrician/consultations/` | `GET /api/doctor/consultations/` |
+| `GET /api/pediatrician/catalog/variants/` | `GET /api/doctor/catalog/variants/` |
+| `POST /api/pediatrician/prescriptions/<id>/send/` | `POST /api/doctor/prescriptions/<id>/send/` |
+| `GET /api/pediatrician/prescriptions/<id>/pdf/` | `GET /api/doctor/prescriptions/<id>/pdf/` |
+
+Already present:
+
+- `GET /api/pediatrician/dashboard/`
+- `GET/POST /api/pediatrician/prescriptions/`
+- `GET /api/pediatrician/earnings/`
+
+### Missing guardian and child registration flow
+
+The frontend currently collects child data directly on the pediatric consultation form. The backend stores that as inline consultation fields:
+
+- `guardian_name`
+- `child_name`
+- `child_age`
+- `weight_kg`
+
+Missing for the requested flow:
+
+- no `ChildPatient` model
+- no guardian-to-many-children relationship
+- no API for guardian to create multiple child profiles
+- no API for guardian to list/select an existing child before booking
+- no `child_patient_id` on consultation creation
+- no validation that the selected child belongs to the logged-in guardian
+- no child snapshot stored on consultation
+- no guardian snapshot stored on consultation
+
+This means one guardian can type different child names into different consultations, but the system does not actually have registered child patient records.
+
+### Missing pediatrician dashboard child/guardian pages
+
+The pediatrician dashboard currently derives child profiles from consultations by grouping by `childName` in the frontend. That is not reliable enough for a medical workflow.
+
+Missing backend support:
+
+- `GET /api/pediatrician/patients/`
+- `GET /api/pediatrician/patients/<child_id>/`
+- stable child IDs in consultation list/detail responses
+- guardian contact summary in pediatrician patient detail
+- child consultation history by child ID
+- child prescription history by child ID
+- child allergies, conditions, current medications, vaccination notes, and growth data
+
+### Missing customer pediatric payment consistency
+
+The customer-doctor flow requires confirmed payment before chat. The pediatric customer flow currently can call `POST /api/consultations/` directly with `is_pediatric=true`; the backend skips the payment-required check for pediatric consultations because the condition only blocks non-pediatric requests without `payment_intent_id`.
+
+Missing:
+
+- enforce payment for pediatrician consultations too
+- require `payment_intent_id` or finalization for pediatric consultations
+- update the frontend pediatric consultation page to use `createConsultationPaymentIntent`, `syncConsultationPaymentIntent`, and `finalizePaidConsultation`
+- keep child/guardian data inside the payment intent payload so finalization creates the correct pediatric consultation
+
+### Missing pediatric prescription child context
+
+The pediatrician can technically create and send prescriptions through shared clinician prescription logic. But the pharmacy handoff still treats the guardian user as the prescription patient name in some places.
+
+Missing:
+
+- use child name as `ClinicianPrescription.patient_name`
+- preserve child name on the dispensing `Prescription.patient_name`
+- keep guardian user as `Prescription.patient` for account ownership, checkout, and notifications
+- include `child_patient_id` or child snapshot in prescription response
+- include pediatric context in pharmacist review payloads
+- make pediatric prescription PDFs show pediatrician name, pediatrician license, child name, guardian name, and consultation reference
+
+### Missing pediatric notification context
+
+Notifications are created, but the generic helper still uses doctor wording and doctor URLs:
+
+- message says "doctor dashboard"
+- URL points to `/doctor/consultations/<id>`
+
+Missing:
+
+- pediatrician-specific notification URL, such as `/pediatrician/consultations/<id>`
+- notification payload fields: `is_pediatric`, `child_patient_id`, `guardian_id`, `consultation_id`
+- child-safe notification copy that avoids exposing sensitive child health data in titles
+- guardian-facing notification copy for pediatric prescriptions and consultation status changes
+
+### Missing frontend API separation
+
+The frontend pediatrician dashboard imports and calls doctor-named service functions:
+
+- `fetchDoctorConsultations()` calls `/doctor/consultations/`
+- `fetchClinicianPrescriptions()` calls `/doctor/prescriptions/`
+- `createClinicianPrescription()` posts to `/doctor/prescriptions/`
+- `searchClinicianCatalogVariants()` calls `/doctor/catalog/variants/`
+- `sendClinicianPrescription()` posts to `/doctor/prescriptions/<id>/send/`
+- `downloadClinicianPrescriptionPdf()` calls `/doctor/prescriptions/<id>/pdf/`
+
+Missing frontend changes:
+
+- add `fetchPediatricianConsultations()` -> `/pediatrician/consultations/`
+- add `fetchPediatricianPrescriptions()` -> `/pediatrician/prescriptions/`
+- add `createPediatricianPrescription()` -> `/pediatrician/prescriptions/`
+- add `searchPediatricianCatalogVariants()` -> `/pediatrician/catalog/variants/`
+- add `sendPediatricianPrescription()` -> `/pediatrician/prescriptions/<id>/send/`
+- add `downloadPediatricianPrescriptionPdf()` -> `/pediatrician/prescriptions/<id>/pdf/`
+
+### Missing tests
+
+The current test suite has a basic pediatrician paid consultation/chat test, but it still uses inline child fields and even checks the pediatrician queue through `doctor-consultations`.
+
+Missing tests:
+
+- customer cannot start pediatrician chat without confirmed payment
+- guardian can create multiple children
+- guardian can book pediatric consultation for selected child
+- guardian cannot book for another guardian's child
+- payment finalization preserves selected child
+- pediatrician-specific consultation route returns assigned pediatric consultations
+- pediatrician-specific catalog route works
+- pediatrician-specific prescription send and PDF routes work
+- pediatrician cannot access unrelated child profiles
+- pediatrician patient detail returns child and guardian info
+- pediatric notifications use pediatrician URLs and pediatric payload fields
+- pediatric pharmacy handoff preserves child name and guardian ownership
+
 ## Required Data Model Changes
 
 Add a reusable child patient model. Keep `Consultation.patient` as the guardian user for permissions and notifications.

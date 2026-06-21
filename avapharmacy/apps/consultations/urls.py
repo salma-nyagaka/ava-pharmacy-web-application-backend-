@@ -27,6 +27,8 @@ urlpatterns = [
     path('consultations/payments/intents/<int:pk>/sync/', views.ConsultationPaymentIntentStatusView.as_view(), name='consultation-payment-intent-sync'),
     path('consultations/payments/finalize/', views.ConsultationPaymentFinalizeView.as_view(), name='consultation-payment-finalize'),
     path('consultations/payments/mpesa/callback/', views.ConsultationMpesaCallbackView.as_view(), name='consultation-payment-mpesa-callback'),
+    path('guardian/children/', views.GuardianChildPatientListCreateView.as_view(), name='guardian-children'),
+    path('guardian/children/<int:pk>/', views.GuardianChildPatientDetailView.as_view(), name='guardian-child-detail'),
 
     # Doctor dashboard (serves /doctor frontend route)
     path('doctor/dashboard/', views.DoctorDashboardView.as_view(), name='doctor-dashboard'),
@@ -39,7 +41,13 @@ urlpatterns = [
 
     # Pediatrician dashboard (serves /paedetrician frontend route)
     path('pediatrician/dashboard/', views.PediatricianDashboardView.as_view(), name='pediatrician-dashboard'),
+    path('pediatrician/consultations/', views.DoctorConsultationListView.as_view(), name='pediatrician-consultations'),
+    path('pediatrician/catalog/variants/', views.ClinicianVariantSearchView.as_view(), name='pediatrician-catalog-variants'),
+    path('pediatrician/patients/', views.PediatricianPatientListView.as_view(), name='pediatrician-patients'),
+    path('pediatrician/patients/<int:child_id>/', views.PediatricianPatientDetailView.as_view(), name='pediatrician-patient-detail'),
     path('pediatrician/prescriptions/', views.ClinicianPrescriptionListCreateView.as_view(), name='pediatrician-prescriptions'),
+    path('pediatrician/prescriptions/<int:pk>/send/', views.ClinicianPrescriptionSendView.as_view(), name='pediatrician-prescription-send'),
+    path('pediatrician/prescriptions/<int:pk>/pdf/', views.ClinicianPrescriptionPDFView.as_view(), name='pediatrician-prescription-pdf'),
     path('pediatrician/earnings/', views.ClinicianEarningsView.as_view(), name='pediatrician-earnings'),
 
     # Shared clinician routes

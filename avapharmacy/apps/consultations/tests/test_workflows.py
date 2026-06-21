@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Pharmacist, User
 from apps.consultations.models import (
+    ChildPatient,
     ConsultationAuditLog,
     ClinicianEarning,
     ClinicianPrescription,
@@ -704,7 +705,68 @@ class ConsultationWorkflowTests(TestCase):
             status=ClinicianProfile.STATUS_ACTIVE,
             consult_fee='1.00',
         )
+        product = Product.objects.create(
+            name='Pediatric Flow Amoxicillin',
+            sku='PED-FLOW-AMOX',
+            slug='pediatric-flow-amoxicillin',
+            is_active=True,
+        )
+        variant = Variant.objects.create(
+            product=product,
+            sku='PED-FLOW-AMOX-125',
+            name='125mg suspension',
+            price='180.00',
+            requires_prescription=True,
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 10, 'low_stock_threshold': 2},
+        )
+
         self.client.force_authenticate(self.patient)
+        first_child_response = self.client.post(
+            reverse('guardian-children'),
+            {
+                'first_name': 'Flow',
+                'last_name': 'Child',
+                'age_years': 6,
+                'gender': 'female',
+                'weight_kg': '21.50',
+                'allergies': ['Penicillin review needed'],
+            },
+            format='json',
+        )
+        self.assertEqual(first_child_response.status_code, 201, first_child_response.content)
+        second_child_response = self.client.post(
+            reverse('guardian-children'),
+            {'first_name': 'Second', 'last_name': 'Child', 'age_years': 3},
+            format='json',
+        )
+        self.assertEqual(second_child_response.status_code, 201, second_child_response.content)
+        children_response = self.client.get(reverse('guardian-children'))
+        self.assertEqual(children_response.status_code, 200)
+        child_rows = children_response.data.get('results', children_response.data)
+        self.assertEqual(len(child_rows), 2)
+        child_id = first_child_response.data['id']
+
+        blocked_response = self.client.post(
+            reverse('consultations'),
+            {
+                'pediatrician': pediatrician.id,
+                'child_patient_id': child_id,
+                'patient_name': self.patient.full_name,
+                'patient_email': self.patient.email,
+                'patient_phone': self.patient.phone,
+                'issue': 'Child has fever',
+                'priority': Consultation.PRIORITY_ROUTINE,
+                'is_pediatric': True,
+            },
+            format='json',
+        )
+        self.assertEqual(blocked_response.status_code, 402)
+
         intent = ConsultationPaymentIntent.objects.create(
             initiated_by=self.patient,
             clinician=pediatrician,
@@ -713,6 +775,7 @@ class ConsultationWorkflowTests(TestCase):
             amount='1.00',
             consultation_payload={
                 'pediatrician': pediatrician.id,
+                'child_patient_id': child_id,
                 'patient_name': self.patient.full_name,
                 'patient_email': self.patient.email,
                 'patient_phone': self.patient.phone,
@@ -720,8 +783,8 @@ class ConsultationWorkflowTests(TestCase):
                 'priority': Consultation.PRIORITY_ROUTINE,
                 'is_pediatric': True,
                 'guardian_name': self.patient.full_name,
-                'child_name': 'Flow Child',
-                'child_age': 6,
+                'child_name': first_child_response.data['full_name'],
+                'child_age': first_child_response.data['age_years'],
                 'weight_kg': '21.50',
             },
         )
@@ -733,7 +796,13 @@ class ConsultationWorkflowTests(TestCase):
         self.assertEqual(finalize_response.status_code, 201, finalize_response.content)
         self.assertTrue(finalize_response.data['is_pediatric'])
         self.assertEqual(finalize_response.data['pediatrician'], pediatrician.id)
+        self.assertEqual(finalize_response.data['child_patient'], child_id)
+        self.assertEqual(finalize_response.data['child_name'], 'Flow Child')
         consultation_id = finalize_response.data['id']
+        consultation = Consultation.objects.get(pk=consultation_id)
+        self.assertEqual(consultation.child_patient_id, child_id)
+        self.assertEqual(consultation.patient_id, self.patient.id)
+        self.assertEqual(consultation.child_snapshot['full_name'], 'Flow Child')
 
         guardian_message = self.client.post(
             reverse('consultation-messages', args=[consultation_id]),
@@ -749,10 +818,62 @@ class ConsultationWorkflowTests(TestCase):
             format='json',
         )
         self.assertEqual(pediatrician_message.status_code, 201, pediatrician_message.content)
-        dashboard_response = self.client.get(reverse('doctor-consultations'))
-        self.assertEqual(dashboard_response.status_code, 200)
-        results = dashboard_response.data.get('results', dashboard_response.data)
+
+        queue_response = self.client.get(reverse('pediatrician-consultations'))
+        self.assertEqual(queue_response.status_code, 200)
+        results = queue_response.data.get('results', queue_response.data)
         self.assertTrue(any(item['id'] == consultation_id for item in results))
+
+        patients_response = self.client.get(reverse('pediatrician-patients'))
+        self.assertEqual(patients_response.status_code, 200)
+        patient_rows = patients_response.data['results']
+        self.assertEqual(patient_rows[0]['child']['id'], child_id)
+        self.assertEqual(patient_rows[0]['guardian']['id'], self.patient.id)
+
+        patient_detail_response = self.client.get(reverse('pediatrician-patient-detail', args=[child_id]))
+        self.assertEqual(patient_detail_response.status_code, 200)
+        self.assertEqual(patient_detail_response.data['child']['full_name'], 'Flow Child')
+
+        catalog_response = self.client.get(reverse('pediatrician-catalog-variants'), {'q': 'amox'})
+        self.assertEqual(catalog_response.status_code, 200)
+        self.assertEqual(catalog_response.data['results'][0]['id'], variant.id)
+
+        prescription_response = self.client.post(
+            reverse('pediatrician-prescriptions'),
+            {
+                'consultation': consultation_id,
+                'patient_name': 'Flow Child',
+                'items': [{
+                    'variant_id': variant.id,
+                    'dose': '125mg',
+                    'frequency': 'twice daily',
+                    'duration': '5 days',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+        self.assertEqual(prescription_response.status_code, 201, prescription_response.content)
+        self.assertEqual(prescription_response.data['child_patient'], child_id)
+        prescription = ClinicianPrescription.objects.get(pk=prescription_response.data['id'])
+        send_response = self.client.post(reverse('pediatrician-prescription-send', args=[prescription.id]), format='json')
+        self.assertEqual(send_response.status_code, 200, send_response.content)
+        dispensing_rx = Prescription.objects.get(clinician_prescription=prescription)
+        self.assertEqual(dispensing_rx.patient_id, self.patient.id)
+        self.assertEqual(dispensing_rx.patient_name, 'Flow Child')
+        self.assertEqual(dispensing_rx.items.get().variant_id, variant.id)
+
+        self.assertTrue(Notification.objects.filter(
+            recipient=pediatrician_user,
+            type='new_consultation',
+            data__url=f'/pediatrician/consultations/{consultation_id}',
+            data__child_patient_id=child_id,
+        ).exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.patient,
+            type='prescription_status',
+            data__child_patient_id=child_id,
+        ).exists())
 
     def test_consultation_create_auto_routes_doctor_by_specialty_without_patient_selection(self):
         self.doctor.status = ClinicianProfile.STATUS_ACTIVE

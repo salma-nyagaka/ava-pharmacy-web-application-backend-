@@ -191,6 +191,57 @@ class ClinicianDocument(BaseClinicianDocument):
         return f"{self.clinician.name} - {self.name}"
 
 
+class ChildPatient(models.Model):
+    GENDER_MALE = 'male'
+    GENDER_FEMALE = 'female'
+    GENDER_OTHER = 'other'
+    GENDER_CHOICES = [
+        (GENDER_MALE, 'Male'),
+        (GENDER_FEMALE, 'Female'),
+        (GENDER_OTHER, 'Other'),
+    ]
+
+    guardian = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.CASCADE,
+        related_name='child_patients',
+    )
+    reference = models.CharField(max_length=20, unique=True, blank=True)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    age_years = models.PositiveIntegerField(null=True, blank=True)
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True)
+    weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    allergies = models.JSONField(default=list, blank=True)
+    chronic_conditions = models.JSONField(default=list, blank=True)
+    current_medications = models.JSONField(default=list, blank=True)
+    vaccination_notes = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['first_name', 'last_name', '-created_at']
+        indexes = [
+            models.Index(fields=['guardian', 'is_active']),
+            models.Index(fields=['reference']),
+        ]
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            self.reference = f"CHD-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.full_name} ({self.guardian_id})"
+
+
 class Consultation(models.Model):
     STATUS_WAITING = 'waiting'
     STATUS_IN_PROGRESS = 'in_progress'
@@ -234,10 +285,19 @@ class Consultation(models.Model):
 
     # Pediatric fields
     is_pediatric = models.BooleanField(default=False)
+    child_patient = models.ForeignKey(
+        'ChildPatient',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultations',
+    )
     guardian_name = models.CharField(max_length=200, blank=True)
     child_name = models.CharField(max_length=200, blank=True)
     child_age = models.PositiveIntegerField(null=True, blank=True)
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    guardian_snapshot = models.JSONField(default=dict, blank=True)
+    child_snapshot = models.JSONField(default=dict, blank=True)
     consent_status = models.CharField(
         max_length=20,
         choices=[('pending', 'Pending'), ('granted', 'Granted')],
@@ -257,7 +317,8 @@ class Consultation(models.Model):
             models.Index(fields=['patient', 'status']),
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['is_pediatric', 'status']),
-            models.Index(fields=['requested_specialty', 'status']),
+            models.Index(fields=['requested_specialty', 'status'], name='consultatio_request_8d77c7_idx'),
+            models.Index(fields=['child_patient', 'status']),
         ]
 
     def __str__(self):

@@ -286,12 +286,23 @@ def notify_lab_result_ready(lab_request):
 def notify_new_consultation(doctor_user, consultation):
     if not doctor_user:
         return
+    is_pediatric = bool(getattr(consultation, 'is_pediatric', False))
+    dashboard_segment = 'pediatrician' if is_pediatric else 'doctor'
+    child_patient_id = getattr(consultation, 'child_patient_id', None)
     create_notification(
         recipient=doctor_user,
         notification_type='new_consultation',
         title="New Consultation Request",
-        message="A new paid consultation request is available in your doctor dashboard.",
-        data={'url': f'/doctor/consultations/{consultation.id}', 'reference': consultation.reference, 'sensitive': True},
+        message=f"A new paid consultation request is available in your {dashboard_segment} dashboard.",
+        data={
+            'url': f'/{dashboard_segment}/consultations/{consultation.id}',
+            'consultation_id': consultation.id,
+            'reference': consultation.reference,
+            'is_pediatric': is_pediatric,
+            'child_patient_id': child_patient_id,
+            'guardian_id': consultation.patient_id if is_pediatric else None,
+            'sensitive': True,
+        },
         send_email=True,
     )
 

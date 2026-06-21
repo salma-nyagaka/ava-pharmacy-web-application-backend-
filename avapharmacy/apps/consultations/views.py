@@ -20,6 +20,7 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from .models import (
+    ChildPatient,
     ClinicianDocument, ClinicianProfile, ClinicianPrescription, ClinicianEarning,
     ConsultationAuditLog,
     Consultation, ConsultationMessage, ConsultationPaymentIntent,
@@ -27,6 +28,7 @@ from .models import (
 from .serializers import (
     DoctorProfileSerializer, DoctorProfileListSerializer, DoctorOnboardingSerializer,
     PediatricianProfileSerializer, PediatricianProfileListSerializer, PediatricianOnboardingSerializer,
+    ChildPatientSerializer, ChildPatientSummarySerializer,
     AdminDoctorUpdateSerializer, AdminPediatricianUpdateSerializer,
     ConsultationSerializer, ConsultationListSerializer,
     ConsultationCreateSerializer, ConsultationUpdateSerializer,
@@ -72,6 +74,8 @@ CONSULTATION_SELECT_RELATED = (
     'patient',
     'clinician',
     'clinician__user',
+    'child_patient',
+    'child_patient__guardian',
 )
 
 CONSULTATION_PAYBILL_PREFIX = 'AVACONS-'
@@ -286,8 +290,19 @@ def _client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
+def _consultation_actor_metadata(consultation):
+    metadata = {'is_pediatric': bool(consultation.is_pediatric)}
+    if consultation.child_patient_id:
+        metadata['child_patient_id'] = consultation.child_patient_id
+    if consultation.patient_id:
+        metadata['guardian_id' if consultation.is_pediatric else 'patient_id'] = consultation.patient_id
+    return metadata
+
+
 def _audit_consultation(request, consultation, action, *, target=None, metadata=None):
     try:
+        audit_metadata = _consultation_actor_metadata(consultation)
+        audit_metadata.update(metadata or {})
         ConsultationAuditLog.objects.create(
             consultation=consultation,
             actor=request.user if request.user.is_authenticated else None,
@@ -296,7 +311,7 @@ def _audit_consultation(request, consultation, action, *, target=None, metadata=
             target_id=str(getattr(target, 'pk', '') or ''),
             ip_address=_client_ip(request),
             user_agent=(request.META.get('HTTP_USER_AGENT') or '')[:255],
-            metadata=metadata or {},
+            metadata=audit_metadata,
         )
     except Exception:
         pass
@@ -864,6 +879,123 @@ class GuardianConsentView(APIView):
         return Response({'detail': 'Consent granted.', 'reference': consultation.reference})
 
 
+class GuardianChildPatientListCreateView(generics.ListCreateAPIView):
+    serializer_class = ChildPatientSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ChildPatient.objects.filter(guardian=self.request.user, is_active=True)
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), 'request': self.request}
+
+
+class GuardianChildPatientDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ChildPatientSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ChildPatient.objects.filter(guardian=self.request.user, is_active=True)
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=['is_active', 'updated_at'])
+
+
+class PediatricianPatientListView(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        pediatrician = _get_pediatrician_or_404(request.user)
+        if not pediatrician:
+            return Response({'detail': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        consultations = (
+            Consultation.objects
+            .filter(clinician=pediatrician, is_pediatric=True, child_patient__isnull=False)
+            .select_related('child_patient', 'patient')
+            .order_by('child_patient_id', '-created_at')
+        )
+        rows = {}
+        for consultation in consultations:
+            child = consultation.child_patient
+            if child.id not in rows:
+                rows[child.id] = {
+                    'child': ChildPatientSummarySerializer(child).data,
+                    'guardian': {
+                        'id': consultation.patient_id,
+                        'name': consultation.patient.full_name if consultation.patient else consultation.guardian_name,
+                        'email': consultation.patient.email if consultation.patient else consultation.patient_email,
+                        'phone': consultation.patient.phone if consultation.patient else consultation.patient_phone,
+                    },
+                    'latest_consultation': ConsultationListSerializer(consultation, context={'request': request}).data,
+                    'consultations_count': 0,
+                    'prescriptions_count': 0,
+                }
+            rows[child.id]['consultations_count'] += 1
+            rows[child.id]['prescriptions_count'] += consultation.clinician_prescriptions.exclude(
+                status=ClinicianPrescription.STATUS_DRAFT
+            ).count()
+        return Response({'results': list(rows.values())})
+
+
+class PediatricianPatientDetailView(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request, child_id):
+        pediatrician = _get_pediatrician_or_404(request.user)
+        if not pediatrician:
+            return Response({'detail': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        consultations = (
+            Consultation.objects
+            .filter(
+                clinician=pediatrician,
+                is_pediatric=True,
+                child_patient_id=child_id,
+            )
+            .select_related(*CONSULTATION_SELECT_RELATED)
+            .prefetch_related('clinician_prescriptions')
+        )
+        latest = consultations.order_by('-created_at').first()
+        if latest is None or latest.child_patient is None:
+            return Response({'detail': 'Child profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        prescriptions = ClinicianPrescription.objects.filter(
+            clinician=pediatrician,
+            consultation__child_patient_id=child_id,
+        ).exclude(status=ClinicianPrescription.STATUS_DRAFT)
+
+        return Response({
+            'child': ChildPatientSummarySerializer(latest.child_patient).data,
+            'guardian': {
+                'id': latest.patient_id,
+                'name': latest.patient.full_name if latest.patient else latest.guardian_name,
+                'email': latest.patient.email if latest.patient else latest.patient_email,
+                'phone': latest.patient.phone if latest.patient else latest.patient_phone,
+            },
+            'active_consultation': ConsultationSerializer(
+                consultations.filter(status__in=[Consultation.STATUS_WAITING, Consultation.STATUS_IN_PROGRESS]).order_by('-created_at').first(),
+                context={'request': request},
+            ).data if consultations.filter(status__in=[Consultation.STATUS_WAITING, Consultation.STATUS_IN_PROGRESS]).exists() else None,
+            'consultations': ConsultationListSerializer(
+                consultations.order_by('-created_at'), many=True, context={'request': request}
+            ).data,
+            'prescriptions': [
+                {
+                    'id': prescription.id,
+                    'reference': prescription.reference,
+                    'status': prescription.status,
+                    'patient_name': prescription.patient_name,
+                    'items_count': len(prescription.items or []),
+                    'sent_at': prescription.sent_at,
+                    'created_at': prescription.created_at,
+                }
+                for prescription in prescriptions.order_by('-created_at')
+            ],
+        })
+
+
 # ─── Patient Consultations ────────────────────────────────────────────────────
 
 class ConsultationListCreateView(generics.ListCreateAPIView):
@@ -880,7 +1012,7 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
         ).prefetch_related('clinician_prescriptions')
 
     def create(self, request, *args, **kwargs):
-        if not request.data.get('is_pediatric') and not request.data.get('payment_intent_id'):
+        if not request.data.get('payment_intent_id'):
             return Response(
                 {'detail': 'A confirmed consultation payment is required before starting chat.'},
                 status=status.HTTP_402_PAYMENT_REQUIRED,
@@ -898,6 +1030,13 @@ class ConsultationListCreateView(generics.ListCreateAPIView):
                 )
             except ConsultationPaymentIntent.DoesNotExist:
                 return Response({'detail': 'Confirmed consultation payment not found.'}, status=status.HTTP_400_BAD_REQUEST)
+            billing_clinician = serializer.validated_data.get('_billing_clinician') or serializer.validated_data.get('clinician')
+            if billing_clinician and payment_intent.clinician_id != billing_clinician.id:
+                return Response({'detail': 'Payment intent does not match the selected clinician.'}, status=status.HTTP_400_BAD_REQUEST)
+            paid_child_id = payment_intent.consultation_payload.get('child_patient_id')
+            selected_child = serializer.validated_data.get('child_patient')
+            if paid_child_id and selected_child and int(paid_child_id) != selected_child.id:
+                return Response({'detail': 'Payment intent does not match the selected child.'}, status=status.HTTP_400_BAD_REQUEST)
 
         consultation = serializer.save(
             patient=request.user,
@@ -936,14 +1075,18 @@ class ConsultationPaymentIntentCreateView(APIView):
             return Response({'detail': 'This clinician does not have a consultation fee configured.'}, status=status.HTTP_400_BAD_REQUEST)
 
         stored_consultation_payload = dict(consultation_data)
+        child_patient = stored_consultation_payload.pop('child_patient', None)
         stored_consultation_payload.pop('clinician', None)
         stored_consultation_payload.pop('_billing_clinician', None)
         open_doctor_queue = bool(stored_consultation_payload.pop('_open_doctor_queue', False))
         if stored_consultation_payload.get('scheduled_at'):
             stored_consultation_payload['scheduled_at'] = stored_consultation_payload['scheduled_at'].isoformat()
+        if stored_consultation_payload.get('weight_kg') is not None:
+            stored_consultation_payload['weight_kg'] = str(stored_consultation_payload['weight_kg'])
         stored_consultation_payload.update({
             'doctor': None if open_doctor_queue else (clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None),
             'pediatrician': clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else None,
+            'child_patient_id': child_patient.pk if child_patient else stored_consultation_payload.get('child_patient_id'),
             'patient_name': stored_consultation_payload.get('patient_name') or request.user.full_name,
             'patient_email': stored_consultation_payload.get('patient_email') or request.user.email,
             'patient_phone': stored_consultation_payload.get('patient_phone') or request.user.phone,
@@ -1193,16 +1336,21 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
         if 'status' in request.data and consultation.patient:
             try:
                 from apps.notifications.utils import create_notification
+                notification_data = {
+                    'url': f'/consultations/{consultation.id}',
+                    'consultation_id': consultation.id,
+                    'reference': consultation.reference,
+                    'is_pediatric': consultation.is_pediatric,
+                    'child_patient_id': consultation.child_patient_id,
+                    'guardian_id': consultation.patient_id if consultation.is_pediatric else None,
+                    'sensitive': True,
+                }
                 create_notification(
                     recipient=consultation.patient,
                     notification_type='consultation_status',
                     title=f"Consultation {consultation.reference} Updated",
                     message=f"Your consultation status is now: {consultation.get_status_display()}",
-                    data={
-                        'url': f'/consultations/{consultation.id}',
-                        'reference': consultation.reference,
-                        'sensitive': True,
-                    },
+                    data=notification_data,
                 )
             except Exception:
                 pass
@@ -1288,13 +1436,21 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
 
         # Notify the other participant
         try:
+            message_notification_data = {
+                'reference': consultation.reference,
+                'consultation_id': consultation.id,
+                'is_pediatric': consultation.is_pediatric,
+                'child_patient_id': consultation.child_patient_id,
+                'guardian_id': consultation.patient_id if consultation.is_pediatric else None,
+                'sensitive': True,
+            }
             if is_patient and provider and provider.user:
                 create_notification(
                     recipient=provider.user,
                     notification_type='consultation_message',
                     title=f'New message from {user.full_name}',
                     message=f'New message in consultation {consultation.reference}',
-                    data={'reference': consultation.reference, 'consultation_id': consultation.id, 'sensitive': True},
+                    data=message_notification_data,
                 )
             elif (is_doctor or is_pediatrician) and consultation.patient:
                 create_notification(
@@ -1302,7 +1458,7 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
                     notification_type='consultation_message',
                     title=f'New message from {user.full_name}',
                     message=f'New message in consultation {consultation.reference}',
-                    data={'reference': consultation.reference, 'consultation_id': consultation.id, 'sensitive': True},
+                    data=message_notification_data,
                 )
         except Exception:
             pass
@@ -1367,7 +1523,14 @@ class ConsultationEndView(APIView):
                 notification_type='consultation_status',
                 title='Consultation completed',
                 message=f'Consultation {consultation.reference} has been completed.',
-                data={'consultation_id': consultation.id, 'reference': consultation.reference, 'sensitive': True},
+                data={
+                    'consultation_id': consultation.id,
+                    'reference': consultation.reference,
+                    'is_pediatric': consultation.is_pediatric,
+                    'child_patient_id': consultation.child_patient_id,
+                    'guardian_id': consultation.patient_id if consultation.is_pediatric else None,
+                    'sensitive': True,
+                },
             )
         _broadcast_consultation_event(
             consultation.id,
@@ -1405,9 +1568,12 @@ class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
         consultation = serializer.validated_data.get('consultation')
         patient_name = serializer.validated_data.get('patient_name')
         if consultation and not patient_name:
-            patient_name = consultation.patient_name
+            patient_name = consultation.child_name if consultation.is_pediatric else consultation.patient_name
         if consultation:
             consultation = Consultation.objects.select_for_update().get(pk=consultation.pk)
+            if consultation.clinician_id != provider.id:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('You are not assigned to this consultation.')
             existing = (
                 ClinicianPrescription.objects
                 .filter(clinician=provider, consultation=consultation)
@@ -1517,10 +1683,25 @@ class ClinicianPrescriptionSendView(APIView):
                 {'detail': 'This prescription has already been paid for and can no longer be edited.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        display_patient_name = prescription.patient_name or (
+            prescription.consultation.child_name
+            if prescription.consultation and prescription.consultation.is_pediatric
+            else patient.full_name
+        )
+        notification_data = {
+            'prescription_id': None,
+            'reference': '',
+            'consultation_id': prescription.consultation_id,
+            'consultation_reference': prescription.consultation.reference if prescription.consultation else '',
+            'is_pediatric': bool(prescription.consultation and prescription.consultation.is_pediatric),
+            'child_patient_id': prescription.consultation.child_patient_id if prescription.consultation else None,
+            'sensitive': True,
+        }
+
         if existing is None:
             existing = DispensingPrescription.objects.create(
                 patient=patient,
-                patient_name=patient.full_name,
+                patient_name=display_patient_name,
                 doctor_name=provider.name,
                 source=DispensingPrescription.SOURCE_E_PRESCRIPTION,
                 clinician_prescription=prescription,
@@ -1532,10 +1713,11 @@ class ClinicianPrescriptionSendView(APIView):
             existing.pharmacist = None
             existing.notes = prescription.notes
             existing.doctor_name = provider.name
+            existing.patient_name = display_patient_name
             existing.pharmacist_notes = ''
             existing.clarification_message = ''
             existing.save(update_fields=[
-                'status', 'pharmacist', 'notes', 'doctor_name',
+                'status', 'pharmacist', 'notes', 'doctor_name', 'patient_name',
                 'pharmacist_notes', 'clarification_message', 'updated_at',
             ])
             existing.items.all().delete()
@@ -1562,13 +1744,14 @@ class ClinicianPrescriptionSendView(APIView):
         )
 
         pharmacists = User.objects.filter(role=User.PHARMACIST, status=User.STATUS_ACTIVE, is_active=True)
+        notification_data.update({'prescription_id': existing.id, 'reference': existing.reference})
         for pharmacist in pharmacists:
             create_notification(
                 recipient=pharmacist,
                 notification_type='prescription_status',
                 title=f'E-prescription needs review: {existing.reference}',
-                message=f'{provider.name} sent a prescription for {patient.full_name}. Review it before checkout.',
-                data={'prescription_id': existing.id, 'reference': existing.reference, 'sensitive': True},
+                message=f'{provider.name} sent a prescription for {display_patient_name}. Review it before checkout.',
+                data=notification_data,
             )
 
         signature_material = f'{provider.license_number}:{timezone.now().isoformat()}'
@@ -1589,7 +1772,7 @@ class ClinicianPrescriptionSendView(APIView):
             notification_type='prescription_status',
             title='New e-prescription',
             message=f'Your clinician sent prescription {prescription.reference}. A pharmacist will review it before checkout.',
-            data={'prescription_id': existing.id, 'reference': existing.reference, 'sensitive': True},
+            data=notification_data,
             send_email=True,
         )
         return Response(self._serialize_response(prescription, request.user))
@@ -1638,6 +1821,9 @@ class ClinicianPrescriptionPDFView(APIView):
             f'Status: {prescription.get_status_display()}',
             '',
         ]
+        if prescription.consultation and prescription.consultation.is_pediatric:
+            rows.insert(4, f'Guardian: {prescription.consultation.guardian_name or prescription.consultation.patient_name}')
+            rows.insert(5, f'Consultation: {prescription.consultation.reference}')
         for row in rows:
             pdf.drawString(40, y, row)
             y -= 22
