@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'apps.prescriptions.apps.PrescriptionsConfig',
     'apps.consultations',
     'apps.lab',
-    'apps.support',
+    'apps.support.apps.SupportConfig',
     'apps.payouts',
     'apps.notifications',
 ]
@@ -155,6 +155,9 @@ REST_FRAMEWORK = {
         'login': '5/min',
         'upload': '30/hour',
         'register': '10/hour',
+        'checkout': '20/hour',
+        'prescription_upload': '20/hour',
+        'forgot_password': '5/hour',
     },
     'EXCEPTION_HANDLER': 'avapharmacy.exception_handler.custom_exception_handler',
 }
@@ -174,7 +177,7 @@ SIMPLE_JWT = {
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://localhost:3000'
+    default='http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -202,6 +205,21 @@ ALLOWED_DOCUMENT_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 FREE_SHIPPING_THRESHOLD = 3000
 SHIPPING_FEE = 300
 PAYMENT_WEBHOOK_SECRET = config('PAYMENT_WEBHOOK_SECRET', default='')
+BOT_CHALLENGE_PROVIDER = config('BOT_CHALLENGE_PROVIDER', default='turnstile')
+TURNSTILE_SECRET_KEY = config('TURNSTILE_SECRET_KEY', default='')
+BOT_CHALLENGE_REQUIRED = config('BOT_CHALLENGE_REQUIRED', default=False, cast=bool)
+CHECKOUT_RISK_CHALLENGE_THRESHOLD = config('CHECKOUT_RISK_CHALLENGE_THRESHOLD', default=40, cast=int)
+CHECKOUT_RISK_VERIFY_THRESHOLD = config('CHECKOUT_RISK_VERIFY_THRESHOLD', default=60, cast=int)
+CHECKOUT_RISK_REVIEW_THRESHOLD = config('CHECKOUT_RISK_REVIEW_THRESHOLD', default=80, cast=int)
+NEW_ACCOUNT_RISK_WINDOW_HOURS = config('NEW_ACCOUNT_RISK_WINDOW_HOURS', default=24, cast=int)
+DISPOSABLE_EMAIL_DOMAINS = {
+    domain.strip().lower()
+    for domain in config(
+        'DISPOSABLE_EMAIL_DOMAINS',
+        default='mailinator.com,tempmail.com,10minutemail.com,guerrillamail.com',
+    ).split(',')
+    if domain.strip()
+}
 
 # ─── Admins (error emails) ────────────────────────────────────────────────────
 ADMINS = [

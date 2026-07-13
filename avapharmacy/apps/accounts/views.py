@@ -19,6 +19,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import Count, Q, Sum
 from django.shortcuts import render
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -34,7 +35,13 @@ class RegisterRateThrottle(AnonRateThrottle):
     """Throttle for the register endpoint — uses the 'register' scope (10/hr)."""
     scope = 'register'
 
-from .models import Address, AdminAuditLog, PaymentMethod, User, UserNote
+
+class ForgotPasswordRateThrottle(AnonRateThrottle):
+    """Throttle for password reset requests."""
+    scope = 'forgot_password'
+
+from .bot_protection import enforce_public_bot_controls, log_bot_event
+from .models import Address, AdminAuditLog, BotRiskEvent, PaymentMethod, User, UserNote
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer, UserUpdateSerializer,
     AdminUserSerializer, AdminUserCreateSerializer, AddressSerializer,
@@ -42,7 +49,7 @@ from .serializers import (
     PharmacistActivationSetPasswordSerializer, ProfessionalRegistrationSerializer,
     PublicLabPartnerListSerializer,
 )
-from .permissions import IsAdminUser
+from .permissions import IsAdminOrPPBInspector, IsAdminUser
 from .tokens import blacklist_user_refresh_tokens
 from .utils import (
     ACTIVATION_ELIGIBLE_ROLES,
@@ -94,6 +101,12 @@ class RegisterView(generics.CreateAPIView):
         """Register the user and return JWT tokens alongside the user profile."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        enforce_public_bot_controls(
+            request,
+            BotRiskEvent.EVENT_REGISTER,
+            email=serializer.validated_data.get('email', ''),
+            phone=serializer.validated_data.get('phone', ''),
+        )
         user = serializer.save()
         if user.role == 'customer':
             token, raw_token = issue_customer_verification_token(user)
@@ -129,6 +142,12 @@ class ProfessionalRegistrationView(APIView):
             context={'request': request},
         )
         serializer.is_valid(raise_exception=True)
+        enforce_public_bot_controls(
+            request,
+            BotRiskEvent.EVENT_REGISTER,
+            email=serializer.validated_data.get('email', ''),
+            phone=serializer.validated_data.get('phone', ''),
+        )
         application = serializer.save()
         response_payload = serializer.build_response(application)
         first_name = (getattr(application, 'name', '') or '').split(' ', 1)[0]
@@ -189,6 +208,11 @@ class LoginView(APIView):
         """
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        enforce_public_bot_controls(
+            request,
+            BotRiskEvent.EVENT_LOGIN,
+            email=serializer.validated_data.get('email', ''),
+        )
         user = authenticate(
             request,
             username=serializer.validated_data['email'],
@@ -202,11 +226,43 @@ class LoginView(APIView):
                 and pending_user.status == User.STATUS_PENDING_VERIFICATION
                 and pending_user.check_password(serializer.validated_data['password'])
             ):
+                log_bot_event(
+                    request,
+                    BotRiskEvent.EVENT_LOGIN,
+                    email=serializer.validated_data['email'],
+                    risk_score=30,
+                    decision=BotRiskEvent.DECISION_VERIFY,
+                    reasons=['pending_customer_verification'],
+                )
                 return Response({'detail': 'Please activate your account via the email we sent you before logging in.'}, status=status.HTTP_403_FORBIDDEN)
+            log_bot_event(
+                request,
+                BotRiskEvent.EVENT_LOGIN,
+                email=serializer.validated_data['email'],
+                risk_score=40,
+                decision=BotRiskEvent.DECISION_BLOCK,
+                reasons=['invalid_credentials'],
+            )
             return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
         if user.status == User.STATUS_SUSPENDED:
+            log_bot_event(
+                request,
+                BotRiskEvent.EVENT_LOGIN,
+                user=user,
+                risk_score=50,
+                decision=BotRiskEvent.DECISION_BLOCK,
+                reasons=['suspended_account'],
+            )
             return Response({'detail': 'Account suspended. Contact support.'}, status=status.HTTP_403_FORBIDDEN)
         if user.role == User.CUSTOMER and user.status == User.STATUS_PENDING_VERIFICATION:
+            log_bot_event(
+                request,
+                BotRiskEvent.EVENT_LOGIN,
+                user=user,
+                risk_score=30,
+                decision=BotRiskEvent.DECISION_VERIFY,
+                reasons=['pending_customer_verification'],
+            )
             return Response({'detail': 'Please activate your account via the email we sent you before logging in.'}, status=status.HTTP_403_FORBIDDEN)
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -398,6 +454,25 @@ class AdminUserListCreateView(generics.ListCreateAPIView):
             )
 
 
+class AdminCustomerListCreateView(AdminUserListCreateView):
+    """Admin customer menu endpoint with customer-only list/create behavior."""
+
+    filterset_fields = ['status']
+    ordering_fields = ['date_joined', 'first_name', 'email']
+
+    def get_queryset(self):
+        return super().get_queryset().filter(role=User.CUSTOMER)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        data['role'] = User.CUSTOMER
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response({'customer': AdminUserSerializer(self.created_user).data}, status=status.HTTP_201_CREATED, headers=headers)
+
+
 class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Admin endpoint to retrieve, update, or delete a specific user."""
 
@@ -438,7 +513,61 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
             entity_type='user',
             entity_id=user_id,
             message=f'Deleted user {email}',
-        )
+            )
+
+
+class AdminCustomerDetailView(AdminUserDetailView):
+    """Admin customer detail endpoint that cannot be used for staff records."""
+
+    queryset = User.objects.filter(role=User.CUSTOMER).select_related('customer_profile').prefetch_related('addresses', 'orders')
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        data = request.data.copy()
+        data['role'] = User.CUSTOMER
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(AdminUserSerializer(serializer.instance).data)
+
+
+class AdminCustomerStatsView(APIView):
+    """Customer menu summary for ecommerce customer health and value."""
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from apps.orders.models import Order
+
+        customers = User.objects.filter(role=User.CUSTOMER)
+        active_customers = customers.filter(status=User.STATUS_ACTIVE, is_active=True)
+        paid_orders = Order.objects.filter(payment_status=Order.PAYMENT_STATUS_PAID, customer__role=User.CUSTOMER)
+        customers_with_paid_orders = paid_orders.values('customer_id').distinct().count()
+        total_customers = customers.count()
+
+        return Response({
+            'total_customers': total_customers,
+            'active_customers': active_customers.count(),
+            'pending_verification': customers.filter(status=User.STATUS_PENDING_VERIFICATION).count(),
+            'suspended_customers': customers.filter(status=User.STATUS_SUSPENDED).count(),
+            'customers_with_paid_orders': customers_with_paid_orders,
+            'customers_without_orders': max(total_customers - customers_with_paid_orders, 0),
+            'total_customer_spend': float(paid_orders.aggregate(total=Sum('total'))['total'] or 0),
+            'orders_by_customer_status': [
+                {
+                    'customer__status': row['customer__status'],
+                    'order_count': row['order_count'],
+                    'revenue': float(row['revenue'] or 0),
+                }
+                for row in (
+                    Order.objects.filter(customer__role=User.CUSTOMER)
+                    .values('customer__status')
+                    .annotate(order_count=Count('id'), revenue=Sum('total', filter=Q(payment_status=Order.PAYMENT_STATUS_PAID)))
+                    .order_by('customer__status')
+                )
+            ],
+        })
 
 
 class AdminUserSuspendView(APIView):
@@ -488,6 +617,24 @@ class AdminUserActivateView(APIView):
             message=f'Activated user {user.email}',
         )
         return Response(AdminUserSerializer(user).data)
+
+
+class AdminCustomerSuspendView(AdminUserSuspendView):
+    """Suspend only customer accounts from the customer menu."""
+
+    def post(self, request, pk):
+        if not User.objects.filter(pk=pk, role=User.CUSTOMER).exists():
+            return Response({'detail': 'Customer not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return super().post(request, pk)
+
+
+class AdminCustomerActivateView(AdminUserActivateView):
+    """Activate only customer accounts from the customer menu."""
+
+    def post(self, request, pk):
+        if not User.objects.filter(pk=pk, role=User.CUSTOMER).exists():
+            return Response({'detail': 'Customer not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return super().post(request, pk)
 
 
 class AdminPharmacistActivationResendView(APIView):
@@ -639,7 +786,7 @@ class UserNoteListCreateView(generics.ListCreateAPIView):
 class AdminAuditLogListView(generics.ListAPIView):
     """Admin read-only endpoint to browse the full admin audit log."""
 
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrPPBInspector]
     serializer_class = AdminAuditLogSerializer
     filterset_fields = ['action', 'entity_type']
     search_fields = ['message', 'entity_id', 'actor__email']
@@ -652,7 +799,7 @@ class ForgotPasswordView(APIView):
     """Send a password reset link to the user's email."""
 
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [RegisterRateThrottle]
+    throttle_classes = [ForgotPasswordRateThrottle]
 
     def post(self, request):
         email = request.data.get('email', '').strip().lower()
@@ -661,6 +808,11 @@ class ForgotPasswordView(APIView):
                 {'error': {'code': 'validation_error', 'message': 'Email address is required.'}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        enforce_public_bot_controls(
+            request,
+            BotRiskEvent.EVENT_FORGOT_PASSWORD,
+            email=email,
+        )
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:

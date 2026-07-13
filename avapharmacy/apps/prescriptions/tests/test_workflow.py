@@ -68,15 +68,15 @@ class PrescriptionWorkflowTests(TestCase):
             {
                 'patient_name': self.customer.full_name,
                 'doctor_name': 'Dr Example',
-                'notes': 'Patient taking tramadol at night',
-                'items_json': json.dumps([{'name': 'Tramadol', 'dose': '50mg', 'frequency': 'once daily', 'quantity': 1}]),
+                'notes': 'Patient taking amoxicillin after meals',
+                'items_json': json.dumps([{'name': 'Amoxicillin', 'dose': '500mg', 'frequency': 'three times daily', 'quantity': 1}]),
                 'files': [SimpleUploadedFile('rx.pdf', b'pdf-bytes', content_type='application/pdf')],
             },
             format='multipart',
         )
         self.assertEqual(upload_response.status_code, 201)
         prescription = Prescription.objects.get(patient=self.customer)
-        self.assertTrue(prescription.items.first().is_controlled_substance)
+        self.assertFalse(prescription.items.first().is_controlled_substance)
 
         self.client.force_authenticate(self.pharmacist)
         queue_response = self.client.get(reverse('pharmacist-prescriptions'))
@@ -92,10 +92,10 @@ class PrescriptionWorkflowTests(TestCase):
                 'action': 'approve',
                 'notes': 'Verified and approved',
                 'items': [{
-                    'name': 'Tramadol',
+                    'name': 'Amoxicillin',
                     'variant_id': self.variant.id,
-                    'dose': '50mg',
-                    'frequency': 'once daily',
+                    'dose': '500mg',
+                    'frequency': 'three times daily',
                     'quantity': 1,
                 }],
             },
@@ -128,6 +128,44 @@ class PrescriptionWorkflowTests(TestCase):
             type='prescription_status',
             data__prescription_id=prescription.id,
         ).exists())
+
+    def test_controlled_drug_prescription_cannot_be_approved_online(self):
+        self.client.force_authenticate(self.customer)
+        upload_response = self.client.post(
+            reverse('prescription-upload'),
+            {
+                'patient_name': self.customer.full_name,
+                'doctor_name': 'Dr Example',
+                'notes': 'Patient taking tramadol at night',
+                'items_json': json.dumps([{'name': 'Tramadol', 'dose': '50mg', 'frequency': 'once daily', 'quantity': 1}]),
+                'files': [SimpleUploadedFile('rx.pdf', b'pdf-bytes', content_type='application/pdf')],
+            },
+            format='multipart',
+        )
+        self.assertEqual(upload_response.status_code, 201)
+        prescription = Prescription.objects.get(patient=self.customer)
+        self.assertTrue(prescription.items.first().is_controlled_substance)
+
+        self.client.force_authenticate(self.pharmacist)
+        review_response = self.client.post(
+            reverse('pharmacist-prescription-review', args=[prescription.id]),
+            {
+                'action': 'approve',
+                'notes': 'Verified',
+                'items': [{
+                    'name': 'Tramadol',
+                    'variant_id': self.variant.id,
+                    'dose': '50mg',
+                    'frequency': 'once daily',
+                    'quantity': 1,
+                }],
+            },
+            format='json',
+        )
+
+        self.assertEqual(review_response.status_code, 400)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.status, Prescription.STATUS_PENDING)
 
     def test_pharmacist_queue_orders_latest_activity_first(self):
         older_assigned = Prescription.objects.create(

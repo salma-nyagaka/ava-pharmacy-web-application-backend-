@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Cart, CartItem, Order, OrderItem
-from apps.products.models import Brand, Category, Product, Promotion, Subcategory, VariantInventory, VariantReview, Wishlist
+from apps.products.models import Banner, Brand, Category, Product, Promotion, Subcategory, VariantInventory, VariantReview, Wishlist
 
 
 def make_test_image(name='test.png', *, width=1000, height=1000, color=(220, 20, 60)):
@@ -138,6 +138,54 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(promotion.badge, '15% Off')
         self.assertFalse(promotion.is_stackable)
         self.assertTrue(bool(promotion.image))
+
+    def test_admin_can_create_multiple_banners_and_public_feed_returns_all_active_banners(self):
+        self.client.force_authenticate(self.admin)
+
+        banners = [
+            {
+                'title': 'Banner 1',
+                'message': 'Free delivery on orders above KSh 3,000!',
+                'link': 'https://example.com/products',
+                'placement': 'home_hero',
+                'sort_order': 1,
+                'status': 'active',
+            },
+            {
+                'title': 'Banner 2',
+                'message': 'Get 15% off your first prescription.',
+                'link': 'https://example.com/prescriptions',
+                'placement': 'home_hero',
+                'sort_order': 2,
+                'status': 'active',
+            },
+            {
+                'title': 'Banner 3',
+                'message': 'Teleconsultation available 24/7.',
+                'link': 'https://example.com/doctor-consultation',
+                'placement': 'home_hero',
+                'sort_order': 3,
+                'status': 'active',
+            },
+        ]
+
+        for payload in banners:
+            response = self.client.post(reverse('admin-banners'), payload, format='json')
+            self.assertEqual(response.status_code, 201)
+
+        response = self.client.get(reverse('banners'), {'placement': 'home_hero'})
+        self.assertEqual(response.status_code, 200)
+        banners_data = response.data.get('results', response.data)
+        self.assertGreaterEqual(len(banners_data), 3)
+        self.assertEqual([banner['sort_order'] for banner in banners_data[:3]], [1, 2, 3])
+        self.assertEqual([banner['title'] for banner in banners_data[:3]], ['Banner 1', 'Banner 2', 'Banner 3'])
+        self.assertTrue(
+            Banner.objects.filter(
+                status='active',
+                placement='home_hero',
+                title__in=['Banner 1', 'Banner 2', 'Banner 3'],
+            ).count() >= 3
+        )
 
     @override_settings(POS_LINK_STRATEGY='barcode')
     def test_admin_product_barcode_is_not_part_of_product_form(self):
@@ -697,6 +745,21 @@ class AdminCatalogAndWishlistTests(TestCase):
         products_response = self.client.get(reverse('products'))
         self.assertEqual(products_response.status_code, 200)
         product_item = next(entry for entry in products_response.data['results'] if entry['sku'] == 'IMG-BRAND-001')
+
+    def test_public_brand_response_omits_missing_logo_url(self):
+        brand = Brand.objects.create(
+            name='Missing Logo Brand',
+            slug='missing-logo-brand',
+            logo='brands/missing-logo.png',
+            is_active=True,
+        )
+
+        response = self.client.get(reverse('brands'))
+
+        self.assertEqual(response.status_code, 200)
+        brand_item = next(entry for entry in response.data['results'] if entry['slug'] == brand.slug)
+        self.assertIsNone(brand_item['logo'])
+        self.assertIsNone(brand_item['image'])
 
     def test_wishlist_item_move_to_cart_requires_variant_selection_when_product_has_variants(self):
         product = Product.objects.create(

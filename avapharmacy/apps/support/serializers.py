@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
+from .models import ComplianceEvidence, NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
 
 
 class SiteSettingsSerializer(serializers.ModelSerializer):
@@ -16,6 +16,21 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
             'whatsapp_phone',
             'support_address',
             'support_hours',
+            'postal_address',
+            'health_safety_code',
+            'premises_registration_number',
+            'online_pharmacy_license_number',
+            'superintendent_name',
+            'superintendent_registration_number',
+            'pharmacist_consultation_hours',
+            'ppb_contact_name',
+            'ppb_contact_address',
+            'ppb_contact_phone',
+            'ppb_contact_email',
+            'ppb_website',
+            'complaint_policy_url',
+            'privacy_policy_url',
+            'returns_policy_url',
             'base_delivery_fee',
             'free_delivery_threshold',
             'active_delivery_zones',
@@ -23,6 +38,26 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
             'updated_at',
         )
         read_only_fields = ('active_delivery_zones_list', 'updated_at')
+
+
+class ComplianceEvidenceSerializer(serializers.ModelSerializer):
+    evidence_type_display = serializers.ReadOnlyField(source='get_evidence_type_display')
+    status_display = serializers.ReadOnlyField(source='get_status_display')
+    created_by_name = serializers.ReadOnlyField(source='created_by.full_name')
+    updated_by_name = serializers.ReadOnlyField(source='updated_by.full_name')
+
+    class Meta:
+        model = ComplianceEvidence
+        fields = (
+            'id', 'evidence_type', 'evidence_type_display', 'title', 'reference_number',
+            'issuing_authority', 'file', 'external_url', 'issued_at', 'expires_at',
+            'status', 'status_display', 'notes', 'created_by', 'created_by_name',
+            'updated_by', 'updated_by_name', 'created_at', 'updated_at',
+        )
+        read_only_fields = (
+            'id', 'evidence_type_display', 'status_display', 'created_by',
+            'created_by_name', 'updated_by', 'updated_by_name', 'created_at', 'updated_at',
+        )
 
 
 class NewsletterSubscriptionRequestSerializer(serializers.Serializer):

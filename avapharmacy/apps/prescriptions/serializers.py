@@ -188,6 +188,9 @@ class PrescriptionUploadSerializer(serializers.Serializer):
     doctor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
     items = PrescriptionUploadItemSerializer(many=True, required=False)
+    bot_challenge_token = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    device_id = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    website = serializers.CharField(required=False, allow_blank=True, write_only=True)
     files = serializers.ListField(
         child=serializers.FileField(),
         min_length=1,

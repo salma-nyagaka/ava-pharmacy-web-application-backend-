@@ -72,12 +72,16 @@ class RegisterSerializer(serializers.ModelSerializer):
     delivery_address = serializers.CharField(write_only=True, required=False, allow_blank=True)
     city = serializers.CharField(write_only=True, required=False, allow_blank=True)
     county = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    bot_challenge_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    device_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    website = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
         fields = (
             'email', 'first_name', 'last_name', 'phone', 'password', 'password_confirm',
-            'role', 'address', 'date_of_birth', 'gender', 'delivery_address', 'city', 'county'
+            'role', 'address', 'date_of_birth', 'gender', 'delivery_address', 'city', 'county',
+            'bot_challenge_token', 'device_id', 'website',
         )
 
     def validate_role(self, value):
@@ -116,6 +120,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         delivery_address = validated_data.pop('delivery_address', '')
         city = validated_data.pop('city', '')
         county = validated_data.pop('county', '')
+        validated_data.pop('bot_challenge_token', None)
+        validated_data.pop('device_id', None)
+        validated_data.pop('website', None)
         user = User.objects.create_user(**validated_data)
         request = self.context.get('request')
         actor = request.user if request and getattr(request.user, 'is_authenticated', False) else None
@@ -143,6 +150,9 @@ class LoginSerializer(serializers.Serializer):
 
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+    bot_challenge_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    device_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    website = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -636,6 +646,9 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
     agreedToTerms = serializers.BooleanField()
     documentNames = serializers.ListField(child=serializers.CharField(), required=False, default=list)
     cvNames = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+    bot_challenge_token = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    device_id = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    website = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     def to_internal_value(self, data):
         file_fields = {'documents', 'cv_files'}

@@ -5,9 +5,12 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
+from apps.accounts.bot_protection import enforce_public_bot_controls
+from apps.accounts.models import BotRiskEvent
 from apps.orders.models import Cart, CartItem, Order, OrderItem
 from apps.products.models import Variant
 
@@ -25,7 +28,7 @@ from .serializers import (
     PharmacistPrescriptionReviewSerializer, PrescriptionResubmitSerializer,
     PrescriptionClarificationReplySerializer,
 )
-from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistOrAdmin, IsPrescriptionReviewPharmacist
+from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistAdminOrPPBInspector, IsPharmacistOrAdmin, IsPrescriptionReviewPharmacist
 from apps.accounts.models import User
 from apps.notifications.utils import create_notification
 from apps.orders.serializers import CartSerializer
@@ -37,6 +40,10 @@ CONTROLLED_SUBSTANCE_KEYWORDS = {
     'morphine', 'codeine', 'diazepam', 'alprazolam', 'tramadol', 'ketamine',
     'fentanyl', 'pethidine', 'methadone', 'clonazepam',
 }
+
+
+class PrescriptionUploadRateThrottle(UserRateThrottle):
+    scope = 'prescription_upload'
 
 
 def _get_or_create_cart(user):
@@ -152,12 +159,20 @@ class PrescriptionListView(generics.ListAPIView):
 class PrescriptionUploadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [PrescriptionUploadRateThrottle]
 
     @transaction.atomic
     def post(self, request):
         serializer = PrescriptionUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        enforce_public_bot_controls(
+            request,
+            BotRiskEvent.EVENT_PRESCRIPTION_UPLOAD,
+            user=request.user,
+            email=request.user.email,
+            phone=request.user.phone,
+        )
 
         uploaded_files = data.get('files', [])
         if not uploaded_files:
@@ -283,7 +298,7 @@ class PrescriptionAuditView(APIView):
 
 class AdminPrescriptionListView(generics.ListAPIView):
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsPharmacistOrAdmin]
+    permission_classes = [IsPharmacistAdminOrPPBInspector]
     filterset_fields = ['status', 'dispatch_status']
     search_fields = ['reference', 'patient_name', 'doctor_name']
     ordering = ['-submitted_at']
@@ -358,6 +373,11 @@ class PrescriptionItemAddToCartView(APIView):
         item = prescription.items.filter(pk=item_pk).select_related('product', 'variant', 'variant__product').first()
         if not item:
             return Response({'detail': 'Prescription item not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if item.is_controlled_substance:
+            return Response(
+                {'detail': 'Controlled drugs cannot be supplied via the internet.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if OrderItem.objects.filter(
             prescription=prescription,
             prescription_item=item,
@@ -506,6 +526,25 @@ class PharmacistPrescriptionReviewView(APIView):
         if action == PharmacistPrescriptionReviewSerializer.ACTION_APPROVE:
             if not prescription.items.exists():
                 return Response({'items': 'At least one prescription item is required for approval.'}, status=status.HTTP_400_BAD_REQUEST)
+            controlled_items = list(
+                prescription.items.filter(is_controlled_substance=True).values_list('name', flat=True)
+            )
+            if controlled_items:
+                PrescriptionAuditLog.objects.create(
+                    prescription=prescription,
+                    action='Controlled drug supply blocked',
+                    notes=', '.join(controlled_items),
+                    performed_by=request.user,
+                )
+                return Response(
+                    {
+                        'items': (
+                            'Controlled drugs cannot be supplied via the internet. '
+                            f'Remove or reject: {", ".join(controlled_items)}.'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             unmapped = list(prescription.items.filter(product__isnull=True, variant__isnull=True).values_list('name', flat=True))
             if unmapped:
                 return Response({'items': f'All approved items must be mapped to products. Missing: {", ".join(unmapped)}.'}, status=status.HTTP_400_BAD_REQUEST)

@@ -68,6 +68,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     LAB_PARTNER = 'lab_partner'
     LAB_TECHNICIAN = 'lab_technician'
     INVENTORY_STAFF = 'inventory_staff'
+    PPB_INSPECTOR = 'ppb_inspector'
 
     ROLE_CHOICES = [
         (CUSTOMER, 'Customer'),
@@ -78,6 +79,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (LAB_PARTNER, 'Lab Partner'),
         (LAB_TECHNICIAN, 'Lab Technician'),
         (INVENTORY_STAFF, 'Inventory Staff'),
+        (PPB_INSPECTOR, 'PPB Inspector'),
     ]
 
     STATUS_ACTIVE = 'active'
@@ -141,6 +143,73 @@ class User(AbstractBaseUser, PermissionsMixin):
     def total_orders(self):
         """Return the total number of orders placed by this user."""
         return self.orders.count()
+
+
+class BotRiskEvent(models.Model):
+    """Risk decision log for bot and abuse controls on public/sensitive flows."""
+
+    EVENT_LOGIN = 'login'
+    EVENT_REGISTER = 'register'
+    EVENT_FORGOT_PASSWORD = 'forgot_password'
+    EVENT_CHECKOUT = 'checkout'
+    EVENT_PRESCRIPTION_UPLOAD = 'prescription_upload'
+    EVENT_CHALLENGE_FAILED = 'challenge_failed'
+    EVENT_HONEYPOT = 'honeypot'
+    EVENT_CHOICES = [
+        (EVENT_LOGIN, 'Login'),
+        (EVENT_REGISTER, 'Register'),
+        (EVENT_FORGOT_PASSWORD, 'Forgot password'),
+        (EVENT_CHECKOUT, 'Checkout'),
+        (EVENT_PRESCRIPTION_UPLOAD, 'Prescription upload'),
+        (EVENT_CHALLENGE_FAILED, 'Challenge failed'),
+        (EVENT_HONEYPOT, 'Honeypot'),
+    ]
+
+    DECISION_ALLOW = 'allow'
+    DECISION_CHALLENGE = 'challenge'
+    DECISION_VERIFY = 'verify'
+    DECISION_BLOCK = 'block'
+    DECISION_REVIEW = 'review'
+    DECISION_CHOICES = [
+        (DECISION_ALLOW, 'Allow'),
+        (DECISION_CHALLENGE, 'Challenge'),
+        (DECISION_VERIFY, 'Verify account'),
+        (DECISION_BLOCK, 'Block'),
+        (DECISION_REVIEW, 'Manual review'),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bot_risk_events',
+    )
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    device_id = models.CharField(max_length=120, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    event_type = models.CharField(max_length=40, choices=EVENT_CHOICES)
+    risk_score = models.PositiveSmallIntegerField(default=0)
+    decision = models.CharField(max_length=20, choices=DECISION_CHOICES, default=DECISION_ALLOW)
+    reasons = models.JSONField(default=list, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_bot_risk_event'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['event_type', '-created_at']),
+            models.Index(fields=['ip_address', '-created_at']),
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['device_id', '-created_at']),
+            models.Index(fields=['decision', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.event_type} {self.decision} ({self.risk_score})'
 
 
 class Pharmacist(models.Model):

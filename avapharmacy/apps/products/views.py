@@ -742,7 +742,7 @@ class BannerListView(generics.ListAPIView):
     serializer_class = BannerSerializer
 
     def get_queryset(self):
-        queryset = Banner.objects.filter(status='active')
+        queryset = Banner.objects.filter(status='active').order_by('sort_order', '-created_at', 'pk')
         placement = self.request.query_params.get('placement')
         if placement:
             queryset = queryset.filter(placement=placement)

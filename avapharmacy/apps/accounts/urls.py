@@ -41,5 +41,11 @@ urlpatterns = [
     path('admin/users/<int:pk>/activate/', views.AdminUserActivateView.as_view(), name='admin-user-activate'),
     path('admin/users/<int:pk>/resend-activation/', views.AdminPharmacistActivationResendView.as_view(), name='admin-user-resend-activation'),
     path('admin/users/<int:pk>/notes/', views.UserNoteListCreateView.as_view(), name='admin-user-notes'),
+    path('admin/customers/', views.AdminCustomerListCreateView.as_view(), name='admin-customers'),
+    path('admin/customers/stats/', views.AdminCustomerStatsView.as_view(), name='admin-customer-stats'),
+    path('admin/customers/<int:pk>/', views.AdminCustomerDetailView.as_view(), name='admin-customer-detail'),
+    path('admin/customers/<int:pk>/suspend/', views.AdminCustomerSuspendView.as_view(), name='admin-customer-suspend'),
+    path('admin/customers/<int:pk>/activate/', views.AdminCustomerActivateView.as_view(), name='admin-customer-activate'),
+    path('admin/customers/<int:pk>/notes/', views.UserNoteListCreateView.as_view(), name='admin-customer-notes'),
     path('admin/audit-logs/', views.AdminAuditLogListView.as_view(), name='admin-audit-logs'),
 ]

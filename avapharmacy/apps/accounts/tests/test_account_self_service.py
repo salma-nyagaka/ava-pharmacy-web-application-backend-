@@ -11,9 +11,19 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.models import Address, CustomerEmailVerificationToken, PaymentMethod, Pharmacist, PharmacistActivationToken, User
+from apps.accounts.models import (
+    Address,
+    BotRiskEvent,
+    Customer,
+    CustomerEmailVerificationToken,
+    PaymentMethod,
+    Pharmacist,
+    PharmacistActivationToken,
+    User,
+)
 from apps.notifications.models import Notification, NotificationPreference
 from apps.consultations.models import ClinicianDocument, ClinicianProfile
+from apps.orders.models import Order
 
 
 class AccountSelfServiceTests(TestCase):
@@ -175,6 +185,119 @@ class AccountSelfServiceTests(TestCase):
         self.assertEqual(address.phone, '+254700000333')
         self.assertTrue(address.is_default)
         self.assertFalse(second_address.is_default)
+
+
+class AdminCustomerMenuTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email='admin-customers@example.com',
+            password='testpass123',
+            first_name='Admin',
+            last_name='Customers',
+            role=User.ADMIN,
+            is_staff=True,
+        )
+        self.customer = User.objects.create_user(
+            email='customer-menu@example.com',
+            password='testpass123',
+            first_name='Customer',
+            last_name='Menu',
+            role=User.CUSTOMER,
+            phone='+254700900001',
+        )
+        Customer.objects.create(user=self.customer)
+        self.staff = User.objects.create_user(
+            email='staff-menu@example.com',
+            password='testpass123',
+            first_name='Staff',
+            last_name='Menu',
+            role=User.PHARMACIST,
+            phone='+254700900002',
+        )
+        Order.objects.create(
+            customer=self.customer,
+            status=Order.STATUS_DELIVERED,
+            payment_method=Order.PAYMENT_MPESA_PAYBILL,
+            payment_status=Order.PAYMENT_STATUS_PAID,
+            shipping_first_name='Customer',
+            shipping_last_name='Menu',
+            shipping_email='customer-menu@example.com',
+            shipping_phone='0727900001',
+            shipping_street='Moi Avenue',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal='1200.00',
+            shipping_fee='300.00',
+            total='1500.00',
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_customer_menu_lists_only_customers_and_exposes_stats(self):
+        list_response = self.client.get(reverse('admin-customers'))
+        self.assertEqual(list_response.status_code, 200)
+        rows = list_response.data.get('results', list_response.data)
+        self.assertEqual([row['email'] for row in rows], ['customer-menu@example.com'])
+        self.assertEqual(rows[0]['total_orders'], 1)
+        self.assertEqual(float(rows[0]['total_spend']), 1500.0)
+
+        detail_response = self.client.get(reverse('admin-customer-detail', args=[self.customer.id]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.data['email'], 'customer-menu@example.com')
+        self.assertEqual(detail_response.data['recent_orders'][0]['payment_status'], Order.PAYMENT_STATUS_PAID)
+
+        stats_response = self.client.get(reverse('admin-customer-stats'))
+        self.assertEqual(stats_response.status_code, 200)
+        self.assertEqual(stats_response.data['total_customers'], 1)
+        self.assertEqual(stats_response.data['customers_with_paid_orders'], 1)
+        self.assertEqual(stats_response.data['total_customer_spend'], 1500.0)
+
+    def test_customer_menu_create_update_suspend_activate_and_notes(self):
+        create_response = self.client.post(
+            reverse('admin-customers'),
+            {
+                'email': 'created.customer@example.com',
+                'first_name': 'Created',
+                'last_name': 'Customer',
+                'phone': '+254700900003',
+                'password': 'StrongPass123!',
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.content)
+        created = User.objects.get(email='created.customer@example.com')
+        self.assertEqual(created.role, User.CUSTOMER)
+        self.assertTrue(Customer.objects.filter(user=created).exists())
+
+        update_response = self.client.patch(
+            reverse('admin-customer-detail', args=[created.id]),
+            {'first_name': 'Updated', 'role': User.PHARMACIST},
+            format='json',
+        )
+        self.assertEqual(update_response.status_code, 200)
+        created.refresh_from_db()
+        self.assertEqual(created.first_name, 'Updated')
+        self.assertEqual(created.role, User.CUSTOMER)
+
+        note_response = self.client.post(
+            reverse('admin-customer-notes', args=[created.id]),
+            {'content': 'Prefers evening delivery.'},
+            format='json',
+        )
+        self.assertEqual(note_response.status_code, 201)
+
+        suspend_response = self.client.post(reverse('admin-customer-suspend', args=[created.id]))
+        self.assertEqual(suspend_response.status_code, 200)
+        created.refresh_from_db()
+        self.assertEqual(created.status, User.STATUS_SUSPENDED)
+
+        activate_response = self.client.post(reverse('admin-customer-activate', args=[created.id]))
+        self.assertEqual(activate_response.status_code, 200)
+        created.refresh_from_db()
+        self.assertEqual(created.status, User.STATUS_ACTIVE)
+
+        staff_suspend_response = self.client.post(reverse('admin-customer-suspend', args=[self.staff.id]))
+        self.assertEqual(staff_suspend_response.status_code, 404)
 
 
 class ProfessionalRegistrationTests(TestCase):
@@ -634,3 +757,58 @@ class AdminPharmacistAccountTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('pharmacist_license_number', response.data['error']['details'])
+
+
+class BotProtectionFlowTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def _registration_payload(self, **overrides):
+        payload = {
+            'email': 'bot-check@example.com',
+            'first_name': 'Bot',
+            'last_name': 'Check',
+            'phone': '+254700123987',
+            'password': 'StrongPass123!',
+            'password_confirm': 'StrongPass123!',
+            'role': User.CUSTOMER,
+            'delivery_address': '123 Test Street',
+            'city': 'Nairobi',
+            'county': 'Nairobi',
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_registration_honeypot_blocks_and_logs_risk_event(self):
+        response = self.client.post(
+            reverse('register'),
+            self._registration_payload(website='https://spam.example'),
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(email='bot-check@example.com').exists())
+
+        event = BotRiskEvent.objects.get()
+        self.assertEqual(event.event_type, BotRiskEvent.EVENT_HONEYPOT)
+        self.assertEqual(event.decision, BotRiskEvent.DECISION_BLOCK)
+        self.assertEqual(event.risk_score, 100)
+        self.assertIn('honeypot_filled', event.reasons)
+
+    @override_settings(BOT_CHALLENGE_REQUIRED=True, TURNSTILE_SECRET_KEY='turnstile-secret')
+    @patch('apps.accounts.bot_protection.verify_turnstile_token', return_value=(False, 'missing_challenge_token'))
+    def test_registration_requires_configured_security_challenge(self, mock_verify_turnstile):
+        response = self.client.post(
+            reverse('register'),
+            self._registration_payload(email='challenge-required@example.com'),
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(User.objects.filter(email='challenge-required@example.com').exists())
+        mock_verify_turnstile.assert_called_once()
+
+        event = BotRiskEvent.objects.get()
+        self.assertEqual(event.event_type, BotRiskEvent.EVENT_CHALLENGE_FAILED)
+        self.assertEqual(event.decision, BotRiskEvent.DECISION_BLOCK)
+        self.assertIn('missing_challenge_token', event.reasons)

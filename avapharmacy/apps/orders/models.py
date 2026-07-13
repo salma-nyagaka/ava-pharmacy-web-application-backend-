@@ -143,6 +143,7 @@ class CartItem(models.Model):
         blank=True,
         related_name='cart_items',
     )
+    otc_screening = models.JSONField(default=dict, blank=True)
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -354,6 +355,7 @@ class OrderItem(models.Model):
         blank=True,
         related_name='order_items',
     )
+    otc_screening = models.JSONField(default=dict, blank=True)
     discount_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
@@ -553,6 +555,17 @@ class ReturnRequest(models.Model):
     requested_refund_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_REQUESTED)
     resolution_notes = models.TextField(blank=True)
+    returned_medicine_quarantined = models.BooleanField(default=False)
+    non_resale_acknowledged = models.BooleanField(default=False)
+    inventory_disposition = models.CharField(max_length=160, blank=True)
+    disposal_reference = models.CharField(max_length=120, blank=True)
+    handled_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='handled_return_requests',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -565,3 +578,51 @@ class ReturnRequest(models.Model):
 
     def __str__(self):
         return f"Return {self.id} - {self.order.order_number}"
+
+
+class DeliveryAudit(models.Model):
+    EVENT_PACKED = 'packed'
+    EVENT_DISPATCHED = 'dispatched'
+    EVENT_DELIVERED = 'delivered'
+    EVENT_FAILED = 'failed'
+    EVENT_RETURNED = 'returned'
+    EVENT_CHOICES = [
+        (EVENT_PACKED, 'Packed'),
+        (EVENT_DISPATCHED, 'Dispatched'),
+        (EVENT_DELIVERED, 'Delivered'),
+        (EVENT_FAILED, 'Delivery failed'),
+        (EVENT_RETURNED, 'Returned to pharmacy'),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='delivery_audits')
+    event_type = models.CharField(max_length=20, choices=EVENT_CHOICES)
+    courier_name = models.CharField(max_length=160, blank=True)
+    courier_phone = models.CharField(max_length=50, blank=True)
+    tracking_reference = models.CharField(max_length=120, blank=True)
+    recipient_name = models.CharField(max_length=160, blank=True)
+    recipient_phone = models.CharField(max_length=50, blank=True)
+    recipient_verified = models.BooleanField(default=False)
+    package_condition = models.CharField(max_length=160, blank=True)
+    temperature_sensitive = models.BooleanField(default=False)
+    temperature_reading_c = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    cold_chain_intact = models.BooleanField(null=True, blank=True)
+    failure_reason = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorded_delivery_audits',
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-recorded_at']
+        indexes = [
+            models.Index(fields=['order', '-recorded_at']),
+            models.Index(fields=['event_type', '-recorded_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.order.order_number} - {self.event_type}'

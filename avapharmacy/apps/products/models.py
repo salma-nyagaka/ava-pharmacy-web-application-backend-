@@ -914,6 +914,15 @@ class Variant(models.Model):
     dosage_frequency = models.CharField(max_length=50, blank=True, help_text="e.g. once_daily, twice_daily")
     dosage_notes = models.CharField(max_length=150, blank=True, help_text="e.g. with food, before meals")
     attributes = models.JSONField(default=dict, blank=True)  # e.g. {"size": "500mg"}
+    ppb_registration_number = models.CharField(max_length=100, blank=True)
+    marketing_authorization_number = models.CharField(max_length=100, blank=True)
+    pil_version = models.CharField(max_length=80, blank=True)
+    contraindications = models.TextField(blank=True)
+    side_effects = models.TextField(blank=True)
+    authorized_supplier = models.CharField(max_length=160, blank=True)
+    is_ppb_registered = models.BooleanField(default=False)
+    is_temperature_sensitive = models.BooleanField(default=False)
+    storage_instructions = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -1319,6 +1328,13 @@ class Banner(models.Model):
     message = models.TextField()
     link = models.URLField(blank=True)
     image = models.ImageField(upload_to='banners/', blank=True)
+    category = models.ForeignKey(
+        'Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='banners',
+    )
     placement = models.CharField(max_length=50, default='home_hero')
     sort_order = models.PositiveIntegerField(default=0)
     status = models.CharField(

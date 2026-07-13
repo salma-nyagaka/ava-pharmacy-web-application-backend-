@@ -143,9 +143,24 @@ class WishlistAdmin(admin.ModelAdmin):
 
 @admin.register(Banner)
 class BannerAdmin(admin.ModelAdmin):
-    list_display = ('title', 'placement', 'status', 'sort_order', 'updated_at')
-    list_filter = ('status', 'placement')
+    list_display = ('title', 'category', 'placement', 'status', 'sort_order', 'updated_at')
+    list_filter = ('status', 'placement', 'category')
     search_fields = ('title', 'message')
+    ordering = ('sort_order', '-updated_at')
+    list_editable = ('placement', 'status', 'sort_order')
+    readonly_fields = ('created_at', 'updated_at')
+    fields = (
+        'title',
+        'message',
+        'link',
+        'image',
+        'category',
+        'placement',
+        'sort_order',
+        'status',
+        'created_at',
+        'updated_at',
+    )
 
 
 @admin.register(Promotion)

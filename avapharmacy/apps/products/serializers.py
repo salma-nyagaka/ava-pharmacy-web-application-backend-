@@ -64,6 +64,15 @@ class ProductImageWithBrandFallbackField(serializers.ImageField):
             return False
 
 
+class ExistingImageField(serializers.ImageField):
+    """Serialize image fields only when the referenced media file exists."""
+
+    def to_representation(self, value):
+        if ProductImageWithBrandFallbackField._has_usable_file(value):
+            return super().to_representation(value)
+        return None
+
+
 class CategorySerializer(serializers.ModelSerializer):
     subcategories = serializers.SerializerMethodField()
 
@@ -202,6 +211,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
 
 class BrandSerializer(serializers.ModelSerializer):
+    logo = ExistingImageField(required=False, allow_null=True)
     image = serializers.SerializerMethodField()
 
     class Meta:
@@ -318,7 +328,10 @@ class VariantSerializer(serializers.ModelSerializer):
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
             'short_description', 'description', 'features', 'dosage_instructions', 'directions',
             'warnings', 'dosage_quantity', 'dosage_unit', 'dosage_frequency', 'dosage_notes',
-            'attributes', 'price', 'cost_price', 'original_price', 'effective_price',
+            'attributes', 'ppb_registration_number', 'marketing_authorization_number',
+            'pil_version', 'contraindications', 'side_effects', 'authorized_supplier',
+            'is_ppb_registered', 'is_temperature_sensitive', 'storage_instructions',
+            'price', 'cost_price', 'original_price', 'effective_price',
             'image', 'requires_prescription', 'inventories', 'stock_source', 'stock_quantity', 'low_stock_threshold',
             'allow_backorder', 'max_backorder_quantity', 'inventory_status',
             'available_quantity', 'is_active', 'sort_order', 'created_at', 'updated_at'
@@ -916,6 +929,9 @@ class AdminInventoryItemSerializer(AdminVariantSerializer):
             'health_concerns', 'health_concern_ids', 'dosage_instructions',
             'directions', 'warnings', 'attributes', 'price', 'cost_price',
             'original_price', 'effective_price', 'image', 'requires_prescription',
+            'ppb_registration_number', 'marketing_authorization_number',
+            'pil_version', 'contraindications', 'side_effects', 'authorized_supplier',
+            'is_ppb_registered', 'is_temperature_sensitive', 'storage_instructions',
             'inventories', 'branch_inventory', 'warehouse_inventory', 'stock_source',
             'stock_quantity', 'low_stock_threshold', 'allow_backorder',
             'max_backorder_quantity', 'inventory_status', 'available_quantity',
@@ -1138,13 +1154,23 @@ class WishlistSerializer(serializers.ModelSerializer):
 
 
 class BannerSerializer(serializers.ModelSerializer):
+    category_slug = serializers.ReadOnlyField(source='category.slug')
+    category_name = serializers.ReadOnlyField(source='category.name')
+    target_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Banner
         fields = (
-            'id', 'title', 'message', 'link', 'image', 'placement', 'sort_order',
+            'id', 'title', 'message', 'link', 'image', 'category',
+            'category_slug', 'category_name', 'target_url', 'placement', 'sort_order',
             'status', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def get_target_url(self, obj):
+        if obj.category_id and obj.category:
+            return f'/category/{obj.category.slug}'
+        return obj.link or ''
 
 
 class PromotionSerializer(serializers.ModelSerializer):
