@@ -60,7 +60,8 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'name', 'product_id', 'product_name', 'product_slug', 'product_image',
             'variant_id', 'variant_name', 'variant_sku',
-            'dose', 'frequency', 'quantity', 'is_controlled_substance', 'is_paid_for',
+            'dose', 'frequency', 'duration', 'quantity', 'quantity_measurement',
+            'is_controlled_substance', 'is_paid_for',
         )
         read_only_fields = ('id',)
 

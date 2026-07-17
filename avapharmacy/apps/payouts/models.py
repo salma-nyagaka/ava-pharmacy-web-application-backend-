@@ -7,11 +7,13 @@ class Payout(models.Model):
     ROLE_PEDIATRICIAN = 'pediatrician'
     ROLE_PHARMACIST = 'pharmacist'
     ROLE_LAB_PARTNER = 'lab_partner'
+    ROLE_LAB_TECHNICIAN = 'lab_technician'
     ROLE_CHOICES = [
         (ROLE_DOCTOR, 'Doctor'),
         (ROLE_PEDIATRICIAN, 'Pediatrician'),
         (ROLE_PHARMACIST, 'Pharmacist'),
         (ROLE_LAB_PARTNER, 'Lab Partner'),
+        (ROLE_LAB_TECHNICIAN, 'Lab Technician'),
     ]
 
     METHOD_BANK = 'bank_transfer'
@@ -74,11 +76,13 @@ class PayoutRule(models.Model):
     ROLE_PEDIATRICIAN = 'pediatrician'
     ROLE_PHARMACIST = 'pharmacist'
     ROLE_LAB_PARTNER = 'lab_partner'
+    ROLE_LAB_TECHNICIAN = 'lab_technician'
     ROLE_CHOICES = [
         (ROLE_DOCTOR, 'Doctor'),
         (ROLE_PEDIATRICIAN, 'Pediatrician'),
         (ROLE_PHARMACIST, 'Pharmacist'),
         (ROLE_LAB_PARTNER, 'Lab Partner'),
+        (ROLE_LAB_TECHNICIAN, 'Lab Technician'),
     ]
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, unique=True)

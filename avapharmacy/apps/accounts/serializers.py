@@ -166,7 +166,8 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'email', 'first_name', 'last_name', 'full_name',
             'phone', 'date_of_birth', 'role', 'status', 'address', 'total_orders',
-            'gender', 'date_joined', 'updated_at'
+            'gender', 'weight_kg', 'height_cm', 'bmi', 'muac_cm',
+            'blood_glucose_mmol_l', 'date_joined', 'updated_at'
         )
         read_only_fields = ('id', 'date_joined', 'updated_at')
 
@@ -176,7 +177,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'gender', 'address')
+        fields = (
+            'email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'gender', 'address',
+            'weight_kg', 'height_cm', 'bmi', 'muac_cm', 'blood_glucose_mmol_l',
+        )
 
     def validate_email(self, value):
         """Ensure updated email addresses remain unique."""

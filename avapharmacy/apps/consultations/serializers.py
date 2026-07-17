@@ -36,6 +36,10 @@ def _child_snapshot(child):
         'age_years': child.age_years,
         'gender': child.gender,
         'weight_kg': str(child.weight_kg) if child.weight_kg is not None else None,
+        'height_cm': str(child.height_cm) if child.height_cm is not None else None,
+        'bmi': str(child.bmi) if child.bmi is not None else None,
+        'muac_cm': str(child.muac_cm) if child.muac_cm is not None else None,
+        'blood_glucose_mmol_l': str(child.blood_glucose_mmol_l) if child.blood_glucose_mmol_l is not None else None,
         'allergies': child.allergies or [],
         'chronic_conditions': child.chronic_conditions or [],
         'current_medications': child.current_medications or [],
@@ -308,7 +312,8 @@ class ChildPatientSerializer(serializers.ModelSerializer):
         model = ChildPatient
         fields = (
             'id', 'reference', 'guardian', 'first_name', 'last_name', 'full_name',
-            'date_of_birth', 'age_years', 'gender', 'weight_kg', 'allergies',
+            'date_of_birth', 'age_years', 'gender', 'weight_kg', 'height_cm', 'bmi', 'muac_cm',
+            'blood_glucose_mmol_l', 'allergies',
             'chronic_conditions', 'current_medications', 'vaccination_notes',
             'notes', 'is_active', 'created_at', 'updated_at',
         )
@@ -331,7 +336,8 @@ class ChildPatientSummarySerializer(serializers.ModelSerializer):
         model = ChildPatient
         fields = (
             'id', 'reference', 'first_name', 'last_name', 'full_name',
-            'date_of_birth', 'age_years', 'gender', 'weight_kg',
+            'date_of_birth', 'age_years', 'gender', 'weight_kg', 'height_cm', 'bmi', 'muac_cm',
+            'blood_glucose_mmol_l',
             'allergies', 'chronic_conditions', 'current_medications',
             'vaccination_notes', 'notes',
         )
@@ -397,7 +403,8 @@ class ConsultationSerializer(serializers.ModelSerializer):
             'patient', 'patient_name', 'patient_email', 'patient_phone', 'patient_age', 'issue', 'status', 'priority',
             'channel', 'scheduled_at', 'requested_specialty', 'is_pediatric', 'child_patient',
             'child_patient_detail', 'guardian_name', 'child_name',
-            'child_age', 'weight_kg', 'guardian_snapshot', 'child_snapshot', 'consent_status', 'dosage_alert',
+            'child_age', 'weight_kg', 'height_cm', 'bmi', 'muac_cm', 'blood_glucose_mmol_l',
+            'guardian_snapshot', 'child_snapshot', 'consent_status', 'dosage_alert',
             'last_message_at', 'ended_at', 'messages', 'prescriptions', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'reference', 'patient', 'created_at', 'updated_at')
@@ -408,20 +415,35 @@ class ConsultationSerializer(serializers.ModelSerializer):
 
 
 class ConsultationListSerializer(serializers.ModelSerializer):
+    doctor = serializers.SerializerMethodField()
+    pediatrician = serializers.SerializerMethodField()
     doctor_name = serializers.ReadOnlyField(source='provider_name')
     patient_name = serializers.SerializerMethodField()
     issue = serializers.SerializerMethodField()
     prescriptions = serializers.SerializerMethodField()
+    messages = serializers.SerializerMethodField()
 
     class Meta:
         model = Consultation
         fields = (
-            'id', 'reference', 'doctor_name', 'patient_name', 'issue',
+            'id', 'reference', 'doctor', 'pediatrician', 'doctor_name', 'patient_name', 'issue',
             'status', 'priority', 'requested_specialty', 'is_pediatric', 'child_patient',
-            'guardian_name', 'child_name', 'child_age', 'weight_kg', 'consent_status', 'dosage_alert',
+            'guardian_name', 'child_name', 'child_age', 'weight_kg', 'height_cm', 'bmi', 'muac_cm',
+            'blood_glucose_mmol_l', 'consent_status', 'dosage_alert',
             'last_message_at', 'created_at',
-            'prescriptions'
+            'messages', 'prescriptions'
         )
+
+    def get_doctor(self, obj):
+        return obj.clinician_id if obj.clinician and obj.clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None
+
+    def get_pediatrician(self, obj):
+        return obj.clinician_id if obj.clinician and obj.clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else None
+
+    def get_messages(self, obj):
+        if self._is_limited_open_queue_record(obj):
+            return []
+        return ConsultationMessageSerializer(obj.messages.all(), many=True, context=self.context).data
 
     def _is_limited_open_queue_record(self, obj):
         request = self.context.get('request')
@@ -467,7 +489,7 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
             'doctor', 'pediatrician', 'patient_name', 'patient_email', 'patient_phone',
             'patient_age', 'issue', 'requested_specialty', 'priority', 'scheduled_at', 'is_pediatric',
             'child_patient_id', 'guardian_name', 'child_name',
-            'child_age', 'weight_kg'
+            'child_age', 'weight_kg', 'height_cm', 'bmi', 'muac_cm', 'blood_glucose_mmol_l'
         )
 
     def _preferred_specialty_from_issue(self, issue):
@@ -538,6 +560,10 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
             attrs['child_age'] = child.age_years
             if child.weight_kg is not None:
                 attrs['weight_kg'] = child.weight_kg
+            for field in ('height_cm', 'bmi', 'muac_cm', 'blood_glucose_mmol_l'):
+                value = getattr(child, field)
+                if value is not None:
+                    attrs[field] = value
             attrs['guardian_snapshot'] = _guardian_snapshot(user or child.guardian)
             attrs['child_snapshot'] = _child_snapshot(child)
         elif child_patient_id:
@@ -693,6 +719,15 @@ def validate_clinician_prescription_items(items):
         if quantity < 1:
             raise serializers.ValidationError({index: {'quantity': 'Quantity must be at least 1.'}})
         item['quantity'] = quantity
+
+        dose = str(item.get('dose') or item.get('dosage') or '').strip()
+        frequency = str(item.get('frequency') or '').strip()
+        duration = str(item.get('duration') or '').strip()
+        quantity_measurement = str(item.get('quantity_measurement') or item.get('measurement') or 'unit(s)').strip()
+        item['dose'] = dose
+        item['frequency'] = frequency
+        item['duration'] = duration
+        item['quantity_measurement'] = quantity_measurement
 
         if variant_id:
             try:

@@ -10,6 +10,7 @@ from .models import (
     Brand,
     Category,
     CMSBlock,
+    FAQ,
     Product,
     ProductImage,
     Promotion,
@@ -175,3 +176,12 @@ class CMSBlockAdmin(admin.ModelAdmin):
     list_display = ('key', 'placement', 'title', 'is_active', 'sort_order')
     list_filter = ('placement', 'is_active')
     search_fields = ('key', 'title')
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ('question', 'category', 'is_published', 'sort_order', 'updated_at')
+    list_filter = ('category', 'is_published')
+    search_fields = ('question', 'answer', 'category')
+    list_editable = ('is_published', 'sort_order')
+    ordering = ('category', 'sort_order', 'question')

@@ -1511,6 +1511,27 @@ class CMSBlock(models.Model):
         return f"{self.placement} - {self.key}"
 
 
+class FAQ(models.Model):
+    """An administrator-managed frequently asked question for the storefront."""
+
+    category = models.CharField(max_length=100, db_index=True)
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+    is_published = models.BooleanField(default=True, db_index=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'sort_order', 'question', 'pk']
+        indexes = [
+            models.Index(fields=['is_published', 'category', 'sort_order']),
+        ]
+
+    def __str__(self):
+        return self.question
+
+
 class StockMovement(models.Model):
     """Audit trail for every stock level change on a variant inventory row."""
 

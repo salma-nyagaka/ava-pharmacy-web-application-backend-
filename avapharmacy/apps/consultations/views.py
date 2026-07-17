@@ -481,6 +481,8 @@ def _finalize_succeeded_payment_intent(intent):
         return None
     was_finalized = bool(intent.consultation_id)
     consultation = _create_paid_consultation_from_intent(intent)
+    from .utils import queue_consultation_mpesa_receipt
+    queue_consultation_mpesa_receipt(intent)
     if not was_finalized:
         _notify_new_consultation_recipients(consultation)
     return consultation
@@ -1232,8 +1234,7 @@ class ConsultationPaymentFinalizeView(APIView):
         if intent.status != ConsultationPaymentIntent.STATUS_SUCCEEDED:
             return Response({'detail': 'Payment has not been confirmed yet.'}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-        consultation = _create_paid_consultation_from_intent(intent)
-        _notify_new_consultation_recipients(consultation)
+        consultation = _finalize_succeeded_payment_intent(intent)
         return Response(ConsultationSerializer(consultation).data, status=status.HTTP_201_CREATED)
 
 
@@ -1481,8 +1482,8 @@ class DoctorConsultationListView(generics.ListAPIView):
         if not provider:
             return Consultation.objects.none()
         if provider.provider_type == ClinicianProfile.TYPE_DOCTOR:
-            return _doctor_queue_queryset_for_provider(provider).select_related(*CONSULTATION_SELECT_RELATED)
-        return Consultation.objects.filter(clinician=provider).select_related(*CONSULTATION_SELECT_RELATED)
+            return _doctor_queue_queryset_for_provider(provider).select_related(*CONSULTATION_SELECT_RELATED).prefetch_related('messages', 'clinician_prescriptions')
+        return Consultation.objects.filter(clinician=provider).select_related(*CONSULTATION_SELECT_RELATED).prefetch_related('messages', 'clinician_prescriptions')
 
 
 class ConsultationEndView(APIView):
@@ -1732,7 +1733,9 @@ class ClinicianPrescriptionSendView(APIView):
                 variant_id=variant_id or None,
                 dose=item.get('dose', ''),
                 frequency=item.get('frequency', ''),
+                duration=item.get('duration', ''),
                 quantity=item.get('quantity') or 1,
+                quantity_measurement=item.get('quantity_measurement', 'unit(s)'),
                 is_controlled_substance=_is_controlled_substance_item(item),
             )
 

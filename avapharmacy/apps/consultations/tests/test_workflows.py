@@ -1,5 +1,6 @@
 import importlib.util
 
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -143,6 +144,13 @@ class ConsultationWorkflowTests(TestCase):
 
         list_response = self.client.get(reverse('consultation-messages', args=[self.consultation.id]))
         self.assertEqual(list_response.status_code, 200)
+
+        queue_response = self.client.get(reverse('doctor-consultations'))
+        self.assertEqual(queue_response.status_code, 200)
+        queue_rows = queue_response.data.get('results', queue_response.data) if isinstance(queue_response.data, dict) else queue_response.data
+        queue_record = next(row for row in queue_rows if row['id'] == self.consultation.id)
+        self.assertEqual(queue_record['doctor'], self.doctor.id)
+        self.assertEqual(queue_record['messages'][0]['message'], 'Please rest and hydrate.')
 
         end_response = self.client.post(reverse('consultation-end', args=[self.consultation.id]), format='json')
         self.assertEqual(end_response.status_code, 200)
@@ -543,15 +551,18 @@ class ConsultationWorkflowTests(TestCase):
         intent.provider_reference = 'RG123ABC'
         intent.save(update_fields=['status', 'provider_reference', 'updated_at'])
 
-        paid_response = self.client.post(
-            reverse('consultation-payment-finalize'),
-            {'payment_intent_id': intent.id},
-            format='json',
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            paid_response = self.client.post(
+                reverse('consultation-payment-finalize'),
+                {'payment_intent_id': intent.id},
+                format='json',
+            )
         self.assertEqual(paid_response.status_code, 201)
         intent.refresh_from_db()
         self.assertIsNotNone(intent.consultation_id)
         self.assertEqual(intent.consultation.patient, self.patient)
+        self.assertIsNotNone(intent.receipt_emailed_at)
+        self.assertTrue(any(intent.reference in message.subject for message in mail.outbox))
 
     def test_customer_books_paid_doctor_consultation_chat_and_doctor_prescribes(self):
         self.doctor.status = ClinicianProfile.STATUS_ACTIVE

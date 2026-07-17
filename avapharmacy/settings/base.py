@@ -236,6 +236,8 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='rtchxnlghxfbvjku')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='salmanyagaka@gmail.com')
+ADMIN_EMAIL = config('ADMIN_EMAIL', default='info@avapharmacy.co.ke')
+PRESCRIPTION_UPLOAD_ALERT_EMAIL = config('PRESCRIPTION_UPLOAD_ALERT_EMAIL', default='info@avapharmacy.co.ke')
 
 # ─── Notifications ────────────────────────────────────────────────────────────
 SMS_BACKEND = config('SMS_BACKEND', default='console')

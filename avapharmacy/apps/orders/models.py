@@ -274,6 +274,7 @@ class Order(models.Model):
         max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING
     )
     payment_reference = models.CharField(max_length=100, blank=True)
+    receipt_emailed_at = models.DateTimeField(null=True, blank=True)
     flutterwave_tx_ref = models.CharField(max_length=64, blank=True)
     flutterwave_tx_id = models.CharField(max_length=64, blank=True)
     coupon_code = models.CharField(max_length=40, blank=True)

@@ -13,13 +13,13 @@ from django.conf import settings
 from rest_framework import serializers
 from django.utils.dateparse import parse_date
 from django.utils.text import slugify
-from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, generate_internal_variant_sku
+from .models import Banner, Brand, Category, CMSBlock, FAQ, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, generate_internal_variant_sku
 from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing
 
 
 class ProductImageWithBrandFallbackField(serializers.ImageField):
-    """Return the product image, falling back to a representative variant image, then brand."""
+    """Return a product photo, falling back only to a representative variant photo."""
 
     def to_representation(self, value):
         if self._has_usable_file(value):
@@ -29,10 +29,6 @@ class ProductImageWithBrandFallbackField(serializers.ImageField):
         variant_image = self._representative_variant_image(instance)
         if self._has_usable_file(variant_image):
             return super().to_representation(variant_image)
-
-        brand_logo = getattr(getattr(instance, 'brand', None), 'logo', None)
-        if self._has_usable_file(brand_logo):
-            return super().to_representation(brand_logo)
 
         return None
 
@@ -844,10 +840,6 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
         if ProductImageWithBrandFallbackField._has_usable_file(product_image):
             return self.fields['brand_image'].to_representation(product_image)
 
-        brand_logo = getattr(getattr(obj.product, 'brand', None), 'logo', None)
-        if ProductImageWithBrandFallbackField._has_usable_file(brand_logo):
-            return self.fields['brand_image'].to_representation(brand_logo)
-
         return None
 
     def _pricing(self, obj):
@@ -1217,3 +1209,31 @@ class CMSBlockSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+
+class FAQSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQ
+        fields = (
+            'id', 'category', 'question', 'answer', 'is_published',
+            'sort_order', 'created_at', 'updated_at',
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def validate_category(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Category is required.')
+        return value
+
+    def validate_question(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Question is required.')
+        return value
+
+    def validate_answer(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Answer is required.')
+        return value

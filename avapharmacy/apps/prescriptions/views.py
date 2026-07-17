@@ -95,7 +95,9 @@ def _replace_prescription_items(prescription, items_data):
             variant_id=variant_id,
             dose=item_data.get('dose', ''),
             frequency=item_data.get('frequency', ''),
+            duration=item_data.get('duration', ''),
             quantity=item_data.get('quantity', 1),
+            quantity_measurement=item_data.get('quantity_measurement', 'unit(s)'),
             is_controlled_substance=_is_controlled_substance(
                 item_data.get('name', ''),
                 item_data.get('dose', ''),

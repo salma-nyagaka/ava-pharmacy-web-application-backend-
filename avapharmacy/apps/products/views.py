@@ -25,13 +25,14 @@ from avapharmacy.security import verify_hmac_signature
 
 from .filters import ProductFilter, VariantInventoryFilter
 from .inventory_sync import apply_inventory_sync, normalize_inventory_payload
-from .models import Banner, Brand, Category, CMSBlock, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, annotate_product_inventory, annotate_variant_inventory
+from .models import Banner, Brand, Category, CMSBlock, FAQ, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, annotate_product_inventory, annotate_variant_inventory
 from .pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from .serializers import (
     AdminProductSerializer,
     BannerSerializer,
     BrandSerializer,
     CMSBlockSerializer,
+    FAQSerializer,
     CategorySerializer,
     HealthConcernSerializer,
     CatalogCategorySerializer,
@@ -761,6 +762,19 @@ class CMSBlockListView(generics.ListAPIView):
         return queryset
 
 
+class FAQListView(generics.ListAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = FAQSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = FAQ.objects.filter(is_published=True)
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category__iexact=category.strip())
+        return queryset
+
+
 class AdminBannerListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = BannerSerializer
@@ -947,6 +961,52 @@ class AdminCMSBlockDetailView(generics.RetrieveUpdateDestroyAPIView):
             message=f'Updated CMS block {block.key}',
         )
 
+
+class AdminFAQListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = FAQSerializer
+    queryset = FAQ.objects.all()
+    filterset_fields = ['category', 'is_published']
+    search_fields = ['category', 'question', 'answer']
+    ordering_fields = ['category', 'sort_order', 'question', 'created_at', 'updated_at']
+
+    def perform_create(self, serializer):
+        faq = serializer.save()
+        log_admin_action(
+            self.request.user,
+            action='faq_created',
+            entity_type='faq',
+            entity_id=faq.id,
+            message=f'Created FAQ {faq.question}',
+        )
+
+
+class AdminFAQDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = FAQSerializer
+    queryset = FAQ.objects.all()
+
+    def perform_update(self, serializer):
+        faq = serializer.save()
+        log_admin_action(
+            self.request.user,
+            action='faq_updated',
+            entity_type='faq',
+            entity_id=faq.id,
+            message=f'Updated FAQ {faq.question}',
+        )
+
+    def perform_destroy(self, instance):
+        faq_id = instance.id
+        question = instance.question
+        instance.delete()
+        log_admin_action(
+            self.request.user,
+            action='faq_deleted',
+            entity_type='faq',
+            entity_id=faq_id,
+            message=f'Deleted FAQ {question}',
+        )
 
 class AdminInventoryListView(generics.ListAPIView):
     permission_classes = [IsAdminOrInventoryStaff]

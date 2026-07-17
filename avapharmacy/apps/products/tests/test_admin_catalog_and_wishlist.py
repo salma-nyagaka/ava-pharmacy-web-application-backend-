@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.orders.models import Cart, CartItem, Order, OrderItem
-from apps.products.models import Banner, Brand, Category, Product, Promotion, Subcategory, VariantInventory, VariantReview, Wishlist
+from apps.products.models import Banner, Brand, Category, FAQ, Product, Promotion, Subcategory, VariantInventory, VariantReview, Wishlist
 
 
 def make_test_image(name='test.png', *, width=1000, height=1000, color=(220, 20, 60)):
@@ -186,6 +186,58 @@ class AdminCatalogAndWishlistTests(TestCase):
                 title__in=['Banner 1', 'Banner 2', 'Banner 3'],
             ).count() >= 3
         )
+
+    def test_admin_manages_faqs_and_public_feed_only_returns_published_items(self):
+        self.client.force_authenticate(self.admin)
+        published = self.client.post(
+            reverse('admin-faqs'),
+            {
+                'category': 'Delivery',
+                'question': 'How long does delivery take?',
+                'answer': 'Same-day delivery is available in selected areas.',
+                'is_published': True,
+                'sort_order': 2,
+            },
+            format='json',
+        )
+        self.assertEqual(published.status_code, 201)
+
+        draft = self.client.post(
+            reverse('admin-faqs'),
+            {
+                'category': 'Payments',
+                'question': 'Can I pay later?',
+                'answer': 'This answer is still being reviewed.',
+                'is_published': False,
+                'sort_order': 1,
+            },
+            format='json',
+        )
+        self.assertEqual(draft.status_code, 201)
+        self.assertEqual(FAQ.objects.count(), 2)
+
+        self.client.force_authenticate(None)
+        response = self.client.get(reverse('faqs'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['question'], 'How long does delivery take?')
+
+        category_response = self.client.get(reverse('faqs'), {'category': 'delivery'})
+        self.assertEqual(category_response.status_code, 200)
+        self.assertEqual(len(category_response.data), 1)
+
+    def test_customer_cannot_manage_faqs(self):
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(
+            reverse('admin-faqs'),
+            {
+                'category': 'Orders',
+                'question': 'Where is my order?',
+                'answer': 'Use order tracking.',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 403)
 
     @override_settings(POS_LINK_STRATEGY='barcode')
     def test_admin_product_barcode_is_not_part_of_product_form(self):
@@ -833,7 +885,7 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertEqual(facet['count'], 1)
         self.assertIn('brand-facet', facet['image'])
 
-    def test_product_image_falls_back_to_brand_logo_when_file_is_missing(self):
+    def test_product_image_does_not_fall_back_to_brand_logo_when_file_is_missing(self):
         brand = Brand.objects.create(
             name='Fallback Brand',
             slug='fallback-brand',
@@ -853,13 +905,13 @@ class AdminCatalogAndWishlistTests(TestCase):
         list_response = self.client.get(reverse('products'))
         self.assertEqual(list_response.status_code, 200)
         list_item = next(entry for entry in list_response.data['results'] if entry['sku'] == product.sku)
-        self.assertEqual(list_item['image'], list_item['brand_image'])
-        self.assertIn('brand-fallback', list_item['image'])
+        self.assertIsNone(list_item['image'])
+        self.assertIn('brand-fallback', list_item['brand_image'])
 
         detail_response = self.client.get(reverse('product-detail-by-id', args=[product.id]))
         self.assertEqual(detail_response.status_code, 200)
-        self.assertEqual(detail_response.data['image'], detail_response.data['brand']['logo'])
-        self.assertIn('brand-fallback', detail_response.data['image'])
+        self.assertIsNone(detail_response.data['image'])
+        self.assertIn('brand-fallback', detail_response.data['brand']['logo'])
 
     def test_customer_can_add_to_wishlist_move_to_cart_and_back(self):
         product = Product.objects.create(

@@ -2,6 +2,7 @@ from decimal import Decimal
 from datetime import datetime
 from unittest.mock import patch
 
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -66,6 +67,23 @@ class MpesaFlowTests(TestCase):
             shipping_fee=Decimal('0.00'),
             total=total,
         )
+
+    def test_paid_mpesa_order_sends_one_electronic_receipt(self):
+        order = self._create_order(payment_method=Order.PAYMENT_MPESA_STK)
+        with self.captureOnCommitCallbacks(execute=True):
+            order.payment_status = Order.PAYMENT_STATUS_PAID
+            order.payment_reference = 'QHX123ABC'
+            order.save(update_fields=['payment_status', 'payment_reference', 'updated_at'])
+
+        order.refresh_from_db()
+        self.assertIsNotNone(order.receipt_emailed_at)
+        receipts = [message for message in mail.outbox if order.order_number in message.subject]
+        self.assertEqual(len(receipts), 1)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            order.save(update_fields=['updated_at'])
+        receipts = [message for message in mail.outbox if order.order_number in message.subject]
+        self.assertEqual(len(receipts), 1)
 
     @patch('apps.orders.views.FlutterwaveClient')
     def test_flutterwave_initiate_sets_checkout_link_and_order_tx_ref(self, flutterwave_client_cls):

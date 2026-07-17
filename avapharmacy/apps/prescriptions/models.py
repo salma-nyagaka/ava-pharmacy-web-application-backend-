@@ -127,7 +127,9 @@ class PrescriptionItem(models.Model):
     )
     dose = models.CharField(max_length=100, blank=True)
     frequency = models.CharField(max_length=100, blank=True)
+    duration = models.CharField(max_length=100, blank=True)
     quantity = models.PositiveIntegerField(default=1)
+    quantity_measurement = models.CharField(max_length=60, default='unit(s)', blank=True)
     is_controlled_substance = models.BooleanField(default=False)
 
     class Meta:
