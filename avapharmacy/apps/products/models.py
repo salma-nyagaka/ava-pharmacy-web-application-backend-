@@ -1514,7 +1514,14 @@ class CMSBlock(models.Model):
 class FAQ(models.Model):
     """An administrator-managed frequently asked question for the storefront."""
 
-    category = models.CharField(max_length=100, db_index=True)
+    class Category(models.TextChoices):
+        ORDERING_PRESCRIPTIONS = 'Ordering & Prescriptions', 'Ordering & Prescriptions'
+        DELIVERY_COLLECTION = 'Delivery & Collection', 'Delivery & Collection'
+        PAYMENTS_PRICING = 'Payments & Pricing', 'Payments & Pricing'
+        QUALITY_SAFETY = 'Quality & Safety', 'Quality & Safety'
+        SUPPORT = 'Support', 'Support'
+
+    category = models.CharField(max_length=100, choices=Category.choices, db_index=True)
     question = models.CharField(max_length=255)
     answer = models.TextField()
     is_published = models.BooleanField(default=True, db_index=True)
@@ -1523,9 +1530,9 @@ class FAQ(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['category', 'sort_order', 'question', 'pk']
+        ordering = ['sort_order', 'pk']
         indexes = [
-            models.Index(fields=['is_published', 'category', 'sort_order']),
+            models.Index(fields=['is_published', 'sort_order']),
         ]
 
     def __str__(self):

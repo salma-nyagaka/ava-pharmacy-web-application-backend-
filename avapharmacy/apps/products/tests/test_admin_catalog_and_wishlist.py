@@ -188,15 +188,20 @@ class AdminCatalogAndWishlistTests(TestCase):
         )
 
     def test_admin_manages_faqs_and_public_feed_only_returns_published_items(self):
+        initial_count = FAQ.objects.count()
+        initial_published_count = FAQ.objects.filter(is_published=True).count()
+        initial_delivery_count = FAQ.objects.filter(
+            is_published=True,
+            category='Delivery & Collection',
+        ).count()
         self.client.force_authenticate(self.admin)
         published = self.client.post(
             reverse('admin-faqs'),
             {
-                'category': 'Delivery',
+                'category': 'Delivery & Collection',
                 'question': 'How long does delivery take?',
                 'answer': 'Same-day delivery is available in selected areas.',
                 'is_published': True,
-                'sort_order': 2,
             },
             format='json',
         )
@@ -205,26 +210,29 @@ class AdminCatalogAndWishlistTests(TestCase):
         draft = self.client.post(
             reverse('admin-faqs'),
             {
-                'category': 'Payments',
+                'category': 'Payments & Pricing',
                 'question': 'Can I pay later?',
                 'answer': 'This answer is still being reviewed.',
                 'is_published': False,
-                'sort_order': 1,
             },
             format='json',
         )
         self.assertEqual(draft.status_code, 201)
-        self.assertEqual(FAQ.objects.count(), 2)
+        self.assertEqual(FAQ.objects.count(), initial_count + 2)
 
         self.client.force_authenticate(None)
         response = self.client.get(reverse('faqs'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data), initial_published_count + 1)
         self.assertEqual(response.data[0]['question'], 'How long does delivery take?')
+        self.assertTrue(any(item['question'] == 'How long does delivery take?' for item in response.data))
 
-        category_response = self.client.get(reverse('faqs'), {'category': 'delivery'})
+        category_response = self.client.get(
+            reverse('faqs'),
+            {'category': 'delivery & collection'},
+        )
         self.assertEqual(category_response.status_code, 200)
-        self.assertEqual(len(category_response.data), 1)
+        self.assertEqual(len(category_response.data), initial_delivery_count + 1)
 
     def test_customer_cannot_manage_faqs(self):
         self.client.force_authenticate(self.customer)

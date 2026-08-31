@@ -184,4 +184,4 @@ class FAQAdmin(admin.ModelAdmin):
     list_filter = ('category', 'is_published')
     search_fields = ('question', 'answer', 'category')
     list_editable = ('is_published', 'sort_order')
-    ordering = ('category', 'sort_order', 'question')
+    ordering = ('sort_order', 'pk')
