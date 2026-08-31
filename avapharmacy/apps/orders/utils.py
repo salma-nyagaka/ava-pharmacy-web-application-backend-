@@ -114,6 +114,59 @@ def send_order_status_email(*, order, subject, heading, intro):
     )
 
 
+def send_mpesa_receipt_email(*, order):
+    """Send the customer a transaction receipt for a confirmed M-Pesa order."""
+    if not order.shipping_email:
+        return
+    paid_at = order.placed_at or order.updated_at
+    subject = f'M-Pesa receipt for {order.order_number}'
+    item_summary = ', '.join(
+        f'{item.product_name} x{item.quantity}' for item in order.items.all()
+    ) or 'Ava Pharmacy order'
+    send_rendered_email(
+        subject=subject,
+        recipient_list=[order.shipping_email],
+        text_template='emails/notification.txt',
+        html_template='emails/notification.html',
+        context={
+            'subject': subject,
+            'heading': 'Payment receipt',
+            'intro': f'Hi {order.shipping_first_name or "Customer"}, your M-Pesa payment was received successfully.',
+            'detail_rows': [
+                {'label': 'Receipt number', 'value': f'REC-{order.order_number}'},
+                {'label': 'M-Pesa reference', 'value': order.payment_reference or order.order_number},
+                {'label': 'Order', 'value': order.order_number},
+                {'label': 'Amount paid', 'value': f'KES {order.total:,.2f}'},
+                {'label': 'Paid at', 'value': timezone.localtime(paid_at).strftime('%d %b %Y, %I:%M %p')},
+                {'label': 'Items', 'value': item_summary},
+            ],
+            'body_lines': ['Keep this email as your electronic proof of payment.'],
+            'cta_url': build_login_redirect_url(f'/account/orders/{order.id}'),
+            'cta_label': 'View order',
+            'support_email': getattr(settings, 'ADMIN_EMAIL', settings.DEFAULT_FROM_EMAIL),
+        },
+        fail_silently=False,
+    )
+
+
+def queue_mpesa_receipt_email(order):
+    order_id = order.id
+
+    def _send():
+        try:
+            receipt_order = Order.objects.prefetch_related('items').get(pk=order_id)
+            if receipt_order.receipt_emailed_at or receipt_order.payment_status != Order.PAYMENT_STATUS_PAID:
+                return
+            if receipt_order.payment_method not in {Order.PAYMENT_MPESA_STK, Order.PAYMENT_MPESA_PAYBILL}:
+                return
+            send_mpesa_receipt_email(order=receipt_order)
+            Order.objects.filter(pk=order_id, receipt_emailed_at__isnull=True).update(receipt_emailed_at=timezone.now())
+        except Exception:
+            logger.exception('Failed to send M-Pesa receipt for order %s', order_id)
+
+    transaction.on_commit(_send)
+
+
 def queue_order_confirmation_email(order):
     order_id = order.id
 

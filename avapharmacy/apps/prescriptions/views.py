@@ -5,10 +5,14 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from apps.orders.models import Cart, CartItem
+from apps.accounts.bot_protection import enforce_public_bot_controls
+from apps.accounts.models import BotRiskEvent
+from apps.orders.models import Cart, CartItem, Order, OrderItem
+from apps.products.models import Variant
 
 from .models import (
     Prescription,
@@ -24,7 +28,7 @@ from .serializers import (
     PharmacistPrescriptionReviewSerializer, PrescriptionResubmitSerializer,
     PrescriptionClarificationReplySerializer,
 )
-from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistOrAdmin, IsPrescriptionReviewPharmacist
+from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistAdminOrPPBInspector, IsPharmacistOrAdmin, IsPrescriptionReviewPharmacist
 from apps.accounts.models import User
 from apps.notifications.utils import create_notification
 from apps.orders.serializers import CartSerializer
@@ -38,6 +42,10 @@ CONTROLLED_SUBSTANCE_KEYWORDS = {
 }
 
 
+class PrescriptionUploadRateThrottle(UserRateThrottle):
+    scope = 'prescription_upload'
+
+
 def _get_or_create_cart(user):
     cart, _ = Cart.objects.get_or_create(user=user)
     return cart
@@ -46,13 +54,24 @@ def _get_or_create_cart(user):
 def _product_availability_error(product, requested_quantity):
     if not product.is_active:
         return f'{product.name} is no longer active.'
-    if requested_quantity <= product.stock_quantity:
+
+    if hasattr(product, '_get_inventory_values'):
+        inventory = product._get_inventory_values()
+        stock_quantity = inventory.get('stock_quantity', 0)
+        allow_backorder = inventory.get('allow_backorder', False)
+        available_quantity = product.available_quantity
+    else:
+        stock_quantity = product.stock_quantity
+        allow_backorder = product.allow_backorder
+        available_quantity = product.available_quantity
+
+    if requested_quantity <= stock_quantity:
         return None
-    if product.allow_backorder and requested_quantity <= product.available_quantity:
+    if allow_backorder and requested_quantity <= available_quantity:
         return None
-    if product.stock_quantity == 0 and not product.allow_backorder:
+    if stock_quantity == 0 and not allow_backorder:
         return f'{product.name} is out of stock.'
-    return f'{product.name} only has {product.available_quantity} unit(s) available.'
+    return f'{product.name} only has {available_quantity} unit(s) available.'
 
 
 def _is_controlled_substance(*values):
@@ -65,13 +84,20 @@ def _replace_prescription_items(prescription, items_data):
         return
     prescription.items.all().delete()
     for item_data in items_data:
+        variant_id = item_data.get('variant_id')
+        product_id = item_data.get('product_id')
+        if variant_id and not product_id:
+            product_id = Variant.objects.filter(pk=variant_id).values_list('product_id', flat=True).first()
         PrescriptionItem.objects.create(
             prescription=prescription,
             name=item_data['name'],
-            product_id=item_data.get('product_id'),
+            product_id=product_id,
+            variant_id=variant_id,
             dose=item_data.get('dose', ''),
             frequency=item_data.get('frequency', ''),
+            duration=item_data.get('duration', ''),
             quantity=item_data.get('quantity', 1),
+            quantity_measurement=item_data.get('quantity_measurement', 'unit(s)'),
             is_controlled_substance=_is_controlled_substance(
                 item_data.get('name', ''),
                 item_data.get('dose', ''),
@@ -85,6 +111,7 @@ def _prescription_queryset():
     return Prescription.objects.select_related('patient', 'pharmacist').prefetch_related(
         'files',
         'items__product',
+        'items__variant',
         'audit_logs',
         'review_decisions__pharmacist',
         'clarification_messages__sender',
@@ -128,18 +155,26 @@ class PrescriptionListView(generics.ListAPIView):
         source_value = self.request.query_params.get('source')
         if source_value:
             queryset = queryset.filter(source=source_value)
-        return queryset
+        return queryset.order_by('-submitted_at', '-id')
 
 
 class PrescriptionUploadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [PrescriptionUploadRateThrottle]
 
     @transaction.atomic
     def post(self, request):
         serializer = PrescriptionUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        enforce_public_bot_controls(
+            request,
+            BotRiskEvent.EVENT_PRESCRIPTION_UPLOAD,
+            user=request.user,
+            email=request.user.email,
+            phone=request.user.phone,
+        )
 
         uploaded_files = data.get('files', [])
         if not uploaded_files:
@@ -191,6 +226,18 @@ class PrescriptionUploadView(APIView):
             notes=data.get('notes', ''),
             performed_by=request.user,
         )
+        requested_items = ', '.join(
+            item.get('name', '').strip()
+            for item in (items_data or [])
+            if item.get('name', '').strip()
+        )
+        if requested_items:
+            PrescriptionAuditLog.objects.create(
+                prescription=prescription,
+                action='Catalog item requested by patient',
+                notes=requested_items,
+                performed_by=request.user,
+            )
 
         return Response(PrescriptionSerializer(prescription).data, status=status.HTTP_201_CREATED)
 
@@ -253,13 +300,60 @@ class PrescriptionAuditView(APIView):
 
 class AdminPrescriptionListView(generics.ListAPIView):
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsPharmacistOrAdmin]
+    permission_classes = [IsPharmacistAdminOrPPBInspector]
     filterset_fields = ['status', 'dispatch_status']
     search_fields = ['reference', 'patient_name', 'doctor_name']
     ordering = ['-submitted_at']
 
     def get_queryset(self):
-        return _prescription_queryset()
+        return _prescription_queryset().order_by('-submitted_at', '-id')
+
+
+class PharmacistVariantSearchView(APIView):
+    permission_classes = [IsPharmacistOrAdmin]
+
+    def get(self, request):
+        query = str(request.query_params.get('q') or '').strip()
+        try:
+            limit = min(max(int(request.query_params.get('limit', 500)), 1), 500)
+        except (TypeError, ValueError):
+            limit = 500
+
+        variants = Variant.objects.select_related(
+            'product',
+            'product__brand',
+        ).prefetch_related('inventories').filter(
+            is_active=True,
+            product__is_active=True,
+        )
+        if query:
+            variants = variants.filter(
+                models.Q(product__name__icontains=query)
+                | models.Q(name__icontains=query)
+                | models.Q(sku__icontains=query)
+                | models.Q(product__brand__name__icontains=query)
+                | models.Q(strength__icontains=query)
+            )
+
+        return Response({
+            'results': [
+                {
+                    'id': variant.id,
+                    'product_id': variant.product_id,
+                    'product_name': variant.product.name,
+                    'variant_name': variant.name,
+                    'display_name': f'{variant.product.name} {variant.name}'.strip(),
+                    'brand_name': variant.product.brand.name if variant.product.brand else '',
+                    'sku': variant.sku,
+                    'price': str(variant.price),
+                    'requires_prescription': variant.requires_prescription,
+                    'inventory_status': variant.inventory_status,
+                    'available_quantity': variant.available_quantity,
+                    'can_select': variant.available_quantity > 0,
+                }
+                for variant in variants.order_by('product__name', 'sort_order', 'name')[:limit]
+            ]
+        })
 
 
 class PrescriptionItemAddToCartView(APIView):
@@ -267,7 +361,7 @@ class PrescriptionItemAddToCartView(APIView):
 
     def post(self, request, pk, item_pk):
         try:
-            prescription = Prescription.objects.prefetch_related('items__product').get(
+            prescription = Prescription.objects.prefetch_related('items__product', 'items__variant').get(
                 pk=pk,
                 patient=request.user,
                 status=Prescription.STATUS_APPROVED,
@@ -278,12 +372,32 @@ class PrescriptionItemAddToCartView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        item = prescription.items.filter(pk=item_pk).select_related('product').first()
+        item = prescription.items.filter(pk=item_pk).select_related('product', 'variant', 'variant__product').first()
         if not item:
             return Response({'detail': 'Prescription item not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if item.is_controlled_substance:
+            return Response(
+                {'detail': 'Controlled drugs cannot be supplied via the internet.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if OrderItem.objects.filter(
+            prescription=prescription,
+            prescription_item=item,
+            order__customer=request.user,
+            order__payment_status=Order.PAYMENT_STATUS_PAID,
+        ).exclude(order__status__in=[Order.STATUS_CANCELLED, Order.STATUS_REFUNDED]).exists():
+            return Response(
+                {'detail': 'This prescription item has already been paid for and cannot be added again.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not item.product or not item.product.is_active:
             return Response(
                 {'detail': 'This prescription item has not been mapped to an active product yet.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if item.variant_id and (not item.variant.is_active or not item.variant.product.is_active):
+            return Response(
+                {'detail': 'The selected prescription variant is no longer active.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -296,7 +410,7 @@ class PrescriptionItemAddToCartView(APIView):
             return Response({'quantity': 'Must be at least 1.'}, status=status.HTTP_400_BAD_REQUEST)
 
         cart = _get_or_create_cart(request.user)
-        variant = item.product.get_representative_variant()
+        variant = item.variant or item.product.get_representative_variant()
         if variant is None:
             return Response(
                 {'detail': f'No active variant is available for {item.product.name}.'},
@@ -320,7 +434,7 @@ class PrescriptionItemAddToCartView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        error = _product_availability_error(item.product, requested_total)
+        error = _product_availability_error(variant, requested_total)
         if error:
             return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -357,7 +471,7 @@ class PharmacistPrescriptionQueueView(generics.ListAPIView):
         status_value = self.request.query_params.get('status')
         if status_value:
             queryset = queryset.filter(status=status_value)
-        return queryset.order_by('pharmacist_id', '-submitted_at')
+        return queryset.order_by('-updated_at', '-submitted_at', '-id')
 
 
 class PharmacistPrescriptionAssignView(APIView):
@@ -414,7 +528,26 @@ class PharmacistPrescriptionReviewView(APIView):
         if action == PharmacistPrescriptionReviewSerializer.ACTION_APPROVE:
             if not prescription.items.exists():
                 return Response({'items': 'At least one prescription item is required for approval.'}, status=status.HTTP_400_BAD_REQUEST)
-            unmapped = list(prescription.items.filter(product__isnull=True).values_list('name', flat=True))
+            controlled_items = list(
+                prescription.items.filter(is_controlled_substance=True).values_list('name', flat=True)
+            )
+            if controlled_items:
+                PrescriptionAuditLog.objects.create(
+                    prescription=prescription,
+                    action='Controlled drug supply blocked',
+                    notes=', '.join(controlled_items),
+                    performed_by=request.user,
+                )
+                return Response(
+                    {
+                        'items': (
+                            'Controlled drugs cannot be supplied via the internet. '
+                            f'Remove or reject: {", ".join(controlled_items)}.'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            unmapped = list(prescription.items.filter(product__isnull=True, variant__isnull=True).values_list('name', flat=True))
             if unmapped:
                 return Response({'items': f'All approved items must be mapped to products. Missing: {", ".join(unmapped)}.'}, status=status.HTTP_400_BAD_REQUEST)
             prescription.status = Prescription.STATUS_APPROVED

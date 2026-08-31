@@ -1,0 +1,12 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}AVA Pharmacy Account Activated{% endblock %}
+{% block intro %}Hi {{ first_name }}, your AVA Pharmacy account is ready.{% endblock %}
+
+{% block content %}
+Dashboard: {{ dashboard_url }}
+Shop: {{ shop_url }}
+Support: {{ support_email }}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy{% endblock %}

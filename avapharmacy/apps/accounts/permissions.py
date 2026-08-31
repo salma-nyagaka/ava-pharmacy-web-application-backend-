@@ -26,6 +26,28 @@ class IsAdminUser(BasePermission):
         )
 
 
+class IsAdminOrPPBInspector(BasePermission):
+    """Allow admins full access and PPB inspector accounts read-only access."""
+
+    def has_permission(self, request, view):
+        if not (request.user and request.user.is_authenticated and request.user.is_active):
+            return False
+        if request.user.role == User.ADMIN:
+            return True
+        return request.user.role == User.PPB_INSPECTOR and request.method in ('GET', 'HEAD', 'OPTIONS')
+
+
+class IsPharmacistAdminOrPPBInspector(BasePermission):
+    """Allow pharmacy staff access, with PPB inspectors limited to read-only."""
+
+    def has_permission(self, request, view):
+        if not (request.user and request.user.is_authenticated and request.user.is_active):
+            return False
+        if request.user.role in [User.PHARMACIST, User.ADMIN]:
+            return request.user.status == User.STATUS_ACTIVE
+        return request.user.role == User.PPB_INSPECTOR and request.method in ('GET', 'HEAD', 'OPTIONS')
+
+
 class IsAdminOrSelf(BasePermission):
     """Allow object-level access to admins or the user themselves."""
 
@@ -77,6 +99,8 @@ class IsDoctor(BasePermission):
         return bool(
             request.user and request.user.is_authenticated
             and request.user.role in [User.DOCTOR, User.PEDIATRICIAN]
+            and request.user.is_active
+            and request.user.status == User.STATUS_ACTIVE
         )
 
 

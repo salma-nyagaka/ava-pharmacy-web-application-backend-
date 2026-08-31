@@ -45,6 +45,7 @@ urlpatterns = [
     path('cart/items/<int:pk>/move-to-wishlist/', views.CartItemMoveToWishlistView.as_view(), name='cart-item-move-to-wishlist'),
     path('banners/', views.BannerListView.as_view(), name='banners'),
     path('cms/', views.CMSBlockListView.as_view(), name='cms-blocks'),
+    path('faqs/', views.FAQListView.as_view(), name='faqs'),
     path('promotions/', views.PromotionListView.as_view(), name='promotions'),
     path('webhooks/inventory/', views.InventoryWebhookView.as_view(), name='inventory-webhook'),
     *_admin_crud_patterns(
@@ -99,6 +100,13 @@ urlpatterns = [
         views.AdminCMSBlockDetailView,
         'cms-blocks',
         'cms-block',
+    ),
+    *_admin_crud_patterns(
+        'faqs',
+        views.AdminFAQListCreateView,
+        views.AdminFAQDetailView,
+        'faqs',
+        'faq',
     ),
     *_admin_crud_patterns(
         'promotions',

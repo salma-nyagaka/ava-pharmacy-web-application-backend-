@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'apps.prescriptions.apps.PrescriptionsConfig',
     'apps.consultations',
     'apps.lab',
-    'apps.support',
+    'apps.support.apps.SupportConfig',
     'apps.payouts',
     'apps.notifications',
 ]
@@ -106,6 +106,7 @@ AUTH_USER_MODEL = 'accounts.User'
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'apps.accounts.password_validation.CharacterClassPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
@@ -154,6 +155,9 @@ REST_FRAMEWORK = {
         'login': '5/min',
         'upload': '30/hour',
         'register': '10/hour',
+        'checkout': '20/hour',
+        'prescription_upload': '20/hour',
+        'forgot_password': '5/hour',
     },
     'EXCEPTION_HANDLER': 'avapharmacy.exception_handler.custom_exception_handler',
 }
@@ -173,7 +177,7 @@ SIMPLE_JWT = {
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://localhost:3000'
+    default='http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -201,6 +205,21 @@ ALLOWED_DOCUMENT_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 FREE_SHIPPING_THRESHOLD = 3000
 SHIPPING_FEE = 300
 PAYMENT_WEBHOOK_SECRET = config('PAYMENT_WEBHOOK_SECRET', default='')
+BOT_CHALLENGE_PROVIDER = config('BOT_CHALLENGE_PROVIDER', default='turnstile')
+TURNSTILE_SECRET_KEY = config('TURNSTILE_SECRET_KEY', default='')
+BOT_CHALLENGE_REQUIRED = config('BOT_CHALLENGE_REQUIRED', default=False, cast=bool)
+CHECKOUT_RISK_CHALLENGE_THRESHOLD = config('CHECKOUT_RISK_CHALLENGE_THRESHOLD', default=40, cast=int)
+CHECKOUT_RISK_VERIFY_THRESHOLD = config('CHECKOUT_RISK_VERIFY_THRESHOLD', default=60, cast=int)
+CHECKOUT_RISK_REVIEW_THRESHOLD = config('CHECKOUT_RISK_REVIEW_THRESHOLD', default=80, cast=int)
+NEW_ACCOUNT_RISK_WINDOW_HOURS = config('NEW_ACCOUNT_RISK_WINDOW_HOURS', default=24, cast=int)
+DISPOSABLE_EMAIL_DOMAINS = {
+    domain.strip().lower()
+    for domain in config(
+        'DISPOSABLE_EMAIL_DOMAINS',
+        default='mailinator.com,tempmail.com,10minutemail.com,guerrillamail.com',
+    ).split(',')
+    if domain.strip()
+}
 
 # ─── Admins (error emails) ────────────────────────────────────────────────────
 ADMINS = [
@@ -217,6 +236,8 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='rtchxnlghxfbvjku')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='salmanyagaka@gmail.com')
+ADMIN_EMAIL = config('ADMIN_EMAIL', default='info@avapharmacy.co.ke')
+PRESCRIPTION_UPLOAD_ALERT_EMAIL = config('PRESCRIPTION_UPLOAD_ALERT_EMAIL', default='info@avapharmacy.co.ke')
 
 # ─── Notifications ────────────────────────────────────────────────────────────
 SMS_BACKEND = config('SMS_BACKEND', default='console')

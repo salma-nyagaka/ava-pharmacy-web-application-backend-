@@ -6,7 +6,7 @@ with customised list displays, filters, and search configurations.
 """
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import AdminAuditLog, Customer, User, Pharmacist, PharmacistActivationToken, Address, UserNote
+from .models import AdminAuditLog, BotRiskEvent, Customer, User, Pharmacist, PharmacistActivationToken, Address, UserNote
 
 
 @admin.register(User)
@@ -64,3 +64,14 @@ class AdminAuditLogAdmin(admin.ModelAdmin):
     list_display = ('actor', 'action', 'entity_type', 'entity_id', 'created_at')
     list_filter = ('action', 'entity_type')
     search_fields = ('actor__email', 'entity_id', 'message')
+
+
+@admin.register(BotRiskEvent)
+class BotRiskEventAdmin(admin.ModelAdmin):
+    list_display = ('event_type', 'decision', 'risk_score', 'user', 'email', 'ip_address', 'device_id', 'created_at')
+    list_filter = ('event_type', 'decision', 'created_at')
+    search_fields = ('user__email', 'email', 'phone', 'ip_address', 'device_id', 'user_agent')
+    readonly_fields = (
+        'user', 'email', 'phone', 'ip_address', 'device_id', 'user_agent',
+        'event_type', 'risk_score', 'decision', 'reasons', 'metadata', 'created_at',
+    )

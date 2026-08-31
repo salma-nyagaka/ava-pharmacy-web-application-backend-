@@ -203,6 +203,20 @@
     }
     .match-status--ok { color: #067647; }
     .match-status--bad { color: #9f1239; }
+    .terms-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin: 0 0 16px;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 500;
+    }
+    .terms-check input {
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -282,6 +296,14 @@
           </div>
           <div id="match_status" class="match-status" aria-live="polite"></div>
 
+          <label class="terms-check" for="accepted_terms">
+            <input id="accepted_terms" name="accepted_terms" type="checkbox" required>
+            <span>I accept Ava Pharmacy's professional terms, confidentiality requirements, and account usage policy.</span>
+          </label>
+          {% if errors.accepted_terms %}
+            <div class="notice notice--error">{{ errors.accepted_terms.0 }}</div>
+          {% endif %}
+
           <button id="activate_submit" class="btn" type="submit" disabled>Activate Account</button>
         </form>
       {% endif %}
@@ -291,8 +313,9 @@
     (function () {
       var passwordInput = document.getElementById('new_password');
       var confirmInput = document.getElementById('new_password_confirm');
+      var termsInput = document.getElementById('accepted_terms');
       var submitBtn = document.getElementById('activate_submit');
-      if (!passwordInput || !confirmInput || !submitBtn) return;
+      if (!passwordInput || !confirmInput || !termsInput || !submitBtn) return;
 
       var ruleNodes = {
         length: document.querySelector('[data-rule="length"]'),
@@ -343,7 +366,7 @@
           matchStatus.className = 'match-status match-status--bad';
         }
 
-        submitBtn.disabled = !(allRulesValid && matches);
+        submitBtn.disabled = !(allRulesValid && matches && termsInput.checked);
       }
 
       document.querySelectorAll('.password-toggle').forEach(function (button) {
@@ -359,6 +382,7 @@
 
       passwordInput.addEventListener('input', updateFormState);
       confirmInput.addEventListener('input', updateFormState);
+      termsInput.addEventListener('change', updateFormState);
       updateFormState();
     })();
   </script>

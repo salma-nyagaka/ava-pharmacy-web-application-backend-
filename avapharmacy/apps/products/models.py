@@ -75,6 +75,24 @@ def generate_internal_product_sku(name, *, exclude_pk=None):
     return candidate
 
 
+def generate_internal_variant_sku(product, name, *, exclude_pk=None):
+    product_sku = getattr(product, 'sku', '') or generate_internal_product_sku(getattr(product, 'name', 'product'))
+    variant_slug = slugify(name or 'variant').replace('-', '').upper() or 'VARIANT'
+    base_code = f'{product_sku}-{variant_slug[:18]}'[:54]
+    candidate = base_code
+    counter = 2
+
+    queryset = Variant.objects.all()
+    if exclude_pk is not None:
+        queryset = queryset.exclude(pk=exclude_pk)
+
+    while queryset.filter(sku=candidate).exists():
+        suffix = f'-{counter}'
+        candidate = f'{base_code[:60 - len(suffix)]}{suffix}'
+        counter += 1
+    return candidate
+
+
 class Category(models.Model):
     """A product category."""
 
@@ -326,16 +344,25 @@ class Product(models.Model):
         return rows
 
     def _get_inventory_map(self):
-        location_map = {
-            location: self._inventory_defaults(location).copy()
-            for location in dict(self.INVENTORY_LOCATION_CHOICES)
-        }
+        location_map = {}
         for inventory in self._get_inventory_rows():
             row = location_map.setdefault(inventory.location, self._inventory_defaults(inventory.location).copy())
+            if not row.get('_has_inventory_row'):
+                row.update({
+                    'stock_quantity': 0,
+                    'low_stock_threshold': 0,
+                    'allow_backorder': False,
+                    'max_backorder_quantity': 0,
+                    '_has_inventory_row': True,
+                })
             row['stock_quantity'] += inventory.stock_quantity
             row['low_stock_threshold'] += inventory.low_stock_threshold
             row['allow_backorder'] = row['allow_backorder'] or inventory.allow_backorder
             row['max_backorder_quantity'] += inventory.max_backorder_quantity
+        for location in dict(self.INVENTORY_LOCATION_CHOICES):
+            location_map.setdefault(location, self._inventory_defaults(location).copy())
+        for row in location_map.values():
+            row.pop('_has_inventory_row', None)
         return location_map
 
     def _clear_inventory_cache(self):
@@ -594,12 +621,19 @@ class Product(models.Model):
         """Return active variants ordered for presentation and fallback logic."""
         if hasattr(self, '_prefetched_objects_cache') and 'variants' in self._prefetched_objects_cache:
             variants = [variant for variant in self._prefetched_objects_cache['variants'] if variant.is_active]
-            return sorted(variants, key=lambda variant: (variant.sort_order, variant.name, variant.pk or 0))
+            return sorted(variants, key=self._variant_sort_key)
         return list(self.variants.filter(is_active=True).order_by('sort_order', 'name', 'pk'))
+
+    def _variant_sort_key(self, variant):
+        is_legacy_default = (
+            variant.sku == self.sku
+            and (variant.name or '').strip().lower() in {'standard', self.name.strip().lower()}
+        )
+        return (1 if is_legacy_default else 0, variant.sort_order, variant.name, variant.pk or 0)
 
     def get_representative_variant(self):
         """Return the lead active variant used for derived display fields."""
-        variants = self.get_active_variants()
+        variants = sorted(self.get_active_variants(), key=self._variant_sort_key)
         return variants[0] if variants else None
 
     def get_display_sku(self):
@@ -880,6 +914,15 @@ class Variant(models.Model):
     dosage_frequency = models.CharField(max_length=50, blank=True, help_text="e.g. once_daily, twice_daily")
     dosage_notes = models.CharField(max_length=150, blank=True, help_text="e.g. with food, before meals")
     attributes = models.JSONField(default=dict, blank=True)  # e.g. {"size": "500mg"}
+    ppb_registration_number = models.CharField(max_length=100, blank=True)
+    marketing_authorization_number = models.CharField(max_length=100, blank=True)
+    pil_version = models.CharField(max_length=80, blank=True)
+    contraindications = models.TextField(blank=True)
+    side_effects = models.TextField(blank=True)
+    authorized_supplier = models.CharField(max_length=160, blank=True)
+    is_ppb_registered = models.BooleanField(default=False)
+    is_temperature_sensitive = models.BooleanField(default=False)
+    storage_instructions = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -906,6 +949,16 @@ class Variant(models.Model):
         'allow_backorder',
         'max_backorder_quantity',
     }
+
+    def __init__(self, *args, **kwargs):
+        inventory_updates = {
+            field_name: kwargs.pop(field_name)
+            for field_name in list(kwargs)
+            if field_name in self.INVENTORY_FIELD_NAMES
+        }
+        super().__init__(*args, **kwargs)
+        if inventory_updates:
+            self._pending_inventory_updates = inventory_updates
 
     def __str__(self):
         return f"{self.product.name} - {self.name}"
@@ -934,7 +987,13 @@ class Variant(models.Model):
         return list(self.inventories.all())
 
     def _get_inventory_map(self):
-        return {inventory.location: inventory for inventory in self._get_inventory_rows()}
+        inventory_map = {}
+        for inventory in sorted(
+            self._get_inventory_rows(),
+            key=lambda item: (item.location, item.expiry_date or timezone.datetime.max.date(), item.pk or 0),
+        ):
+            inventory_map.setdefault(inventory.location, inventory)
+        return inventory_map
 
     def _clear_inventory_cache(self):
         if hasattr(self, '_prefetched_objects_cache'):
@@ -961,18 +1020,29 @@ class Variant(models.Model):
         return inventory_map
 
     def _get_location_inventory_values(self):
-        values = {
-            location: self._inventory_defaults(location).copy()
-            for location in dict(Product.INVENTORY_LOCATION_CHOICES)
-        }
-        for location, inventory in self._get_inventory_map().items():
-            values[location].update({
-                'stock_quantity': inventory.stock_quantity,
-                'low_stock_threshold': inventory.low_stock_threshold,
-                'allow_backorder': inventory.allow_backorder,
-                'max_backorder_quantity': inventory.max_backorder_quantity,
-            })
+        values = {}
+        for inventory in self._get_inventory_rows():
+            location_values = values.setdefault(inventory.location, self._inventory_defaults(inventory.location).copy())
+            if not location_values.get('_has_inventory_row'):
+                location_values.update({
+                    'stock_quantity': 0,
+                    'low_stock_threshold': 0,
+                    'allow_backorder': False,
+                    'max_backorder_quantity': 0,
+                    '_has_inventory_row': True,
+                })
+            location_values['stock_quantity'] += inventory.stock_quantity
+            location_values['low_stock_threshold'] += inventory.low_stock_threshold
+            location_values['allow_backorder'] = location_values['allow_backorder'] or inventory.allow_backorder
+            location_values['max_backorder_quantity'] += inventory.max_backorder_quantity
+        for location in dict(Product.INVENTORY_LOCATION_CHOICES):
+            values.setdefault(location, self._inventory_defaults(location).copy())
+        for location_values in values.values():
+            location_values.pop('_has_inventory_row', None)
         return values
+
+    def has_inventory_rows(self):
+        return bool(self._get_inventory_rows())
 
     def _get_inventory_values(self):
         pending = getattr(self, '_pending_inventory_updates', {})
@@ -1056,6 +1126,8 @@ class Variant(models.Model):
         """Persist variant inventory and keep parent display fields in sync."""
         original_update_fields = kwargs.get('update_fields')
         inventory_update_fields = set()
+        if not self.sku and self.product_id:
+            self.sku = generate_internal_variant_sku(self.product, self.name, exclude_pk=self.pk)
         if original_update_fields is not None:
             update_fields = set(original_update_fields)
             inventory_update_fields = update_fields & self.INVENTORY_FIELD_NAMES
@@ -1066,15 +1138,6 @@ class Variant(models.Model):
                 kwargs.pop('update_fields')
 
         pending = getattr(self, '_pending_inventory_updates', {}).copy()
-        if not self.pk and not pending:
-            pending = {
-                'stock_source': Product.STOCK_BRANCH,
-                'stock_quantity': 0,
-                'low_stock_threshold': 5,
-                'allow_backorder': False,
-                'max_backorder_quantity': 0,
-            }
-
         should_save_variant = self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields'))
         if should_save_variant:
             super().save(*args, **kwargs)
@@ -1085,10 +1148,9 @@ class Variant(models.Model):
             for field_name in inventory_update_fields:
                 pending.setdefault(field_name, self._inventory_defaults()[field_name])
 
-        if self.pk is not None:
+        if self.pk is not None and pending:
             inventory_map = self._ensure_inventory_rows()
-            if pending:
-                self._apply_pending_inventory_updates(inventory_map, pending)
+            self._apply_pending_inventory_updates(inventory_map, pending)
 
         self._pending_inventory_updates = {}
 
@@ -1129,13 +1191,32 @@ class Variant(models.Model):
 class VariantInventory(models.Model):
     """Current inventory snapshot for a variant location."""
 
+    STATUS_IN_STOCK = 'in_stock'
+    STATUS_LOW_STOCK = 'low_stock'
+    STATUS_OUT_OF_STOCK = 'out_of_stock'
+    STATUS_EXPIRED = 'expired'
+    STATUS_DAMAGED = 'damaged'
+    STATUS_CHOICES = [
+        (STATUS_IN_STOCK, 'In Stock'),
+        (STATUS_LOW_STOCK, 'Low Stock'),
+        (STATUS_OUT_OF_STOCK, 'Out of Stock'),
+        (STATUS_EXPIRED, 'Expired'),
+        (STATUS_DAMAGED, 'Damaged'),
+    ]
+
     variant = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='inventories')
     location = models.CharField(max_length=20, choices=Product.INVENTORY_LOCATION_CHOICES, default=Product.STOCK_BRANCH)
+    batch_number = models.CharField(max_length=80, blank=True)
+    supplier = models.CharField(max_length=160, blank=True)
     source_name = models.CharField(max_length=120, blank=True)
     stock_quantity = models.PositiveIntegerField(default=0)
+    reorder_level = models.PositiveIntegerField(default=0)
     low_stock_threshold = models.PositiveIntegerField(default=0)
     allow_backorder = models.BooleanField(default=False)
     max_backorder_quantity = models.PositiveIntegerField(default=0)
+    expiry_date = models.DateField(null=True, blank=True)
+    shelf_location = models.CharField(max_length=80, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_IN_STOCK)
     next_restock_date = models.DateField(null=True, blank=True)
     is_pos_synced = models.BooleanField(default=False)
     last_synced_at = models.DateTimeField(null=True, blank=True)
@@ -1145,10 +1226,12 @@ class VariantInventory(models.Model):
     class Meta:
         ordering = ['variant_id', 'location']
         constraints = [
-            models.UniqueConstraint(fields=['variant', 'location'], name='unique_variant_inventory_location'),
+            models.UniqueConstraint(fields=['variant', 'location', 'batch_number'], name='unique_variant_inventory_location_batch'),
         ]
         indexes = [
             models.Index(fields=['location']),
+            models.Index(fields=['variant', 'location', 'expiry_date']),
+            models.Index(fields=['status', 'expiry_date']),
         ]
 
     def __str__(self):
@@ -1158,11 +1241,28 @@ class VariantInventory(models.Model):
     def quantity_on_hand(self):
         return self.stock_quantity
 
+    @property
+    def effective_status(self):
+        if self.status == self.STATUS_DAMAGED:
+            return self.STATUS_DAMAGED
+        if self.expiry_date and self.expiry_date < timezone.now().date():
+            return self.STATUS_EXPIRED
+        if self.stock_quantity == 0:
+            return self.STATUS_OUT_OF_STOCK
+        threshold = self.low_stock_threshold or self.reorder_level
+        if threshold and self.stock_quantity <= threshold:
+            return self.STATUS_LOW_STOCK
+        return self.STATUS_IN_STOCK
+
     def save(self, *args, **kwargs):
         if self.location == Product.STOCK_WAREHOUSE and not self.source_name:
             self.source_name = 'POS Store'
         if self.location == Product.STOCK_BRANCH:
             self.source_name = ''
+        self.status = self.effective_status
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'status' not in update_fields:
+            kwargs['update_fields'] = list(update_fields) + ['status']
         super().save(*args, **kwargs)
 
 
@@ -1228,6 +1328,13 @@ class Banner(models.Model):
     message = models.TextField()
     link = models.URLField(blank=True)
     image = models.ImageField(upload_to='banners/', blank=True)
+    category = models.ForeignKey(
+        'Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='banners',
+    )
     placement = models.CharField(max_length=50, default='home_hero')
     sort_order = models.PositiveIntegerField(default=0)
     status = models.CharField(
@@ -1404,22 +1511,64 @@ class CMSBlock(models.Model):
         return f"{self.placement} - {self.key}"
 
 
+class FAQ(models.Model):
+    """An administrator-managed frequently asked question for the storefront."""
+
+    class Category(models.TextChoices):
+        ORDERING_PRESCRIPTIONS = 'Ordering & Prescriptions', 'Ordering & Prescriptions'
+        DELIVERY_COLLECTION = 'Delivery & Collection', 'Delivery & Collection'
+        PAYMENTS_PRICING = 'Payments & Pricing', 'Payments & Pricing'
+        QUALITY_SAFETY = 'Quality & Safety', 'Quality & Safety'
+        SUPPORT = 'Support', 'Support'
+
+    category = models.CharField(max_length=100, choices=Category.choices, db_index=True)
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+    is_published = models.BooleanField(default=True, db_index=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'pk']
+        indexes = [
+            models.Index(fields=['is_published', 'sort_order']),
+        ]
+
+    def __str__(self):
+        return self.question
+
+
 class StockMovement(models.Model):
     """Audit trail for every stock level change on a variant inventory row."""
 
+    TYPE_STOCK_IN = 'stock_in'
+    TYPE_STOCK_OUT = 'stock_out'
     TYPE_SALE = 'sale'
     TYPE_ADJUSTMENT = 'adjustment'
     TYPE_RETURN = 'return'
     TYPE_RESERVE = 'reserve'
     TYPE_RELEASE = 'release'
     TYPE_INITIAL = 'initial'
+    TYPE_DAMAGED = 'damaged'
+    TYPE_EXPIRED = 'expired'
+    TYPE_TRANSFER = 'transfer'
+    TYPE_SUPPLIER_RETURN = 'supplier_return'
+    TYPE_CUSTOMER_RETURN = 'customer_return'
     TYPE_CHOICES = [
+        (TYPE_STOCK_IN, 'Stock In'),
+        (TYPE_STOCK_OUT, 'Stock Out'),
         (TYPE_SALE, 'Sale'),
         (TYPE_ADJUSTMENT, 'Adjustment'),
         (TYPE_RETURN, 'Return'),
         (TYPE_RESERVE, 'Reserve'),
         (TYPE_RELEASE, 'Release'),
         (TYPE_INITIAL, 'Initial'),
+        (TYPE_DAMAGED, 'Damaged Stock'),
+        (TYPE_EXPIRED, 'Expired Stock'),
+        (TYPE_TRANSFER, 'Transfer Between Branches'),
+        (TYPE_SUPPLIER_RETURN, 'Supplier Return'),
+        (TYPE_CUSTOMER_RETURN, 'Customer Return'),
     ]
 
     SOURCE_MANUAL = 'manual'
@@ -1438,9 +1587,12 @@ class StockMovement(models.Model):
     variant_inventory = models.ForeignKey(VariantInventory, on_delete=models.CASCADE, related_name='stock_movements', null=True, blank=True)
     movement_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
+    batch_number = models.CharField(max_length=80, blank=True)
     quantity_change = models.IntegerField()
     quantity_before = models.PositiveIntegerField()
     quantity_after = models.PositiveIntegerField()
+    source_location = models.CharField(max_length=80, blank=True)
+    destination_location = models.CharField(max_length=80, blank=True)
     reason = models.CharField(max_length=255, blank=True)
     reference = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

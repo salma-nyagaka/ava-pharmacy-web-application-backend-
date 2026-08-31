@@ -5,7 +5,21 @@ Registers Category, Brand, Product (with image and variant inlines),
 VariantReview, Wishlist, Banner, Promotion, and CMSBlock.
 """
 from django.contrib import admin
-from .models import Banner, Brand, Category, CMSBlock, Product, ProductImage, Promotion, Variant, VariantReview, Wishlist
+from .models import (
+    Banner,
+    Brand,
+    Category,
+    CMSBlock,
+    FAQ,
+    Product,
+    ProductImage,
+    Promotion,
+    StockMovement,
+    Variant,
+    VariantInventory,
+    VariantReview,
+    Wishlist,
+)
 
 
 @admin.register(Category)
@@ -33,6 +47,23 @@ class VariantInline(admin.TabularInline):
     extra = 0
 
 
+class VariantInventoryInline(admin.TabularInline):
+    model = VariantInventory
+    extra = 0
+    fields = (
+        'location',
+        'batch_number',
+        'supplier',
+        'stock_quantity',
+        'reorder_level',
+        'low_stock_threshold',
+        'expiry_date',
+        'shelf_location',
+        'status',
+    )
+    readonly_fields = ('status',)
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'display_sku', 'brand', 'category', 'display_price', 'stock_source', 'stock_quantity', 'is_active')
@@ -45,6 +76,58 @@ class ProductAdmin(admin.ModelAdmin):
     @admin.display(description='Lead Variant SKU')
     def display_sku(self, obj):
         return obj.get_display_sku()
+
+
+@admin.register(Variant)
+class VariantAdmin(admin.ModelAdmin):
+    list_display = ('name', 'product', 'sku', 'barcode', 'price', 'display_stock_quantity', 'display_inventory_status', 'is_active')
+    list_filter = ('is_active', 'requires_prescription', 'category')
+    search_fields = ('name', 'sku', 'barcode', 'product__name', 'product__brand__name')
+    inlines = [VariantInventoryInline]
+
+    @admin.display(description='Stock')
+    def display_stock_quantity(self, obj):
+        return obj._get_inventory_values()['stock_quantity']
+
+    @admin.display(description='Inventory Status')
+    def display_inventory_status(self, obj):
+        return obj.inventory_status.replace('_', ' ').title()
+
+
+@admin.register(VariantInventory)
+class VariantInventoryAdmin(admin.ModelAdmin):
+    list_display = (
+        'variant',
+        'location',
+        'batch_number',
+        'supplier',
+        'stock_quantity',
+        'reorder_level',
+        'expiry_date',
+        'shelf_location',
+        'status',
+    )
+    list_filter = ('location', 'status', 'expiry_date')
+    search_fields = ('variant__name', 'variant__sku', 'variant__product__name', 'batch_number', 'supplier')
+
+
+@admin.register(StockMovement)
+class StockMovementAdmin(admin.ModelAdmin):
+    list_display = (
+        'variant',
+        'movement_type',
+        'batch_number',
+        'quantity_change',
+        'quantity_before',
+        'quantity_after',
+        'source_location',
+        'destination_location',
+        'created_at',
+        'created_by',
+    )
+    list_filter = ('movement_type', 'source', 'source_location', 'destination_location', 'created_at')
+    search_fields = ('variant_inventory__variant__name', 'variant_inventory__variant__sku', 'batch_number', 'reference')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(VariantReview)
@@ -61,9 +144,24 @@ class WishlistAdmin(admin.ModelAdmin):
 
 @admin.register(Banner)
 class BannerAdmin(admin.ModelAdmin):
-    list_display = ('title', 'placement', 'status', 'sort_order', 'updated_at')
-    list_filter = ('status', 'placement')
+    list_display = ('title', 'category', 'placement', 'status', 'sort_order', 'updated_at')
+    list_filter = ('status', 'placement', 'category')
     search_fields = ('title', 'message')
+    ordering = ('sort_order', '-updated_at')
+    list_editable = ('placement', 'status', 'sort_order')
+    readonly_fields = ('created_at', 'updated_at')
+    fields = (
+        'title',
+        'message',
+        'link',
+        'image',
+        'category',
+        'placement',
+        'sort_order',
+        'status',
+        'created_at',
+        'updated_at',
+    )
 
 
 @admin.register(Promotion)
@@ -78,3 +176,12 @@ class CMSBlockAdmin(admin.ModelAdmin):
     list_display = ('key', 'placement', 'title', 'is_active', 'sort_order')
     list_filter = ('placement', 'is_active')
     search_fields = ('key', 'title')
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ('question', 'category', 'is_published', 'sort_order', 'updated_at')
+    list_filter = ('category', 'is_published')
+    search_fields = ('question', 'answer', 'category')
+    list_editable = ('is_published', 'sort_order')
+    ordering = ('sort_order', 'pk')

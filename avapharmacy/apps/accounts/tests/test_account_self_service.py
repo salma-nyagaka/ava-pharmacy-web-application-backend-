@@ -1,13 +1,29 @@
 import re
+from urllib.parse import parse_qs, urlparse
+from unittest.mock import patch
 
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.models import Address, PaymentMethod, Pharmacist, PharmacistActivationToken, User
-from apps.notifications.models import NotificationPreference
+from apps.accounts.models import (
+    Address,
+    BotRiskEvent,
+    Customer,
+    CustomerEmailVerificationToken,
+    PaymentMethod,
+    Pharmacist,
+    PharmacistActivationToken,
+    User,
+)
+from apps.notifications.models import Notification, NotificationPreference
+from apps.consultations.models import ClinicianDocument, ClinicianProfile
+from apps.orders.models import Order
 
 
 class AccountSelfServiceTests(TestCase):
@@ -171,6 +187,455 @@ class AccountSelfServiceTests(TestCase):
         self.assertFalse(second_address.is_default)
 
 
+class AdminCustomerMenuTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email='admin-customers@example.com',
+            password='testpass123',
+            first_name='Admin',
+            last_name='Customers',
+            role=User.ADMIN,
+            is_staff=True,
+        )
+        self.customer = User.objects.create_user(
+            email='customer-menu@example.com',
+            password='testpass123',
+            first_name='Customer',
+            last_name='Menu',
+            role=User.CUSTOMER,
+            phone='+254700900001',
+        )
+        Customer.objects.create(user=self.customer)
+        self.staff = User.objects.create_user(
+            email='staff-menu@example.com',
+            password='testpass123',
+            first_name='Staff',
+            last_name='Menu',
+            role=User.PHARMACIST,
+            phone='+254700900002',
+        )
+        Order.objects.create(
+            customer=self.customer,
+            status=Order.STATUS_DELIVERED,
+            payment_method=Order.PAYMENT_MPESA_PAYBILL,
+            payment_status=Order.PAYMENT_STATUS_PAID,
+            shipping_first_name='Customer',
+            shipping_last_name='Menu',
+            shipping_email='customer-menu@example.com',
+            shipping_phone='0727900001',
+            shipping_street='Moi Avenue',
+            shipping_city='Nairobi',
+            shipping_county='Nairobi',
+            subtotal='1200.00',
+            shipping_fee='300.00',
+            total='1500.00',
+        )
+        self.client.force_authenticate(self.admin)
+
+    def test_customer_menu_lists_only_customers_and_exposes_stats(self):
+        list_response = self.client.get(reverse('admin-customers'))
+        self.assertEqual(list_response.status_code, 200)
+        rows = list_response.data.get('results', list_response.data)
+        self.assertEqual([row['email'] for row in rows], ['customer-menu@example.com'])
+        self.assertEqual(rows[0]['total_orders'], 1)
+        self.assertEqual(float(rows[0]['total_spend']), 1500.0)
+
+        detail_response = self.client.get(reverse('admin-customer-detail', args=[self.customer.id]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.data['email'], 'customer-menu@example.com')
+        self.assertEqual(detail_response.data['recent_orders'][0]['payment_status'], Order.PAYMENT_STATUS_PAID)
+
+        stats_response = self.client.get(reverse('admin-customer-stats'))
+        self.assertEqual(stats_response.status_code, 200)
+        self.assertEqual(stats_response.data['total_customers'], 1)
+        self.assertEqual(stats_response.data['customers_with_paid_orders'], 1)
+        self.assertEqual(stats_response.data['total_customer_spend'], 1500.0)
+
+    def test_customer_menu_create_update_suspend_activate_and_notes(self):
+        create_response = self.client.post(
+            reverse('admin-customers'),
+            {
+                'email': 'created.customer@example.com',
+                'first_name': 'Created',
+                'last_name': 'Customer',
+                'phone': '+254700900003',
+                'password': 'StrongPass123!',
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.content)
+        created = User.objects.get(email='created.customer@example.com')
+        self.assertEqual(created.role, User.CUSTOMER)
+        self.assertTrue(Customer.objects.filter(user=created).exists())
+
+        update_response = self.client.patch(
+            reverse('admin-customer-detail', args=[created.id]),
+            {'first_name': 'Updated', 'role': User.PHARMACIST},
+            format='json',
+        )
+        self.assertEqual(update_response.status_code, 200)
+        created.refresh_from_db()
+        self.assertEqual(created.first_name, 'Updated')
+        self.assertEqual(created.role, User.CUSTOMER)
+
+        note_response = self.client.post(
+            reverse('admin-customer-notes', args=[created.id]),
+            {'content': 'Prefers evening delivery.'},
+            format='json',
+        )
+        self.assertEqual(note_response.status_code, 201)
+
+        suspend_response = self.client.post(reverse('admin-customer-suspend', args=[created.id]))
+        self.assertEqual(suspend_response.status_code, 200)
+        created.refresh_from_db()
+        self.assertEqual(created.status, User.STATUS_SUSPENDED)
+
+        activate_response = self.client.post(reverse('admin-customer-activate', args=[created.id]))
+        self.assertEqual(activate_response.status_code, 200)
+        created.refresh_from_db()
+        self.assertEqual(created.status, User.STATUS_ACTIVE)
+
+        staff_suspend_response = self.client.post(reverse('admin-customer-suspend', args=[self.staff.id]))
+        self.assertEqual(staff_suspend_response.status_code, 404)
+
+
+class ProfessionalRegistrationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email='professional-admin@example.com',
+            password='AdminPass123!',
+            first_name='Professional',
+            last_name='Admin',
+            role=User.ADMIN,
+            is_staff=True,
+            is_superuser=True,
+        )
+
+    @patch('apps.accounts.views.send_professional_application_received_email')
+    def test_doctor_registration_accepts_multipart_documents_and_cv(self, mock_send_email):
+        response = self.client.post(
+            reverse('professional-register'),
+            {
+                'type': 'doctor',
+                'name': 'Dr Multipart Test',
+                'email': 'multipart.doctor@example.com',
+                'phone': '+254700123456',
+                'license_number': 'KMPDC-MULTIPART-001',
+                'license_board': 'KMPDC',
+                'license_country': 'Kenya',
+                'license_expiry': '2027-12-31',
+                'id_number': 'ID-MULTIPART-001',
+                'specialty': 'General Medicine',
+                'facility': 'Ava Test Clinic',
+                'availability': '0800-1700 weekdays',
+                'years_experience': '7',
+                'payout_method': 'mpesa',
+                'payout_account': '254700123456',
+                'background_consent': 'true',
+                'compliance_declaration': 'true',
+                'agreed_to_terms': 'true',
+                'languages': '["English","Swahili"]',
+                'doc_checklist': '["Medical licence (KMB-issued)","National ID / Passport","CV / Resume"]',
+                'documents': [
+                    SimpleUploadedFile('license.pdf', b'license', content_type='application/pdf'),
+                    SimpleUploadedFile('national-id.pdf', b'id', content_type='application/pdf'),
+                ],
+                'cv_files': [
+                    SimpleUploadedFile('doctor-cv.pdf', b'cv', content_type='application/pdf'),
+                ],
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        profile = ClinicianProfile.objects.get(email='multipart.doctor@example.com')
+        self.assertEqual(profile.provider_type, ClinicianProfile.TYPE_DOCTOR)
+        self.assertEqual(profile.status, ClinicianProfile.STATUS_PENDING)
+        self.assertEqual(ClinicianDocument.objects.filter(clinician=profile).count(), 3)
+        self.assertTrue(ClinicianDocument.objects.filter(clinician=profile, name='CV: doctor-cv.pdf').exists())
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.admin,
+            type='doctor_verified',
+            title='New Doctor application',
+            data__reference=profile.reference,
+            data__url='/admin/doctors?type=Doctor',
+        ).exists())
+        mock_send_email.assert_called_once()
+
+    @patch('apps.accounts.views.send_professional_application_received_email', side_effect=RuntimeError('smtp down'))
+    def test_doctor_registration_still_notifies_admin_when_email_fails(self, mock_send_email):
+        response = self.client.post(
+            reverse('professional-register'),
+            {
+                'type': 'doctor',
+                'name': 'Dr Email Failure',
+                'email': 'email.failure.doctor@example.com',
+                'phone': '+254700654321',
+                'license_number': 'KMPDC-EMAIL-FAIL-001',
+                'license_board': 'KMPDC',
+                'license_country': 'Kenya',
+                'license_expiry': '2027-12-31',
+                'id_number': 'ID-EMAIL-FAIL-001',
+                'specialty': 'General Medicine',
+                'payout_method': 'mpesa',
+                'payout_account': '254700654321',
+                'background_consent': 'true',
+                'compliance_declaration': 'true',
+                'agreed_to_terms': 'true',
+                'doc_checklist': '["Medical licence (KMB-issued)","CV / Resume"]',
+                'documents': [SimpleUploadedFile('license.pdf', b'license', content_type='application/pdf')],
+                'cv_files': [SimpleUploadedFile('doctor-cv.pdf', b'cv', content_type='application/pdf')],
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        profile = ClinicianProfile.objects.get(email='email.failure.doctor@example.com')
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.admin,
+            type='doctor_verified',
+            title='New Doctor application',
+            data__reference=profile.reference,
+        ).exists())
+        mock_send_email.assert_called_once()
+
+    @override_settings(FRONTEND_BASE_URL='http://localhost:3000')
+    @patch('apps.consultations.views.send_professional_application_status_email')
+    def test_admin_document_request_email_links_to_resubmission_upload(self, mock_status_email):
+        self.client.force_authenticate(self.admin)
+        profile = ClinicianProfile.objects.create(
+            provider_type=ClinicianProfile.TYPE_DOCTOR,
+            name='Dr Resubmit Test',
+            email='resubmit.doctor@example.com',
+            phone='+254700654399',
+            license_number='KMPDC-RESUBMIT-001',
+            specialty='General Medicine',
+            status=ClinicianProfile.STATUS_PENDING,
+        )
+
+        response = self.client.post(
+            reverse('admin-doctor-action', args=[profile.id]),
+            {'action': 'request_docs', 'note': 'Upload a clearer license copy.'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        mock_status_email.assert_called_once()
+        cta_url = mock_status_email.call_args.kwargs['cta_url']
+        self.assertIn('/professional/resubmit?token=', cta_url)
+
+        raw_token = parse_qs(urlparse(cta_url).query)['token'][0]
+        detail_response = self.client.get(reverse('professional-document-resubmission', kwargs={'token': raw_token}))
+        self.assertEqual(detail_response.status_code, 200, detail_response.content)
+        self.assertEqual(detail_response.data['application']['reference'], profile.reference)
+        self.assertEqual(detail_response.data['requested_documents_note'], 'Upload a clearer license copy.')
+
+    @override_settings(FRONTEND_BASE_URL='http://localhost:3000')
+    def test_applicant_can_resubmit_requested_documents_and_admin_is_notified(self):
+        profile = ClinicianProfile.objects.create(
+            provider_type=ClinicianProfile.TYPE_DOCTOR,
+            name='Dr Resubmission Upload',
+            email='resubmission.upload@example.com',
+            phone='+254700654398',
+            license_number='KMPDC-RESUB-UPLOAD-001',
+            specialty='Dermatology',
+            status=ClinicianProfile.STATUS_PENDING,
+            status_note='Upload current CV and license.',
+        )
+        from apps.consultations.views import _professional_resubmission_token
+
+        token = _professional_resubmission_token(profile)
+        response = self.client.post(
+            reverse('professional-document-resubmission', kwargs={'token': token}),
+            {
+                'documents': [SimpleUploadedFile('updated-license.pdf', b'new license', content_type='application/pdf')],
+                'document_names': ['Updated medical license'],
+                'note': 'Attached updated license.',
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.data['uploaded_count'], 1)
+        self.assertTrue(ClinicianDocument.objects.filter(
+            clinician=profile,
+            name='Updated medical license',
+            note='Attached updated license.',
+        ).exists())
+        profile.refresh_from_db()
+        self.assertIn('Applicant note', profile.status_note)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.admin,
+            title='Doctor documents resubmitted',
+            data__reference=profile.reference,
+        ).exists())
+
+
+class AccountSessionInvalidationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email='admin@example.com',
+            password='AdminPass123!',
+            first_name='Admin',
+            last_name='User',
+            role=User.ADMIN,
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.user = User.objects.create_user(
+            email='customer.session@example.com',
+            password='CustomerPass123!',
+            first_name='Customer',
+            last_name='Session',
+            role=User.CUSTOMER,
+        )
+
+    def _tokens_for_user(self, user):
+        refresh = RefreshToken.for_user(user)
+        return str(refresh.access_token), str(refresh)
+
+    def test_suspended_user_access_and_refresh_tokens_are_invalidated(self):
+        access, refresh = self._tokens_for_user(self.user)
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(reverse('admin-user-suspend', args=[self.user.id]), {}, format='json')
+        self.assertEqual(response.status_code, 200)
+
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertEqual(self.user.status, User.STATUS_SUSPENDED)
+        self.assertEqual(
+            BlacklistedToken.objects.filter(token__user=self.user).count(),
+            OutstandingToken.objects.filter(user=self.user).count(),
+        )
+
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
+        me_response = api_client.get(reverse('me'))
+        self.assertEqual(me_response.status_code, 401)
+
+        refresh_response = APIClient().post(reverse('token-refresh'), {'refresh': refresh}, format='json')
+        self.assertEqual(refresh_response.status_code, 401)
+
+    def test_soft_deleted_account_cannot_refresh_or_continue_with_access_token(self):
+        access, refresh = self._tokens_for_user(self.user)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
+
+        delete_response = api_client.delete(reverse('account-delete'))
+        self.assertEqual(delete_response.status_code, 200)
+
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertTrue(self.user.email.startswith(f'deleted_{self.user.pk}_'))
+        self.assertEqual(
+            BlacklistedToken.objects.filter(token__user=self.user).count(),
+            OutstandingToken.objects.filter(user=self.user).count(),
+        )
+
+        me_response = api_client.get(reverse('me'))
+        self.assertEqual(me_response.status_code, 401)
+
+        refresh_response = APIClient().post(reverse('token-refresh'), {'refresh': refresh}, format='json')
+        self.assertEqual(refresh_response.status_code, 401)
+
+
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    FRONTEND_BASE_URL='http://localhost:3000',
+)
+class CustomerRegistrationVerificationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_customer_registers_pending_and_verifies_email(self):
+        response = self.client.post(
+            reverse('register'),
+            {
+                'email': 'new.customer@example.com',
+                'first_name': 'New',
+                'last_name': 'Customer',
+                'phone': '+254700000101',
+                'password': 'StrongCustomer123!',
+                'password_confirm': 'StrongCustomer123!',
+                'role': User.CUSTOMER,
+                'delivery_address': 'Ava Towers, Westlands',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'date_of_birth': '1990-01-01',
+                'gender': 'female',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        user = User.objects.get(email='new.customer@example.com')
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.status, User.STATUS_PENDING_VERIFICATION)
+        self.assertEqual(user.gender, 'female')
+        self.assertTrue(Address.objects.filter(user=user, street='Ava Towers, Westlands', city='Nairobi', is_default=True).exists())
+        self.assertEqual(CustomerEmailVerificationToken.objects.filter(user=user, used_at__isnull=True).count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+        login_response = self.client.post(
+            reverse('login'),
+            {'email': user.email, 'password': 'StrongCustomer123!'},
+            format='json',
+        )
+        self.assertEqual(login_response.status_code, 403)
+
+        match = re.search(r'(http://localhost:3000/verify-email\?token=[^\s]+)', mail.outbox[0].body)
+        self.assertIsNotNone(match)
+        raw_token = parse_qs(urlparse(match.group(1)).query)['token'][0]
+        verify_response = self.client.post(reverse('verify-email'), {'token': raw_token}, format='json')
+
+        self.assertEqual(verify_response.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertEqual(user.status, User.STATUS_ACTIVE)
+        self.assertFalse(CustomerEmailVerificationToken.objects.filter(user=user, used_at__isnull=True).exists())
+
+    def test_customer_registration_requires_delivery_address(self):
+        response = self.client.post(
+            reverse('register'),
+            {
+                'email': 'no.address@example.com',
+                'first_name': 'No',
+                'last_name': 'Address',
+                'phone': '+254700000102',
+                'password': 'StrongCustomer123!',
+                'password_confirm': 'StrongCustomer123!',
+                'role': User.CUSTOMER,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_customer_registration_rejects_password_without_required_character_mix(self):
+        response = self.client.post(
+            reverse('register'),
+            {
+                'email': 'weak.password@example.com',
+                'first_name': 'Weak',
+                'last_name': 'Password',
+                'phone': '+254700000103',
+                'password': 'weakpass1',
+                'password_confirm': 'weakpass1',
+                'role': User.CUSTOMER,
+                'delivery_address': 'Ava Towers, Westlands',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(email='weak.password@example.com').exists())
+
+
 @override_settings(
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     FRONTEND_BASE_URL='http://localhost:3000',
@@ -197,6 +662,9 @@ class AdminPharmacistAccountTests(TestCase):
                 'last_name': 'Pharmacist',
                 'phone': '+254700001001',
                 'role': User.PHARMACIST,
+                'pharmacist_license_number': 'PPB-PHARM-001',
+                'pharmacist_branch_location': 'Main Branch, Nairobi',
+                'pharmacist_position': 'Senior Pharmacist',
                 'pharmacist_permissions': [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
             },
             format='json',
@@ -210,6 +678,9 @@ class AdminPharmacistAccountTests(TestCase):
             pharmacist_user.pharmacist.permissions,
             [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
         )
+        self.assertEqual(pharmacist_user.pharmacist.license_number, 'PPB-PHARM-001')
+        self.assertEqual(pharmacist_user.pharmacist.branch_location, 'Main Branch, Nairobi')
+        self.assertEqual(pharmacist_user.pharmacist.position, 'Senior Pharmacist')
         self.assertEqual(PharmacistActivationToken.objects.filter(user=pharmacist_user, used_at__isnull=True).count(), 1)
         self.assertEqual(response.data['activation_email']['sent_to'], pharmacist_user.email)
         self.assertEqual(len(mail.outbox), 1)
@@ -224,6 +695,7 @@ class AdminPharmacistAccountTests(TestCase):
                 'token': raw_token,
                 'new_password': 'NewPharmacistPass123!',
                 'new_password_confirm': 'NewPharmacistPass123!',
+                'accepted_terms': True,
             },
             format='json',
         )
@@ -243,6 +715,9 @@ class AdminPharmacistAccountTests(TestCase):
                 'last_name': 'Permission',
                 'phone': '+254700001002',
                 'role': User.PHARMACIST,
+                'pharmacist_license_number': 'PPB-PHARM-002',
+                'pharmacist_branch_location': 'Main Branch, Nairobi',
+                'pharmacist_position': 'Pharmacist',
                 'pharmacist_permissions': ['approve_everything'],
             },
             format='json',
@@ -251,3 +726,89 @@ class AdminPharmacistAccountTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('pharmacist_permissions', response.data['error']['details'])
         self.assertFalse(User.objects.filter(email='bad-permission@example.com').exists())
+
+    def test_admin_cannot_create_duplicate_pharmacist_license(self):
+        Pharmacist.objects.create(
+            user=User.objects.create_user(
+                email='existing-pharmacist@example.com',
+                password='ExistingPass123!',
+                first_name='Existing',
+                last_name='Pharmacist',
+                phone='+254700001010',
+                role=User.PHARMACIST,
+            ),
+            license_number='PPB-DUP-001',
+        )
+        response = self.client.post(
+            reverse('admin-users'),
+            {
+                'email': 'duplicate-pharmacist@example.com',
+                'first_name': 'Duplicate',
+                'last_name': 'Pharmacist',
+                'phone': '+254700001011',
+                'role': User.PHARMACIST,
+                'pharmacist_license_number': 'PPB-DUP-001',
+                'pharmacist_branch_location': 'Westlands',
+                'pharmacist_position': 'Pharmacist',
+                'pharmacist_permissions': [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('pharmacist_license_number', response.data['error']['details'])
+
+
+class BotProtectionFlowTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def _registration_payload(self, **overrides):
+        payload = {
+            'email': 'bot-check@example.com',
+            'first_name': 'Bot',
+            'last_name': 'Check',
+            'phone': '+254700123987',
+            'password': 'StrongPass123!',
+            'password_confirm': 'StrongPass123!',
+            'role': User.CUSTOMER,
+            'delivery_address': '123 Test Street',
+            'city': 'Nairobi',
+            'county': 'Nairobi',
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_registration_honeypot_blocks_and_logs_risk_event(self):
+        response = self.client.post(
+            reverse('register'),
+            self._registration_payload(website='https://spam.example'),
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(email='bot-check@example.com').exists())
+
+        event = BotRiskEvent.objects.get()
+        self.assertEqual(event.event_type, BotRiskEvent.EVENT_HONEYPOT)
+        self.assertEqual(event.decision, BotRiskEvent.DECISION_BLOCK)
+        self.assertEqual(event.risk_score, 100)
+        self.assertIn('honeypot_filled', event.reasons)
+
+    @override_settings(BOT_CHALLENGE_REQUIRED=True, TURNSTILE_SECRET_KEY='turnstile-secret')
+    @patch('apps.accounts.bot_protection.verify_turnstile_token', return_value=(False, 'missing_challenge_token'))
+    def test_registration_requires_configured_security_challenge(self, mock_verify_turnstile):
+        response = self.client.post(
+            reverse('register'),
+            self._registration_payload(email='challenge-required@example.com'),
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(User.objects.filter(email='challenge-required@example.com').exists())
+        mock_verify_turnstile.assert_called_once()
+
+        event = BotRiskEvent.objects.get()
+        self.assertEqual(event.event_type, BotRiskEvent.EVENT_CHALLENGE_FAILED)
+        self.assertEqual(event.decision, BotRiskEvent.DECISION_BLOCK)
+        self.assertIn('missing_challenge_token', event.reasons)

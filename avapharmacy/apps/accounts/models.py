@@ -68,6 +68,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     LAB_PARTNER = 'lab_partner'
     LAB_TECHNICIAN = 'lab_technician'
     INVENTORY_STAFF = 'inventory_staff'
+    PPB_INSPECTOR = 'ppb_inspector'
 
     ROLE_CHOICES = [
         (CUSTOMER, 'Customer'),
@@ -78,12 +79,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         (LAB_PARTNER, 'Lab Partner'),
         (LAB_TECHNICIAN, 'Lab Technician'),
         (INVENTORY_STAFF, 'Inventory Staff'),
+        (PPB_INSPECTOR, 'PPB Inspector'),
     ]
 
     STATUS_ACTIVE = 'active'
+    STATUS_PENDING_VERIFICATION = 'pending_verification'
     STATUS_SUSPENDED = 'suspended'
     STATUS_CHOICES = [
         (STATUS_ACTIVE, 'Active'),
+        (STATUS_PENDING_VERIFICATION, 'Pending Verification'),
         (STATUS_SUSPENDED, 'Suspended'),
     ]
 
@@ -92,9 +96,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=40, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CUSTOMER)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     address = models.TextField(blank=True)
+    weight_kg = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    bmi = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    muac_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    blood_glucose_mmol_l = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -140,6 +150,73 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.orders.count()
 
 
+class BotRiskEvent(models.Model):
+    """Risk decision log for bot and abuse controls on public/sensitive flows."""
+
+    EVENT_LOGIN = 'login'
+    EVENT_REGISTER = 'register'
+    EVENT_FORGOT_PASSWORD = 'forgot_password'
+    EVENT_CHECKOUT = 'checkout'
+    EVENT_PRESCRIPTION_UPLOAD = 'prescription_upload'
+    EVENT_CHALLENGE_FAILED = 'challenge_failed'
+    EVENT_HONEYPOT = 'honeypot'
+    EVENT_CHOICES = [
+        (EVENT_LOGIN, 'Login'),
+        (EVENT_REGISTER, 'Register'),
+        (EVENT_FORGOT_PASSWORD, 'Forgot password'),
+        (EVENT_CHECKOUT, 'Checkout'),
+        (EVENT_PRESCRIPTION_UPLOAD, 'Prescription upload'),
+        (EVENT_CHALLENGE_FAILED, 'Challenge failed'),
+        (EVENT_HONEYPOT, 'Honeypot'),
+    ]
+
+    DECISION_ALLOW = 'allow'
+    DECISION_CHALLENGE = 'challenge'
+    DECISION_VERIFY = 'verify'
+    DECISION_BLOCK = 'block'
+    DECISION_REVIEW = 'review'
+    DECISION_CHOICES = [
+        (DECISION_ALLOW, 'Allow'),
+        (DECISION_CHALLENGE, 'Challenge'),
+        (DECISION_VERIFY, 'Verify account'),
+        (DECISION_BLOCK, 'Block'),
+        (DECISION_REVIEW, 'Manual review'),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bot_risk_events',
+    )
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    device_id = models.CharField(max_length=120, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    event_type = models.CharField(max_length=40, choices=EVENT_CHOICES)
+    risk_score = models.PositiveSmallIntegerField(default=0)
+    decision = models.CharField(max_length=20, choices=DECISION_CHOICES, default=DECISION_ALLOW)
+    reasons = models.JSONField(default=list, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_bot_risk_event'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['event_type', '-created_at']),
+            models.Index(fields=['ip_address', '-created_at']),
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['device_id', '-created_at']),
+            models.Index(fields=['decision', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.event_type} {self.decision} ({self.risk_score})'
+
+
 class Pharmacist(models.Model):
     """Dedicated pharmacist table linked to auth users with pharmacist role."""
 
@@ -154,6 +231,9 @@ class Pharmacist(models.Model):
     VALID_PERMISSIONS = {value for value, _label in PERMISSION_CHOICES}
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='pharmacist')
+    license_number = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    branch_location = models.CharField(max_length=200, blank=True)
+    position = models.CharField(max_length=120, blank=True)
     # JSON list of permission strings granted to this pharmacist
     permissions = models.JSONField(default=list)
     created_by = models.ForeignKey(
@@ -167,6 +247,10 @@ class Pharmacist(models.Model):
 
     class Meta:
         db_table = 'accounts_pharmacist'
+        indexes = [
+            models.Index(fields=['license_number']),
+            models.Index(fields=['branch_location']),
+        ]
 
     def __str__(self):
         return f"Pharmacist: {self.user.full_name}"
@@ -208,6 +292,29 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"Customer: {self.user.full_name}"
+
+
+class CustomerEmailVerificationToken(models.Model):
+    """One-time email verification token for customer registration."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_verification_tokens')
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    sent_to = models.EmailField()
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_customer_email_verification_token'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'expires_at']),
+            models.Index(fields=['user', 'used_at']),
+        ]
+
+    @property
+    def is_expired(self):
+        return self.expires_at <= timezone.now()
 
 
 class PharmacistActivationToken(models.Model):

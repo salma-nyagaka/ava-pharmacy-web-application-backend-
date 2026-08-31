@@ -7,7 +7,8 @@ from .models import (
     PrescriptionReviewDecision,
     PrescriptionClarificationMessage,
 )
-from apps.products.models import Product
+from apps.products.models import Product, Variant
+from apps.orders.models import Order
 
 
 def _prescription_file_exists(instance):
@@ -46,23 +47,41 @@ class PrescriptionFileSerializer(serializers.ModelSerializer):
 
 class PrescriptionItemSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(required=False, allow_null=True)
+    variant_id = serializers.IntegerField(required=False, allow_null=True)
     product_name = serializers.ReadOnlyField(source='product.name')
     product_slug = serializers.ReadOnlyField(source='product.slug')
     product_image = serializers.ImageField(source='product.image', read_only=True)
+    variant_name = serializers.ReadOnlyField(source='variant.name')
+    variant_sku = serializers.ReadOnlyField(source='variant.sku')
+    is_paid_for = serializers.SerializerMethodField()
 
     class Meta:
         model = PrescriptionItem
         fields = (
             'id', 'name', 'product_id', 'product_name', 'product_slug', 'product_image',
-            'dose', 'frequency', 'quantity', 'is_controlled_substance',
+            'variant_id', 'variant_name', 'variant_sku',
+            'dose', 'frequency', 'duration', 'quantity', 'quantity_measurement',
+            'is_controlled_substance', 'is_paid_for',
         )
         read_only_fields = ('id',)
+
+    def get_is_paid_for(self, obj):
+        return obj.order_items.filter(
+            order__payment_status=Order.PAYMENT_STATUS_PAID,
+        ).exclude(order__status__in=[Order.STATUS_CANCELLED, Order.STATUS_REFUNDED]).exists()
 
     def validate_product_id(self, value):
         if value in (None, ''):
             return None
         if not Product.objects.filter(pk=value, is_active=True).exists():
             raise serializers.ValidationError('Selected product was not found or is inactive.')
+        return value
+
+    def validate_variant_id(self, value):
+        if value in (None, ''):
+            return None
+        if not Variant.objects.filter(pk=value, is_active=True, product__is_active=True).exists():
+            raise serializers.ValidationError('Selected variant was not found or is inactive.')
         return value
 
 
@@ -114,29 +133,55 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     clarification_messages = PrescriptionClarificationMessageSerializer(many=True, read_only=True)
     patient_name_display = serializers.ReadOnlyField(source='patient.full_name')
     pharmacist_name = serializers.ReadOnlyField(source='pharmacist.full_name')
+    clinician_type = serializers.SerializerMethodField()
     is_overdue = serializers.ReadOnlyField()
 
     class Meta:
         model = Prescription
         fields = (
             'id', 'reference', 'patient', 'patient_name', 'patient_name_display',
-            'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'status', 'dispatch_status',
+            'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'clinician_type', 'clinician_prescription', 'status', 'dispatch_status',
             'notes', 'pharmacist_notes', 'clarification_message',
             'files', 'items', 'audit_logs', 'review_decisions', 'clarification_messages', 'is_overdue',
             'resubmitted_at', 'submitted_at', 'updated_at'
         )
-        read_only_fields = ('id', 'reference', 'patient', 'submitted_at', 'updated_at')
+        read_only_fields = ('id', 'reference', 'patient', 'clinician_prescription', 'submitted_at', 'updated_at')
 
     def get_files(self, obj):
         existing_files = [file for file in obj.files.all() if _prescription_file_exists(file)]
         return PrescriptionFileSerializer(existing_files, many=True, context=self.context).data
 
+    def get_clinician_type(self, obj):
+        clinician = getattr(getattr(obj, 'clinician_prescription', None), 'clinician', None)
+        return getattr(clinician, 'provider_type', '') or ''
+
 
 class PrescriptionUploadItemSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
+    product_id = serializers.IntegerField(required=False, allow_null=True)
+    variant_id = serializers.IntegerField(required=False, allow_null=True)
     dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
     frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
     quantity = serializers.IntegerField(min_value=1, required=False, default=1)
+
+    def validate(self, attrs):
+        product_id = attrs.get('product_id')
+        variant_id = attrs.get('variant_id')
+        if variant_id:
+            variant = Variant.objects.filter(pk=variant_id, is_active=True, product__is_active=True).select_related('product').first()
+            if not variant:
+                raise serializers.ValidationError({'variant_id': 'Selected variant was not found or is inactive.'})
+            if product_id and product_id != variant.product_id:
+                raise serializers.ValidationError({'product_id': 'Product does not match the selected variant.'})
+            attrs['product_id'] = variant.product_id
+        elif product_id:
+            product = Product.objects.filter(pk=product_id, is_active=True).prefetch_related('variants').first()
+            if not product:
+                raise serializers.ValidationError({'product_id': 'Selected product was not found or is inactive.'})
+            representative_variant = product.get_representative_variant()
+            if representative_variant:
+                attrs['variant_id'] = representative_variant.id
+        return attrs
 
 
 class PrescriptionUploadSerializer(serializers.Serializer):
@@ -144,6 +189,9 @@ class PrescriptionUploadSerializer(serializers.Serializer):
     doctor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
     items = PrescriptionUploadItemSerializer(many=True, required=False)
+    bot_challenge_token = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    device_id = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    website = serializers.CharField(required=False, allow_blank=True, write_only=True)
     files = serializers.ListField(
         child=serializers.FileField(),
         min_length=1,
@@ -172,7 +220,7 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
             missing_products = [
                 item.get('name') or 'Unnamed item'
                 for item in items_data
-                if not item.get('product_id')
+                if not (item.get('variant_id') or item.get('product_id'))
             ]
 
         if missing_products:
@@ -193,9 +241,13 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
             instance.items.all().delete()
             for item_data in items_data:
                 product_id = item_data.pop('product_id', None)
+                variant_id = item_data.pop('variant_id', None)
+                if variant_id and not product_id:
+                    product_id = Variant.objects.filter(pk=variant_id).values_list('product_id', flat=True).first()
                 PrescriptionItem.objects.create(
                     prescription=instance,
                     product_id=product_id,
+                    variant_id=variant_id,
                     **item_data,
                 )
         return instance
@@ -209,9 +261,24 @@ class PrescriptionAuditCreateSerializer(serializers.Serializer):
 class PharmacistPrescriptionReviewItemSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     product_id = serializers.IntegerField(required=False, allow_null=True)
+    variant_id = serializers.IntegerField(required=False, allow_null=True)
     dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
     frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
     quantity = serializers.IntegerField(min_value=1)
+
+    def validate(self, attrs):
+        product_id = attrs.get('product_id')
+        variant_id = attrs.get('variant_id')
+        if variant_id:
+            variant = Variant.objects.filter(pk=variant_id, is_active=True, product__is_active=True).select_related('product').first()
+            if not variant:
+                raise serializers.ValidationError({'variant_id': 'Selected variant was not found or is inactive.'})
+            if product_id and product_id != variant.product_id:
+                raise serializers.ValidationError({'product_id': 'Product does not match the selected variant.'})
+            attrs['product_id'] = variant.product_id
+        elif product_id and not Product.objects.filter(pk=product_id, is_active=True).exists():
+            raise serializers.ValidationError({'product_id': 'Selected product was not found or is inactive.'})
+        return attrs
 
 
 class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
@@ -241,7 +308,7 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
                 missing_products = [
                     item.get('name') or 'Unnamed item'
                     for item in items
-                    if not item.get('product_id')
+                    if not (item.get('variant_id') or item.get('product_id'))
                 ]
                 if missing_products:
                     raise serializers.ValidationError({

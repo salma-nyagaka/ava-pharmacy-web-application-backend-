@@ -342,4 +342,17 @@ gunicorn avapharmacy.wsgi:application --bind 0.0.0.0:8000 --workers 4
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
 | `MEDIA_URL` | `/media/` | Media file URL prefix |
 | `STATIC_URL` | `/static/` | Static file URL prefix |
+| `TURNSTILE_SECRET_KEY` | — | Cloudflare Turnstile secret key; required for production bot checks |
+| `BOT_CHALLENGE_REQUIRED` | `False` | Set to `True` in production so login, registration, uploads, and checkout require bot verification |
+| `MPESA_PAYBILL_NUMBER` | — | Live M-Pesa paybill number; required for paybill checkout |
+| `MPESA_C2B_URLS_REGISTERED` | `False` | Set to `True` only after Daraja validation/confirmation URLs are registered |
+| `MPESA_STK_PUSH_AMOUNT_OVERRIDE` | — | Must be blank in production so customers pay the real order total |
+
+Before production release, run:
+
+```bash
+venv/bin/python manage.py check --deploy
+```
+
+This includes Ava-specific audit checks for public pharmacy compliance settings, Turnstile, production CORS/frontend origins, and M-Pesa callback readiness.
 # ava-pharmacy-web-application-backend-

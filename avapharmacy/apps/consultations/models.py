@@ -7,11 +7,17 @@ from avapharmacy.fields import OptionalEncryptedCharField
 class BaseClinicianProfile(models.Model):
     STATUS_ACTIVE = 'active'
     STATUS_PENDING = 'pending'
+    STATUS_APPROVED_PENDING_ACTIVATION = 'approved_pending_activation'
+    STATUS_REJECTED = 'rejected'
     STATUS_SUSPENDED = 'suspended'
+    STATUS_DEACTIVATED = 'deactivated'
     STATUS_CHOICES = [
         (STATUS_ACTIVE, 'Active'),
         (STATUS_PENDING, 'Pending'),
+        (STATUS_APPROVED_PENDING_ACTIVATION, 'Approved - Pending Activation'),
+        (STATUS_REJECTED, 'Rejected'),
         (STATUS_SUSPENDED, 'Suspended'),
+        (STATUS_DEACTIVATED, 'Deactivated'),
     ]
 
     PAYOUT_MPESA = 'mpesa'
@@ -63,7 +69,7 @@ class BaseClinicianProfile(models.Model):
     background_consent = models.BooleanField(default=False)
     compliance_declaration = models.BooleanField(default=False)
     agreed_to_terms = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_PENDING)
     is_verified = models.BooleanField(default=False)
     suspension_reason = models.TextField(blank=True)
     status_note = models.TextField(blank=True)
@@ -115,8 +121,8 @@ class ClinicianProfile(BaseClinicianProfile):
         (TYPE_PEDIATRICIAN, 'Pediatrician'),
     ]
 
-    user = models.OneToOneField(
-        'accounts.User', on_delete=models.CASCADE, related_name='clinician_profile', null=True, blank=True
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE, related_name='clinician_profiles', null=True, blank=True
     )
     provider_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     legacy_doctor_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
@@ -185,6 +191,61 @@ class ClinicianDocument(BaseClinicianDocument):
         return f"{self.clinician.name} - {self.name}"
 
 
+class ChildPatient(models.Model):
+    GENDER_MALE = 'male'
+    GENDER_FEMALE = 'female'
+    GENDER_OTHER = 'other'
+    GENDER_CHOICES = [
+        (GENDER_MALE, 'Male'),
+        (GENDER_FEMALE, 'Female'),
+        (GENDER_OTHER, 'Other'),
+    ]
+
+    guardian = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.CASCADE,
+        related_name='child_patients',
+    )
+    reference = models.CharField(max_length=20, unique=True, blank=True)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    age_years = models.PositiveIntegerField(null=True, blank=True)
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True)
+    weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    bmi = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    muac_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    blood_glucose_mmol_l = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    allergies = models.JSONField(default=list, blank=True)
+    chronic_conditions = models.JSONField(default=list, blank=True)
+    current_medications = models.JSONField(default=list, blank=True)
+    vaccination_notes = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['first_name', 'last_name', '-created_at']
+        indexes = [
+            models.Index(fields=['guardian', 'is_active']),
+            models.Index(fields=['reference']),
+        ]
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            self.reference = f"CHD-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.full_name} ({self.guardian_id})"
+
+
 class Consultation(models.Model):
     STATUS_WAITING = 'waiting'
     STATUS_IN_PROGRESS = 'in_progress'
@@ -220,6 +281,7 @@ class Consultation(models.Model):
     patient_phone = models.CharField(max_length=20, blank=True)
     patient_age = models.PositiveIntegerField(null=True, blank=True)
     issue = models.TextField()
+    requested_specialty = models.CharField(max_length=200, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_WAITING)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default=PRIORITY_ROUTINE)
     channel = models.CharField(max_length=20, default='chat')
@@ -227,10 +289,23 @@ class Consultation(models.Model):
 
     # Pediatric fields
     is_pediatric = models.BooleanField(default=False)
+    child_patient = models.ForeignKey(
+        'ChildPatient',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultations',
+    )
     guardian_name = models.CharField(max_length=200, blank=True)
     child_name = models.CharField(max_length=200, blank=True)
     child_age = models.PositiveIntegerField(null=True, blank=True)
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    bmi = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    muac_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    blood_glucose_mmol_l = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    guardian_snapshot = models.JSONField(default=dict, blank=True)
+    child_snapshot = models.JSONField(default=dict, blank=True)
     consent_status = models.CharField(
         max_length=20,
         choices=[('pending', 'Pending'), ('granted', 'Granted')],
@@ -250,6 +325,8 @@ class Consultation(models.Model):
             models.Index(fields=['patient', 'status']),
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['is_pediatric', 'status']),
+            models.Index(fields=['requested_specialty', 'status'], name='consultatio_request_8d77c7_idx'),
+            models.Index(fields=['child_patient', 'status']),
         ]
 
     def __str__(self):
@@ -275,6 +352,84 @@ class Consultation(models.Model):
         if self.clinician_id:
             self.is_pediatric = self.clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN
         super().save(*args, **kwargs)
+
+
+class ConsultationPaymentIntent(models.Model):
+    PROVIDER_MPESA = 'mpesa'
+    PROVIDER_PAYBILL = 'paybill'
+    PROVIDER_CHOICES = [
+        (PROVIDER_MPESA, 'M-Pesa STK Push'),
+        (PROVIDER_PAYBILL, 'M-Pesa Paybill'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_REQUIRES_ACTION = 'requires_action'
+    STATUS_SUCCEEDED = 'succeeded'
+    STATUS_FAILED = 'failed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_REQUIRES_ACTION, 'Requires Action'),
+        (STATUS_SUCCEEDED, 'Succeeded'),
+        (STATUS_FAILED, 'Failed'),
+        (STATUS_CANCELLED, 'Cancelled'),
+    ]
+
+    initiated_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultation_payment_intents',
+    )
+    clinician = models.ForeignKey(
+        ClinicianProfile,
+        on_delete=models.PROTECT,
+        related_name='consultation_payment_intents',
+    )
+    consultation = models.OneToOneField(
+        Consultation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payment_intent',
+    )
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    reference = models.CharField(max_length=64, unique=True, blank=True)
+    provider_reference = models.CharField(max_length=120, blank=True)
+    external_reference = models.CharField(max_length=120, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
+    merchant_request_id = models.CharField(max_length=120, blank=True)
+    checkout_request_id = models.CharField(max_length=120, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default='KES')
+    client_secret = models.CharField(max_length=255, blank=True)
+    consultation_payload = models.JSONField(default=dict, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    callback_payload = models.JSONField(default=dict, blank=True)
+    last_error = models.CharField(max_length=255, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    receipt_emailed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['initiated_by', 'status']),
+            models.Index(fields=['provider', 'status']),
+            models.Index(fields=['checkout_request_id']),
+            models.Index(fields=['external_reference']),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            self.reference = f"CPAY-{uuid.uuid4().hex[:12].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.reference
 
 
 class ConsultationMessage(models.Model):
@@ -305,6 +460,46 @@ class ConsultationMessage(models.Model):
 
     def __str__(self):
         return f"{self.consultation.reference} - {self.sender_name}"
+
+
+class ConsultationAuditLog(models.Model):
+    ACTION_VIEW_DETAIL = 'view_detail'
+    ACTION_LIST_MESSAGES = 'list_messages'
+    ACTION_SEND_MESSAGE = 'send_message'
+    ACTION_UPDATE_STATUS = 'update_status'
+    ACTION_END = 'end_consultation'
+    ACTION_SEND_PRESCRIPTION = 'send_prescription'
+    ACTION_DOWNLOAD_ATTACHMENT = 'download_attachment'
+    ACTION_CHOICES = [
+        (ACTION_VIEW_DETAIL, 'View Detail'),
+        (ACTION_LIST_MESSAGES, 'List Messages'),
+        (ACTION_SEND_MESSAGE, 'Send Message'),
+        (ACTION_UPDATE_STATUS, 'Update Status'),
+        (ACTION_END, 'End Consultation'),
+        (ACTION_SEND_PRESCRIPTION, 'Send Prescription'),
+        (ACTION_DOWNLOAD_ATTACHMENT, 'Download Attachment'),
+    ]
+
+    consultation = models.ForeignKey(Consultation, on_delete=models.CASCADE, related_name='audit_logs')
+    actor = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='consultation_audit_logs')
+    action = models.CharField(max_length=40, choices=ACTION_CHOICES)
+    target_type = models.CharField(max_length=60, blank=True)
+    target_id = models.CharField(max_length=80, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['consultation', '-created_at']),
+            models.Index(fields=['actor', '-created_at']),
+            models.Index(fields=['action', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.consultation.reference} - {self.action}'
 
 
 class BaseClinicianPrescription(models.Model):

@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    ChildPatient,
     ClinicianDocument,
     ClinicianEarning,
     ClinicianPrescription,
@@ -13,6 +14,15 @@ from .models import (
 class ClinicianDocumentInline(admin.TabularInline):
     model = ClinicianDocument
     extra = 0
+
+
+@admin.register(ChildPatient)
+class ChildPatientAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'full_name', 'guardian', 'age_years', 'gender', 'is_active', 'created_at')
+    list_filter = ('is_active', 'gender')
+    search_fields = ('reference', 'first_name', 'last_name', 'guardian__email', 'guardian__first_name', 'guardian__last_name')
+    readonly_fields = ('reference', 'created_at', 'updated_at')
+    autocomplete_fields = ('guardian',)
 
 
 @admin.register(ClinicianProfile)

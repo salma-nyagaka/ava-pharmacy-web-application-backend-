@@ -4,15 +4,16 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
+from .models import ComplianceEvidence, NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
 from .serializers import (
     SiteSettingsSerializer,
     NewsletterSubscriptionRequestSerializer,
     NewsletterSubscriberSerializer,
+    ComplianceEvidenceSerializer,
     SupportTicketSerializer, SupportTicketCreateSerializer,
     SupportTicketUpdateSerializer, SupportNoteCreateSerializer
 )
-from apps.accounts.permissions import IsAdminUser
+from apps.accounts.permissions import IsAdminOrPPBInspector, IsAdminUser
 from .utils import send_newsletter_subscription_email
 
 
@@ -70,6 +71,28 @@ class NewsletterSubscribeView(APIView):
             },
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class ComplianceEvidenceListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrPPBInspector]
+    serializer_class = ComplianceEvidenceSerializer
+    filterset_fields = ['evidence_type', 'status']
+    search_fields = ['title', 'reference_number', 'issuing_authority', 'notes']
+    ordering_fields = ['created_at', 'expires_at', 'evidence_type']
+    ordering = ['evidence_type', 'expires_at', 'title']
+    queryset = ComplianceEvidence.objects.all().select_related('created_by', 'updated_by')
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class ComplianceEvidenceDetailView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAdminOrPPBInspector]
+    serializer_class = ComplianceEvidenceSerializer
+    queryset = ComplianceEvidence.objects.all().select_related('created_by', 'updated_by')
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
 
 
 class SupportTicketListCreateView(generics.ListCreateAPIView):

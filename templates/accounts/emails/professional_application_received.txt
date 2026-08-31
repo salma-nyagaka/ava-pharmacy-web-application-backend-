@@ -1,0 +1,14 @@
+{% extends "emails/base.txt" %}
+
+{% block title %}AVA Pharmacy {{ role_label }} Application Received{% endblock %}
+{% block intro %}Hi {{ first_name }}, thank you for applying to join Ava Pharmacy.{% endblock %}
+
+{% block content %}
+We received your {{ role_label|lower }} application.
+Reference: {{ reference }}
+
+Our admin team will review your credentials, licence, and supporting documents. If approved, you will receive a secure 24-hour activation link.
+Support: {{ support_email }}
+{% endblock %}
+
+{% block footnote %}AVA Pharmacy Professional Onboarding{% endblock %}

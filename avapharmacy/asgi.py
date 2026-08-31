@@ -10,4 +10,9 @@ if str(PROJECT_PACKAGE) not in sys.path:
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'avapharmacy.settings.production')
 
-from avapharmacy.routing import application  # noqa: E402
+from django.core.asgi import get_asgi_application  # noqa: E402
+
+# Load Django before routing imports websocket consumers that use auth models.
+django_asgi_application = get_asgi_application()
+
+from avapharmacy.routing import application  # noqa: E402,F401

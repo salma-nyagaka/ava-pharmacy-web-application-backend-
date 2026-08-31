@@ -2,7 +2,7 @@ import re
 
 from rest_framework import serializers
 
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
+from .models import Cart, CartItem, Coupon, DeliveryAudit, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
 from .payment_helpers import (
     build_paybill_account_reference,
     get_paybill_account_label,
@@ -38,7 +38,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'product', 'variant', 'variant_id', 'quantity', 'prescription_id',
             'prescription', 'prescription_item',
-            'subtotal', 'added_at'
+            'otc_screening', 'subtotal', 'added_at'
         )
         read_only_fields = ('id', 'added_at')
 
@@ -73,7 +73,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = (
             'id', 'product_id', 'product_slug', 'product_name', 'product_sku', 'variant', 'variant_name', 'variant_sku',
-            'quantity', 'unit_price', 'discount_total', 'prescription_id', 'prescription', 'prescription_item', 'subtotal'
+            'quantity', 'unit_price', 'discount_total', 'prescription_id', 'prescription',
+            'prescription_item', 'otc_screening', 'subtotal'
         )
 
 
@@ -144,9 +145,30 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
         model = ReturnRequest
         fields = (
             'id', 'order', 'order_item', 'request_type', 'reason', 'requested_refund_amount',
-            'status', 'resolution_notes', 'created_at', 'updated_at'
+            'status', 'resolution_notes', 'returned_medicine_quarantined',
+            'non_resale_acknowledged', 'inventory_disposition', 'disposal_reference',
+            'handled_by', 'created_at', 'updated_at'
         )
-        read_only_fields = ('id', 'status', 'resolution_notes', 'created_at', 'updated_at')
+        read_only_fields = (
+            'id', 'status', 'resolution_notes', 'returned_medicine_quarantined',
+            'non_resale_acknowledged', 'inventory_disposition', 'disposal_reference',
+            'handled_by', 'created_at', 'updated_at',
+        )
+
+
+class DeliveryAuditSerializer(serializers.ModelSerializer):
+    recorded_by_name = serializers.ReadOnlyField(source='recorded_by.full_name')
+
+    class Meta:
+        model = DeliveryAudit
+        fields = (
+            'id', 'order', 'event_type', 'courier_name', 'courier_phone',
+            'tracking_reference', 'recipient_name', 'recipient_phone',
+            'recipient_verified', 'package_condition', 'temperature_sensitive',
+            'temperature_reading_c', 'cold_chain_intact', 'failure_reason',
+            'notes', 'recorded_by', 'recorded_by_name', 'recorded_at',
+        )
+        read_only_fields = ('id', 'order', 'recorded_by', 'recorded_by_name', 'recorded_at')
 
 
 class ShippingMethodSerializer(serializers.ModelSerializer):
@@ -164,6 +186,7 @@ class OrderSerializer(serializers.ModelSerializer):
     events = OrderEventSerializer(many=True, read_only=True)
     payment_intents = PaymentIntentSerializer(many=True, read_only=True)
     return_requests = ReturnRequestSerializer(many=True, read_only=True)
+    delivery_audits = DeliveryAuditSerializer(many=True, read_only=True)
     shipping_address = serializers.ReadOnlyField()
     paybill_number = serializers.SerializerMethodField()
     paybill_account_reference = serializers.SerializerMethodField()
@@ -195,7 +218,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'shipping_address', 'paybill_number', 'paybill_account_reference', 'paybill_account_label',
             'paybill_instructions', 'subtotal', 'discount_total', 'shipping_fee', 'total',
             'inventory_committed',
-            'items', 'notes', 'events', 'payment_intents', 'return_requests',
+            'items', 'notes', 'events', 'payment_intents', 'return_requests', 'delivery_audits',
             'placed_at', 'created_at', 'updated_at'
         )
 
@@ -216,6 +239,10 @@ class CheckoutSerializer(serializers.Serializer):
     delivery_method = serializers.CharField(max_length=30, default='standard')
     shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)
+    prescription_reference = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    bot_challenge_token = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    device_id = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    website = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     def validate(self, attrs):
         request = self.context.get('request')
@@ -242,6 +269,7 @@ class CheckoutSerializer(serializers.Serializer):
         attrs['city'] = attrs['city'].strip()
         attrs['county'] = attrs['county'].strip()
         attrs['address_label'] = attrs.get('address_label', '').strip()
+        attrs['prescription_reference'] = attrs.get('prescription_reference', '').strip()
         return attrs
 
 
@@ -255,9 +283,10 @@ class AdminOrderSerializer(serializers.ModelSerializer):
     events = OrderEventSerializer(many=True, read_only=True)
     payment_intents = PaymentIntentSerializer(many=True, read_only=True)
     return_requests = ReturnRequestSerializer(many=True, read_only=True)
-    customer_name = serializers.ReadOnlyField(source='customer.full_name')
-    customer_email = serializers.ReadOnlyField(source='customer.email')
-    customer_phone = serializers.ReadOnlyField(source='customer.phone')
+    delivery_audits = DeliveryAuditSerializer(many=True, read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_email = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
     shipping_address = serializers.ReadOnlyField()
     paybill_number = serializers.SerializerMethodField()
     paybill_account_reference = serializers.SerializerMethodField()
@@ -268,6 +297,15 @@ class AdminOrderSerializer(serializers.ModelSerializer):
 
     def get_paybill_number(self, obj):
         return get_paybill_number()
+
+    def get_customer_name(self, obj):
+        return f'{obj.shipping_first_name} {obj.shipping_last_name}'.strip() or getattr(obj.customer, 'full_name', '') or ''
+
+    def get_customer_email(self, obj):
+        return obj.shipping_email or getattr(obj.customer, 'email', '') or ''
+
+    def get_customer_phone(self, obj):
+        return obj.shipping_phone or getattr(obj.customer, 'phone', '') or ''
 
     def get_paybill_account_reference(self, obj):
         return build_paybill_account_reference(obj)
@@ -290,7 +328,7 @@ class AdminOrderSerializer(serializers.ModelSerializer):
             'shipping_county', 'shipping_address', 'paybill_number', 'paybill_account_reference',
             'paybill_account_label', 'paybill_instructions', 'subtotal', 'discount_total',
             'shipping_fee', 'total', 'inventory_committed', 'items', 'notes', 'events', 'payment_intents',
-            'return_requests', 'placed_at', 'created_at', 'updated_at'
+            'return_requests', 'delivery_audits', 'placed_at', 'created_at', 'updated_at'
         )
         read_only_fields = (
             'id', 'order_number', 'customer', 'items', 'subtotal', 'discount_total',
@@ -471,4 +509,19 @@ class ReturnRequestCreateSerializer(serializers.ModelSerializer):
 class ReturnRequestAdminUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReturnRequest
-        fields = ('status', 'resolution_notes', 'requested_refund_amount')
+        fields = (
+            'status', 'resolution_notes', 'requested_refund_amount',
+            'returned_medicine_quarantined', 'non_resale_acknowledged',
+            'inventory_disposition', 'disposal_reference',
+        )
+
+    def validate(self, attrs):
+        status_value = attrs.get('status', getattr(self.instance, 'status', None))
+        if status_value in {ReturnRequest.STATUS_RECEIVED, ReturnRequest.STATUS_REFUNDED}:
+            quarantined = attrs.get('returned_medicine_quarantined', getattr(self.instance, 'returned_medicine_quarantined', False))
+            non_resale = attrs.get('non_resale_acknowledged', getattr(self.instance, 'non_resale_acknowledged', False))
+            if not quarantined or not non_resale:
+                raise serializers.ValidationError(
+                    'Returned medicines must be quarantined and marked as non-resale before closing the return.'
+                )
+        return attrs

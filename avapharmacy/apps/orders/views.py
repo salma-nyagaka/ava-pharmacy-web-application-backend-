@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db import models
 from django.db.models import Count, F, Q, Sum
-from django.db.models.functions import TruncDate
+from django.db.models.functions import TruncDate, Coalesce
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -15,17 +15,21 @@ import re
 from urllib.parse import urlencode
 from rest_framework import generics, permissions, serializers, status
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import Address, User
-from apps.accounts.permissions import IsAdminUser, IsPharmacistOrAdmin
+from apps.accounts.bot_protection import enforce_checkout_risk
+from apps.accounts.permissions import IsAdminOrPPBInspector, IsPharmacistAdminOrPPBInspector, IsAdminUser, IsPharmacistOrAdmin
 from apps.accounts.utils import log_admin_action
-from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status
+from apps.notifications.utils import create_notification, get_notification_preferences, notify_order_status, order_status_message
+from apps.consultations.views import apply_consultation_paybill_confirmation, validate_consultation_paybill_payload
+from apps.prescriptions.models import Prescription
 from apps.products.models import Product, Variant, annotate_product_inventory
 from apps.products.pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from avapharmacy.security import verify_hmac_signature
 
-from .models import Cart, CartItem, Coupon, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
+from .models import Cart, CartItem, Coupon, DeliveryAudit, Order, OrderEvent, OrderItem, OrderNote, OutboundOrderPush, PaymentIntent, ReturnRequest, ShippingMethod
 from .integrations import push_order_to_pos
 from .flutterwave import FlutterwaveAPIError, FlutterwaveClient, FlutterwaveConfigurationError
 from .mpesa import MpesaAPIError, MpesaClient, MpesaConfigurationError, parse_mpesa_callback
@@ -44,6 +48,7 @@ from .serializers import (
     CartSerializer,
     CheckoutSerializer,
     CouponApplySerializer,
+    DeliveryAuditSerializer,
     OrderNoteCreateSerializer,
     OrderTrackingLookupSerializer,
     OrderSerializer,
@@ -65,6 +70,10 @@ from .stock import commit_order_inventory, release_order_inventory
 from .utils import queue_order_confirmation_email, queue_order_status_email
 
 payments_logger = logging.getLogger('payments')
+
+
+class CheckoutRateThrottle(UserRateThrottle):
+    scope = 'checkout'
 
 
 def _truncate_event_message(message, limit=255):
@@ -115,6 +124,57 @@ TRACKING_BASE_STEPS = [
     (Order.STATUS_SHIPPED, 'On the way'),
     (Order.STATUS_DELIVERED, 'Delivered'),
 ]
+
+ORDER_STATUS_TO_PRESCRIPTION_DISPATCH = {
+    Order.STATUS_PENDING: Prescription.DISPATCH_QUEUED,
+    Order.STATUS_PAID: Prescription.DISPATCH_QUEUED,
+    Order.STATUS_PROCESSING: Prescription.DISPATCH_PACKED,
+    Order.STATUS_SHIPPED: Prescription.DISPATCH_DISPATCHED,
+    Order.STATUS_DELIVERED: Prescription.DISPATCH_DELIVERED,
+}
+
+
+def _sync_prescription_dispatch_for_order(order):
+    dispatch_status = ORDER_STATUS_TO_PRESCRIPTION_DISPATCH.get(order.status)
+    if not dispatch_status:
+        return
+    prescription_ids = order.items.exclude(prescription_id=None).values_list('prescription_id', flat=True).distinct()
+    Prescription.objects.filter(id__in=prescription_ids).exclude(dispatch_status=dispatch_status).update(
+        dispatch_status=dispatch_status,
+        updated_at=timezone.now(),
+    )
+
+
+def _remove_paid_order_items_from_cart(order):
+    if not order.customer_id:
+        return 0
+
+    cart = Cart.objects.filter(user=order.customer).first()
+    if not cart:
+        return 0
+
+    filters = Q()
+    for item in order.items.all():
+        if not item.variant_id:
+            continue
+
+        item_filter = Q(variant_id=item.variant_id)
+        if item.prescription_item_id:
+            item_filter &= Q(prescription_item_id=item.prescription_item_id)
+        elif item.prescription_id:
+            item_filter &= Q(prescription_id=item.prescription_id)
+        elif item.prescription_reference:
+            item_filter &= Q(prescription_reference=item.prescription_reference)
+        else:
+            item_filter &= Q(prescription__isnull=True, prescription_item__isnull=True)
+
+        filters |= item_filter
+
+    if not filters:
+        return 0
+
+    deleted_count, _ = CartItem.objects.filter(cart=cart).filter(filters).delete()
+    return deleted_count
 
 
 def _normalized_phone_tail(value):
@@ -301,11 +361,71 @@ def _prescription_cart_error(user, product, prescription_reference, requested_qu
     )
     if not match:
         return f'{product.name} is not linked to an approved prescription for this account.'
+    if match.is_controlled_substance:
+        return f'{product.name} cannot be supplied online because the linked prescription item is marked as a controlled drug.'
     if requested_quantity > match.quantity:
         return (
             f'{product.name} is approved for up to {match.quantity} unit(s) on prescription '
             f'{match.prescription.reference}.'
         )
+    return None
+
+
+OTC_SCREENING_REQUIRED_FIELDS = {
+    'intended_user',
+    'age_group',
+    'symptoms_or_reason',
+    'allergies',
+    'current_medicines',
+    'pregnant_or_breastfeeding',
+    'counseling_acknowledged',
+}
+
+
+def _as_payload_dict(value):
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            import json
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except ValueError:
+            return {}
+    return {}
+
+
+def _variant_requires_otc_screening(variant):
+    if not variant or variant.requires_prescription:
+        return False
+    category_names = [
+        getattr(getattr(variant, 'category', None), 'name', ''),
+        getattr(getattr(variant, 'subcategory', None), 'name', ''),
+        getattr(variant.product, 'name', ''),
+        getattr(variant, 'name', ''),
+    ]
+    haystack = ' '.join(str(value or '').lower() for value in category_names)
+    medicine_terms = {'medicine', 'medicines', 'pain', 'cough', 'cold', 'flu', 'allergy', 'antacid', 'antibiotic'}
+    if any(term in haystack for term in medicine_terms):
+        return True
+    return bool(variant.dosage_instructions or variant.directions or variant.warnings)
+
+
+def _otc_screening_error(variant, screening):
+    if not _variant_requires_otc_screening(variant):
+        return None
+    payload = _as_payload_dict(screening)
+    missing = [
+        key for key in OTC_SCREENING_REQUIRED_FIELDS
+        if payload.get(key) in (None, '', [])
+    ]
+    if missing:
+        return (
+            f'{variant.product.name} requires OTC pharmacist-screening details before checkout: '
+            f'{", ".join(missing)}.'
+        )
+    if payload.get('counseling_acknowledged') is not True:
+        return f'{variant.product.name} requires confirmation that medicine counseling information was provided.'
     return None
 
 
@@ -327,12 +447,42 @@ def validate_cart_items(items):
             )
             if prescription_error:
                 errors.append(prescription_error)
+        elif item.variant:
+            otc_error = _otc_screening_error(item.variant, item.otc_screening)
+            if otc_error:
+                errors.append(otc_error)
     return errors
 
 
-def build_order_totals(cart, shipping_method=None):
-    subtotal = cart.total
-    discount_total = cart.discount_total
+def load_checkout_items(cart, prescription_reference='', *, lock_variants=False):
+    items = list(
+        cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
+        .order_by('id')
+    )
+    if prescription_reference:
+        items = [item for item in items if item.prescription_reference == prescription_reference]
+    if lock_variants and items:
+        variants = {
+            variant.id: variant
+            for variant in Variant.objects.select_for_update().filter(
+                id__in=[item.variant_id for item in items if item.variant_id]
+            )
+        }
+        for item in items:
+            if item.variant_id:
+                item.variant = variants.get(item.variant_id)
+    return items
+
+
+def build_order_totals(cart, shipping_method=None, items=None):
+    if items is None:
+        subtotal = cart.total
+        discount_total = cart.discount_total
+    else:
+        subtotal = sum(item.subtotal for item in items)
+        discount_total = Decimal('0.00')
+        if cart.coupon and cart.coupon.is_available(cart.user):
+            discount_total = cart.coupon.calculate_discount(subtotal)
     discounted_subtotal = subtotal - discount_total
     if shipping_method:
         shipping_fee = shipping_method.calculate_fee(discounted_subtotal)
@@ -356,19 +506,21 @@ def resolve_mpesa_stk_amount(order_total):
 def snapshot_cart_to_order(order, cart_items):
     order.items.all().delete()
     for item in cart_items:
-        OrderItem.objects.create(
-            order=order,
-            variant=item.variant,
+            OrderItem.objects.create(
+                order=order,
+                variant=item.variant,
             product_name=item.product.name,
             product_sku=item.product.get_display_sku(),
             quantity=item.quantity,
             variant_name=item.variant.name if item.variant else '',
             variant_sku=item.variant.sku if item.variant else '',
             unit_price=item.variant.effective_price,
-            prescription_reference=item.prescription_reference,
-            prescription=item.prescription,
-            prescription_item=item.prescription_item,
-        )
+                prescription_reference=item.prescription_reference,
+                prescription=item.prescription,
+                prescription_item=item.prescription_item,
+                otc_screening=item.otc_screening or {},
+            )
+    _sync_prescription_dispatch_for_order(order)
 
 
 def persist_checkout_address(user, data):
@@ -405,11 +557,12 @@ def notify_order_update(order, title=None, message=None, *, send_email=None, sen
     try:
         preferences = get_notification_preferences(order.customer)
         email_enabled = bool(preferences and preferences.order_updates_email) if send_email is None else bool(send_email)
+        status_message = order_status_message(order)
         create_notification(
             recipient=order.customer,
             notification_type='order_status',
-            title=title or f'Order {order.order_number} Updated',
-            message=message or f'Your order is now {order.status}.',
+            title=title or status_message,
+            message=message or status_message,
             data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
             send_email=False,
             send_sms=bool(preferences and preferences.order_updates_sms) if send_sms is None else bool(send_sms),
@@ -417,9 +570,9 @@ def notify_order_update(order, title=None, message=None, *, send_email=None, sen
         if email_enabled:
             queue_order_status_email(
                 order,
-                subject=title or f'Order {order.order_number} Updated',
-                heading=title or f'Order {order.order_number} updated',
-                intro=message or f'Your order is now {order.get_status_display()}.',
+                subject=title or status_message,
+                heading=title or status_message,
+                intro=message or status_message,
             )
     except Exception:
         return
@@ -538,6 +691,8 @@ def _mark_order_paid(order, intent, message, notify_message):
     if not order.placed_at:
         order.placed_at = timezone.now()
     order.save(update_fields=['payment_status', 'payment_reference', 'status', 'placed_at', 'updated_at'])
+    _sync_prescription_dispatch_for_order(order)
+    _remove_paid_order_items_from_cart(order)
     create_order_event(
         order,
         'payment_succeeded',
@@ -570,6 +725,7 @@ def _apply_order_status_transition(order, next_status, *, actor=None, message=''
         return
     order.status = next_status
     order.save(update_fields=['status', 'updated_at'])
+    _sync_prescription_dispatch_for_order(order)
     create_order_event(
         order,
         f'status_{next_status}',
@@ -997,6 +1153,7 @@ class CartItemCreateView(generics.CreateAPIView):
         prescription_reference = request.data.get('prescription_reference') or request.data.get('prescription_id')
         prescription_pk = request.data.get('prescription')
         prescription_item_pk = request.data.get('prescription_item')
+        otc_screening = _as_payload_dict(request.data.get('otc_screening'))
 
         try:
             quantity = int(quantity)
@@ -1090,6 +1247,10 @@ class CartItemCreateView(generics.CreateAPIView):
             )
             if prescription_error:
                 return Response({'detail': prescription_error}, status=status.HTTP_400_BAD_REQUEST)
+        elif variant:
+            otc_error = _otc_screening_error(variant, otc_screening)
+            if otc_error:
+                return Response({'detail': otc_error}, status=status.HTTP_400_BAD_REQUEST)
         inventory_object = variant or product
         error = _product_availability_error(inventory_object, requested_total, allow_pos_refresh=True)
         if error:
@@ -1097,7 +1258,11 @@ class CartItemCreateView(generics.CreateAPIView):
 
         if existing_item:
             existing_item.quantity = requested_total
-            existing_item.save(update_fields=['quantity'])
+            if otc_screening:
+                existing_item.otc_screening = otc_screening
+                existing_item.save(update_fields=['quantity', 'otc_screening'])
+            else:
+                existing_item.save(update_fields=['quantity'])
         else:
             CartItem.objects.create(
                 cart=cart,
@@ -1106,6 +1271,7 @@ class CartItemCreateView(generics.CreateAPIView):
                 prescription_reference=prescription_reference,
                 prescription=prescription,
                 prescription_item=prescription_item,
+                otc_screening=otc_screening,
             )
 
         return Response(CartSerializer(cart).data, status=status.HTTP_201_CREATED)
@@ -1140,13 +1306,19 @@ class CartItemUpdateView(APIView):
             )
             if prescription_error:
                 return Response({'detail': prescription_error}, status=status.HTTP_400_BAD_REQUEST)
+        elif item.variant:
+            next_screening = _as_payload_dict(request.data.get('otc_screening')) or item.otc_screening
+            otc_error = _otc_screening_error(item.variant, next_screening)
+            if otc_error:
+                return Response({'detail': otc_error}, status=status.HTTP_400_BAD_REQUEST)
+            item.otc_screening = next_screening
 
         error = _product_availability_error(_cart_inventory_object(item), quantity, allow_pos_refresh=True)
         if error:
             return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
 
         item.quantity = quantity
-        item.save(update_fields=['quantity'])
+        item.save(update_fields=['quantity', 'otc_screening'])
         return Response(CartSerializer(cart).data)
 
 
@@ -1209,80 +1381,87 @@ class CartRemoveCouponView(APIView):
 
 class CheckoutDraftView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [CheckoutRateThrottle]
 
-    @transaction.atomic
     def post(self, request):
         serializer = CheckoutSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
         cart = get_or_create_cart(request.user)
-        items = list(
-            cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
-            .order_by('id')
-        )
-        if not items:
-            return Response({'detail': 'Cart is empty.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        variants = {
-            variant.id: variant
-            for variant in Variant.objects.select_for_update().filter(
-                id__in=[item.variant_id for item in items if item.variant_id]
+        prescription_reference = data.get('prescription_reference', '')
+        risk_items = load_checkout_items(cart, prescription_reference)
+        if not risk_items:
+            detail = (
+                f'No cart items found for prescription {prescription_reference}.'
+                if prescription_reference else 'Cart is empty.'
             )
-        }
-        for item in items:
-            if item.variant_id:
-                item.variant = variants.get(item.variant_id)
+            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
 
-        errors = validate_cart_items(items)
+        errors = validate_cart_items(risk_items)
         if errors:
             return Response({'detail': errors}, status=status.HTTP_400_BAD_REQUEST)
+        enforce_checkout_risk(request, risk_items, checkout_phone=data.get('phone', ''))
 
-        shipping_method = None
-        shipping_method_id = data.get('shipping_method_id')
-        if shipping_method_id:
-            try:
-                shipping_method = ShippingMethod.objects.get(pk=shipping_method_id, is_active=True)
-            except ShippingMethod.DoesNotExist:
-                return Response({'detail': 'Shipping method not found.'}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            shipping_method = ShippingMethod.objects.filter(code=data.get('delivery_method', 'standard'), is_active=True).first()
+        with transaction.atomic():
+            cart = get_or_create_cart(request.user)
+            items = load_checkout_items(cart, prescription_reference, lock_variants=True)
+            if not items:
+                detail = (
+                    f'No cart items found for prescription {prescription_reference}.'
+                    if prescription_reference else 'Cart is empty.'
+                )
+                return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
 
-        subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method)
-        order = Order.objects.create(
-            customer=request.user,
-            coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
-            coupon_code=cart.coupon.code if cart.coupon else '',
-            payment_method=data['payment_method'],
-            payment_status=Order.PAYMENT_STATUS_PENDING,
-            delivery_method=data.get('delivery_method', 'standard'),
-            delivery_notes=data.get('delivery_notes', ''),
-            shipping_method=shipping_method,
-            shipping_first_name=data['first_name'],
-            shipping_last_name=data['last_name'],
-            shipping_email=data['email'],
-            shipping_phone=data['phone'],
-            shipping_street=data['street'],
-            shipping_city=data['city'],
-            shipping_county=data['county'],
-            subtotal=subtotal,
-            discount_total=discount_total,
-            shipping_fee=shipping_fee,
-            total=total,
-        )
-        persist_checkout_address(request.user, data)
-        snapshot_cart_to_order(order, items)
-        create_order_event(
-            order,
-            event_type='draft_created',
-            message='Checkout draft created.',
-            actor=request.user,
-            metadata={
-                'item_count': len(items),
-                'payment_method': order.payment_method,
-                'shipping_method': shipping_method.code if shipping_method else order.delivery_method,
-            },
-        )
+            errors = validate_cart_items(items)
+            if errors:
+                return Response({'detail': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            shipping_method = None
+            shipping_method_id = data.get('shipping_method_id')
+            if shipping_method_id:
+                try:
+                    shipping_method = ShippingMethod.objects.get(pk=shipping_method_id, is_active=True)
+                except ShippingMethod.DoesNotExist:
+                    return Response({'detail': 'Shipping method not found.'}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                shipping_method = ShippingMethod.objects.filter(code=data.get('delivery_method', 'standard'), is_active=True).first()
+
+            subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method, items=items)
+            order = Order.objects.create(
+                customer=request.user,
+                coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
+                coupon_code=cart.coupon.code if cart.coupon else '',
+                payment_method=data['payment_method'],
+                payment_status=Order.PAYMENT_STATUS_PENDING,
+                delivery_method=data.get('delivery_method', 'standard'),
+                delivery_notes=data.get('delivery_notes', ''),
+                shipping_method=shipping_method,
+                shipping_first_name=data['first_name'],
+                shipping_last_name=data['last_name'],
+                shipping_email=data['email'],
+                shipping_phone=data['phone'],
+                shipping_street=data['street'],
+                shipping_city=data['city'],
+                shipping_county=data['county'],
+                subtotal=subtotal,
+                discount_total=discount_total,
+                shipping_fee=shipping_fee,
+                total=total,
+            )
+            persist_checkout_address(request.user, data)
+            snapshot_cart_to_order(order, items)
+            create_order_event(
+                order,
+                event_type='draft_created',
+                message='Checkout draft created.',
+                actor=request.user,
+                metadata={
+                    'item_count': len(items),
+                    'payment_method': order.payment_method,
+                    'shipping_method': shipping_method.code if shipping_method else order.delivery_method,
+                },
+            )
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
@@ -1381,6 +1560,8 @@ class PaymentIntentCreateView(APIView):
             order.payment_status = Order.PAYMENT_STATUS_PAID
             order.payment_reference = intent.reference
             order.save(update_fields=['payment_status', 'payment_reference', 'updated_at'])
+            _sync_prescription_dispatch_for_order(order)
+            _remove_paid_order_items_from_cart(order)
             create_order_event(order, 'payment_captured', 'Manual payment marked as paid.', actor=request.user)
         elif provider == PaymentIntent.PROVIDER_PAYBILL:
             if order.payment_method != Order.PAYMENT_MPESA_PAYBILL:
@@ -1897,6 +2078,13 @@ class MpesaPaybillValidationView(APIView):
         order = _resolve_paybill_order(account_reference=account_reference)
 
         if order is None:
+            consultation_result = validate_consultation_paybill_payload(raw_payload)
+            if consultation_result is not None:
+                accepted, message = consultation_result
+                return Response({
+                    'ResultCode': 0 if accepted else 1,
+                    'ResultDesc': message,
+                })
             payments_logger.warning(
                 'Unmatched M-Pesa paybill validation callback account_reference=%s payload=%s',
                 account_reference,
@@ -1938,6 +2126,9 @@ class MpesaPaybillConfirmationView(APIView):
         order = _resolve_paybill_order(account_reference=account_reference)
 
         if order is None:
+            consultation_result = apply_consultation_paybill_confirmation(raw_payload, source='daraja_confirmation')
+            if consultation_result is not None:
+                return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
             payments_logger.error(
                 'Unmatched M-Pesa paybill confirmation account_reference=%s provider_reference=%s payload=%s',
                 account_reference,
@@ -2289,6 +2480,7 @@ class CheckoutFinalizeView(APIView):
         if not order.placed_at:
             order.placed_at = timezone.now()
         order.save(update_fields=['status', 'payment_status', 'inventory_committed', 'placed_at', 'updated_at'])
+        _sync_prescription_dispatch_for_order(order)
 
         cart = get_or_create_cart(request.user)
         cart.items.all().delete()
@@ -2424,7 +2616,7 @@ class AdminShippingMethodDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminOrderListView(generics.ListAPIView):
-    permission_classes = [IsPharmacistOrAdmin]
+    permission_classes = [IsPharmacistAdminOrPPBInspector]
     serializer_class = AdminOrderSerializer
     filterset_fields = ['status', 'payment_status', 'payment_method', 'delivery_method']
     search_fields = ['order_number', 'shipping_email', 'customer__email']
@@ -2433,14 +2625,14 @@ class AdminOrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Order.objects.all().select_related('customer', 'coupon', 'shipping_method').prefetch_related(
-            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
+            'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests', 'delivery_audits'
         )
 
 
 class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [IsPharmacistOrAdmin]
+    permission_classes = [IsPharmacistAdminOrPPBInspector]
     queryset = Order.objects.all().select_related('customer', 'coupon', 'shipping_method').prefetch_related(
-        'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests'
+        'items', 'items__variant', 'notes', 'events', 'payment_intents', 'return_requests', 'delivery_audits'
     )
 
     def get_serializer_class(self):
@@ -2473,6 +2665,7 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
         order = serializer.save()
 
         if order.status != prev_status:
+            _sync_prescription_dispatch_for_order(order)
             create_order_event(
                 order,
                 f'status_{order.status}',
@@ -2554,6 +2747,31 @@ class AdminOrderRefundView(APIView):
         return Response(AdminOrderSerializer(order).data)
 
 
+class AdminPaymentIntentListView(generics.ListAPIView):
+    """Finance menu transaction list across M-Pesa, Paybill, card, and manual payments."""
+
+    permission_classes = [IsAdminUser]
+    serializer_class = PaymentIntentSerializer
+    filterset_fields = ['provider', 'status', 'currency']
+    search_fields = [
+        'reference', 'provider_reference', 'external_reference',
+        'phone_number', 'order__order_number', 'order__shipping_email',
+    ]
+    ordering_fields = ['created_at', 'updated_at', 'amount', 'processed_at']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return PaymentIntent.objects.select_related('order', 'initiated_by').order_by('-created_at')
+
+
+class AdminPaymentIntentDetailView(generics.RetrieveAPIView):
+    """Finance menu payment-intent detail for reconciliation and audit review."""
+
+    permission_classes = [IsAdminUser]
+    serializer_class = PaymentIntentSerializer
+    queryset = PaymentIntent.objects.select_related('order', 'initiated_by')
+
+
 class AdminOrderPushListView(generics.ListAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = OutboundOrderPushSerializer
@@ -2615,7 +2833,7 @@ class OrderStatusWebhookView(APIView):
 
 
 class AdminReturnRequestListView(generics.ListAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrPPBInspector]
     serializer_class = ReturnRequestSerializer
     filterset_fields = ['status']
     search_fields = ['order__order_number', 'customer__email']
@@ -2625,7 +2843,7 @@ class AdminReturnRequestListView(generics.ListAPIView):
 
 
 class AdminReturnRequestDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOrPPBInspector]
     queryset = ReturnRequest.objects.all().select_related('order', 'customer')
 
     def get_serializer_class(self):
@@ -2634,7 +2852,7 @@ class AdminReturnRequestDetailView(generics.RetrieveUpdateAPIView):
         return ReturnRequestSerializer
 
     def perform_update(self, serializer):
-        return_request = serializer.save()
+        return_request = serializer.save(handled_by=self.request.user)
         create_order_event(
             return_request.order,
             'return_updated',
@@ -2761,6 +2979,7 @@ class AdminReportsView(APIView):
 
         payout_pending = Payout.objects.filter(status='pending')
         payout_paid_month = Payout.objects.filter(status='paid', paid_at__date__gte=month_start)
+        payout_paid_range = Payout.objects.filter(status='paid', paid_at__date__gte=range_start)
         payouts_by_role = list(
             Payout.objects.values('role')
             .annotate(
@@ -2770,6 +2989,44 @@ class AdminReportsView(APIView):
                 pending_amount=Sum('amount', filter=Q(status='pending')),
             )
             .order_by('-total_amount')
+        )
+
+        range_paid_orders = paid_orders.filter(created_at__date__gte=range_start)
+        range_order_items = OrderItem.objects.filter(order__in=range_paid_orders)
+        inventory_cost = range_order_items.aggregate(
+            total=Sum(
+                models.ExpressionWrapper(
+                    Coalesce(F('variant__cost_price'), Decimal('0.00')) * F('quantity'),
+                    output_field=models.DecimalField(max_digits=12, decimal_places=2),
+                )
+            ),
+            costed_items=Count('id', filter=Q(variant__cost_price__isnull=False)),
+        )
+        delivery_cost_estimate = range_paid_orders.aggregate(total=Sum('shipping_fee'))['total'] or Decimal('0.00')
+        discounts_given = range_paid_orders.aggregate(total=Sum('discount_total'))['total'] or Decimal('0.00')
+        refunds_processed = ReturnRequest.objects.filter(
+            status__in=[
+                ReturnRequest.STATUS_APPROVED,
+                ReturnRequest.STATUS_RECEIVED,
+                ReturnRequest.STATUS_REFUNDED,
+            ],
+            updated_at__date__gte=range_start,
+        ).aggregate(total=Sum('requested_refund_amount'))['total'] or Decimal('0.00')
+        paid_payouts_total = payout_paid_range.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        stock_cost_total = inventory_cost['total'] or Decimal('0.00')
+        total_expenses = (
+            stock_cost_total
+            + delivery_cost_estimate
+            + discounts_given
+            + refunds_processed
+            + paid_payouts_total
+        )
+        net_cash = Decimal(str(range_revenue_val)) - total_expenses
+        gross_margin = Decimal(str(range_revenue_val)) - stock_cost_total
+        gross_margin_percent = (
+            (gross_margin / Decimal(str(range_revenue_val))) * Decimal('100')
+            if range_revenue_val > 0
+            else Decimal('0.00')
         )
 
         support_closed_range = SupportTicket.objects.filter(
@@ -2839,6 +3096,46 @@ class AdminReportsView(APIView):
                 {'date': str(d['day']), 'revenue': float(d['revenue'] or 0), 'orders': d['orders']}
                 for d in daily_revenue
             ],
+            'expenses': {
+                'total': float(total_expenses),
+                'net_cash': float(net_cash),
+                'gross_margin': float(gross_margin),
+                'gross_margin_percent': float(gross_margin_percent),
+                'items_costed_count': inventory_cost['costed_items'],
+                'items_total_count': range_order_items.count(),
+                'breakdown': [
+                    {
+                        'key': 'stock_cost',
+                        'label': 'Stock cost sold',
+                        'amount': float(stock_cost_total),
+                        'note': 'Based on variant cost prices captured in inventory.',
+                    },
+                    {
+                        'key': 'delivery_fulfilment',
+                        'label': 'Delivery fulfilment estimate',
+                        'amount': float(delivery_cost_estimate),
+                        'note': 'Uses shipping fees as the fulfilment cost estimate.',
+                    },
+                    {
+                        'key': 'discounts',
+                        'label': 'Discounts given',
+                        'amount': float(discounts_given),
+                        'note': 'Coupon and item discounts on paid orders.',
+                    },
+                    {
+                        'key': 'refunds',
+                        'label': 'Approved refunds/returns',
+                        'amount': float(refunds_processed),
+                        'note': 'Approved, received, and refunded return requests.',
+                    },
+                    {
+                        'key': 'paid_payouts',
+                        'label': 'Paid clinician/partner payouts',
+                        'amount': float(paid_payouts_total),
+                        'note': 'Payouts marked paid in this period.',
+                    },
+                ],
+            },
             'prescriptions': {
                 'by_status': rx_by_status,
                 'total': Prescription.objects.count(),
@@ -2869,6 +3166,8 @@ class AdminReportsView(APIView):
                 'pending_amount': float(payout_pending.aggregate(t=Sum('amount'))['t'] or 0),
                 'paid_month_amount': float(payout_paid_month.aggregate(t=Sum('amount'))['t'] or 0),
                 'paid_month_count': payout_paid_month.count(),
+                'paid_range_amount': float(paid_payouts_total),
+                'paid_range_count': payout_paid_range.count(),
                 'failed_count': Payout.objects.filter(status='failed').count(),
                 'by_role': [
                     {
@@ -2887,6 +3186,10 @@ class AdminReportsView(APIView):
                 'closed_range': support_closed_range,
             },
         })
+
+
+class AdminFinanceDashboardView(AdminReportsView):
+    """Finance menu dashboard backed by the same ecommerce reporting flow."""
 
 
 class AdminActivityFeedView(APIView):
@@ -3042,6 +3345,30 @@ class AdminDownloadReportView(APIView):
         return response
 
 
+class AdminOrderDeliveryAuditListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsPharmacistAdminOrPPBInspector]
+    serializer_class = DeliveryAuditSerializer
+
+    def get_queryset(self):
+        return DeliveryAudit.objects.filter(order_id=self.kwargs['pk']).select_related('order', 'recorded_by')
+
+    def perform_create(self, serializer):
+        order = Order.objects.get(pk=self.kwargs['pk'])
+        audit = serializer.save(order=order, recorded_by=self.request.user)
+        create_order_event(
+            order,
+            event_type=f'delivery_{audit.event_type}',
+            message=f'Delivery audit recorded: {audit.get_event_type_display()}.',
+            actor=self.request.user,
+            metadata={
+                'delivery_audit_id': audit.id,
+                'tracking_reference': audit.tracking_reference,
+                'recipient_verified': audit.recipient_verified,
+                'cold_chain_intact': audit.cold_chain_intact,
+            },
+        )
+
+
 # ─── Cart Merge ────────────────────────────────────────────────────────────────
 
 class CartMergeView(APIView):
@@ -3079,17 +3406,29 @@ class CartMergeView(APIView):
 
             if representative_variant is None:
                 continue
+            otc_screening = _as_payload_dict(item_data.get('otc_screening'))
+            if _otc_screening_error(representative_variant, otc_screening):
+                continue
             existing = CartItem.objects.filter(cart=cart, variant=representative_variant).first()
             if existing:
                 new_qty = existing.quantity + quantity
                 error = _product_availability_error(representative_variant, new_qty, allow_pos_refresh=True)
                 if not error:
                     existing.quantity = new_qty
-                    existing.save(update_fields=['quantity'])
+                    if otc_screening:
+                        existing.otc_screening = otc_screening
+                        existing.save(update_fields=['quantity', 'otc_screening'])
+                    else:
+                        existing.save(update_fields=['quantity'])
             else:
                 error = _product_availability_error(representative_variant, quantity, allow_pos_refresh=True)
                 if not error:
-                    CartItem.objects.create(cart=cart, variant=representative_variant, quantity=quantity)
+                    CartItem.objects.create(
+                        cart=cart,
+                        variant=representative_variant,
+                        quantity=quantity,
+                        otc_screening=otc_screening,
+                    )
 
         return Response(CartSerializer(cart).data)
 
@@ -3100,101 +3439,105 @@ class OrderCreateView(APIView):
     """Create an order from the cart in a single request (draft + finalize combined)."""
 
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [CheckoutRateThrottle]
 
-    @transaction.atomic
     def post(self, request):
         serializer = CheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
         cart = get_or_create_cart(request.user)
-        items = list(
-            cart.items.select_related('variant', 'variant__product', 'variant__product__brand')
-            .order_by('id')
-        )
-        if not items:
+        risk_items = load_checkout_items(cart)
+        if not risk_items:
             return Response(
                 {'error': {'code': 'cart_empty', 'message': 'Cart is empty.'}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        variants = {
-            variant.id: variant
-            for variant in Variant.objects.select_for_update().filter(
-                id__in=[item.variant_id for item in items if item.variant_id]
-            )
-        }
-        for item in items:
-            if item.variant_id:
-                item.variant = variants.get(item.variant_id)
-
-        errors = validate_cart_items(items)
+        errors = validate_cart_items(risk_items)
         if errors:
             return Response(
                 {'error': {'code': 'validation_error', 'message': errors[0] if errors else 'Cart validation failed.', 'details': errors}},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
+        enforce_checkout_risk(request, risk_items, checkout_phone=data.get('phone', ''))
 
-        shipping_method = None
-        shipping_method_id = data.get('shipping_method_id')
-        if shipping_method_id:
-            try:
-                shipping_method = ShippingMethod.objects.get(pk=shipping_method_id, is_active=True)
-            except ShippingMethod.DoesNotExist:
-                pass
-        if not shipping_method:
-            shipping_method = ShippingMethod.objects.filter(
-                code=data.get('delivery_method', 'standard'), is_active=True
-            ).first()
+        with transaction.atomic():
+            cart = get_or_create_cart(request.user)
+            items = load_checkout_items(cart, lock_variants=True)
+            if not items:
+                return Response(
+                    {'error': {'code': 'cart_empty', 'message': 'Cart is empty.'}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method)
-        payment_method = data['payment_method']
+            errors = validate_cart_items(items)
+            if errors:
+                return Response(
+                    {'error': {'code': 'validation_error', 'message': errors[0] if errors else 'Cart validation failed.', 'details': errors}},
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
 
-        order = Order.objects.create(
-            customer=request.user,
-            coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
-            coupon_code=cart.coupon.code if cart.coupon else '',
-            payment_method=payment_method,
-            payment_status=Order.PAYMENT_STATUS_PENDING,
-            delivery_method=data.get('delivery_method', 'standard'),
-            delivery_notes=data.get('delivery_notes', ''),
-            shipping_method=shipping_method,
-            shipping_first_name=data['first_name'],
-            shipping_last_name=data['last_name'],
-            shipping_email=data['email'],
-            shipping_phone=data['phone'],
-            shipping_street=data['street'],
-            shipping_city=data['city'],
-            shipping_county=data['county'],
-            subtotal=subtotal,
-            discount_total=discount_total,
-            shipping_fee=shipping_fee,
-            total=total,
-            status=Order.STATUS_PENDING,
-            placed_at=timezone.now(),
-        )
-        snapshot_cart_to_order(order, items)
-        create_order_event(order, 'order_created', 'Order placed.', actor=request.user)
+            shipping_method = None
+            shipping_method_id = data.get('shipping_method_id')
+            if shipping_method_id:
+                try:
+                    shipping_method = ShippingMethod.objects.get(pk=shipping_method_id, is_active=True)
+                except ShippingMethod.DoesNotExist:
+                    pass
+            if not shipping_method:
+                shipping_method = ShippingMethod.objects.filter(
+                    code=data.get('delivery_method', 'standard'), is_active=True
+                ).first()
 
-        # For COD: mark inventory immediately
-        if payment_method == Order.PAYMENT_COD:
-            commit_order_inventory(order)
-            order.inventory_committed = True
-            order.save(update_fields=['inventory_committed', 'updated_at'])
+            subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method)
+            payment_method = data['payment_method']
 
-        # Clear cart
-        cart.items.all().delete()
-        if cart.coupon:
-            cart.coupon = None
-            cart.save(update_fields=['coupon', 'updated_at'])
+            order = Order.objects.create(
+                customer=request.user,
+                coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
+                coupon_code=cart.coupon.code if cart.coupon else '',
+                payment_method=payment_method,
+                payment_status=Order.PAYMENT_STATUS_PENDING,
+                delivery_method=data.get('delivery_method', 'standard'),
+                delivery_notes=data.get('delivery_notes', ''),
+                shipping_method=shipping_method,
+                shipping_first_name=data['first_name'],
+                shipping_last_name=data['last_name'],
+                shipping_email=data['email'],
+                shipping_phone=data['phone'],
+                shipping_street=data['street'],
+                shipping_city=data['city'],
+                shipping_county=data['county'],
+                subtotal=subtotal,
+                discount_total=discount_total,
+                shipping_fee=shipping_fee,
+                total=total,
+                status=Order.STATUS_PENDING,
+                placed_at=timezone.now(),
+            )
+            snapshot_cart_to_order(order, items)
+            create_order_event(order, 'order_created', 'Order placed.', actor=request.user)
 
-        notify_order_update(
-            order,
-            title=f'Order {order.order_number} placed',
-            message=f'Your order total is KSh {order.total}.',
-            send_email=False,
-        )
-        queue_order_confirmation_email(order)
+            # For COD: mark inventory immediately
+            if payment_method == Order.PAYMENT_COD:
+                commit_order_inventory(order)
+                order.inventory_committed = True
+                order.save(update_fields=['inventory_committed', 'updated_at'])
+
+            # Clear cart
+            cart.items.all().delete()
+            if cart.coupon:
+                cart.coupon = None
+                cart.save(update_fields=['coupon', 'updated_at'])
+
+            notify_order_update(
+                order,
+                title=f'Order {order.order_number} placed',
+                message=f'Your order total is KSh {order.total}.',
+                send_email=False,
+            )
+            queue_order_confirmation_email(order)
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
@@ -3398,3 +3741,4 @@ class AdminOrderStatusView(APIView):
             )
 
         return Response(AdminOrderSerializer(order).data)
+    DeliveryAuditSerializer,

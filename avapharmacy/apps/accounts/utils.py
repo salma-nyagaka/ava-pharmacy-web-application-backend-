@@ -17,7 +17,7 @@ from django.utils.crypto import get_random_string
 
 from apps.notifications.emailing import send_rendered_email
 
-from .models import AdminAuditLog, PharmacistActivationToken, User
+from .models import AdminAuditLog, CustomerEmailVerificationToken, PharmacistActivationToken, User
 
 
 ACTIVATION_ELIGIBLE_ROLES = {
@@ -115,6 +115,64 @@ def build_activation_url(raw_token, request=None):
 
     backend_base = getattr(settings, 'BACKEND_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
     return f"{backend_base}/avapharmacy/api/v1/auth/professional/activate/{raw_token}/"
+
+
+def build_customer_verification_url(raw_token, request=None):
+    frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
+    frontend_path = getattr(settings, 'FRONTEND_CUSTOMER_VERIFY_PATH', '/verify-email')
+    url = f'{frontend_base}{frontend_path}?token={raw_token}'
+    if request is not None:
+        return url
+    return url
+
+
+def issue_customer_verification_token(user, *, ttl_hours=None):
+    if user.role != User.CUSTOMER:
+        raise ValueError('Customer verification tokens can only be issued for customer users.')
+
+    now = timezone.now()
+    CustomerEmailVerificationToken.objects.filter(
+        user=user, used_at__isnull=True, expires_at__gt=now
+    ).update(used_at=now)
+
+    raw_token = secrets.token_urlsafe(32)
+    ttl = ttl_hours or getattr(settings, 'CUSTOMER_VERIFICATION_TTL_HOURS', 24)
+    token = CustomerEmailVerificationToken.objects.create(
+        user=user,
+        token_hash=hash_token(raw_token),
+        sent_to=user.email,
+        expires_at=now + timedelta(hours=ttl),
+    )
+    return token, raw_token
+
+
+def get_valid_customer_verification(raw_token):
+    if not raw_token:
+        return None
+    now = timezone.now()
+    return (
+        CustomerEmailVerificationToken.objects.select_related('user')
+        .filter(
+            token_hash=hash_token(raw_token),
+            used_at__isnull=True,
+            expires_at__gt=now,
+            user__role=User.CUSTOMER,
+        )
+        .first()
+    )
+
+
+def consume_customer_verification(raw_token):
+    token = get_valid_customer_verification(raw_token)
+    if token is None:
+        return None
+    now = timezone.now()
+    token.used_at = now
+    token.save(update_fields=['used_at'])
+    CustomerEmailVerificationToken.objects.filter(
+        user=token.user, used_at__isnull=True, expires_at__gt=now
+    ).update(used_at=now)
+    return token
 
 
 def issue_pharmacist_activation_token(user, *, created_by=None, ttl_hours=None):
@@ -230,6 +288,45 @@ def send_customer_welcome_email(*, user):
     )
 
 
+def send_customer_verification_email(*, user, raw_token, request=None):
+    frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
+    verify_url = build_customer_verification_url(raw_token, request=request)
+    expires_hours = getattr(settings, 'CUSTOMER_VERIFICATION_TTL_HOURS', 24)
+    context = {
+        'first_name': user.first_name or 'there',
+        'verify_url': verify_url,
+        'expires_hours': expires_hours,
+        'login_url': getattr(settings, 'FRONTEND_LOGIN_URL', f'{frontend_base}/login'),
+        'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
+    }
+    send_rendered_email(
+        subject='Verify your AVA Pharmacy email',
+        recipient_list=[user.email],
+        text_template='accounts/emails/customer_verification.txt',
+        html_template='accounts/emails/customer_verification.html',
+        context=context,
+        fail_silently=False,
+    )
+
+
+def send_customer_activation_success_email(*, user):
+    frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
+    context = {
+        'first_name': user.first_name or 'there',
+        'dashboard_url': f'{frontend_base}/account',
+        'shop_url': getattr(settings, 'FRONTEND_SHOP_URL', f'{frontend_base}/products'),
+        'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
+    }
+    send_rendered_email(
+        subject='Your AVA Pharmacy account is active',
+        recipient_list=[user.email],
+        text_template='accounts/emails/customer_activation_success.txt',
+        html_template='accounts/emails/customer_activation_success.html',
+        context=context,
+        fail_silently=True,
+    )
+
+
 def send_password_reset_email(*, user, reset_url):
     """Send a password reset email with themed HTML and text fallback."""
     expires_hours = getattr(settings, 'PASSWORD_RESET_TTL_HOURS', 24)
@@ -248,6 +345,41 @@ def send_password_reset_email(*, user, reset_url):
         fail_silently=True,
     )
   
+
+def send_professional_application_received_email(*, email, first_name, role_label, reference):
+    """Notify a professional applicant that their application was received."""
+    send_rendered_email(
+        subject=f'AVA Pharmacy received your {role_label.lower()} application',
+        recipient_list=[email],
+        text_template='accounts/emails/professional_application_received.txt',
+        html_template='accounts/emails/professional_application_received.html',
+        context={
+            'first_name': first_name or 'there',
+            'role_label': role_label,
+            'reference': reference,
+            'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
+        },
+        fail_silently=True,
+    )
+
+
+def send_professional_application_status_email(*, email, first_name, role_label, status_label, message, cta_url=''):
+    """Notify a professional applicant about admin review outcomes."""
+    send_rendered_email(
+        subject=f'AVA Pharmacy {role_label.lower()} application {status_label.lower()}',
+        recipient_list=[email],
+        text_template='accounts/emails/professional_application_status.txt',
+        html_template='accounts/emails/professional_application_status.html',
+        context={
+            'first_name': first_name or 'there',
+            'role_label': role_label,
+            'status_label': status_label,
+            'message': message,
+            'cta_url': cta_url,
+            'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
+        },
+        fail_silently=True,
+    )
 
 
 def build_frontend_set_password_url(raw_token):

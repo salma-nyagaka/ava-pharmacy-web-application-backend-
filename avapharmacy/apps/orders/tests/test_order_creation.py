@@ -1,15 +1,17 @@
 from decimal import Decimal
+from datetime import date
+from unittest.mock import patch
 
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User
+from apps.accounts.models import BotRiskEvent, User
 from apps.notifications.models import Notification
-from apps.orders.models import Cart, CartItem, Order
+from apps.orders.models import Cart, CartItem, Order, PaymentIntent
 from apps.prescriptions.models import Prescription, PrescriptionItem
-from apps.products.models import Product, VariantInventory
+from apps.products.models import Product, StockMovement, VariantInventory
 
 
 class OrderCreationFlowTests(TestCase):
@@ -53,6 +55,26 @@ class OrderCreationFlowTests(TestCase):
         )
         self.variant.save()
 
+    def _direct_order(self, **overrides):
+        defaults = {
+            'customer': self.customer,
+            'status': Order.STATUS_PENDING,
+            'payment_method': Order.PAYMENT_MPESA_PAYBILL,
+            'payment_status': Order.PAYMENT_STATUS_REQUIRES_ACTION,
+            'shipping_first_name': 'Buyer',
+            'shipping_last_name': 'Customer',
+            'shipping_email': 'buyer@example.com',
+            'shipping_phone': '0727808457',
+            'shipping_street': 'Moi Avenue',
+            'shipping_city': 'Nairobi',
+            'shipping_county': 'Nairobi',
+            'subtotal': Decimal('700.00'),
+            'shipping_fee': Decimal('300.00'),
+            'total': Decimal('1000.00'),
+        }
+        defaults.update(overrides)
+        return Order.objects.create(**defaults)
+
     def test_customer_can_create_order_and_admin_can_view_it(self):
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)
@@ -94,6 +116,113 @@ class OrderCreationFlowTests(TestCase):
         self.assertIn(order.order_number, mail.outbox[0].subject)
         self.assertTrue(mail.outbox[0].alternatives)
         self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])
+
+    def test_finance_menu_dashboard_payments_invoices_and_reconciliation(self):
+        order = self._direct_order()
+        intent = PaymentIntent.objects.create(
+            order=order,
+            initiated_by=self.customer,
+            provider=PaymentIntent.PROVIDER_PAYBILL,
+            status=PaymentIntent.STATUS_REQUIRES_ACTION,
+            external_reference=order.order_number,
+            amount=order.total,
+            currency='KES',
+        )
+
+        self.client.force_authenticate(self.admin)
+
+        dashboard_response = self.client.get(reverse('admin-finance'))
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertIn('expenses', dashboard_response.data)
+        self.assertIn('payouts', dashboard_response.data)
+
+        payments_response = self.client.get(reverse('admin-finance-payments'))
+        self.assertEqual(payments_response.status_code, 200)
+        payments = payments_response.data.get('results', payments_response.data)
+        self.assertEqual(payments[0]['id'], intent.id)
+        self.assertEqual(payments[0]['reference'], intent.reference)
+
+        payment_detail_response = self.client.get(reverse('admin-finance-payment-detail', args=[intent.id]))
+        self.assertEqual(payment_detail_response.status_code, 200)
+        self.assertEqual(payment_detail_response.data['status'], PaymentIntent.STATUS_REQUIRES_ACTION)
+
+        invoices_response = self.client.get(reverse('admin-finance-invoices'))
+        self.assertEqual(invoices_response.status_code, 200)
+        invoices = invoices_response.data.get('results', invoices_response.data)
+        self.assertEqual(invoices[0]['order_number'], order.order_number)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            reconcile_response = self.client.post(
+                reverse('admin-finance-payment-reconcile', args=[intent.id]),
+                {
+                    'status': PaymentIntent.STATUS_SUCCEEDED,
+                    'provider_reference': 'MPESA-FINANCE-001',
+                    'message': 'Confirmed from finance menu.',
+                },
+                format='json',
+            )
+        self.assertEqual(reconcile_response.status_code, 200, reconcile_response.content)
+        intent.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(intent.status, PaymentIntent.STATUS_SUCCEEDED)
+        self.assertEqual(order.payment_status, Order.PAYMENT_STATUS_PAID)
+        self.assertEqual(order.payment_reference, 'MPESA-FINANCE-001')
+
+    def test_order_commit_deducts_variant_batches_by_earliest_expiry_first(self):
+        VariantInventory.objects.filter(variant=self.variant).delete()
+        early_batch = VariantInventory.objects.create(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+            batch_number='EARLY-2026',
+            stock_quantity=3,
+            low_stock_threshold=1,
+            expiry_date=date(2026, 8, 30),
+            shelf_location='A1',
+        )
+        later_batch = VariantInventory.objects.create(
+            variant=self.variant,
+            location=Product.STOCK_BRANCH,
+            batch_number='LATE-2027',
+            stock_quantity=5,
+            low_stock_threshold=1,
+            expiry_date=date(2027, 12, 31),
+            shelf_location='A2',
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(cart=cart, variant=self.variant, quantity=4)
+
+        response = self.client.post(
+            reverse('order-create'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_COD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        early_batch.refresh_from_db()
+        later_batch.refresh_from_db()
+        self.assertEqual(early_batch.stock_quantity, 0)
+        self.assertEqual(later_batch.stock_quantity, 4)
+
+        movements = StockMovement.objects.filter(
+            variant_inventory__variant=self.variant,
+            movement_type=StockMovement.TYPE_SALE,
+        ).order_by('created_at', 'id')
+        self.assertEqual(list(movements.values_list('batch_number', 'quantity_change')), [
+            ('EARLY-2026', -3),
+            ('LATE-2027', -1),
+        ])
 
     def test_prescription_cart_item_uses_foreign_keys_and_order_snapshot_preserves_them(self):
         self.variant.requires_prescription = True
@@ -152,6 +281,265 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(order_item.prescription_id, prescription.id)
         self.assertEqual(order_item.prescription_item_id, prescription_item.id)
         self.assertEqual(order_item.prescription_reference, prescription.reference)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_QUEUED)
+
+        self.client.force_authenticate(self.admin)
+        for next_status, expected_dispatch in [
+            (Order.STATUS_PROCESSING, Prescription.DISPATCH_PACKED),
+            (Order.STATUS_SHIPPED, Prescription.DISPATCH_DISPATCHED),
+            (Order.STATUS_DELIVERED, Prescription.DISPATCH_DELIVERED),
+        ]:
+            status_response = self.client.patch(
+                reverse('admin-order-detail', args=[order.id]),
+                {'status': next_status},
+                format='json',
+            )
+            self.assertEqual(status_response.status_code, 200, status_response.content)
+            prescription.refresh_from_db()
+            self.assertEqual(prescription.dispatch_status, expected_dispatch)
+
+    @patch('apps.accounts.bot_protection.verify_turnstile_token', return_value=(False, 'missing_challenge_token'))
+    def test_high_risk_checkout_requires_security_challenge_before_draft_creation(self, mock_verify_turnstile):
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
+
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        prescription_item = PrescriptionItem.objects.create(
+            prescription=prescription,
+            product=self.product,
+            variant=self.variant,
+            name=self.product.name,
+            quantity=1,
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=prescription_item,
+        )
+
+        response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': self.customer.phone,
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_COD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data['error']['details']['code'], 'BOT_CHALLENGE_REQUIRED')
+        self.assertFalse(Order.objects.filter(customer=self.customer).exists())
+        mock_verify_turnstile.assert_called_once()
+
+        event = BotRiskEvent.objects.get(event_type=BotRiskEvent.EVENT_CHECKOUT)
+        self.assertEqual(event.decision, BotRiskEvent.DECISION_CHALLENGE)
+        self.assertIn('new_account', event.reasons)
+        self.assertIn('prescription_cart', event.reasons)
+        self.assertIn('missing_challenge_token', event.reasons)
+
+    def test_checkout_finalize_removes_approved_prescription_from_awaiting_checkout_bucket(self):
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
+
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        prescription_item = PrescriptionItem.objects.create(
+            prescription=prescription,
+            product=self.product,
+            variant=self.variant,
+            name=self.product.name,
+            quantity=1,
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=prescription_item,
+        )
+
+        draft_response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_COD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+        self.assertEqual(draft_response.status_code, 201, draft_response.content)
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_NOT_STARTED)
+
+        order = Order.objects.get(customer=self.customer)
+        finalize_response = self.client.post(reverse('checkout-finalize', args=[order.id]))
+        self.assertEqual(finalize_response.status_code, 200, finalize_response.content)
+
+        prescription.refresh_from_db()
+        self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_QUEUED)
+        self.assertFalse(
+            Prescription.objects.filter(
+                pk=prescription.pk,
+                status=Prescription.STATUS_APPROVED,
+                dispatch_status=Prescription.DISPATCH_NOT_STARTED,
+            ).exists()
+        )
+
+    def test_paid_order_removes_matching_prescription_items_from_cart(self):
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
+
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        prescription_item = PrescriptionItem.objects.create(
+            prescription=prescription,
+            product=self.product,
+            variant=self.variant,
+            name=self.product.name,
+            quantity=1,
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=prescription_item,
+        )
+
+        draft_response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_CARD,
+                'delivery_method': 'standard',
+            },
+            format='json',
+        )
+        self.assertEqual(draft_response.status_code, 201, draft_response.content)
+        self.assertTrue(CartItem.objects.filter(cart=cart, prescription_item=prescription_item).exists())
+
+        order = Order.objects.get(customer=self.customer)
+        payment_response = self.client.post(
+            reverse('payment-intents'),
+            {'order_id': order.id, 'provider': PaymentIntent.PROVIDER_MANUAL},
+            format='json',
+        )
+        self.assertEqual(payment_response.status_code, 201, payment_response.content)
+
+        self.assertFalse(CartItem.objects.filter(cart=cart, prescription_item=prescription_item).exists())
+
+    def test_checkout_draft_can_scope_to_one_prescription(self):
+        self.variant.requires_prescription = True
+        self.variant.save(update_fields=['requires_prescription'])
+
+        prescription = Prescription.objects.create(
+            patient=self.customer,
+            patient_name=self.customer.full_name,
+            status=Prescription.STATUS_APPROVED,
+        )
+        prescription_item = PrescriptionItem.objects.create(
+            prescription=prescription,
+            product=self.product,
+            variant=self.variant,
+            name=self.product.name,
+            quantity=1,
+        )
+        other_product = Product.objects.create(
+            sku='ORDER-OTHER-001',
+            name='Other Cart Product',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        other_variant = other_product.variants.create(
+            sku='ORDER-OTHER-001-TAB',
+            name='Other Tablets',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        VariantInventory.objects.update_or_create(
+            variant=other_variant,
+            location=Product.STOCK_BRANCH,
+            defaults={'stock_quantity': 20, 'low_stock_threshold': 3},
+        )
+
+        self.client.force_authenticate(self.customer)
+        cart = Cart.objects.create(user=self.customer)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            prescription_reference=prescription.reference,
+            prescription=prescription,
+            prescription_item=prescription_item,
+        )
+        CartItem.objects.create(cart=cart, variant=other_variant, quantity=1)
+
+        draft_response = self.client.post(
+            reverse('checkout-draft'),
+            {
+                'first_name': 'Buyer',
+                'last_name': 'Customer',
+                'email': 'buyer@example.com',
+                'phone': '0727808457',
+                'street': 'Moi Avenue',
+                'city': 'Nairobi',
+                'county': 'Nairobi',
+                'payment_method': Order.PAYMENT_CARD,
+                'delivery_method': 'standard',
+                'prescription_reference': prescription.reference,
+            },
+            format='json',
+        )
+        self.assertEqual(draft_response.status_code, 201, draft_response.content)
+
+        order = Order.objects.get(customer=self.customer)
+        self.assertEqual(order.items.count(), 1)
+        self.assertEqual(order.items.get().prescription_reference, prescription.reference)
+        self.assertTrue(CartItem.objects.filter(cart=cart, variant=other_variant).exists())
 
     def test_order_creation_and_status_updates_create_customer_notifications(self):
         self.client.force_authenticate(self.customer)

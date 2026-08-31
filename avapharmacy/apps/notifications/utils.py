@@ -6,7 +6,7 @@ from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.utils import timezone
 
-from .emailing import build_login_redirect_url, send_rendered_email
+from .emailing import build_frontend_url, send_rendered_email
 from apps.orders.utils import queue_order_status_email
 
 logger = logging.getLogger(__name__)
@@ -39,10 +39,15 @@ def create_notification(recipient, notification_type, title, message, data=None,
         _push_to_websocket(recipient.id, NotificationSerializer(notification).data)
 
         preferences = get_notification_preferences(recipient)
+        delivery_title = title
+        delivery_message = message
+        if (data or {}).get('sensitive'):
+            delivery_title = 'Secure account update'
+            delivery_message = 'You have a secure update in your Ava Pharmacy account. Please log in to view details.'
         if send_email and preferences and preferences.email_enabled:
-            deliver_email(notification, recipient.email, title, message)
+            deliver_email(notification, recipient.email, delivery_title, delivery_message)
         if send_sms and preferences and preferences.sms_enabled and recipient.phone:
-            deliver_sms(notification, recipient.phone, message)
+            deliver_sms(notification, recipient.phone, delivery_message)
         return notification
     except Exception as exc:
         logger.error("Failed to create notification for user %s: %s", getattr(recipient, 'id', '?'), exc)
@@ -94,11 +99,11 @@ def deliver_email(notification, destination, subject, message):
     try:
         data = notification.data or {}
         raw_url = data.get('url') or ''
-        cta_url = build_login_redirect_url(raw_url) if raw_url else ''
+        cta_url = build_frontend_url(raw_url) if raw_url else ''
         detail_rows = []
-        if data.get('reference'):
+        if not data.get('sensitive') and data.get('reference'):
             detail_rows.append({'label': 'Reference', 'value': data['reference']})
-        if data.get('status'):
+        if not data.get('sensitive') and data.get('status'):
             detail_rows.append({'label': 'Status', 'value': data['status']})
 
         send_rendered_email(
@@ -201,25 +206,49 @@ def _push_to_websocket(user_id, notification_data):
         logger.warning("WebSocket push failed for user %s: %s", user_id, exc)
 
 
+def order_status_message(order):
+    status_phrases = {
+        'pending': 'is pending',
+        'processing': 'is being processed',
+        'confirmed': 'has been confirmed',
+        'shipped': 'has been shipped',
+        'delivered': 'has been delivered',
+        'cancelled': 'has been cancelled',
+        'canceled': 'has been cancelled',
+        'completed': 'has been completed',
+        'paid': 'has been paid',
+        'refunded': 'has been refunded',
+    }
+    phrase = status_phrases.get(order.status, f'is now {order.get_status_display().lower()}')
+    return f'Order {order.order_number} {phrase}'
+
+
 def notify_order_status(order):
-    if not order.customer:
-        return
-    preferences = get_notification_preferences(order.customer)
-    create_notification(
-        recipient=order.customer,
-        notification_type='order_status',
-        title=f"Order {order.order_number} Updated",
-        message=f"Your order status is now: {order.get_status_display()}",
-        data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
-        send_email=False,
-        send_sms=bool(preferences and preferences.order_updates_sms),
-    )
-    if preferences and preferences.order_updates_email:
+    preferences = get_notification_preferences(order.customer) if order.customer else None
+    status_message = order_status_message(order)
+    if order.customer:
+        create_notification(
+            recipient=order.customer,
+            notification_type='order_status',
+            title=status_message,
+            message=status_message,
+            data={'url': f'/account/orders/{order.id}', 'reference': order.order_number, 'status': order.get_status_display()},
+            send_email=False,
+            send_sms=bool(preferences and preferences.order_updates_sms),
+        )
+    if order.status == 'processing' and order.shipping_email:
         queue_order_status_email(
             order,
-            subject=f'Order {order.order_number} Updated',
-            heading=f'Order {order.order_number} updated',
-            intro=f'Your order status is now {order.get_status_display()}.',
+            subject=status_message,
+            heading=status_message,
+            intro='Your order has been marked as processing. Our pharmacy team is now preparing the items for dispatch or pickup.',
+        )
+    elif preferences and preferences.order_updates_email:
+        queue_order_status_email(
+            order,
+            subject=status_message,
+            heading=status_message,
+            intro=status_message,
         )
 
 
@@ -235,6 +264,7 @@ def notify_prescription_status(prescription):
             'url': f'/account/prescriptions?prescription={prescription.id}',
             'reference': prescription.reference,
             'status': prescription.get_status_display(),
+            'sensitive': True,
         },
         send_email=True,
     )
@@ -256,12 +286,23 @@ def notify_lab_result_ready(lab_request):
 def notify_new_consultation(doctor_user, consultation):
     if not doctor_user:
         return
+    is_pediatric = bool(getattr(consultation, 'is_pediatric', False))
+    dashboard_segment = 'pediatrician' if is_pediatric else 'doctor'
+    child_patient_id = getattr(consultation, 'child_patient_id', None)
     create_notification(
         recipient=doctor_user,
         notification_type='new_consultation',
         title="New Consultation Request",
-        message=f"New consultation from {consultation.patient_name}: {consultation.issue[:100]}",
-        data={'url': f'/doctor/consultations/{consultation.id}', 'reference': consultation.reference},
+        message=f"A new paid consultation request is available in your {dashboard_segment} dashboard.",
+        data={
+            'url': f'/{dashboard_segment}/consultations/{consultation.id}',
+            'consultation_id': consultation.id,
+            'reference': consultation.reference,
+            'is_pediatric': is_pediatric,
+            'child_patient_id': child_patient_id,
+            'guardian_id': consultation.patient_id if is_pediatric else None,
+            'sensitive': True,
+        },
         send_email=True,
     )
 
@@ -272,7 +313,7 @@ def notify_consultation_message(recipient, consultation, sender_name):
         notification_type='consultation_message',
         title=f"New message from {sender_name}",
         message=f"New message in consultation {consultation.reference}",
-        data={'url': f'/consultations/{consultation.id}', 'reference': consultation.reference},
+        data={'url': f'/consultations/{consultation.id}', 'reference': consultation.reference, 'sensitive': True},
     )
 
 

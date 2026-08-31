@@ -19,7 +19,16 @@ def build_login_redirect_url(path):
         safe_path = f'/{safe_path}'
     login_url = getattr(settings, 'FRONTEND_LOGIN_URL', f'{frontend_base_url()}/login')
     separator = '&' if '?' in login_url else '?'
-    return f'{login_url}{separator}redirect={quote(safe_path, safe="/?=&")}'
+    return f'{login_url}{separator}redirect={quote(safe_path, safe="/")}'
+
+
+def build_frontend_url(path):
+    safe_path = (path or '/').strip() or '/'
+    if safe_path.startswith('http://') or safe_path.startswith('https://'):
+        return safe_path
+    if not safe_path.startswith('/'):
+        safe_path = f'/{safe_path}'
+    return f'{frontend_base_url()}{safe_path}'
 
 
 def build_absolute_media_url(field_or_url):
