@@ -214,6 +214,130 @@ class LabTest(models.Model):
         super().save(*args, **kwargs)
 
 
+class LaboratoryFacility(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_VERIFIED = 'verified'
+    STATUS_SUSPENDED = 'suspended'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending verification'),
+        (STATUS_VERIFIED, 'Verified'),
+        (STATUS_SUSPENDED, 'Suspended'),
+    ]
+
+    reference = models.CharField(max_length=20, unique=True, blank=True)
+    partner = models.ForeignKey(
+        LabPartner,
+        on_delete=models.CASCADE,
+        related_name='facilities',
+    )
+    name = models.CharField(max_length=200)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=20)
+    county = models.CharField(max_length=100)
+    address = models.TextField()
+    accreditation = models.CharField(max_length=200, blank=True)
+    license_number = models.CharField(max_length=100)
+    license_expiry = models.DateField(null=True, blank=True)
+    supported_counties = models.JSONField(default=list)
+    operating_hours = models.JSONField(default=dict)
+    home_collection_enabled = models.BooleanField(default=True)
+    physical_result_pickup_enabled = models.BooleanField(default=False)
+    pickup_instructions = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status_note = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    technicians = models.ManyToManyField(
+        LabTechnicianProfile,
+        blank=True,
+        related_name='facilities',
+    )
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verified_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='verified_laboratory_facilities',
+    )
+
+    class Meta:
+        ordering = ['partner__name', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['partner', 'name'], name='unique_partner_facility_name'),
+        ]
+        indexes = [
+            models.Index(fields=['partner', 'status', 'is_active']),
+            models.Index(fields=['county', 'status', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f'{self.partner.name} — {self.name}'
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            self.reference = f"LAB-F-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+
+
+class FacilityLabTest(models.Model):
+    facility = models.ForeignKey(
+        LaboratoryFacility,
+        on_delete=models.CASCADE,
+        related_name='offerings',
+    )
+    test = models.ForeignKey(
+        LabTest,
+        on_delete=models.CASCADE,
+        related_name='facility_offerings',
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    turnaround = models.CharField(max_length=100)
+    home_collection_available = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['test__name']
+        constraints = [
+            models.UniqueConstraint(fields=['facility', 'test'], name='unique_facility_lab_test'),
+        ]
+        indexes = [
+            models.Index(fields=['facility', 'is_active']),
+            models.Index(fields=['test', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f'{self.facility.name} — {self.test.name}'
+
+
+class LaboratoryFacilityDocument(models.Model):
+    STATUS_SUBMITTED = 'submitted'
+    STATUS_VERIFIED = 'verified'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_SUBMITTED, 'Submitted'),
+        (STATUS_VERIFIED, 'Verified'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
+
+    facility = models.ForeignKey(
+        LaboratoryFacility,
+        on_delete=models.CASCADE,
+        related_name='documents',
+    )
+    name = models.CharField(max_length=200)
+    file = models.FileField(upload_to='laboratory_facilities/documents/')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SUBMITTED)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f'{self.facility.name} — {self.name}'
+
+
 class LabRequest(models.Model):
     STATUS_AWAITING = 'awaiting_sample'
     STATUS_COLLECTED = 'sample_collected'
@@ -248,7 +372,14 @@ class LabRequest(models.Model):
     CHANNEL_COLLECTION = 'collection'
     CHANNEL_CHOICES = [
         (CHANNEL_WALKIN, 'Walk-in'),
-        (CHANNEL_COLLECTION, 'Collection'),
+        (CHANNEL_COLLECTION, 'Home sample collection'),
+    ]
+
+    RESULT_DIGITAL = 'digital'
+    RESULT_PHYSICAL_PICKUP = 'physical_pickup'
+    RESULT_DELIVERY_CHOICES = [
+        (RESULT_DIGITAL, 'Secure digital delivery'),
+        (RESULT_PHYSICAL_PICKUP, 'Physical result pickup'),
     ]
 
     reference = models.CharField(max_length=20, unique=True, blank=True)
@@ -262,9 +393,50 @@ class LabRequest(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_AWAITING)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_PENDING)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default=PRIORITY_ROUTINE)
-    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, default=CHANNEL_WALKIN)
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, default=CHANNEL_COLLECTION)
+    result_delivery_method = models.CharField(
+        max_length=30,
+        choices=RESULT_DELIVERY_CHOICES,
+        default=RESULT_DIGITAL,
+    )
+    collection_address = models.TextField(blank=True)
+    collection_instructions = models.TextField(blank=True)
+    collection_verification_code_hash = models.CharField(max_length=128, blank=True)
+    collection_code_requested_at = models.DateTimeField(null=True, blank=True)
+    collection_code_expires_at = models.DateTimeField(null=True, blank=True)
+    collection_verification_attempts = models.PositiveSmallIntegerField(default=0)
+    collection_verified_at = models.DateTimeField(null=True, blank=True)
+    collection_verified_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='verified_lab_collections',
+    )
+    result_pickup_location = models.CharField(max_length=255, blank=True)
     ordering_doctor = models.CharField(max_length=200, blank=True)
     notes = models.TextField(blank=True)
+    assigned_partner = models.ForeignKey(
+        LabPartner,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_requests',
+    )
+    laboratory = models.ForeignKey(
+        LaboratoryFacility,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requests',
+    )
+    assigned_pharmacist = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='coordinated_lab_requests',
+    )
     assigned_technician = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_lab_requests'
     )
@@ -276,6 +448,9 @@ class LabRequest(models.Model):
         ordering = ['-requested_at']
         indexes = [
             models.Index(fields=['patient', 'status']),
+            models.Index(fields=['assigned_partner', 'status']),
+            models.Index(fields=['laboratory', 'status']),
+            models.Index(fields=['assigned_pharmacist', 'status']),
             models.Index(fields=['assigned_technician', 'status']),
             models.Index(fields=['status', '-requested_at']),
             models.Index(fields=['payment_status', '-requested_at']),
