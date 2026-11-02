@@ -49,10 +49,10 @@ class Coupon(models.Model):
             return False
         if self.ends_at and self.ends_at < now:
             return False
-        if self.usage_limit is not None and self.orders.exclude(status=Order.STATUS_CANCELLED).count() >= self.usage_limit:
+        if self.usage_limit is not None and self.orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_DRAFT]).count() >= self.usage_limit:
             return False
         if user and self.per_user_limit:
-            user_uses = self.orders.filter(customer=user).exclude(status=Order.STATUS_CANCELLED).count()
+            user_uses = self.orders.filter(customer=user).exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_DRAFT]).count()
             if user_uses >= self.per_user_limit:
                 return False
         return True
@@ -164,8 +164,16 @@ class CartItem(models.Model):
         return f"{label} x {self.quantity}"
 
     @property
+    def unit_price(self):
+        from apps.products.services import calculate_variant_pricing
+        subtotal = getattr(self, '_pricing_subtotal', None)
+        if subtotal is None:
+            subtotal = sum(row.variant.price * row.quantity for row in self.cart.items.select_related('variant'))
+        return calculate_variant_pricing(self.variant, qualifying_subtotal=subtotal)['final_price']
+
+    @property
     def subtotal(self):
-        return self.variant.effective_price * self.quantity
+        return self.unit_price * self.quantity
 
     @property
     def inventory_object(self):
@@ -269,7 +277,7 @@ class Order(models.Model):
     )
     coupon = models.ForeignKey(Coupon, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_COD)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_MPESA_STK)
     payment_status = models.CharField(
         max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING
     )
@@ -341,6 +349,7 @@ class OrderItem(models.Model):
     allocated_branch_quantity = models.PositiveIntegerField(default=0)
     allocated_warehouse_quantity = models.PositiveIntegerField(default=0)
     allocated_backorder_quantity = models.PositiveIntegerField(default=0)
+    inventory_allocations = models.JSONField(default=list, blank=True)
     prescription_reference = models.CharField(max_length=20, blank=True, null=True)
     prescription = models.ForeignKey(
         'prescriptions.Prescription',

@@ -1,0 +1,48 @@
+{
+  "new_customer_id": 87,
+  "registration": {
+    "register_status": 201,
+    "verification_status": 200,
+    "email_verification_delivery": "local-memory QA mailbox; no external inbox claim",
+    "login_status": 200
+  },
+  "shipping_id": 4,
+  "shipping_fee": "0.00",
+  "catalog": {
+    "new_customer": {
+      "product_id": 22372,
+      "variant_id": 23514,
+      "inventory_id": 64284,
+      "stock_before": 4,
+      "price": "1.00"
+    },
+    "prescription": {
+      "product_id": 22373,
+      "variant_id": 23516,
+      "inventory_id": 64285,
+      "stock_before": 4,
+      "price": "1.00"
+    },
+    "doctor": {
+      "product_id": 22374,
+      "variant_id": 23518,
+      "inventory_id": 64286,
+      "stock_before": 4,
+      "price": "1.00"
+    },
+    "pediatric": {
+      "product_id": 22371,
+      "variant_id": 23512,
+      "inventory_id": 64283,
+      "stock_before": 2,
+      "price": "1.00",
+      "prescription_id": 48
+    }
+  },
+  "isolated_doctor_id": 32,
+  "doctor_fee": "1.00",
+  "regular_doctor_fee_unchanged": "500.00",
+  "phone_last4": "8457",
+  "new_payment_requests_sent": 0,
+  "provider_success_simulated": false
+}

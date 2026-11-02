@@ -1,0 +1,613 @@
+[
+  {
+    "variant_id": 1451,
+    "source_page": "https://ultrapanama.com/product/aunt-jackies-dont-shrink-flaxseed-elongating-curling-gel-426g/",
+    "before": {
+      "description": "AUNT JACKIE'S CURLS & COILS",
+      "short_description": "AUNT JACKIE'S CURLS & COILS",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Hair & Scalp.",
+      "image": "products/catalog/web-034285692155.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://media.ultrapanama.com/wp-content/uploads/2024/11/AUNT-JACKIES-DONT-SHRINK-FLAXSEED-ELONGATING-CURLING-GEL-426g-scaled-1.jpg",
+      "image_source_page_url": "https://ultrapanama.com/product/aunt-jackies-dont-shrink-flaxseed-elongating-curling-gel-426g/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:48:22.616538+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "pack_size",
+      "curation_notes"
+    ],
+    "price_before": "1250.00",
+    "inventory_before": [
+      {
+        "id": 3943,
+        "stock_quantity": 0
+      },
+      {
+        "id": 3944,
+        "stock_quantity": 0
+      },
+      {
+        "id": 3945,
+        "stock_quantity": 0
+      }
+    ],
+    "image_result": "Existing product image retained; source URL matches structured product image",
+    "after": {
+      "description": "Aunt Jackie's Don't Shrink is a flaxseed curling gel for styling curly or textured hair. Supplied in a 426 g container.\n\nSpecifications\nProduct type: curling gel; pack size: 426 g.",
+      "short_description": "AUNT JACKIE'S CURLS & COILS",
+      "pack_size": "426 g",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Hair & Scalp.\nCatalog enrichment 2026-11-01: https://ultrapanama.com/product/aunt-jackies-dont-shrink-flaxseed-elongating-curling-gel-426g/; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/web-034285692155.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://media.ultrapanama.com/wp-content/uploads/2024/11/AUNT-JACKIES-DONT-SHRINK-FLAXSEED-ELONGATING-CURLING-GEL-426g-scaled-1.jpg",
+      "image_source_page_url": "https://ultrapanama.com/product/aunt-jackies-dont-shrink-flaxseed-elongating-curling-gel-426g/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:48:22.616538+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-034285692155.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://media.ultrapanama.com/wp-content/uploads/2024/11/AUNT-JACKIES-DONT-SHRINK-FLAXSEED-ELONGATING-CURLING-GEL-426g-scaled-1.jpg",
+      "image_source_page_url": "https://ultrapanama.com/product/aunt-jackies-dont-shrink-flaxseed-elongating-curling-gel-426g/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:48:22.616538+00:00"
+    },
+    "final_image": "products/catalog/web-034285692155.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 2928,
+    "source_page": "https://www.truemeds.in/medicine/betadine-75-scrub-500-ml-tm-scub1-000003",
+    "before": {
+      "description": "Betadine Surgical Scrub 500Ml",
+      "short_description": "Betadine Surgical Scrub 500Ml",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): First Aid.",
+      "image": "products/variants/betadine-surgical-scrub-500ml.jpeg",
+      "image_source": "web_scrape",
+      "image_source_url": "https://assets.truemeds.in/Images/ProductImage/TM-SCUB1-000003/betadine-surgical-scrub-500ml_betadine-surgical-scrub-500ml--TM-SCUB1-000003_1.jpeg?width=1000",
+      "image_source_page_url": "https://www.truemeds.in/medicine/betadine-75-scrub-500-ml-tm-scub1-000003",
+      "image_verified": "True",
+      "image_checked_at": "2026-10-15 20:11:42.851772+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "short_description",
+      "pack_size",
+      "curation_notes"
+    ],
+    "price_before": "1350.00",
+    "inventory_before": [
+      {
+        "id": 8031,
+        "stock_quantity": 5000
+      },
+      {
+        "id": 8032,
+        "stock_quantity": 5000
+      },
+      {
+        "id": 8033,
+        "stock_quantity": 5000
+      }
+    ],
+    "image_result": "Verified image preserved",
+    "after": {
+      "description": "Betadine Surgical Scrub supplied in a 500 ml bottle. Refer to the product label for instructions and precautions.\n\nSpecifications\nProduct type: surgical scrub; pack size: 500 ml.",
+      "short_description": "Betadine Surgical Scrub supplied in a 500 ml bottle. Refer to the product label for instructions and precautions.",
+      "pack_size": "500 ml",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): First Aid.\nCatalog enrichment 2026-11-01: https://www.truemeds.in/medicine/betadine-75-scrub-500-ml-tm-scub1-000003; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/variants/betadine-surgical-scrub-500ml.jpeg",
+      "image_source": "web_scrape",
+      "image_source_url": "https://assets.truemeds.in/Images/ProductImage/TM-SCUB1-000003/betadine-surgical-scrub-500ml_betadine-surgical-scrub-500ml--TM-SCUB1-000003_1.jpeg?width=1000",
+      "image_source_page_url": "https://www.truemeds.in/medicine/betadine-75-scrub-500-ml-tm-scub1-000003",
+      "image_verified": "True",
+      "image_checked_at": "2026-10-15 20:11:42.851772+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/betadine-surgical-scrub-500ml.jpeg",
+      "image_source": "web_scrape",
+      "image_source_url": "https://assets.truemeds.in/Images/ProductImage/TM-SCUB1-000003/betadine-surgical-scrub-500ml_betadine-surgical-scrub-500ml--TM-SCUB1-000003_1.jpeg?width=1000",
+      "image_source_page_url": "https://www.truemeds.in/medicine/betadine-75-scrub-500-ml-tm-scub1-000003",
+      "image_verified": "True",
+      "image_checked_at": "2026-10-15 20:11:42.854713+00:00"
+    },
+    "final_image": "products/variants/betadine-surgical-scrub-500ml.jpeg",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 22911,
+    "source_page": "https://head2toes.ae/product/wella-shockwaves-volume-mousse-200ml/",
+    "before": {
+      "description": "WELLA SHOCKWAVES HAIR MOUSSE VOLUME 5 200ML",
+      "short_description": "WELLA SHOCKWAVES HAIR MOUSSE VOLUME 5 200ML",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Hair & Scalp.",
+      "image": "products/catalog/web-3614226250438.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://head2toes.ae/wp-content/uploads/2021/09/911Ez4-qWPL._AC_SL1500_-1200x1200.jpg",
+      "image_source_page_url": "https://head2toes.ae/product/wella-shockwaves-volume-mousse-200ml/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 20:01:44.634974+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "short_description",
+      "pack_size",
+      "curation_notes",
+      "image",
+      "image_source_url",
+      "image_checked_at"
+    ],
+    "price_before": "2000.00",
+    "inventory_before": [
+      {
+        "id": 62634,
+        "stock_quantity": 0
+      },
+      {
+        "id": 62635,
+        "stock_quantity": 0
+      },
+      {
+        "id": 62636,
+        "stock_quantity": 0
+      }
+    ],
+    "image_result": "Downloaded exact-source product image, awaiting visual verification",
+    "after": {
+      "description": "Wella Shockwaves Volume hair mousse in a 200 ml can, identified as hold level 5.\n\nSpecifications\nProduct type: hair mousse; pack size: 200 ml; hold level: 5.",
+      "short_description": "Wella Shockwaves Volume hair mousse in a 200 ml can, identified as hold level 5.",
+      "pack_size": "200 ml",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Hair & Scalp.\nCatalog enrichment 2026-11-01: https://head2toes.ae/product/wella-shockwaves-volume-mousse-200ml/; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/enriched-22911-dc88bd68b020.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://head2toes.ae/wp-content/uploads/2021/09/3614226250438.jpg",
+      "image_source_page_url": "https://head2toes.ae/product/wella-shockwaves-volume-mousse-200ml/",
+      "image_verified": "False",
+      "image_checked_at": "2026-11-01 19:21:44.543354+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-3614226250438.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://head2toes.ae/wp-content/uploads/2021/09/911Ez4-qWPL._AC_SL1500_-1200x1200.jpg",
+      "image_source_page_url": "https://head2toes.ae/product/wella-shockwaves-volume-mousse-200ml/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 20:01:44.634974+00:00"
+    },
+    "final_image": "products/catalog/enriched-22911-dc88bd68b020.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 23004,
+    "source_page": "https://www.hampdensupply.com/42462-hs-wisdom-active-whitening-charcoal-toothbrush",
+    "before": {
+      "description": "WISDOM ACTIVE WHITENING CHARCOAL TOOTHBRUSH MEDIUM",
+      "short_description": "WISDOM ACTIVE WHITENING CHARCOAL TOOTHBRUSH MEDIUM",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.",
+      "image": "products/catalog/web-5028763012585.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://www.hampdensupply.com/image/cache/catalog/products/42462-550x550h.jpg",
+      "image_source_page_url": "https://www.hampdensupply.com/42462-hs-wisdom-active-whitening-charcoal-toothbrush",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:50:31.250381+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "short_description",
+      "curation_notes",
+      "image",
+      "image_source_url",
+      "image_checked_at"
+    ],
+    "price_before": "600.00",
+    "inventory_before": [
+      {
+        "id": 62892,
+        "stock_quantity": 1
+      },
+      {
+        "id": 62893,
+        "stock_quantity": 4
+      },
+      {
+        "id": 62894,
+        "stock_quantity": 3
+      }
+    ],
+    "image_result": "Downloaded exact-source product image, awaiting visual verification",
+    "after": {
+      "description": "Wisdom Active Whitening Charcoal manual toothbrush with medium bristles.\n\nSpecifications\nProduct type: manual toothbrush; bristle firmness: medium; range: Active Whitening Charcoal.",
+      "short_description": "Wisdom Active Whitening Charcoal manual toothbrush with medium bristles.",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.\nCatalog enrichment 2026-11-01: https://www.hampdensupply.com/42462-hs-wisdom-active-whitening-charcoal-toothbrush; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/enriched-23004-c0609626c709.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://www.hampdensupply.com/image/cache/catalog/products/42462-231x868.jpg",
+      "image_source_page_url": "https://www.hampdensupply.com/42462-hs-wisdom-active-whitening-charcoal-toothbrush",
+      "image_verified": "False",
+      "image_checked_at": "2026-11-01 19:21:45.476594+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-5028763012585.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://www.hampdensupply.com/image/cache/catalog/products/42462-550x550h.jpg",
+      "image_source_page_url": "https://www.hampdensupply.com/42462-hs-wisdom-active-whitening-charcoal-toothbrush",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:50:31.250381+00:00"
+    },
+    "final_image": "products/catalog/enriched-23004-c0609626c709.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 23013,
+    "source_page": "https://shop.pharmaplus.co.ke/products/wisdom-clean-between-easyslide-y-shaped-flossers-30-s",
+    "before": {
+      "description": "WISDOM CLEAN BETWEEN EASY NSLIDE FLOSSERS 30*S",
+      "short_description": "WISDOM CLEAN BETWEEN EASY NSLIDE FLOSSERS 30*S",
+      "pack_size": "",
+      "curation_notes": "",
+      "image": "products/catalog/web-5028763008786.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://images.pharmaplus.co.ke/images/700_x_700/W0444.webp",
+      "image_source_page_url": "https://shop.pharmaplus.co.ke/products/wisdom-clean-between-easyslide-y-shaped-flossers-30-s",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:51:02.809169+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "short_description",
+      "pack_size",
+      "curation_notes"
+    ],
+    "price_before": "1000.00",
+    "inventory_before": [
+      {
+        "id": 62917,
+        "stock_quantity": 0
+      },
+      {
+        "id": 62918,
+        "stock_quantity": 0
+      },
+      {
+        "id": 62919,
+        "stock_quantity": 0
+      }
+    ],
+    "image_result": "Existing product image retained; source URL matches structured product image",
+    "after": {
+      "description": "Wisdom Clean Between Easyslide Y-shaped flossers for interdental cleaning. Each pack contains 30 flossers.\n\nSpecifications\nProduct type: flossers; shape: Y-shaped; pack size: 30 flossers.",
+      "short_description": "Wisdom Clean Between Easyslide Y-shaped flossers for interdental cleaning. Each pack contains 30 flossers.",
+      "pack_size": "30 flossers",
+      "curation_notes": "Catalog enrichment 2026-11-01: https://shop.pharmaplus.co.ke/products/wisdom-clean-between-easyslide-y-shaped-flossers-30-s; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/web-5028763008786.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://images.pharmaplus.co.ke/images/700_x_700/W0444.webp",
+      "image_source_page_url": "https://shop.pharmaplus.co.ke/products/wisdom-clean-between-easyslide-y-shaped-flossers-30-s",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:51:02.809169+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-5028763008786.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://images.pharmaplus.co.ke/images/700_x_700/W0444.webp",
+      "image_source_page_url": "https://shop.pharmaplus.co.ke/products/wisdom-clean-between-easyslide-y-shaped-flossers-30-s",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:51:02.809169+00:00"
+    },
+    "final_image": "products/catalog/web-5028763008786.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 23025,
+    "source_page": "https://www.weldricks.co.uk/products/wisdom-fresh-breath-spray-125ml",
+    "before": {
+      "description": "WISDOM FRESH BREATH SPRAY 12.5ML",
+      "short_description": "WISDOM FRESH BREATH SPRAY 12.5ML",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.",
+      "image": "products/catalog/web-5028763006478.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://d2i5j94z9qxt5a.cloudfront.net/eyJidWNrZXQiOiJ3ZWxkcmlja3MtY2RuIiwia2V5IjoicHJvZHVjdHMvMzYwNy9SendUaDUyTnFNZmdEazFiTkRTcnBiT1VPNFRpRkROdjVpaThhNW9oLnBuZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6NjAwLCJoZWlnaHQiOjYwMCwiZml0IjoiY29udGFpbiIsImJhY2tncm91bmQiOnsiciI6MjU1LCJnIjoyNTUsImIiOjI1NSwiYWxwaGEiOjB9fSwid2VicCI6eyJxdWFsaXR5Ijo4MH19fQ==",
+      "image_source_page_url": "https://www.weldricks.co.uk/products/wisdom-fresh-breath-spray-125ml",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:52:16.606981+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "short_description",
+      "pack_size",
+      "curation_notes",
+      "image",
+      "image_source_url",
+      "image_checked_at"
+    ],
+    "price_before": "700.00",
+    "inventory_before": [
+      {
+        "id": 62953,
+        "stock_quantity": 6
+      },
+      {
+        "id": 62954,
+        "stock_quantity": 0
+      },
+      {
+        "id": 62955,
+        "stock_quantity": 6
+      }
+    ],
+    "image_result": "Downloaded exact-source product image, awaiting visual verification",
+    "after": {
+      "description": "Wisdom Fresh Effect breath spray in a compact 12.5 ml pack for oral freshness.\n\nSpecifications\nProduct type: breath spray; pack size: 12.5 ml; range: Fresh Effect.",
+      "short_description": "Wisdom Fresh Effect breath spray in a compact 12.5 ml pack for oral freshness.",
+      "pack_size": "12.5 ml",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.\nCatalog enrichment 2026-11-01: https://www.weldricks.co.uk/products/wisdom-fresh-breath-spray-125ml; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/enriched-23025-2621c814665f.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://d2i5j94z9qxt5a.cloudfront.net/eyJidWNrZXQiOiJ3ZWxkcmlja3MtY2RuIiwia2V5IjoicHJvZHVjdHMvMzYwNy9SendUaDUyTnFNZmdEazFiTkRTcnBiT1VPNFRpRkROdjVpaThhNW9oLnBuZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6MTIwMCwiaGVpZ2h0Ijo2MzAsImZpdCI6ImNvbnRhaW4iLCJiYWNrZ3JvdW5kIjp7InIiOjI1NSwiZyI6MjU1LCJiIjoyNTUsImFscGhhIjoxfX0sImZsYXR0ZW4iOnsiYmFja2dyb3VuZCI6IiNmZmZmZmYifSwicmVtb3ZlQWxwaGEiOnRydWV9fQ==",
+      "image_source_page_url": "https://www.weldricks.co.uk/products/wisdom-fresh-breath-spray-125ml",
+      "image_verified": "False",
+      "image_checked_at": "2026-11-01 19:21:46.449056+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-5028763006478.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://d2i5j94z9qxt5a.cloudfront.net/eyJidWNrZXQiOiJ3ZWxkcmlja3MtY2RuIiwia2V5IjoicHJvZHVjdHMvMzYwNy9SendUaDUyTnFNZmdEazFiTkRTcnBiT1VPNFRpRkROdjVpaThhNW9oLnBuZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6NjAwLCJoZWlnaHQiOjYwMCwiZml0IjoiY29udGFpbiIsImJhY2tncm91bmQiOnsiciI6MjU1LCJnIjoyNTUsImIiOjI1NSwiYWxwaGEiOjB9fSwid2VicCI6eyJxdWFsaXR5Ijo4MH19fQ==",
+      "image_source_page_url": "https://www.weldricks.co.uk/products/wisdom-fresh-breath-spray-125ml",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:52:16.606981+00:00"
+    },
+    "final_image": "products/catalog/enriched-23025-2621c814665f.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 23028,
+    "source_page": "https://henryandhunter.co.uk/product/wisdom-fresh-effect-freshmint-mouthwash-500ml/",
+    "before": {
+      "description": "WISDOM MOUTHWASH FRESH EFFECT 500ML",
+      "short_description": "WISDOM MOUTHWASH FRESH EFFECT 500ML",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.",
+      "image": "products/catalog/web-5028763007796.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://henryandhunter.co.uk/wp-content/uploads/2023/01/fresh.jpg",
+      "image_source_page_url": "https://henryandhunter.co.uk/product/wisdom-fresh-effect-freshmint-mouthwash-500ml/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:52:32.562817+00:00"
+    },
+    "changed_fields": [
+      "pack_size",
+      "curation_notes"
+    ],
+    "price_before": "990.00",
+    "inventory_before": [
+      {
+        "id": 62962,
+        "stock_quantity": 3
+      },
+      {
+        "id": 62963,
+        "stock_quantity": 1
+      },
+      {
+        "id": 62964,
+        "stock_quantity": 3
+      }
+    ],
+    "image_result": "Existing product image retained; source URL matches structured product image",
+    "after": {
+      "description": "WISDOM MOUTHWASH FRESH EFFECT 500ML",
+      "short_description": "WISDOM MOUTHWASH FRESH EFFECT 500ML",
+      "pack_size": "500 ml",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.\nCatalog enrichment 2026-11-01: https://henryandhunter.co.uk/product/wisdom-fresh-effect-freshmint-mouthwash-500ml/; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/web-5028763007796.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://henryandhunter.co.uk/wp-content/uploads/2023/01/fresh.jpg",
+      "image_source_page_url": "https://henryandhunter.co.uk/product/wisdom-fresh-effect-freshmint-mouthwash-500ml/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:52:32.562817+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-5028763007796.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://henryandhunter.co.uk/wp-content/uploads/2023/01/fresh.jpg",
+      "image_source_page_url": "https://henryandhunter.co.uk/product/wisdom-fresh-effect-freshmint-mouthwash-500ml/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:52:32.562817+00:00"
+    },
+    "final_image": "products/catalog/web-5028763007796.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 23085,
+    "source_page": "https://britishchemist.co.uk/product/wisdom-fresh-effect-tongue-cleaner/",
+    "before": {
+      "description": "WISDOM TONGUE CLEANER FRESH EFFECT",
+      "short_description": "WISDOM TONGUE CLEANER FRESH EFFECT",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.",
+      "image": "products/catalog/web-5028763008076.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://britishchemist.co.uk/wp-content/uploads/2024/04/1-467.jpg",
+      "image_source_page_url": "https://britishchemist.co.uk/product/wisdom-fresh-effect-tongue-cleaner/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:30.960584+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "short_description",
+      "curation_notes"
+    ],
+    "price_before": "620.00",
+    "inventory_before": [
+      {
+        "id": 63119,
+        "stock_quantity": 2
+      },
+      {
+        "id": 63120,
+        "stock_quantity": 4
+      },
+      {
+        "id": 63121,
+        "stock_quantity": 1
+      }
+    ],
+    "image_result": "Existing product image retained; source URL matches structured product image",
+    "after": {
+      "description": "Wisdom Fresh Effect tongue cleaner, an oral-care accessory for cleaning the tongue.\n\nSpecifications\nProduct type: tongue cleaner; range: Fresh Effect.",
+      "short_description": "Wisdom Fresh Effect tongue cleaner, an oral-care accessory for cleaning the tongue.",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.\nCatalog enrichment 2026-11-01: https://britishchemist.co.uk/product/wisdom-fresh-effect-tongue-cleaner/; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/web-5028763008076.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://britishchemist.co.uk/wp-content/uploads/2024/04/1-467.jpg",
+      "image_source_page_url": "https://britishchemist.co.uk/product/wisdom-fresh-effect-tongue-cleaner/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:30.960584+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-5028763008076.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://britishchemist.co.uk/wp-content/uploads/2024/04/1-467.jpg",
+      "image_source_page_url": "https://britishchemist.co.uk/product/wisdom-fresh-effect-tongue-cleaner/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:30.960584+00:00"
+    },
+    "final_image": "products/catalog/web-5028763008076.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 23090,
+    "source_page": "https://wisdom-toothbrushes.com/shop/manual-toothbrushes/travel-toothbrush/",
+    "before": {
+      "description": "WISDOM TRAVEL TOOTHBRUSH MEDIUM",
+      "short_description": "WISDOM TRAVEL TOOTHBRUSH MEDIUM",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.",
+      "image": "products/catalog/web-5028763001992.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://wisdom-toothbrushes.com/content/uploads/2024/09/5028763001992_T1.jpg",
+      "image_source_page_url": "https://wisdom-toothbrushes.com/shop/manual-toothbrushes/travel-toothbrush/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:49.596098+00:00"
+    },
+    "changed_fields": [
+      "description",
+      "short_description",
+      "curation_notes"
+    ],
+    "price_before": "410.00",
+    "inventory_before": [
+      {
+        "id": 63132,
+        "stock_quantity": 3
+      },
+      {
+        "id": 63133,
+        "stock_quantity": 1
+      },
+      {
+        "id": 63134,
+        "stock_quantity": 3
+      }
+    ],
+    "image_result": "Existing product image retained; source URL matches structured product image",
+    "after": {
+      "description": "Wisdom Travel manual toothbrush with medium bristles and a compact design that packs into its own ventilated case.\n\nSpecifications\nProduct type: travel toothbrush; bristle firmness: medium; feature: pack-away travel case.",
+      "short_description": "Wisdom Travel manual toothbrush with medium bristles and a compact design that packs into its own ventilated case.",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.\nCatalog enrichment 2026-11-01: https://wisdom-toothbrushes.com/shop/manual-toothbrushes/travel-toothbrush/; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/web-5028763001992.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://wisdom-toothbrushes.com/content/uploads/2024/09/5028763001992_T1.jpg",
+      "image_source_page_url": "https://wisdom-toothbrushes.com/shop/manual-toothbrushes/travel-toothbrush/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:49.596098+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-5028763001992.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://wisdom-toothbrushes.com/content/uploads/2024/09/5028763001992_T1.jpg",
+      "image_source_page_url": "https://wisdom-toothbrushes.com/shop/manual-toothbrushes/travel-toothbrush/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:49.596098+00:00"
+    },
+    "final_image": "products/catalog/web-5028763001992.webp",
+    "final_image_verified": true
+  },
+  {
+    "variant_id": 23092,
+    "source_page": "https://www.dmrckenya.co.ke/product/wisdom-toothbrush-xtra-clean-twin-pack-medium/",
+    "before": {
+      "description": "WISDOM EXTRA CLEAN TWIN PACK TOOTHBRUSH",
+      "short_description": "WISDOM EXTRA CLEAN TWIN PACK TOOTHBRUSH",
+      "pack_size": "",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.",
+      "image": "products/catalog/web-5028763006805.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://www.dmrckenya.co.ke/wp-content/uploads/2024/07/045a66e7-ae3d-496c-9f0d-7926e3232003.jpg",
+      "image_source_page_url": "https://www.dmrckenya.co.ke/product/wisdom-toothbrush-xtra-clean-twin-pack-medium/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:59.045318+00:00"
+    },
+    "changed_fields": [
+      "pack_size",
+      "curation_notes"
+    ],
+    "price_before": "450.00",
+    "inventory_before": [
+      {
+        "id": 63138,
+        "stock_quantity": 3
+      },
+      {
+        "id": 63139,
+        "stock_quantity": 3
+      },
+      {
+        "id": 63140,
+        "stock_quantity": 3
+      }
+    ],
+    "image_result": "Existing product image retained; source URL matches structured product image",
+    "after": {
+      "description": "WISDOM EXTRA CLEAN TWIN PACK TOOTHBRUSH",
+      "short_description": "WISDOM EXTRA CLEAN TWIN PACK TOOTHBRUSH",
+      "pack_size": "2 toothbrushes",
+      "curation_notes": "Health concerns inferred from catalogue text (catalogue curation v1): Oral Care.\nCatalog enrichment 2026-11-01: https://www.dmrckenya.co.ke/product/wisdom-toothbrush-xtra-clean-twin-pack-medium/; reviewed product/pack match; factual summary and specifications only.",
+      "image": "products/catalog/web-5028763006805.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://www.dmrckenya.co.ke/wp-content/uploads/2024/07/045a66e7-ae3d-496c-9f0d-7926e3232003.jpg",
+      "image_source_page_url": "https://www.dmrckenya.co.ke/product/wisdom-toothbrush-xtra-clean-twin-pack-medium/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:59.045318+00:00"
+    },
+    "visual_review": "Product, range, form and visible pack identifiers matched in enriched-images-review.jpg; 2026-11-01",
+    "product_image_before": {
+      "image": "products/catalog/web-5028763006805.webp",
+      "image_source": "web_scrape",
+      "image_source_url": "https://www.dmrckenya.co.ke/wp-content/uploads/2024/07/045a66e7-ae3d-496c-9f0d-7926e3232003.jpg",
+      "image_source_page_url": "https://www.dmrckenya.co.ke/product/wisdom-toothbrush-xtra-clean-twin-pack-medium/",
+      "image_verified": "False",
+      "image_checked_at": "2026-10-15 19:59:59.045318+00:00"
+    },
+    "final_image": "products/catalog/web-5028763006805.webp",
+    "final_image_verified": true
+  }
+]

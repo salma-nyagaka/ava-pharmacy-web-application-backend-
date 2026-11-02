@@ -1,0 +1,11 @@
+{
+  "authorization": "User explicitly requested another resend",
+  "previous_intent_id": 50,
+  "previous_intent_unconfirmed": true,
+  "http": 201,
+  "phone_last4": "8457",
+  "intent_id": 51,
+  "amount": "1.00",
+  "status": "requires_action",
+  "consultation_id": null
+}

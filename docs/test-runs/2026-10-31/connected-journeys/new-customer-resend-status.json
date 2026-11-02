@@ -1,0 +1,11 @@
+{
+  "http_status": 200,
+  "id": 52,
+  "reference": "PAY-4CA0D5235B7B",
+  "status": "failed",
+  "amount": "1.00",
+  "last_error": "No response from user.",
+  "processed_at": "2026-11-01T13:45:19.581832+03:00",
+  "user_report": "No prompt received after resend",
+  "successful_payment_confirmed": false
+}

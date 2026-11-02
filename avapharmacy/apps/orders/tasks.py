@@ -6,10 +6,9 @@ except ImportError:  # pragma: no cover
             return func
         return decorator
 
-from .management.commands.retry_order_pushes import Command as RetryOrderPushesCommand
+from django.core.management import call_command
 
 
 @shared_task(name='apps.orders.tasks.retry_outbound_order_pushes_task')
 def retry_outbound_order_pushes_task():
-    command = RetryOrderPushesCommand()
-    return command.handle()
+    return call_command('retry_order_pushes')

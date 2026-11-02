@@ -1,0 +1,33 @@
+{
+  "drafts": {
+    "new_customer": {
+      "id": 2012,
+      "reference": "ORD-7B791366",
+      "total": "1.00",
+      "status": "delivered",
+      "payment_status": "paid"
+    },
+    "prescription": {
+      "id": 2013,
+      "reference": "ORD-599F53F7",
+      "total": "1.00",
+      "status": "delivered",
+      "payment_status": "paid"
+    },
+    "pediatric": {
+      "id": 2014,
+      "reference": "ORD-1DD38A84",
+      "total": "1.00",
+      "status": "delivered",
+      "payment_status": "paid"
+    }
+  },
+  "prescription_upload_id": 49,
+  "prescription_upload_reference": "RX-7E5CC4",
+  "pediatric_prescription_id": 48,
+  "new_customer_id": 87,
+  "doctor_id": 32,
+  "new_payment_requests_sent": 5,
+  "provider_success_simulated": false,
+  "successful_provider_payments": 3
+}

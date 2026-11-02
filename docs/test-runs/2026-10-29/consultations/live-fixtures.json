@@ -1,0 +1,41 @@
+{
+  "patient_id": 75,
+  "fixtures": [
+    {
+      "role": "doctor",
+      "provider_id": 27,
+      "intent_id": 46,
+      "fee": "500.00",
+      "consultation_id": 34,
+      "reference": "CONS-EE8CBC",
+      "clinician_prescription_id": 28,
+      "dispensing_prescription_id": 46,
+      "order_id": 2007,
+      "order_number": "ORD-33DED1F4",
+      "order_total": "310.00",
+      "earning_id": 10,
+      "net_earning": "450.00"
+    },
+    {
+      "role": "pediatrician",
+      "provider_id": 28,
+      "intent_id": 47,
+      "fee": "500.00",
+      "consultation_id": 35,
+      "reference": "CONS-DC28FB",
+      "clinician_prescription_id": 29,
+      "dispensing_prescription_id": 47,
+      "order_id": 2008,
+      "order_number": "ORD-141616A6",
+      "order_total": "310.00",
+      "earning_id": 11,
+      "net_earning": "450.00"
+    }
+  ],
+  "child_id": 4,
+  "sibling_id": 5,
+  "product_id": 22370,
+  "variant_id": 23511,
+  "inventory_id": 64282,
+  "stock_before": 4
+}

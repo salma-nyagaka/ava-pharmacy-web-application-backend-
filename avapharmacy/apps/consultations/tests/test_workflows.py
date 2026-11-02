@@ -867,6 +867,9 @@ class ConsultationWorkflowTests(TestCase):
         self.assertEqual(prescription_response.status_code, 201, prescription_response.content)
         self.assertEqual(prescription_response.data['child_patient'], child_id)
         prescription = ClinicianPrescription.objects.get(pk=prescription_response.data['id'])
+        self.client.force_authenticate(self.patient)
+        self.assertEqual(self.client.post(reverse('consultation-consent', args=[prescription.consultation_id])).status_code, 200)
+        self.client.force_authenticate(pediatrician.user)
         send_response = self.client.post(reverse('pediatrician-prescription-send', args=[prescription.id]), format='json')
         self.assertEqual(send_response.status_code, 200, send_response.content)
         dispensing_rx = Prescription.objects.get(clinician_prescription=prescription)
@@ -884,7 +887,7 @@ class ConsultationWorkflowTests(TestCase):
         self.assertTrue(Notification.objects.filter(
             recipient=pediatrician_user,
             type='new_consultation',
-            data__url=f'/pediatrician/consultations/{consultation_id}',
+            data__url=f'/pediatrician/dashboard?consultation={consultation_id}',
             data__child_patient_id=child_id,
         ).exists())
         self.assertTrue(Notification.objects.filter(

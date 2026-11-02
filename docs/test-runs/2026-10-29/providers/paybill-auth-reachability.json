@@ -1,0 +1,8 @@
+{
+  "source": "local authenticated reachability probe; not a provider callback or payment",
+  "http": 200,
+  "response": {
+    "ResultCode": 1,
+    "ResultDesc": "Invalid account reference."
+  }
+}

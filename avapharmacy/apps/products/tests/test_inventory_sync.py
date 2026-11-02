@@ -9,7 +9,13 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.products.models import Product, StockMovement, VariantInventory
+from apps.products.models import (
+    Product,
+    StockMovement,
+    Store,
+    StoreVariantListing,
+    VariantInventory,
+)
 
 
 class InventorySyncTests(TestCase):
@@ -170,3 +176,59 @@ class InventorySyncTests(TestCase):
         self.assertTrue(results[0]['matched'])
         inventory = VariantInventory.objects.get(variant=self.variant, location=Product.STOCK_WAREHOUSE)
         self.assertEqual(inventory.stock_quantity, 14)
+
+    @override_settings(INVENTORY_SYNC_SECRET='sync-secret')
+    def test_inventory_webhook_rejects_ambiguous_store_and_accepts_store_code(self):
+        VariantInventory.objects.filter(variant=self.variant).delete()
+        inventories = {}
+        for code, name, quantity in (
+            ('gtc', 'GTC Westlands', 8),
+            ('karen', 'The Hub Karen', 5),
+        ):
+            store = Store.objects.create(code=code, name=name)
+            listing = StoreVariantListing.objects.create(
+                store=store,
+                variant=self.variant,
+                price='500.00',
+                status='ACTIVE',
+            )
+            inventories[code] = VariantInventory.objects.create(
+                variant=self.variant,
+                store_listing=listing,
+                location=Product.STOCK_BRANCH,
+                stock_quantity=quantity,
+            )
+
+        def post(item):
+            body = json.dumps({'items': [item]}).encode('utf-8')
+            return self.client.generic(
+                'POST',
+                reverse('inventory-webhook'),
+                body,
+                content_type='application/json',
+                HTTP_X_SYNC_SIGNATURE=self._signature(body, 'sync-secret'),
+            )
+
+        ambiguous = post({
+            'sku': self.variant.sku,
+            'location': 'branch',
+            'quantity_on_hand': 20,
+        })
+        self.assertEqual(ambiguous.status_code, 200)
+        self.assertFalse(ambiguous.data['updated'][0]['updated'])
+        self.assertEqual(
+            ambiguous.data['updated'][0]['error']['code'],
+            'ambiguous_inventory_target',
+        )
+
+        selected = post({
+            'sku': self.variant.sku,
+            'location': 'branch',
+            'store_code': 'karen',
+            'quantity_on_hand': 20,
+        })
+        self.assertEqual(selected.status_code, 200)
+        inventories['gtc'].refresh_from_db()
+        inventories['karen'].refresh_from_db()
+        self.assertEqual(inventories['gtc'].stock_quantity, 8)
+        self.assertEqual(inventories['karen'].stock_quantity, 20)

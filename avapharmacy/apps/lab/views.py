@@ -6,14 +6,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 
 from .models import (
-    LabPartner, LabTechnicianProfile, LabTechDocument, LabTest,
-    LaboratoryFacility, LaboratoryFacilityDocument,
+    LabPartner, LabPartnerDocument, LabTechnicianProfile, LabTechDocument, LabTest,
+    LaboratoryFacility, LaboratoryFacilityDocument, FacilityLabTest,
     LabRequest, LabAuditLog, LabResult,
 )
 from .serializers import (
@@ -36,6 +37,21 @@ ALLOWED_RESULT_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 MAX_RESULT_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
+def _active_lab_access(user):
+    if not user.is_active or user.status != 'active':
+        return False
+    if user.role == 'lab_partner':
+        partner = getattr(user, 'lab_partner_profile', None)
+        return bool(partner and partner.status == LabPartner.STATUS_VERIFIED)
+    if user.role == 'lab_technician':
+        profile = getattr(user, 'lab_tech_profile', None)
+        return bool(profile and profile.status == LabTechnicianProfile.STATUS_ACTIVE
+                    and profile.partner_id and profile.partner.status == LabPartner.STATUS_VERIFIED
+                    and profile.partner.user_id and profile.partner.user.is_active
+                    and profile.partner.user.status == 'active')
+    return True
+
+
 def _lab_request_queryset_for_user(user):
     queryset = (
         LabRequest.objects.all()
@@ -45,6 +61,8 @@ def _lab_request_queryset_for_user(user):
         )
         .prefetch_related('audit_logs', 'result')
     )
+    if not _active_lab_access(user):
+        return queryset.none()
     if user.role == 'admin':
         return queryset
     if user.role == 'pharmacist':
@@ -61,9 +79,11 @@ def _lab_request_queryset_for_user(user):
         if not profile:
             return queryset.none()
         return queryset.filter(
-            Q(laboratory__technicians=profile)
-            | Q(laboratory__isnull=True, assigned_partner_id=profile.partner_id)
-        ).distinct()
+            Q(assigned_technician=user) | (Q(assigned_technician__isnull=True) & (
+                Q(laboratory_id__in=profile.facilities.values('pk'))
+                | Q(laboratory__isnull=True, assigned_partner_id=profile.partner_id)
+            ))
+        )
     return queryset.filter(patient=user)
 
 
@@ -74,6 +94,8 @@ def _result_queryset_for_user(user):
         'request__assigned_pharmacist', 'request__assigned_technician',
         'reviewed_by',
     )
+    if not _active_lab_access(user):
+        return queryset.none()
     if user.role == 'admin':
         return queryset
     if user.role == 'pharmacist':
@@ -100,6 +122,7 @@ def _get_lab_partner_or_404(user):
 
 class AdminLabPartnerListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
     filterset_fields = ['status']
     search_fields = ['name', 'email', 'reference']
     ordering = ['-submitted_at']
@@ -129,16 +152,34 @@ class AdminLabPartnerDetailView(generics.RetrieveUpdateAPIView):
         return LabPartnerSerializer
 
     def update(self, request, *args, **kwargs):
+        protected_fields = {'status', 'status_note', 'rejection_note', 'verified_at'}
+        attempted_protected_fields = protected_fields.intersection(request.data.keys())
+        if attempted_protected_fields:
+            raise ValidationError({
+                field: 'Use the partner review action to change approval status.'
+                for field in attempted_protected_fields
+            })
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        if request.data.get('status') == LabPartner.STATUS_VERIFIED and not instance.verified_at:
-            from django.utils import timezone as tz
-            instance.verified_at = tz.now()
-            instance.save(update_fields=['verified_at'])
         partner = serializer.save(updated_by=request.user)
         return Response(LabPartnerSerializer(partner).data)
+
+
+class LabPartnerDocumentDownloadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            document = LabPartnerDocument.objects.select_related('partner__user').get(pk=pk)
+        except LabPartnerDocument.DoesNotExist:
+            return Response({'detail': 'Document not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if request.user.role != 'admin' and document.partner.user_id != request.user.id:
+            return Response({'detail': 'Document not found.'}, status=status.HTTP_404_NOT_FOUND)
+        response = FileResponse(document.file.open('rb'), as_attachment=True, filename=document.file.name.rsplit('/', 1)[-1])
+        response['Cache-Control'] = 'private, no-store'
+        return response
 
 
 class AdminLabTechnicianListCreateView(generics.ListCreateAPIView):
@@ -151,7 +192,16 @@ class AdminLabTechnicianListCreateView(generics.ListCreateAPIView):
         ).select_related('user').prefetch_related('documents')
 
     def perform_create(self, serializer):
-        serializer.save(partner_id=self.kwargs['partner_pk'], created_by=self.request.user, updated_by=self.request.user)
+        try:
+            partner = LabPartner.objects.get(pk=self.kwargs['partner_pk'])
+        except LabPartner.DoesNotExist:
+            raise ValidationError({'detail': 'Lab partner not found.'})
+        if not partner.facilities.filter(
+            status=LaboratoryFacility.STATUS_VERIFIED,
+            is_active=True,
+        ).exists():
+            raise ValidationError({'detail': 'Verify at least one laboratory before adding technicians.'})
+        serializer.save(partner=partner, created_by=self.request.user, updated_by=self.request.user)
 
 
 class AdminLabTechnicianDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -175,6 +225,12 @@ class AdminLabPartnerActionView(APIView):
         action = request.data.get('action')
 
         if action == 'verify':
+            if not partner.documents.exists():
+                raise ValidationError({
+                    'detail': 'Upload at least one partner licence or accreditation document before verification.'
+                })
+            if partner.license_expiry and partner.license_expiry < timezone.now().date():
+                raise ValidationError({'detail': 'The lab partner licence has expired.'})
             partner.status = LabPartner.STATUS_VERIFIED
             partner.verified_at = timezone.now()
             partner.status_note = ''
@@ -189,6 +245,8 @@ class AdminLabPartnerActionView(APIView):
             if not note:
                 return Response({'note': 'Reason is required when requesting additional documents.'}, status=status.HTTP_400_BAD_REQUEST)
             partner.status = LabPartner.STATUS_PENDING
+            FacilityLabTest.objects.filter(facility__partner=partner).update(is_active=False)
+            partner.technicians.update(status=LabTechnicianProfile.STATUS_SUSPENDED)
             partner.status_note = note
             partner.updated_by = request.user
             partner.save(update_fields=['status', 'status_note', 'updated_by', 'updated_at'])
@@ -200,6 +258,8 @@ class AdminLabPartnerActionView(APIView):
             if not note:
                 return Response({'note': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
             partner.status = LabPartner.STATUS_SUSPENDED
+            FacilityLabTest.objects.filter(facility__partner=partner).update(is_active=False)
+            partner.technicians.update(status=LabTechnicianProfile.STATUS_SUSPENDED)
             partner.rejection_note = note
             partner.updated_by = request.user
             partner.save(update_fields=['status', 'rejection_note', 'updated_by', 'updated_at'])
@@ -208,6 +268,8 @@ class AdminLabPartnerActionView(APIView):
 
         elif action == 'suspend':
             partner.status = LabPartner.STATUS_SUSPENDED
+            FacilityLabTest.objects.filter(facility__partner=partner).update(is_active=False)
+            partner.technicians.update(status=LabTechnicianProfile.STATUS_SUSPENDED)
             partner.updated_by = request.user
             partner.save(update_fields=['status', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'lab_partner_suspended', 'lab_partner', partner.id,
@@ -343,14 +405,7 @@ class LabPartnerDashboardView(APIView):
 
     def get(self, request):
         partner = _get_lab_partner_or_404(request.user)
-        request_qs = (
-            LabRequest.objects.filter(
-                Q(laboratory__partner=partner)
-                | Q(laboratory__isnull=True, assigned_partner=partner)
-            )
-            .select_related('test', 'laboratory', 'assigned_technician', 'patient', 'assigned_pharmacist')
-            .prefetch_related('audit_logs')
-        )
+        request_qs = _lab_request_queryset_for_user(request.user)
 
         pending_statuses = [
             LabRequest.STATUS_AWAITING,
@@ -381,7 +436,7 @@ class LabPartnerDashboardView(APIView):
             },
             'recent_requests': LabRequestSerializer(
                 request_qs.order_by('-requested_at')[:10],
-                many=True,
+                many=True, context={'request': request},
             ).data,
         })
 
@@ -513,6 +568,28 @@ class AdminLaboratoryFacilityListView(generics.ListAPIView):
         )
 
 
+class AdminLabApprovalQueueView(APIView):
+    """Expose only records that require an administrator's next approval action."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        partner_applications = LabPartner.objects.filter(
+            status=LabPartner.STATUS_PENDING,
+        ).prefetch_related('documents').order_by('-submitted_at')
+        laboratory_applications = LaboratoryFacility.objects.filter(
+            status=LaboratoryFacility.STATUS_PENDING,
+            partner__status=LabPartner.STATUS_VERIFIED,
+        ).select_related('partner').prefetch_related('documents').order_by('-submitted_at')
+        return Response({
+            'partner_applications': LabPartnerSerializer(partner_applications, many=True, context={'request': request}).data,
+            'laboratory_applications': LaboratoryFacilitySerializer(laboratory_applications, many=True, context={'request': request}).data,
+            'counts': {
+                'partners': partner_applications.count(),
+                'laboratories': laboratory_applications.count(),
+            },
+        })
+
+
 class AdminLaboratoryFacilityDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = LaboratoryFacilitySerializer
@@ -537,9 +614,9 @@ class AdminLaboratoryFacilityActionView(APIView):
         if action == 'verify':
             if facility.partner.status != LabPartner.STATUS_VERIFIED:
                 raise ValidationError({'detail': 'Verify the legal lab partner before its laboratory.'})
-            if not facility.offerings.filter(is_active=True).exists():
-                raise ValidationError({'detail': 'The laboratory must offer at least one active test.'})
-            if facility.license_expiry and facility.license_expiry < timezone.now().date():
+            if not facility.license_expiry:
+                raise ValidationError({'detail': 'Provide the laboratory licence expiry date before verification.'})
+            if facility.license_expiry < timezone.now().date():
                 raise ValidationError({'detail': 'The laboratory licence has expired.'})
             if not facility.documents.exists():
                 raise ValidationError({'detail': 'Upload at least one facility licence or accreditation document.'})
@@ -557,12 +634,14 @@ class AdminLaboratoryFacilityActionView(APIView):
                 raise ValidationError({'note': 'Describe the required changes.'})
             facility.status = LaboratoryFacility.STATUS_PENDING
             facility.status_note = note
+            facility.offerings.update(is_active=False)
         elif action == 'suspend':
             if not note:
                 raise ValidationError({'note': 'Provide a suspension reason.'})
             facility.status = LaboratoryFacility.STATUS_SUSPENDED
             facility.status_note = note
             facility.is_active = False
+            facility.offerings.update(is_active=False)
         else:
             raise ValidationError({'detail': 'Use verify, request_changes, or suspend.'})
         facility.save()
@@ -597,6 +676,12 @@ class LabPartnerTechnicianListCreateView(generics.ListCreateAPIView):
         if partner.status != LabPartner.STATUS_VERIFIED:
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'detail': 'Only verified lab partners can add lab technicians.'})
+        if not partner.facilities.filter(
+            status=LaboratoryFacility.STATUS_VERIFIED,
+            is_active=True,
+        ).exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'detail': 'Verify at least one laboratory before adding technicians.'})
         serializer.save(
             partner=partner,
             status=LabTechnicianProfile.STATUS_ACTIVE,
@@ -698,17 +783,7 @@ class LabTechDashboardView(APIView):
             LabRequest.STATUS_AWAITING, LabRequest.STATUS_COLLECTED, LabRequest.STATUS_PROCESSING
         ]
 
-        if request.user.role == 'admin':
-            all_qs = LabRequest.objects.all()
-        else:
-            profile = getattr(request.user, 'lab_tech_profile', None)
-            all_qs = (
-                LabRequest.objects.filter(
-                    Q(laboratory__technicians=profile)
-                    | Q(laboratory__isnull=True, assigned_partner_id=profile.partner_id)
-                ).distinct()
-                if profile else LabRequest.objects.none()
-            )
+        all_qs = _lab_request_queryset_for_user(request.user)
         mine_qs = all_qs.filter(assigned_technician=request.user)
 
         by_category = list(
@@ -723,7 +798,7 @@ class LabTechDashboardView(APIView):
 
         recent = LabRequestSerializer(
             all_qs.select_related('test', 'assigned_technician').order_by('-requested_at')[:10],
-            many=True
+            many=True, context={'request': request}
         ).data
 
         return Response({
@@ -761,7 +836,7 @@ class LabTestListView(generics.ListAPIView):
     search_fields = ['name', 'sample_type']
 
     def get_queryset(self):
-        return LabTest.objects.filter(is_active=True)
+        return LabTest.objects.filter(is_active=True, facility_offerings__is_active=True, facility_offerings__facility__status='verified', facility_offerings__facility__is_active=True, facility_offerings__facility__partner__status='verified', facility_offerings__facility__partner__user__is_active=True, facility_offerings__facility__partner__user__status='active').distinct()
 
 
 # ─── Admin Lab Test Management ────────────────────────────────────────────────
@@ -805,7 +880,7 @@ class LabRequestListCreateView(generics.ListCreateAPIView):
             action='Lab request created',
             performed_by=request.user,
         )
-        return Response(LabRequestSerializer(req).data, status=status.HTTP_201_CREATED)
+        return Response(LabRequestSerializer(req, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 class LabRequestDetailView(generics.RetrieveAPIView):
@@ -821,14 +896,16 @@ class LabRequestUpdateView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return _lab_request_queryset_for_user(self.request.user)
+        return _lab_request_queryset_for_user(self.request.user).select_for_update(of=('self',))
 
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
 
         role = request.user.role
         editable_fields = {
+            'customer': {'status'},
             'admin': {
                 'status', 'payment_status', 'priority', 'assigned_partner', 'laboratory',
                 'assigned_pharmacist', 'assigned_technician', 'scheduled_at',
@@ -850,6 +927,9 @@ class LabRequestUpdateView(generics.UpdateAPIView):
             raise PermissionDenied(
                 f"Your role cannot update: {', '.join(sorted(disallowed))}."
             )
+
+        if role == 'customer' and (request.data.get('status') != LabRequest.STATUS_CANCELLED or instance.status != LabRequest.STATUS_AWAITING or instance.payment_status != LabRequest.PAYMENT_PENDING):
+            raise ValidationError({'status': 'Only unpaid requests awaiting sample collection can be cancelled by the patient. Contact your coordinator for other cancellations.'})
 
         if role == 'pharmacist':
             requested_pharmacist = request.data.get('assigned_pharmacist')
@@ -878,6 +958,8 @@ class LabRequestUpdateView(generics.UpdateAPIView):
                 LabRequest.STATUS_COMPLETED: set(),
                 LabRequest.STATUS_CANCELLED: set(),
             }
+            if next_status == LabRequest.STATUS_COMPLETED and not hasattr(instance, 'result'):
+                raise ValidationError({'status': 'A result must be released before completing this request.'})
             if next_status not in allowed_transitions.get(instance.status, set()):
                 raise ValidationError({
                     'status': f'Cannot move from {instance.status} to {next_status}.'
@@ -893,6 +975,7 @@ class LabRequestUpdateView(generics.UpdateAPIView):
 
         previous = {
             'status': instance.status,
+            'payment_status': instance.payment_status,
             'assigned_partner_id': instance.assigned_partner_id,
             'laboratory_id': instance.laboratory_id,
             'assigned_pharmacist_id': instance.assigned_pharmacist_id,
@@ -901,9 +984,25 @@ class LabRequestUpdateView(generics.UpdateAPIView):
         }
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
+        if instance.status != LabRequest.STATUS_AWAITING and any(
+            field in serializer.validated_data and getattr(serializer.validated_data[field], 'pk', None) != getattr(instance, f'{field}_id')
+            for field in ('assigned_partner', 'laboratory', 'assigned_technician')
+        ):
+            raise ValidationError({'assignment': 'Assignments cannot change after sample collection.'})
+        assignment_changed = any(
+            field in serializer.validated_data and getattr(serializer.validated_data[field], 'pk', None) != getattr(instance, f'{field}_id')
+            for field in ('assigned_partner', 'laboratory', 'assigned_technician')
+        )
         req = serializer.save()
+        if assignment_changed or req.status == LabRequest.STATUS_CANCELLED:
+            req.collection_verification_code_hash = ''
+            req.collection_code_expires_at = None
+            req.collection_verification_attempts = 0
+            req.save(update_fields=['collection_verification_code_hash', 'collection_code_expires_at', 'collection_verification_attempts', 'updated_at'])
 
         actions = []
+        if previous['payment_status'] != req.payment_status:
+            actions.append(f"Payment status recorded as '{req.get_payment_status_display()}' (administrative record)")
         if previous['status'] != req.status:
             actions.append(f"Status updated to '{req.get_status_display()}'")
         if previous['assigned_partner_id'] != req.assigned_partner_id:
@@ -933,22 +1032,22 @@ class LabRequestUpdateView(generics.UpdateAPIView):
                     notification_type='lab_status',
                     title=f"Lab Request {req.reference} Updated",
                     message=f"Your lab request is now: {req.get_status_display()}",
-                    data={'url': f'/lab/requests/{req.id}', 'reference': req.reference, 'status': req.status},
+                    data={'url': '/account/lab-tests', 'reference': req.reference, 'status': req.status},
                 )
             except Exception:
                 pass
 
+        req._prefetched_objects_cache = {}
         return Response(LabRequestSerializer(req, context={'request': request}).data)
 
 
 class LabCollectionCodeIssueView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
-            lab_request = LabRequest.objects.select_related(
-                'laboratory', 'assigned_technician'
-            ).get(pk=pk, patient=request.user)
+            lab_request = _lab_request_queryset_for_user(request.user).select_for_update(of=('self',)).get(pk=pk, patient=request.user)
         except LabRequest.DoesNotExist:
             return Response({'detail': 'Lab request not found.'}, status=status.HTTP_404_NOT_FOUND)
         if lab_request.channel != LabRequest.CHANNEL_COLLECTION:
@@ -987,11 +1086,14 @@ class LabCollectionCodeIssueView(APIView):
 class LabCollectionCodeVerifyView(APIView):
     permission_classes = [IsLabTechOrAdmin]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
-            lab_request = _lab_request_queryset_for_user(request.user).get(pk=pk)
+            lab_request = _lab_request_queryset_for_user(request.user).select_for_update(of=('self',)).get(pk=pk)
         except LabRequest.DoesNotExist:
             return Response({'detail': 'Lab request not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if request.user.role != 'admin' and lab_request.laboratory_id and (lab_request.laboratory.status != LaboratoryFacility.STATUS_VERIFIED or not lab_request.laboratory.is_active):
+            raise PermissionDenied('This laboratory is not active and approved. Contact the coordinator.')
         if request.user.role != 'admin' and lab_request.assigned_technician_id != request.user.id:
             raise PermissionDenied('Only the assigned collector can verify this collection.')
         if lab_request.channel != LabRequest.CHANNEL_COLLECTION or lab_request.status != LabRequest.STATUS_AWAITING:
@@ -1012,7 +1114,7 @@ class LabCollectionCodeVerifyView(APIView):
         lab_request.collection_verification_attempts += 1
         if not code or not check_password(code, lab_request.collection_verification_code_hash):
             lab_request.save(update_fields=['collection_verification_attempts', 'updated_at'])
-            raise ValidationError({'code': 'The verification code is incorrect.'})
+            return Response({'detail': 'The verification code is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
 
         now = timezone.now()
         lab_request.collection_verified_at = now
@@ -1041,6 +1143,7 @@ class LabCollectionCodeVerifyView(APIView):
                 )
             except Exception:
                 pass
+        lab_request._prefetched_objects_cache = {}
         return Response(LabRequestSerializer(lab_request, context={'request': request}).data)
 
 
@@ -1050,12 +1153,15 @@ class LabResultCreateView(APIView):
     permission_classes = [IsLabTechOrAdmin]
     parser_classes = [MultiPartParser, FormParser]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
-            lab_request = _lab_request_queryset_for_user(request.user).get(pk=pk)
+            lab_request = _lab_request_queryset_for_user(request.user).select_for_update(of=('self',)).get(pk=pk)
         except LabRequest.DoesNotExist:
             return Response({'detail': 'Lab request not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if request.user.role != 'admin' and lab_request.laboratory_id and (lab_request.laboratory.status != LaboratoryFacility.STATUS_VERIFIED or not lab_request.laboratory.is_active):
+            raise PermissionDenied('This laboratory is not active and approved. Contact the coordinator.')
         if request.user.role != 'admin' and lab_request.assigned_technician_id != request.user.id:
             raise PermissionDenied('Only the assigned technician can upload this result.')
 
@@ -1085,6 +1191,15 @@ class LabResultCreateView(APIView):
                     {'detail': 'Invalid file type. Allowed: PDF, JPEG, PNG.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+        if uploaded_file:
+            header = uploaded_file.read(8)
+            uploaded_file.seek(0)
+            valid = ((content_type == 'application/pdf' and header.startswith(b'%PDF-'))
+                     or (content_type == 'image/png' and header == b'\x89PNG\r\n\x1a\n')
+                     or (content_type == 'image/jpeg' and header.startswith(b'\xff\xd8\xff')))
+            if not valid:
+                raise ValidationError({'file': 'The file content does not match a supported PDF, JPEG or PNG.'})
 
         serializer = LabResultCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1145,5 +1260,23 @@ class LabResultDownloadView(APIView):
             as_attachment=True,
             filename=result.filename or f'{result.reference}.pdf',
         )
+        response['Cache-Control'] = 'private, no-store'
+        return response
+
+
+class LabTechDocumentDownloadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        if not request.user.is_active or request.user.status != 'active':
+            raise PermissionDenied('Account is not active.')
+        documents = LabTechDocument.objects.select_related('tech__user', 'tech__partner__user')
+        if request.user.role != 'admin':
+            documents = documents.filter(Q(tech__user=request.user) | Q(tech__partner__user=request.user))
+        try:
+            document = documents.get(pk=pk)
+        except LabTechDocument.DoesNotExist:
+            return Response({'detail': 'Document not found.'}, status=status.HTTP_404_NOT_FOUND)
+        response = FileResponse(document.file.open('rb'), as_attachment=True, filename=document.file.name.rsplit('/', 1)[-1])
         response['Cache-Control'] = 'private, no-store'
         return response

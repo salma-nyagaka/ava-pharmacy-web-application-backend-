@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('notifications/deliveries/<int:pk>/retry/', views.NotificationDeliveryRetryView.as_view(), name='notification-delivery-retry'),
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
     path('notifications/preferences/', views.NotificationPreferenceView.as_view(), name='notification-preferences'),
     path('notifications/deliveries/', views.NotificationDeliveryListView.as_view(), name='notification-deliveries'),

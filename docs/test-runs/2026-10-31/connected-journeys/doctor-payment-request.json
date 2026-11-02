@@ -1,0 +1,8 @@
+{
+  "http_status": 201,
+  "id": 52,
+  "reference": "CPAY-FE562DABC31D",
+  "status": "requires_action",
+  "amount": "1.00",
+  "last_error": ""
+}

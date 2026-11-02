@@ -1,0 +1,54 @@
+[
+  {
+    "kind": "change_password",
+    "desktop": {
+      "brokenImages": 0,
+      "scrollWidth": 909,
+      "width": 909
+    },
+    "mobile": {
+      "brokenImages": 0,
+      "scrollWidth": 291,
+      "width": 291
+    }
+  },
+  {
+    "kind": "reset_password",
+    "desktop": {
+      "brokenImages": 0,
+      "scrollWidth": 909,
+      "width": 909
+    },
+    "mobile": {
+      "brokenImages": 0,
+      "scrollWidth": 291,
+      "width": 291
+    }
+  },
+  {
+    "kind": "activate_doctor",
+    "desktop": {
+      "brokenImages": 0,
+      "scrollWidth": 909,
+      "width": 909
+    },
+    "mobile": {
+      "brokenImages": 0,
+      "scrollWidth": 291,
+      "width": 291
+    }
+  },
+  {
+    "kind": "signup",
+    "desktop": {
+      "brokenImages": 0,
+      "scrollWidth": 909,
+      "width": 909
+    },
+    "mobile": {
+      "brokenImages": 0,
+      "scrollWidth": 291,
+      "width": 291
+    }
+  }
+]

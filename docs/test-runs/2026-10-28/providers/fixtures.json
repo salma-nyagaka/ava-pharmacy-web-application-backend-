@@ -1,0 +1,33 @@
+{
+  "original_product_active": false,
+  "starting_stock": [
+    {
+      "id": 64275,
+      "stock_quantity": 50
+    },
+    {
+      "id": 64277,
+      "stock_quantity": 30
+    }
+  ],
+  "orders": {
+    "card": {
+      "id": 1996,
+      "number": "ORD-FBEAE0E8",
+      "total": "350",
+      "method": "card"
+    },
+    "stk": {
+      "id": 1997,
+      "number": "ORD-A6BC700E",
+      "total": "350",
+      "method": "mpesa_stk"
+    },
+    "paybill": {
+      "id": 1998,
+      "number": "ORD-1A26DEA3",
+      "total": "350",
+      "method": "mpesa_paybill"
+    }
+  }
+}

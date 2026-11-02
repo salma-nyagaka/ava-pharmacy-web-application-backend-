@@ -62,7 +62,7 @@ def send_rendered_email(
 ):
     message = render_to_string(text_template, context)
     html_message = render_to_string(html_template, context)
-    send_mail(
+    return send_mail(
         subject=subject,
         message=message,
         from_email=settings.DEFAULT_FROM_EMAIL,

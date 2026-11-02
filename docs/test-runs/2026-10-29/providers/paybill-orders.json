@@ -1,0 +1,20 @@
+[
+  {
+    "scenario": "valid",
+    "id": 2005,
+    "number": "ORD-20CDFB9E",
+    "total": "1.00",
+    "intent_id": 47,
+    "reference": "AVA-ORD-20CDFB9E",
+    "intent_status": "requires_action"
+  },
+  {
+    "scenario": "wrong_amount",
+    "id": 2006,
+    "number": "ORD-874A0705",
+    "total": "2.00",
+    "intent_id": 48,
+    "reference": "AVA-ORD-874A0705",
+    "intent_status": "requires_action"
+  }
+]

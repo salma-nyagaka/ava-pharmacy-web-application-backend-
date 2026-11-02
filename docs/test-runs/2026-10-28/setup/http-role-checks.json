@@ -1,0 +1,153 @@
+[
+  {
+    "fixture": "customer",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "customer",
+    "check": "account-profile",
+    "status": 200,
+    "user_id": 75,
+    "role": "customer"
+  },
+  {
+    "fixture": "other",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "other",
+    "check": "account-profile",
+    "status": 200,
+    "user_id": 76,
+    "role": "customer"
+  },
+  {
+    "fixture": "admin",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "admin",
+    "check": "admin-dashboard",
+    "status": 200,
+    "user_id": 77,
+    "role": "admin"
+  },
+  {
+    "fixture": "inventory",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "inventory",
+    "check": "admin-inventory",
+    "status": 200,
+    "user_id": 78,
+    "role": "inventory_staff"
+  },
+  {
+    "fixture": "pharmacist",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "pharmacist",
+    "check": "pharmacist-prescriptions",
+    "status": 200,
+    "user_id": 79,
+    "role": "pharmacist"
+  },
+  {
+    "fixture": "doctor",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "doctor",
+    "check": "doctor-dashboard",
+    "status": 200,
+    "user_id": 80,
+    "role": "doctor"
+  },
+  {
+    "fixture": "pediatrician",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "pediatrician",
+    "check": "pediatrician-dashboard",
+    "status": 200,
+    "user_id": 81,
+    "role": "pediatrician"
+  },
+  {
+    "fixture": "lab-partner",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "lab-partner",
+    "check": "lab-partner-dashboard",
+    "status": 200,
+    "user_id": 82,
+    "role": "lab_partner"
+  },
+  {
+    "fixture": "lab-technician",
+    "check": "login",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "fixture": "lab-technician",
+    "check": "lab-dashboard",
+    "status": 200,
+    "user_id": 83,
+    "role": "lab_technician"
+  },
+  {
+    "fixture": "pending-doctor",
+    "check": "login",
+    "status": 401,
+    "expected": 401
+  },
+  {
+    "fixture": "pending-doctor",
+    "check": "restricted doctor dashboard with signed token",
+    "status": 401
+  },
+  {
+    "fixture": "suspended-doctor",
+    "check": "login",
+    "status": 403,
+    "expected": 403
+  },
+  {
+    "fixture": "suspended-doctor",
+    "check": "restricted doctor dashboard with signed token",
+    "status": 403
+  },
+  {
+    "check": "delivery-options",
+    "status": 200
+  },
+  {
+    "check": "categories",
+    "status": 200
+  },
+  {
+    "check": "products",
+    "status": 200
+  }
+]

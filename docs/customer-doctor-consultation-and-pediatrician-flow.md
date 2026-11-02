@@ -670,3 +670,9 @@ Pediatrician:
 ## Key Decision
 
 Do not create a separate pediatrician consultation system. Reuse the existing consultation, payment, chat, prescription, notification, audit, and earnings infrastructure. Add the missing child profile layer and pediatrician dashboard views on top of it.
+
+## Verified pediatric follow-up — 30 October 2026
+
+The guardian form now exposes the pediatrician and its configured fee. It submits affirmative `guardian_consent` with the selected `child_patient_id`; the payment payload preserves both through confirmation/finalization. Omitted consent remains pending and prescription issue still requires it. The pediatrician workspace groups child profiles, prescriptions and conversations by stable IDs, including children with identical names, and displays stored snapshots/measurements instead of generated placeholders. Earnings retain cents. Provider disconnects leave status checks recoverable.
+
+[Current test results](test-runs/2026-10-30/pediatric-journey.md): 124 consultation/order tests and the frontend build pass. Pediatric intent 51 is now genuinely provider-confirmed by receipt UJUI207MTB (KSh 1). Booking CONS-8AF578 completed with a linked approved prescription and one KSh 0.90 earning. Earlier intent 50 remains unconfirmed and is tracked separately.

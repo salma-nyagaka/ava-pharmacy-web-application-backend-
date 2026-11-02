@@ -90,10 +90,10 @@ class AccountSelfServiceTests(TestCase):
         create_response = self.client.post(
             reverse('payment-methods'),
             {
-                'brand': 'visa',
+                'brand': 'mpesa',
                 'last4': '4242',
-                'expiry_month': 8,
-                'expiry_year': 2030,
+                'expiry_month': 0,
+                'expiry_year': 0,
                 'cardholder_name': 'Customer User',
                 'is_default': True,
             },
@@ -106,10 +106,10 @@ class AccountSelfServiceTests(TestCase):
         second_response = self.client.post(
             reverse('payment-methods'),
             {
-                'brand': 'mastercard',
+                'brand': 'mpesa',
                 'last4': '5454',
-                'expiry_month': 11,
-                'expiry_year': 2031,
+                'expiry_month': 0,
+                'expiry_year': 0,
                 'cardholder_name': 'Customer User',
                 'is_default': True,
             },
@@ -602,6 +602,7 @@ class CustomerRegistrationVerificationTests(TestCase):
             reverse('register'),
             {
                 'email': 'no.address@example.com',
+                'date_of_birth': '1990-01-01',
                 'first_name': 'No',
                 'last_name': 'Address',
                 'phone': '+254700000102',
@@ -628,6 +629,7 @@ class CustomerRegistrationVerificationTests(TestCase):
                 'delivery_address': 'Ava Towers, Westlands',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
+                'date_of_birth': '1990-01-01',
             },
             format='json',
         )
@@ -768,6 +770,7 @@ class BotProtectionFlowTests(TestCase):
             'email': 'bot-check@example.com',
             'first_name': 'Bot',
             'last_name': 'Check',
+            'gender': 'prefer_not_to_say',
             'phone': '+254700123987',
             'password': 'StrongPass123!',
             'password_confirm': 'StrongPass123!',
@@ -775,6 +778,7 @@ class BotProtectionFlowTests(TestCase):
             'delivery_address': '123 Test Street',
             'city': 'Nairobi',
             'county': 'Nairobi',
+            'date_of_birth': '1990-01-01',
         }
         payload.update(overrides)
         return payload

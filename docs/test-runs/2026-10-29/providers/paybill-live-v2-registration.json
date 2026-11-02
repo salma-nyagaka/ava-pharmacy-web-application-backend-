@@ -1,0 +1,10 @@
+{
+  "version": "v2",
+  "shortcode": "600980",
+  "accepted": true,
+  "response": {
+    "OriginatorCoversationID": "8e77-4dec-98af-2e0707a6447d379927",
+    "ResponseCode": "00000000",
+    "ResponseDescription": "Success"
+  }
+}

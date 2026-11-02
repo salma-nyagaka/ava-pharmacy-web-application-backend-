@@ -25,6 +25,7 @@ class CouponSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
+    unit_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     product = ProductListSerializer(source='variant.product', read_only=True)
     variant = VariantSerializer(read_only=True)
     variant_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
@@ -36,7 +37,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = (
-            'id', 'product', 'variant', 'variant_id', 'quantity', 'prescription_id',
+            'id', 'product', 'variant', 'variant_id', 'quantity', 'unit_price', 'prescription_id',
             'prescription', 'prescription_item',
             'otc_screening', 'subtotal', 'added_at'
         )
@@ -235,7 +236,7 @@ class CheckoutSerializer(serializers.Serializer):
     save_address = serializers.BooleanField(required=False, default=False)
     address_label = serializers.CharField(max_length=50, required=False, allow_blank=True, default='')
     set_default_address = serializers.BooleanField(required=False, default=False)
-    payment_method = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES)
+    payment_method = serializers.ChoiceField(choices=[(Order.PAYMENT_MPESA_STK, 'M-Pesa STK Push'), (Order.PAYMENT_MPESA_PAYBILL, 'M-Pesa Paybill')])
     delivery_method = serializers.CharField(max_length=30, default='standard')
     shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)
@@ -337,6 +338,26 @@ class AdminOrderSerializer(serializers.ModelSerializer):
 
 
 class AdminOrderUpdateSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        order = self.instance
+        next_status = attrs.get('status', order.status)
+        payment_status = attrs.get('payment_status', order.payment_status)
+        if next_status != order.status:
+            if order.status in [Order.STATUS_CANCELLED, Order.STATUS_REFUNDED, Order.STATUS_DELIVERED]:
+                raise serializers.ValidationError({'status': 'A terminal order cannot change fulfillment status.'})
+            if next_status == Order.STATUS_REFUNDED:
+                raise serializers.ValidationError({'status': 'Use the refund action to record a refund.'})
+            if next_status == Order.STATUS_CANCELLED and order.status == Order.STATUS_SHIPPED:
+                raise serializers.ValidationError({'status': 'A shipped order must use the return workflow.'})
+            if next_status in [Order.STATUS_PROCESSING, Order.STATUS_SHIPPED, Order.STATUS_DELIVERED]:
+                if payment_status != Order.PAYMENT_STATUS_PAID:
+                    raise serializers.ValidationError({'status': 'Payment must be confirmed before fulfillment.'})
+                if order.items.exists() and not order.inventory_committed:
+                    raise serializers.ValidationError({'status': 'Finalize checkout before fulfillment.'})
+        if payment_status == Order.PAYMENT_STATUS_REFUNDED and order.payment_status != payment_status:
+            raise serializers.ValidationError({'payment_status': 'Use the refund action to record a refund.'})
+        return attrs
+
     class Meta:
         model = Order
         fields = ('status', 'payment_status', 'payment_reference', 'delivery_method', 'delivery_notes', 'shipping_method')
@@ -375,7 +396,7 @@ class OrderTrackingLookupSerializer(serializers.Serializer):
 
 class PaymentIntentCreateSerializer(serializers.Serializer):
     order_id = serializers.IntegerField()
-    provider = serializers.ChoiceField(choices=PaymentIntent.PROVIDER_CHOICES)
+    provider = serializers.ChoiceField(choices=[(PaymentIntent.PROVIDER_MPESA, 'M-Pesa'), (PaymentIntent.PROVIDER_PAYBILL, 'Paybill')])
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     return_url = serializers.URLField(required=False, allow_blank=True)
     reference_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
@@ -517,6 +538,8 @@ class ReturnRequestAdminUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         status_value = attrs.get('status', getattr(self.instance, 'status', None))
+        if status_value == ReturnRequest.STATUS_REFUNDED and self.instance.order.payment_status != Order.PAYMENT_STATUS_REFUNDED:
+            raise serializers.ValidationError('Record the external order refund before closing this return as refunded.')
         if status_value in {ReturnRequest.STATUS_RECEIVED, ReturnRequest.STATUS_REFUNDED}:
             quarantined = attrs.get('returned_medicine_quarantined', getattr(self.instance, 'returned_medicine_quarantined', False))
             non_resale = attrs.get('non_resale_acknowledged', getattr(self.instance, 'non_resale_acknowledged', False))

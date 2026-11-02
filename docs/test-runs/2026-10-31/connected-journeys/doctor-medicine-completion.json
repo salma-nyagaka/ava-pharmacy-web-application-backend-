@@ -1,0 +1,25 @@
+{
+  "payment": {
+    "id": 56,
+    "status": "succeeded",
+    "receipt": "UK1I20J2W8",
+    "amount": "1.00"
+  },
+  "order": {
+    "id": 2015,
+    "reference": "ORD-43CBF6BB",
+    "status": "delivered",
+    "payment_status": "paid",
+    "inventory_committed": true
+  },
+  "successful_attempts": 1,
+  "stock_before": 4,
+  "stock_after": 3,
+  "prescription_dispatch": "delivered",
+  "earnings": [
+    {
+      "id": 13,
+      "amount": "0.90"
+    }
+  ]
+}

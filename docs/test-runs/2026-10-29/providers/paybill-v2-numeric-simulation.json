@@ -1,0 +1,16 @@
+{
+  "scenario": "wrong_amount",
+  "version": "v2",
+  "request": {
+    "ShortCode": 600980,
+    "CommandID": "CustomerPayBillOnline",
+    "Amount": 1,
+    "Msisdn": 254708374149,
+    "BillRefNumber": "AVA-ORD-874A0705"
+  },
+  "response": {
+    "OriginatorCoversationID": "8e77-4dec-98af-2e0707a6447d380371",
+    "ResponseCode": "0",
+    "ResponseDescription": "Accept the service request successfully."
+  }
+}

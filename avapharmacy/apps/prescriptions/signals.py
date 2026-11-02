@@ -53,15 +53,19 @@ def prescription_capture_previous_status(sender, instance, **kwargs):
     if not instance.pk:
         instance._previous_status = None
         return
-    previous = sender.objects.filter(pk=instance.pk).values('status').first()
+    previous = sender.objects.filter(pk=instance.pk).values('status', 'dispatch_status').first()
     instance._previous_status = previous['status'] if previous else None
+    instance._previous_dispatch = previous['dispatch_status'] if previous else None
 
 
 @receiver(post_save, sender=Prescription)
 def prescription_notify_state_changes(sender, instance, created, **kwargs):
     if created:
         pharmacists = User.objects.filter(role=User.PHARMACIST, status=User.STATUS_ACTIVE, is_active=True)
+        from .access import can_review
         for pharmacist in pharmacists:
+            if not can_review(pharmacist):
+                continue
             create_notification(
                 recipient=pharmacist,
                 notification_type='prescription_status',
@@ -72,6 +76,14 @@ def prescription_notify_state_changes(sender, instance, created, **kwargs):
         if instance.source == Prescription.SOURCE_UPLOAD:
             _queue_admin_upload_email(instance)
         return
+
+    previous_dispatch = getattr(instance, '_previous_dispatch', None)
+    if previous_dispatch and previous_dispatch != instance.dispatch_status and instance.patient:
+        create_notification(recipient=instance.patient, notification_type='prescription_status',
+            title=f'Prescription {instance.reference} dispensing update',
+            message=f'Prescription {instance.reference} is now {instance.get_dispatch_status_display()}.',
+            data={'url': f'/account/prescriptions?prescription={instance.id}', 'prescription_id': instance.id,
+                  'reference': instance.reference, 'dispatch_status': instance.dispatch_status}, send_email=True)
 
     previous_status = getattr(instance, '_previous_status', None)
     if previous_status == instance.status or not instance.patient:

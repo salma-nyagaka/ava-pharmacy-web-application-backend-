@@ -1,0 +1,10 @@
+{
+  "http_status": 202,
+  "id": 51,
+  "reference": "PAY-6E1803840CC1",
+  "status": "requires_action",
+  "amount": "1.00",
+  "last_error": "M-Pesa HTTP error 500: {\n                    \"requestId\":\"ws_CO_311020260127132727808457\",\n                    \"errorCode\": \"500.001.1001\",\n                    \"errorMessage\": \"The transaction does not Exist\"\n                }",
+  "provider_reference": "0",
+  "processed_at": null
+}

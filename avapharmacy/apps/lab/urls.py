@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('lab/technician-documents/<int:pk>/download/', views.LabTechDocumentDownloadView.as_view(), name='lab-tech-document-download'),
     # Public
     path('lab/tests/', views.LabTestListView.as_view(), name='lab-tests'),
 
@@ -21,6 +22,7 @@ urlpatterns = [
     path('lab/partner/facilities/', views.LabPartnerFacilityListCreateView.as_view(), name='lab-partner-facilities'),
     path('lab/partner/facilities/<int:pk>/', views.LabPartnerFacilityDetailView.as_view(), name='lab-partner-facility-detail'),
     path('lab/partner/facilities/<int:facility_pk>/documents/', views.LabPartnerFacilityDocumentListCreateView.as_view(), name='lab-partner-facility-documents'),
+    path('lab/partner-documents/<int:pk>/download/', views.LabPartnerDocumentDownloadView.as_view(), name='lab-partner-document-download'),
     path('lab/facility-documents/<int:pk>/download/', views.LaboratoryFacilityDocumentDownloadView.as_view(), name='lab-facility-document-download'),
     path('lab/partner/technicians/', views.LabPartnerTechnicianListCreateView.as_view(), name='lab-partner-techs'),
     path('lab/partner/technicians/<int:pk>/action/', views.LabPartnerTechnicianActionView.as_view(), name='lab-partner-tech-action'),
@@ -32,6 +34,7 @@ urlpatterns = [
     # Admin
     path('admin/lab/tests/', views.AdminLabTestListCreateView.as_view(), name='admin-lab-tests'),
     path('admin/lab/tests/<int:pk>/', views.AdminLabTestDetailView.as_view(), name='admin-lab-test-detail'),
+    path('admin/lab/approval-queue/', views.AdminLabApprovalQueueView.as_view(), name='admin-lab-approval-queue'),
     path('admin/lab/facilities/', views.AdminLaboratoryFacilityListView.as_view(), name='admin-lab-facilities'),
     path('admin/lab/facilities/<int:pk>/', views.AdminLaboratoryFacilityDetailView.as_view(), name='admin-lab-facility-detail'),
     path('admin/lab/facilities/<int:pk>/action/', views.AdminLaboratoryFacilityActionView.as_view(), name='admin-lab-facility-action'),

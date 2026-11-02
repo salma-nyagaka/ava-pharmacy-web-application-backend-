@@ -4,6 +4,7 @@ from urllib import error, request
 from django.conf import settings
 from django.utils import timezone
 
+from .inventory_sync import InventoryTargetError, resolve_variant_inventory_target
 from .models import Product, Variant, VariantInventory
 
 
@@ -116,6 +117,16 @@ def _extract_quantity(item):
         return None
 
 
+def _inventory_selector(item):
+    if not isinstance(item, dict):
+        return {'store_listing_id': None, 'store_code': '', 'batch_number': ''}
+    return {
+        'store_listing_id': item.get('store_listing_id'),
+        'store_code': str(item.get('store_code') or '').strip(),
+        'batch_number': str(item.get('batch_number') or '').strip(),
+    }
+
+
 def fetch_pos_inventory(lookup_items):
     endpoint = _pos_lookup_endpoint()
     if not endpoint or not lookup_items:
@@ -181,7 +192,10 @@ def _needs_pos_refresh_variant(variant):
         return False
     if variant.stock_quantity > variant.low_stock_threshold:
         return False
-    inventory = _warehouse_variant_inventory(variant)
+    try:
+        inventory = _warehouse_variant_inventory(variant)
+    except InventoryTargetError:
+        return True
     if inventory and inventory.last_synced_at:
         age = (timezone.now() - inventory.last_synced_at).total_seconds()
         if age < _pos_lookup_ttl_seconds():
@@ -189,24 +203,38 @@ def _needs_pos_refresh_variant(variant):
     return True
 
 
-def _warehouse_variant_inventory(variant):
-    if hasattr(variant, '_prefetched_objects_cache') and 'inventories' in variant._prefetched_objects_cache:
-        inventories = list(variant._prefetched_objects_cache['inventories'])
-        for inventory in inventories:
-            if inventory.location == Product.STOCK_WAREHOUSE:
-                return inventory
-    return VariantInventory.objects.filter(variant=variant, location=Product.STOCK_WAREHOUSE).first()
+def _warehouse_variant_inventory(
+    variant,
+    *,
+    store_listing_id=None,
+    store_code='',
+    batch_number='',
+):
+    inventory, _ = resolve_variant_inventory_target(
+        variant,
+        location=Product.STOCK_WAREHOUSE,
+        store_listing_id=store_listing_id,
+        store_code=store_code,
+        batch_number=batch_number,
+    )
+    return inventory
 
 
-def _apply_pos_quantity(product, quantity, source_name=None):
+def _apply_pos_quantity(product, quantity, source_name=None, **selector):
     representative = product.get_representative_variant()
     if representative is None:
         return None
-    inventory = _warehouse_variant_inventory(representative)
+    inventory, listing = resolve_variant_inventory_target(
+        representative,
+        location=Product.STOCK_WAREHOUSE,
+        **selector,
+    )
     if inventory is None:
         inventory = VariantInventory.objects.create(
             variant=representative,
+            store_listing=listing,
             location=Product.STOCK_WAREHOUSE,
+            batch_number=selector.get('batch_number', ''),
             stock_quantity=0,
         )
     inventory.stock_quantity = max(0, int(quantity))
@@ -253,11 +281,20 @@ def refresh_pos_inventory_for_products(products, *, force=False):
         product = variant_to_product.get(variant.id)
         if product is None:
             continue
-        _apply_pos_quantity(product, quantity, source_name=source_name)
-        refreshed[product.id] = {
-            'quantity': quantity,
-            'stores': pos_item.get('stores', []) if isinstance(pos_item, dict) else [],
-        }
+        try:
+            _apply_pos_quantity(
+                product,
+                quantity,
+                source_name=source_name,
+                **_inventory_selector(pos_item),
+            )
+        except InventoryTargetError as exc:
+            refreshed[product.id] = {'error': exc.as_dict()}
+        else:
+            refreshed[product.id] = {
+                'quantity': quantity,
+                'stores': pos_item.get('stores', []) if isinstance(pos_item, dict) else [],
+            }
     return refreshed
 
 
@@ -285,11 +322,22 @@ def refresh_pos_inventory_for_variants(variants, *, force=False):
         quantity = _extract_quantity(pos_item)
         if quantity is None:
             continue
-        inventory = _warehouse_variant_inventory(variant)
+        selector = _inventory_selector(pos_item)
+        try:
+            inventory, listing = resolve_variant_inventory_target(
+                variant,
+                location=Product.STOCK_WAREHOUSE,
+                **selector,
+            )
+        except InventoryTargetError as exc:
+            refreshed[variant.id] = {'error': exc.as_dict()}
+            continue
         if inventory is None:
             inventory = VariantInventory.objects.create(
                 variant=variant,
+                store_listing=listing,
                 location=Product.STOCK_WAREHOUSE,
+                batch_number=selector.get('batch_number', ''),
                 stock_quantity=0,
             )
         inventory.stock_quantity = max(0, int(quantity))

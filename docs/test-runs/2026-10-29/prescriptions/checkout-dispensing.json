@@ -1,0 +1,196 @@
+{
+  "prescription_id": 44,
+  "reference": "RX-E1E8ED",
+  "order_id": 2004,
+  "order_number": "ORD-8D5C9C77",
+  "payment": "SIMULATED-RX-QA-20261029; no provider transfer",
+  "checks": [
+    {
+      "check": "Finalize prescription order 1",
+      "http": 200
+    },
+    {
+      "check": "Finalize prescription order 2",
+      "http": 200
+    },
+    {
+      "check": "Reject paid item reuse",
+      "http": 400
+    },
+    {
+      "check": "Staff order processing",
+      "http": 200
+    },
+    {
+      "check": "Customer prescription dispatch",
+      "state": "packed"
+    },
+    {
+      "check": "Staff order shipped",
+      "http": 200
+    },
+    {
+      "check": "Customer prescription dispatch",
+      "state": "dispatched"
+    },
+    {
+      "check": "Staff order delivered",
+      "http": 200
+    },
+    {
+      "check": "Customer prescription dispatch",
+      "state": "delivered"
+    }
+  ],
+  "final_prescription": {
+    "id": 44,
+    "reference": "RX-E1E8ED",
+    "status": "approved",
+    "dispatch_status": "delivered",
+    "items": [
+      {
+        "id": 90,
+        "name": "SYNTHETIC RX QA ONLY 29 October Synthetic approved pack",
+        "product_id": 22368,
+        "product_name": "SYNTHETIC RX QA ONLY 29 October",
+        "product_slug": "synthetic-rx-qa-only-29-october",
+        "product_image": null,
+        "variant_id": 23507,
+        "variant_name": "Synthetic approved pack",
+        "variant_sku": "RX-QA-20261029-A",
+        "dose": "",
+        "frequency": "",
+        "duration": "",
+        "quantity": 1,
+        "quantity_measurement": "unit(s)",
+        "is_controlled_substance": false,
+        "is_paid_for": true
+      }
+    ],
+    "audit_logs": [
+      {
+        "id": 115,
+        "action": "Dispatch changed from dispatched to delivered",
+        "notes": "Order ORD-8D5C9C77: delivered",
+        "performed_by": 79,
+        "performed_by_name": "Synthetic Setup QA pharmacist",
+        "timestamp": "2026-10-29T17:34:49.758971+03:00"
+      },
+      {
+        "id": 114,
+        "action": "Dispatch changed from packed to dispatched",
+        "notes": "Order ORD-8D5C9C77: shipped",
+        "performed_by": 79,
+        "performed_by_name": "Synthetic Setup QA pharmacist",
+        "timestamp": "2026-10-29T17:34:41.780333+03:00"
+      },
+      {
+        "id": 113,
+        "action": "Dispatch changed from queued to packed",
+        "notes": "Order ORD-8D5C9C77: processing",
+        "performed_by": 79,
+        "performed_by_name": "Synthetic Setup QA pharmacist",
+        "timestamp": "2026-10-29T17:34:30.409798+03:00"
+      },
+      {
+        "id": 112,
+        "action": "Dispatch changed from not_started to queued",
+        "notes": "Order ORD-8D5C9C77: paid",
+        "performed_by": null,
+        "timestamp": "2026-10-29T17:33:09.247052+03:00"
+      },
+      {
+        "id": 111,
+        "action": "Added SYNTHETIC RX QA ONLY 29 October x1 to cart from approved prescription",
+        "notes": "Prescription item moved to cart.",
+        "performed_by": 75,
+        "performed_by_name": "Synthetic Setup QA customer",
+        "timestamp": "2026-10-29T17:30:34.541376+03:00"
+      },
+      {
+        "id": 108,
+        "action": "Prescription review: approve",
+        "notes": "Approved by Synthetic Setup QA pharmacist",
+        "performed_by": 79,
+        "performed_by_name": "Synthetic Setup QA pharmacist",
+        "timestamp": "2026-10-29T16:25:30.834319+03:00"
+      },
+      {
+        "id": 107,
+        "action": "Clarification response sent by patient",
+        "notes": "Confirmed: this is the synthetic QA test scan; no real patient or dispensing authority.",
+        "performed_by": 75,
+        "performed_by_name": "Synthetic Setup QA customer",
+        "timestamp": "2026-10-29T16:12:24.489217+03:00"
+      },
+      {
+        "id": 106,
+        "action": "Prescription review: request_clarification",
+        "notes": "SYNTHETIC QA: please confirm the uploaded scan is the intended test document.",
+        "performed_by": 79,
+        "performed_by_name": "Synthetic Setup QA pharmacist",
+        "timestamp": "2026-10-29T16:11:59.085708+03:00"
+      },
+      {
+        "id": 105,
+        "action": "Prescription assigned",
+        "notes": "Assigned to Synthetic Setup QA pharmacist",
+        "performed_by": 79,
+        "performed_by_name": "Synthetic Setup QA pharmacist",
+        "timestamp": "2026-10-29T16:11:56.088254+03:00"
+      },
+      {
+        "id": 104,
+        "action": "Prescription submitted by patient",
+        "notes": "RX acceptance 29 October 2026. SYNTHETIC QA ONLY; no clinical authority.",
+        "performed_by": 75,
+        "performed_by_name": "Synthetic Setup QA customer",
+        "timestamp": "2026-10-29T16:10:06.824868+03:00"
+      }
+    ],
+    "review_decisions": [
+      {
+        "id": 34,
+        "action": "approve",
+        "from_status": "pending",
+        "to_status": "approved",
+        "notes": "Approved by Synthetic Setup QA pharmacist",
+        "pharmacist": 79,
+        "pharmacist_name": "Synthetic Setup QA pharmacist",
+        "created_at": "2026-10-29T16:25:30.831321+03:00"
+      },
+      {
+        "id": 33,
+        "action": "request_clarification",
+        "from_status": "pending",
+        "to_status": "clarification",
+        "notes": "SYNTHETIC QA: please confirm the uploaded scan is the intended test document.",
+        "pharmacist": 79,
+        "pharmacist_name": "Synthetic Setup QA pharmacist",
+        "created_at": "2026-10-29T16:11:59.083343+03:00"
+      }
+    ],
+    "clarification_messages": [
+      {
+        "id": 11,
+        "sender": 79,
+        "sender_role": "pharmacist",
+        "sender_name": "Synthetic Setup QA pharmacist",
+        "sender_display": "Synthetic Setup QA pharmacist",
+        "message": "SYNTHETIC QA: please confirm the uploaded scan is the intended test document.",
+        "created_at": "2026-10-29T16:11:56.098167+03:00",
+        "updated_at": "2026-10-29T16:11:56.098173+03:00"
+      },
+      {
+        "id": 12,
+        "sender": 75,
+        "sender_role": "patient",
+        "sender_name": "Synthetic Setup QA customer",
+        "sender_display": "Synthetic Setup QA customer",
+        "message": "Confirmed: this is the synthetic QA test scan; no real patient or dispensing authority.",
+        "created_at": "2026-10-29T16:12:21.292685+03:00",
+        "updated_at": "2026-10-29T16:12:21.292703+03:00"
+      }
+    ]
+  }
+}

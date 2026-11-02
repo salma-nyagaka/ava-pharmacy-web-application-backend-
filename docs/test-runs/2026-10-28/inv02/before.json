@@ -1,0 +1,26 @@
+[
+  {
+    "id": 64275,
+    "variant__sku": "MODULE2-QA-20261027-A",
+    "store_listing__store__code": "module2-qa-20261027-1",
+    "stock_quantity": 50
+  },
+  {
+    "id": 64276,
+    "variant__sku": "MODULE2-QA-20261027-B",
+    "store_listing__store__code": "module2-qa-20261027-1",
+    "stock_quantity": 20
+  },
+  {
+    "id": 64277,
+    "variant__sku": "MODULE2-QA-20261027-A",
+    "store_listing__store__code": "module2-qa-20261027-2",
+    "stock_quantity": 30
+  },
+  {
+    "id": 64278,
+    "variant__sku": "MODULE2-QA-20261027-B",
+    "store_listing__store__code": "module2-qa-20261027-2",
+    "stock_quantity": 10
+  }
+]

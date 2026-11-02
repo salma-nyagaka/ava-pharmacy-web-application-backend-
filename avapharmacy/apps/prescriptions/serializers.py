@@ -1,4 +1,8 @@
 from rest_framework import serializers
+from django.core import signing
+from django.urls import reverse
+from urllib.parse import urlencode
+from pathlib import PurePosixPath
 from .models import (
     Prescription,
     PrescriptionFile,
@@ -35,7 +39,11 @@ class PrescriptionFileSerializer(serializers.ModelSerializer):
         if not _prescription_file_exists(obj):
             return ''
         try:
-            return obj.file.url
+            request = self.context.get('request')
+            if not request or not request.user.is_authenticated:
+                return ''
+            token = signing.dumps({'file': obj.pk, 'user': request.user.pk}, salt='prescription-download')
+            return request.build_absolute_uri(reverse('prescription-file-download-named', args=[obj.prescription_id, obj.pk, PurePosixPath(obj.filename or obj.file.name).name]) + '?' + urlencode({'token': token}))
         except Exception:
             return ''
 
@@ -207,35 +215,39 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
         fields = ('status', 'dispatch_status', 'pharmacist_notes', 'items')
 
     def validate(self, attrs):
-        next_status = attrs.get('status', self.instance.status)
-        items_data = attrs.get('items')
-        if next_status != Prescription.STATUS_APPROVED:
-            return attrs
-
-        if items_data is None:
-            missing_products = list(
-                self.instance.items.filter(product__isnull=True).values_list('name', flat=True)
-            )
-        else:
-            missing_products = [
-                item.get('name') or 'Unnamed item'
-                for item in items_data
-                if not (item.get('variant_id') or item.get('product_id'))
-            ]
-
-        if missing_products:
-            raise serializers.ValidationError({
-                'items': (
-                    'Approved prescriptions require every item to be mapped to a product. '
-                    f'Missing mappings: {", ".join(missing_products)}.'
-                )
-            })
+        instance = self.instance
+        if attrs.get('items') is not None and instance.items.filter(order_items__isnull=False).exists():
+            raise serializers.ValidationError({'items': 'Items linked to an order cannot be replaced.'})
+        next_status = attrs.get('status', instance.status)
+        items = attrs.get('items')
+        if next_status == Prescription.STATUS_APPROVED:
+            rows = items if items is not None else list(instance.items.values('name', 'product_id', 'variant_id', 'quantity', 'is_controlled_substance'))
+            if not rows:
+                raise serializers.ValidationError({'items': 'At least one mapped medication is required.'})
+            for row in rows:
+                variant = Variant.objects.filter(pk=row.get('variant_id'), is_active=True, product__is_active=True).first()
+                if not variant or (row.get('product_id') and row['product_id'] != variant.product_id):
+                    raise serializers.ValidationError({'items': 'Select the exact active catalog variant for every medication.'})
+                from .views import _is_controlled_substance
+                if row.get('is_controlled_substance') or _is_controlled_substance(row.get('name'), instance.notes, variant.product.name, variant.name):
+                    raise serializers.ValidationError({'items': 'Controlled drugs cannot be supplied online.'})
+                if row.get('quantity', 0) < 1:
+                    raise serializers.ValidationError({'items': 'Quantity must be at least 1.'})
+        dispatch = attrs.get('dispatch_status', instance.dispatch_status)
+        if dispatch != instance.dispatch_status:
+            states = [value for value, _ in Prescription.DISPATCH_CHOICES]
+            if next_status != Prescription.STATUS_APPROVED or states.index(dispatch) != states.index(instance.dispatch_status) + 1:
+                raise serializers.ValidationError({'dispatch_status': 'Approve the prescription and progress through queued, packed, dispatched, delivered in order.'})
+        if next_status in [Prescription.STATUS_REJECTED, Prescription.STATUS_CLARIFICATION] and not (attrs.get('pharmacist_notes') or instance.pharmacist_notes).strip():
+            raise serializers.ValidationError({'pharmacist_notes': 'Enter the rejection reason.'})
         return attrs
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        if 'status' in validated_data:
+            instance.clarification_message = instance.pharmacist_notes if instance.status in [Prescription.STATUS_REJECTED, Prescription.STATUS_CLARIFICATION] else ''
         instance.save()
         if items_data is not None:
             instance.items.all().delete()
@@ -265,6 +277,8 @@ class PharmacistPrescriptionReviewItemSerializer(serializers.Serializer):
     dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
     frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
     quantity = serializers.IntegerField(min_value=1)
+    duration = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    quantity_measurement = serializers.CharField(max_length=60, required=False, allow_blank=True)
 
     def validate(self, attrs):
         product_id = attrs.get('product_id')
@@ -308,7 +322,7 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
                 missing_products = [
                     item.get('name') or 'Unnamed item'
                     for item in items
-                    if not (item.get('variant_id') or item.get('product_id'))
+                    if not item.get('variant_id')
                 ]
                 if missing_products:
                     raise serializers.ValidationError({

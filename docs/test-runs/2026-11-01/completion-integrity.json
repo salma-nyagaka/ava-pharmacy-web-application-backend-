@@ -1,0 +1,91 @@
+{
+  "scope": "Recorded local QA connected journeys; no production audit or new provider requests",
+  "orders": [
+    {
+      "id": 2012,
+      "reference": "ORD-7B791366",
+      "status": "delivered",
+      "payment_status": "paid",
+      "stock": 3,
+      "expected_stock": 3,
+      "stock_matches": true,
+      "successful_payments": 1,
+      "single_success": true,
+      "inventory_committed": true
+    },
+    {
+      "id": 2013,
+      "reference": "ORD-599F53F7",
+      "status": "delivered",
+      "payment_status": "paid",
+      "stock": 3,
+      "expected_stock": 3,
+      "stock_matches": true,
+      "successful_payments": 1,
+      "single_success": true,
+      "inventory_committed": true
+    },
+    {
+      "id": 2014,
+      "reference": "ORD-1DD38A84",
+      "status": "delivered",
+      "payment_status": "paid",
+      "stock": 1,
+      "expected_stock": 1,
+      "stock_matches": true,
+      "successful_payments": 1,
+      "single_success": true,
+      "inventory_committed": true
+    },
+    {
+      "id": 2015,
+      "reference": "ORD-43CBF6BB",
+      "status": "delivered",
+      "payment_status": "paid",
+      "stock": 3,
+      "expected_stock": 3,
+      "stock_matches": true,
+      "successful_payments": 1,
+      "single_success": true,
+      "inventory_committed": true
+    }
+  ],
+  "consultations": [
+    {
+      "id": 38,
+      "reference": "CONS-8AF578",
+      "status": "completed",
+      "patient_id": 75,
+      "child_id": 6,
+      "consent": "granted",
+      "earnings": [
+        {
+          "id": 12,
+          "amount": "0.90"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "reference": "CONS-83F95C",
+      "status": "completed",
+      "patient_id": 75,
+      "child_id": null,
+      "consent": "pending",
+      "earnings": [
+        {
+          "id": 13,
+          "amount": "0.90"
+        }
+      ]
+    }
+  ],
+  "earlier_unconfirmed_pediatric_intent": {
+    "id": 50,
+    "status": "requires_action",
+    "consultation_id": null,
+    "receipt": "0",
+    "amount": "1.00"
+  },
+  "no_new_payment_or_refund_requested": true
+}

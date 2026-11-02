@@ -6,7 +6,8 @@ all app URL modules under four base prefixes for frontend compatibility:
 ``api/``, ``api/v1/``, ``avapharmacy/api/``, and ``avapharmacy/api/v1/``.
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from apps.prescriptions.views import deny_public_prescription_file
 from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import redirect
@@ -26,6 +27,9 @@ def frontend_consultation_redirect(request):
 
 
 urlpatterns = [
+    re_path(r'^media/(?:compliance/evidence|lab/results|lab_partners/documents|lab_tech/documents|laboratory_facilities/documents)(?:/.*)?$', deny_public_prescription_file),
+    re_path(r'^media/consultations/messages(?:/.*)?$', deny_public_prescription_file),
+    re_path(r'^media/prescriptions(?:/.*)?$', deny_public_prescription_file),
     path('admin/', admin.site.urls),
     path('doctor-consultation', frontend_consultation_redirect, name='frontend-doctor-consultation-redirect'),
     path('doctor-consultation/', frontend_consultation_redirect, name='frontend-doctor-consultation-slash-redirect'),

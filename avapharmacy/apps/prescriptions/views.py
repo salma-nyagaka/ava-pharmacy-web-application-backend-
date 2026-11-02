@@ -1,9 +1,14 @@
 import json
 
+from django.core import signing
+from django.http import FileResponse, Http404
+from .access import can_read
+
 from django.db import models
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
@@ -40,6 +45,14 @@ CONTROLLED_SUBSTANCE_KEYWORDS = {
     'morphine', 'codeine', 'diazepam', 'alprazolam', 'tramadol', 'ketamine',
     'fentanyl', 'pethidine', 'methadone', 'clonazepam',
 }
+
+
+class CanReviewPrescriptionsOrAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return (
+            (IsPharmacistOrAdmin().has_permission(request, view) and request.user.role == User.ADMIN)
+            or IsPrescriptionReviewPharmacist().has_permission(request, view)
+        )
 
 
 class PrescriptionUploadRateThrottle(UserRateThrottle):
@@ -82,6 +95,8 @@ def _is_controlled_substance(*values):
 def _replace_prescription_items(prescription, items_data):
     if items_data is None:
         return
+    if prescription.items.filter(order_items__isnull=False).exists():
+        raise ValidationError({'items': 'Items linked to an order cannot be replaced.'})
     prescription.items.all().delete()
     for item_data in items_data:
         variant_id = item_data.get('variant_id')
@@ -103,6 +118,7 @@ def _replace_prescription_items(prescription, items_data):
                 item_data.get('dose', ''),
                 item_data.get('frequency', ''),
                 prescription.notes,
+                Variant.objects.filter(pk=variant_id).values_list('product__name', flat=True).first(),
             ),
         )
 
@@ -195,6 +211,18 @@ class PrescriptionUploadView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+        items_data = data.get('items')
+        raw_items = request.data.get('items_json')
+        if raw_items:
+            try:
+                raw_items = json.loads(raw_items)
+            except (json.JSONDecodeError, TypeError):
+                raise ValidationError({'items_json': 'Enter a valid medication list.'})
+            from .serializers import PrescriptionUploadItemSerializer
+            item_serializer = PrescriptionUploadItemSerializer(data=raw_items, many=True)
+            item_serializer.is_valid(raise_exception=True)
+            items_data = item_serializer.validated_data
+
         prescription = Prescription.objects.create(
             patient=request.user,
             patient_name=data['patient_name'],
@@ -210,14 +238,6 @@ class PrescriptionUploadView(APIView):
                 filename=f.name,
             )
 
-        items_data = data.get('items')
-        if not items_data:
-            raw_items = request.data.get('items_json') or request.data.get('items')
-            if isinstance(raw_items, str):
-                try:
-                    items_data = json.loads(raw_items)
-                except json.JSONDecodeError:
-                    items_data = None
         _replace_prescription_items(prescription, items_data)
 
         PrescriptionAuditLog.objects.create(
@@ -239,7 +259,7 @@ class PrescriptionUploadView(APIView):
                 performed_by=request.user,
             )
 
-        return Response(PrescriptionSerializer(prescription).data, status=status.HTTP_201_CREATED)
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 class PrescriptionDetailView(generics.RetrieveAPIView):
@@ -248,39 +268,54 @@ class PrescriptionDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role in ['pharmacist', 'admin']:
+        if CanReviewPrescriptionsOrAdmin().has_permission(self.request, self):
             return _prescription_queryset()
         return _prescription_queryset().filter(patient=user)
 
 
 class PrescriptionUpdateView(generics.UpdateAPIView):
     serializer_class = PrescriptionUpdateSerializer
-    permission_classes = [IsPharmacistOrAdmin]
+    permission_classes = [CanReviewPrescriptionsOrAdmin]
 
     def get_queryset(self):
         return Prescription.objects.all()
 
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
-        instance = self.get_object()
+        instance = Prescription.objects.select_for_update().get(pk=self.get_object().pk)
+        if instance.pharmacist_id and instance.pharmacist_id != request.user.pk and request.user.role != User.ADMIN:
+            raise ValidationError({'detail': 'Prescription is assigned to another pharmacist.'})
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
+        if serializer.validated_data and all(key != 'items' and getattr(instance, key) == value for key, value in serializer.validated_data.items()):
+            return Response(PrescriptionSerializer(instance, context={'request': request}).data)
         prev_status = instance.status
+        previous_dispatch = instance.dispatch_status
         prescription = serializer.save(pharmacist=request.user)
 
-        action = f"Status updated to '{prescription.get_status_display()}' by {request.user.full_name}"
+        if previous_dispatch != prescription.dispatch_status:
+            action = f'Dispatch changed from {previous_dispatch} to {prescription.dispatch_status}'
+        else:
+            action = f"Status updated to '{prescription.get_status_display()}' by {request.user.full_name}"
         PrescriptionAuditLog.objects.create(
             prescription=prescription,
             action=action,
             performed_by=request.user,
         )
 
-        return Response(PrescriptionSerializer(prescription).data)
+        if prev_status != prescription.status and prescription.status == Prescription.STATUS_CLARIFICATION:
+            _create_clarification_message(prescription, sender=request.user, message=prescription.pharmacist_notes)
+        if prev_status != prescription.status and prescription.status in [Prescription.STATUS_APPROVED, Prescription.STATUS_REJECTED, Prescription.STATUS_CLARIFICATION]:
+            PrescriptionReviewDecision.objects.create(prescription=prescription, pharmacist=request.user,
+                action={'approved': 'approve', 'rejected': 'reject', 'clarification': 'request_clarification'}.get(prescription.status, 'request_clarification'),
+                from_status=prev_status, to_status=prescription.status, notes=prescription.pharmacist_notes)
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data)
 
 
 class PrescriptionAuditView(APIView):
-    permission_classes = [IsPharmacistOrAdmin]
+    permission_classes = [CanReviewPrescriptionsOrAdmin]
 
     def post(self, request, pk):
         try:
@@ -295,12 +330,20 @@ class PrescriptionAuditView(APIView):
             notes=serializer.validated_data.get('notes', ''),
             performed_by=request.user,
         )
-        return Response(PrescriptionSerializer(prescription).data)
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data)
+
+
+class CanReadPrescriptionRegister(CanReviewPrescriptionsOrAdmin):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) or (
+            IsPharmacistAdminOrPPBInspector().has_permission(request, view)
+            and request.user.role == User.PPB_INSPECTOR
+        )
 
 
 class AdminPrescriptionListView(generics.ListAPIView):
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsPharmacistAdminOrPPBInspector]
+    permission_classes = [CanReadPrescriptionRegister]
     filterset_fields = ['status', 'dispatch_status']
     search_fields = ['reference', 'patient_name', 'doctor_name']
     ordering = ['-submitted_at']
@@ -359,6 +402,7 @@ class PharmacistVariantSearchView(APIView):
 class PrescriptionItemAddToCartView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request, pk, item_pk):
         try:
             prescription = Prescription.objects.prefetch_related('items__product', 'items__variant').get(
@@ -409,6 +453,7 @@ class PrescriptionItemAddToCartView(APIView):
         if quantity < 1:
             return Response({'quantity': 'Must be at least 1.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        item = PrescriptionItem.objects.select_for_update(of=('self',)).select_related('product', 'variant', 'prescription').get(pk=item.pk)
         cart = _get_or_create_cart(request.user)
         variant = item.variant or item.product.get_representative_variant()
         if variant is None:
@@ -434,7 +479,8 @@ class PrescriptionItemAddToCartView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        error = _product_availability_error(variant, requested_total)
+        from .dispensing import dispensing_error
+        error = dispensing_error(item, variant, requested_total) or _product_availability_error(variant, requested_total)
         if error:
             return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -495,7 +541,7 @@ class PharmacistPrescriptionAssignView(APIView):
             notes=f'Assigned to {request.user.full_name}',
             performed_by=request.user,
         )
-        return Response(PrescriptionSerializer(prescription).data)
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data)
 
 
 class PharmacistPrescriptionReviewView(APIView):
@@ -527,29 +573,17 @@ class PharmacistPrescriptionReviewView(APIView):
 
         if action == PharmacistPrescriptionReviewSerializer.ACTION_APPROVE:
             if not prescription.items.exists():
-                return Response({'items': 'At least one prescription item is required for approval.'}, status=status.HTTP_400_BAD_REQUEST)
+                raise ValidationError({'items': 'At least one prescription item is required for approval.'})
             controlled_items = list(
                 prescription.items.filter(is_controlled_substance=True).values_list('name', flat=True)
             )
             if controlled_items:
-                PrescriptionAuditLog.objects.create(
-                    prescription=prescription,
-                    action='Controlled drug supply blocked',
-                    notes=', '.join(controlled_items),
-                    performed_by=request.user,
-                )
-                return Response(
-                    {
-                        'items': (
-                            'Controlled drugs cannot be supplied via the internet. '
-                            f'Remove or reject: {", ".join(controlled_items)}.'
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                raise ValidationError({'items': 'Controlled drugs cannot be supplied via the internet.'})
             unmapped = list(prescription.items.filter(product__isnull=True, variant__isnull=True).values_list('name', flat=True))
             if unmapped:
-                return Response({'items': f'All approved items must be mapped to products. Missing: {", ".join(unmapped)}.'}, status=status.HTTP_400_BAD_REQUEST)
+                raise ValidationError({'items': f'All approved items must be mapped to products. Missing: {", ".join(unmapped)}.'})
+            validator = PrescriptionUpdateSerializer(prescription, data={'status': Prescription.STATUS_APPROVED}, partial=True)
+            validator.is_valid(raise_exception=True)
             prescription.status = Prescription.STATUS_APPROVED
             prescription.clarification_message = ''
         elif action == PharmacistPrescriptionReviewSerializer.ACTION_REJECT:
@@ -577,7 +611,7 @@ class PharmacistPrescriptionReviewView(APIView):
             notes=notes,
             performed_by=request.user,
         )
-        return Response(PrescriptionSerializer(prescription).data)
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data)
 
 
 class PrescriptionResubmitView(APIView):
@@ -605,6 +639,7 @@ class PrescriptionResubmitView(APIView):
                 return Response({'files': f'File "{f.name}" exceeds 5 MB limit.'}, status=status.HTTP_400_BAD_REQUEST)
             if f.content_type not in ALLOWED_FILE_TYPES:
                 return Response({'files': f'File "{f.name}" has unsupported type.'}, status=status.HTTP_400_BAD_REQUEST)
+        for f in files:
             PrescriptionFile.objects.create(prescription=prescription, file=f, filename=f.name)
 
         notes = serializer.validated_data.get('notes', '').strip()
@@ -624,7 +659,7 @@ class PrescriptionResubmitView(APIView):
             notes=notes,
             performed_by=request.user,
         )
-        return Response(PrescriptionSerializer(prescription).data)
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data)
 
 
 class PrescriptionClarificationReplyView(APIView):
@@ -683,4 +718,29 @@ class PrescriptionClarificationReplyView(APIView):
                 },
             )
 
-        return Response(PrescriptionSerializer(prescription).data, status=status.HTTP_201_CREATED)
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class PrescriptionFileDownloadView(APIView):
+    # New-tab links carry a short-lived, user-bound bearer grant. Recheck current access.
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, pk, file_pk, filename=None):
+        try:
+            grant = signing.loads(request.query_params.get('token', ''), salt='prescription-download', max_age=300)
+            user = User.objects.get(pk=grant['user'])
+            upload = PrescriptionFile.objects.select_related('prescription').get(pk=file_pk, prescription_id=pk)
+            if grant['file'] != file_pk or not can_read(user, upload.prescription):
+                raise Http404
+            response = FileResponse(upload.file.open('rb'), as_attachment=True, filename=upload.filename)
+            response['Cache-Control'] = 'private, no-store'
+            response['X-Content-Type-Options'] = 'nosniff'
+            response['Referrer-Policy'] = 'no-referrer'
+            return response
+        except (signing.BadSignature, KeyError, TypeError, ValueError, User.DoesNotExist, PrescriptionFile.DoesNotExist, FileNotFoundError):
+            raise Http404
+
+
+def deny_public_prescription_file(request, path=''):
+    raise Http404

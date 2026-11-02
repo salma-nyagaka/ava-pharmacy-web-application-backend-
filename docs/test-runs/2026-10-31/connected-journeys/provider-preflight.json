@@ -1,0 +1,21 @@
+{
+  "environment": "sandbox",
+  "amount_override": false,
+  "new_payment_intents": 0,
+  "callback_probes": [
+    {
+      "kind": "order",
+      "https": true,
+      "status": 200,
+      "route_only": true
+    },
+    {
+      "kind": "consultation",
+      "https": true,
+      "status": 200,
+      "route_only": true
+    }
+  ],
+  "provider_oauth": "accepted",
+  "unpaid_draft_stock_unchanged": true
+}

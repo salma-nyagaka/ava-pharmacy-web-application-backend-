@@ -1,0 +1,160 @@
+{
+  "main": {
+    "id": 1,
+    "reference": "PAY-2442FD",
+    "execution_mode": "administrative_record",
+    "recipient": 80,
+    "recipient_name": "Synthetic Setup QA doctor",
+    "recipient_email": "setup28.doctor@avapharmacy.test",
+    "role": "doctor",
+    "period": "SYNTHETIC QA October 2026",
+    "source_type": "consultation",
+    "source_reference": "CONS-EE8CBC",
+    "idempotency_key": "consultation:CONS-EE8CBC",
+    "gross_amount": "500.00",
+    "commission_amount": "50.00",
+    "withholding_amount": "0.00",
+    "deduction_amount": "0.00",
+    "amount": "450.00",
+    "currency": "KES",
+    "method": "mpesa",
+    "payment_reference": "SYNTHETIC-QA-NO-TRANSFER-30",
+    "provider_transaction_id": "SYNTHETIC-QA-NO-TRANSFER-30",
+    "batch_reference": "",
+    "status": "paid",
+    "reconciliation_status": "matched",
+    "notes": "SYNTHETIC QA administrative payout only. No funds transferred. Consultation payment was simulated.",
+    "hold_reason": "",
+    "failure_code": "",
+    "failure_message": "",
+    "retry_count": 0,
+    "requested_at": "2026-10-30T19:58:20.917152+03:00",
+    "reviewed_at": "2026-10-30T19:58:25.501472+03:00",
+    "approved_at": "2026-10-30T19:59:36.925138+03:00",
+    "submitted_at": "2026-10-30T20:00:08.183405+03:00",
+    "paid_at": "2026-10-30T20:00:00+03:00",
+    "created_by": 77,
+    "created_by_name": "Synthetic Setup QA admin",
+    "reviewed_by": 77,
+    "reviewed_by_name": "Synthetic Setup QA admin",
+    "approved_by": 71,
+    "approved_by_name": "Synthetic Module2 admin",
+    "submitted_by": 77,
+    "submitted_by_name": "Synthetic Setup QA admin",
+    "audit_logs": [
+      {
+        "id": 20,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "reconcile",
+        "from_status": "paid",
+        "to_status": "paid",
+        "reason": "",
+        "metadata": {
+          "amount": "450.00",
+          "recipient_id": 80,
+          "execution_mode": "administrative_record",
+          "source_reference": "CONS-EE8CBC",
+          "payment_reference": "SYNTHETIC-QA-NO-TRANSFER-30",
+          "reconciliation_status": "matched",
+          "provider_transaction_id": "SYNTHETIC-QA-NO-TRANSFER-30"
+        },
+        "created_at": "2026-10-30T20:01:37.534000+03:00"
+      },
+      {
+        "id": 19,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "mark_paid",
+        "from_status": "processing",
+        "to_status": "paid",
+        "reason": "",
+        "metadata": {
+          "amount": "450.00",
+          "recipient_id": 80,
+          "execution_mode": "administrative_record",
+          "source_reference": "CONS-EE8CBC",
+          "payment_reference": "SYNTHETIC-QA-NO-TRANSFER-30",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": "SYNTHETIC-QA-NO-TRANSFER-30"
+        },
+        "created_at": "2026-10-30T20:01:15.319103+03:00"
+      },
+      {
+        "id": 4,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "process",
+        "from_status": "approved",
+        "to_status": "processing",
+        "reason": "",
+        "metadata": {
+          "amount": "450.00",
+          "recipient_id": 80,
+          "execution_mode": "administrative_record",
+          "source_reference": "CONS-EE8CBC",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:08.185163+03:00"
+      },
+      {
+        "id": 3,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "approve",
+        "from_status": "pending",
+        "to_status": "approved",
+        "reason": "",
+        "metadata": {
+          "amount": "450.00",
+          "recipient_id": 80,
+          "execution_mode": "administrative_record",
+          "source_reference": "CONS-EE8CBC",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T19:59:36.926843+03:00"
+      },
+      {
+        "id": 2,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "submit",
+        "from_status": "draft",
+        "to_status": "pending",
+        "reason": "",
+        "metadata": {
+          "amount": "450.00",
+          "recipient_id": 80,
+          "execution_mode": "administrative_record",
+          "source_reference": "CONS-EE8CBC",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T19:58:25.503151+03:00"
+      },
+      {
+        "id": 1,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "created",
+        "from_status": "",
+        "to_status": "draft",
+        "reason": "",
+        "metadata": {
+          "source_reference": "CONS-EE8CBC"
+        },
+        "created_at": "2026-10-30T19:58:20.927571+03:00"
+      }
+    ]
+  },
+  "doctor_own_payout_count": 1,
+  "customer_payout_count": 0,
+  "unauthorized_admin_actions": "403 for doctor and customer",
+  "repeat_payment_and_reconciliation": "409",
+  "cleanup": "QA doctor rule deactivated; existing earnings unchanged; all synthetic ledger records retained; no transfer executed."
+}

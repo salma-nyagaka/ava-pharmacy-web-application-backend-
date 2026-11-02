@@ -1,0 +1,12 @@
+AVA Pharmacy Ltd - Activate your doctor account
+
+Set your password and accept the terms to activate.
+
+Test account: doctor.qa@example.test
+New test password: ExampleTestPass123!
+
+Activate account: http://localhost:3000/auth/professional/activate?token=preview-token
+
+FOR LOCAL QA TESTING
+Use on the computer running the website. Enter the password to apply it.
+

@@ -313,25 +313,18 @@ class LabWorkflowSecurityTests(APITestCase):
                 'county': 'Nairobi',
                 'address': 'Karen Road, Nairobi',
                 'license_number': 'FAC-003',
+                'license_expiry': '2030-12-31',
                 'supported_counties': ['Kajiado'],
                 'home_collection_enabled': True,
                 'physical_result_pickup_enabled': True,
-                'test_ids': [self.test.pk],
-                'test_offerings': [{
-                    'test': self.test.pk,
-                    'price': '1750.00',
-                    'turnaround': '12 hours',
-                    'home_collection_available': True,
-                }],
-                'technician_ids': [self.technician_profile.pk],
             },
             format='json',
         )
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.data['status'], LaboratoryFacility.STATUS_PENDING)
         self.assertEqual(created.data['supported_counties'], ['Nairobi', 'Kajiado'])
-        self.assertEqual(created.data['offerings'][0]['test'], self.test.pk)
-        self.assertEqual(created.data['offerings'][0]['price'], '1750.00')
+        self.assertEqual(created.data['offerings'], [])
+        self.assertEqual(created.data['technicians'], [])
 
         uploaded = self.client.post(
             reverse('lab-partner-facility-documents', args=[created.data['id']]),
@@ -349,6 +342,9 @@ class LabWorkflowSecurityTests(APITestCase):
         self.assertNotIn('file', uploaded.data)
 
         self.authenticate(self.admin)
+        queue = self.client.get(reverse('admin-lab-approval-queue'))
+        self.assertEqual(queue.status_code, 200)
+        self.assertIn(created.data['id'], [item['id'] for item in queue.data['laboratory_applications']])
         verified = self.client.post(
             reverse('admin-lab-facility-action', args=[created.data['id']]),
             {'action': 'verify'},
@@ -371,6 +367,69 @@ class LabWorkflowSecurityTests(APITestCase):
         )
         self.assertEqual(changed.status_code, 200)
         self.assertEqual(changed.data['status'], LaboratoryFacility.STATUS_PENDING)
+
+    def test_partner_status_cannot_be_changed_through_the_generic_detail_endpoint(self):
+        pending = LabPartner.objects.create(
+            user=self.make_user('pending-partner@example.com', User.LAB_PARTNER),
+            name='Pending Diagnostics', email='pending-partner@example.com', phone='0700000020',
+        )
+        self.authenticate(self.admin)
+        response = self.client.patch(
+            reverse('admin-lab-partner-detail', args=[pending.pk]),
+            {'status': LabPartner.STATUS_VERIFIED},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, LabPartner.STATUS_PENDING)
+
+    def test_partner_documents_are_private_and_verify_requires_them(self):
+        pending = LabPartner.objects.create(
+            user=self.make_user('review-partner@example.com', User.LAB_PARTNER),
+            name='Review Diagnostics', email='review-partner@example.com', phone='0700000021',
+        )
+        self.authenticate(self.admin)
+        missing_documents = self.client.post(
+            reverse('admin-lab-partner-action', args=[pending.pk]), {'action': 'verify'}, format='json'
+        )
+        self.assertEqual(missing_documents.status_code, 400)
+
+        from apps.lab.models import LabPartnerDocument
+        document = LabPartnerDocument.objects.create(
+            partner=pending,
+            name='Operating licence',
+            file=SimpleUploadedFile('partner-licence.pdf', b'%PDF-1.4 partner licence', content_type='application/pdf'),
+        )
+        partner_data = self.client.get(reverse('admin-lab-partner-detail', args=[pending.pk]))
+        self.assertNotIn('file', partner_data.data['documents'][0])
+        self.assertTrue(partner_data.data['documents'][0]['download_url'].endswith(
+            f'/lab/partner-documents/{document.pk}/download/'
+        ))
+        self.assertEqual(
+            self.client.get(reverse('lab-partner-document-download', args=[document.pk])).status_code, 200
+        )
+        self.authenticate(self.patient)
+        self.assertEqual(
+            self.client.get(reverse('lab-partner-document-download', args=[document.pk])).status_code, 404
+        )
+
+    def test_facility_verification_requires_a_licence_expiry_date(self):
+        facility = LaboratoryFacility.objects.create(
+            partner=self.partner,
+            name='No Expiry Facility', phone='0700000099', county='Nairobi', address='Nairobi',
+            license_number='FAC-NO-EXPIRY', status=LaboratoryFacility.STATUS_PENDING,
+        )
+        LaboratoryFacilityDocument.objects.create(
+            facility=facility,
+            name='Facility licence',
+            file=SimpleUploadedFile('facility-licence.pdf', b'%PDF-1.4 facility licence', content_type='application/pdf'),
+        )
+        self.authenticate(self.admin)
+        response = self.client.post(
+            reverse('admin-lab-facility-action', args=[facility.pk]), {'action': 'verify'}, format='json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('expiry', str(self.error_details(response)).lower())
 
     def test_request_assignment_requires_facility_test_and_capability(self):
         unsupported_test = LabTest.objects.create(

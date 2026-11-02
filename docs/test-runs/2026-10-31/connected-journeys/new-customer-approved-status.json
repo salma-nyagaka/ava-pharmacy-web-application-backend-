@@ -1,0 +1,38 @@
+{
+  "http_status": 200,
+  "id": 53,
+  "reference": "PAY-93CC7B6C3A17",
+  "status": "succeeded",
+  "amount": "1.00",
+  "last_error": "",
+  "provider_reference": "UK1I20HYZ4",
+  "processed_at": "2026-11-01T18:46:10.855290+03:00",
+  "order": {
+    "id": 2012,
+    "order_number": "ORD-7B791366",
+    "status": "paid",
+    "payment_status": "paid",
+    "total": "1.00",
+    "inventory_committed": false
+  },
+  "attempts": [
+    {
+      "id": 53,
+      "status": "succeeded",
+      "amount": "1.00",
+      "provider_reference": "UK1I20HYZ4"
+    },
+    {
+      "id": 52,
+      "status": "failed",
+      "amount": "1.00",
+      "provider_reference": "0"
+    },
+    {
+      "id": 51,
+      "status": "cancelled",
+      "amount": "1.00",
+      "provider_reference": "0"
+    }
+  ]
+}

@@ -1,0 +1,229 @@
+{
+  "customer_ticket": {
+    "id": 1,
+    "reference": "SUP-D85A43",
+    "customer": 75,
+    "customer_name": "Synthetic Setup QA customer",
+    "customer_email": "setup28.customer@avapharmacy.test",
+    "channel": "other",
+    "reference_id": "",
+    "subject": "SYNTHETIC QA30 support workflow \u2014 no real customer issue",
+    "priority": "medium",
+    "status": "resolved",
+    "assigned_to": 77,
+    "assigned_to_name": "Synthetic Setup QA admin",
+    "notes": [
+      {
+        "id": 1,
+        "author": 75,
+        "author_name": "Synthetic Setup QA customer",
+        "message": "SYNTHETIC QA customer reply. Please verify the support history and visibility controls.",
+        "is_internal": false,
+        "created_at": "2026-10-30T20:40:59.454049+03:00"
+      },
+      {
+        "id": 3,
+        "author": 77,
+        "author_name": "Synthetic Setup QA admin",
+        "message": "PUBLIC SYNTHETIC QA30 reply: the support workflow has been reviewed. No real issue or clinical advice.",
+        "is_internal": false,
+        "created_at": "2026-10-30T20:41:59.679892+03:00"
+      },
+      {
+        "id": 4,
+        "author": 77,
+        "author_name": "Synthetic Setup QA admin",
+        "message": "Status changed from open to resolved.",
+        "is_internal": false,
+        "created_at": "2026-10-30T20:42:05.263560+03:00"
+      }
+    ],
+    "created_at": "2026-10-30T20:40:55.539179+03:00",
+    "updated_at": "2026-10-30T20:42:05.262888+03:00"
+  },
+  "staff_ticket": {
+    "id": 1,
+    "reference": "SUP-D85A43",
+    "customer": 75,
+    "customer_name": "Synthetic Setup QA customer",
+    "customer_email": "setup28.customer@avapharmacy.test",
+    "channel": "other",
+    "reference_id": "",
+    "subject": "SYNTHETIC QA30 support workflow \u2014 no real customer issue",
+    "priority": "medium",
+    "status": "resolved",
+    "assigned_to": 77,
+    "assigned_to_name": "Synthetic Setup QA admin",
+    "notes": [
+      {
+        "id": 1,
+        "author": 75,
+        "author_name": "Synthetic Setup QA customer",
+        "message": "SYNTHETIC QA customer reply. Please verify the support history and visibility controls.",
+        "is_internal": false,
+        "created_at": "2026-10-30T20:40:59.454049+03:00"
+      },
+      {
+        "id": 2,
+        "author": 77,
+        "author_name": "Synthetic Setup QA admin",
+        "message": "PRIVATE SYNTHETIC QA30 STAFF NOTE \u2014 must not appear in customer history.",
+        "is_internal": true,
+        "created_at": "2026-10-30T20:41:54.770441+03:00"
+      },
+      {
+        "id": 3,
+        "author": 77,
+        "author_name": "Synthetic Setup QA admin",
+        "message": "PUBLIC SYNTHETIC QA30 reply: the support workflow has been reviewed. No real issue or clinical advice.",
+        "is_internal": false,
+        "created_at": "2026-10-30T20:41:59.679892+03:00"
+      },
+      {
+        "id": 4,
+        "author": 77,
+        "author_name": "Synthetic Setup QA admin",
+        "message": "Status changed from open to resolved.",
+        "is_internal": false,
+        "created_at": "2026-10-30T20:42:05.263560+03:00"
+      }
+    ],
+    "created_at": "2026-10-30T20:40:55.539179+03:00",
+    "updated_at": "2026-10-30T20:42:05.262888+03:00"
+  },
+  "compliance": {
+    "id": 1,
+    "protected_download": "http://127.0.0.1:8000/avapharmacy/api/v1/compliance/evidence/1/download/",
+    "raw_media_status": 404,
+    "customer_download_status": 403,
+    "actual_raw_media_status": 404,
+    "browser_download_sha256": "12875f77f7733fa82de66e5b9e464e932943523d78590248c26ea736e2a9fae1",
+    "status": "review_due"
+  },
+  "temporary_site_setting": "SYNTHETIC QA30 local storefront visibility check \u2014 Nairobi",
+  "preference_check": {
+    "notification_id": 542,
+    "email_enabled": false,
+    "external_deliveries": 0,
+    "inbox_retained": true
+  },
+  "read_state": {
+    "browser_sequence": [
+      73,
+      72,
+      0
+    ],
+    "after_refresh": 0,
+    "final_unread_count": 0
+  },
+  "notification_links": {
+    "prescription": "/account/prescriptions?prescription=46",
+    "consultation": "/account/consultations?consultation=34",
+    "lab_result": "/account/lab-tests?request=1",
+    "order": "/account/orders/2007",
+    "support": "/account/support?ticket=1",
+    "browser": "all destinations opened; authorized source details verified"
+  },
+  "contact_ticket": {
+    "id": 2,
+    "reference": "SUP-C72906",
+    "customer": 75,
+    "customer_name": "Synthetic Setup QA customer",
+    "customer_email": "setup28.customer@avapharmacy.test",
+    "channel": "other",
+    "reference_id": "",
+    "subject": "SYNTHETIC QA30 contact form submission \u2014 no real support issue.",
+    "priority": "medium",
+    "status": "resolved",
+    "assigned_to": 77,
+    "assigned_to_name": "Synthetic Setup QA admin",
+    "notes": [
+      {
+        "id": 5,
+        "author": 77,
+        "author_name": "Synthetic Setup QA admin",
+        "message": "Status changed from open to resolved.",
+        "is_internal": false,
+        "created_at": "2026-10-30T21:08:14.216106+03:00"
+      }
+    ],
+    "created_at": "2026-10-30T21:03:03.907985+03:00",
+    "updated_at": "2026-10-30T21:08:14.215530+03:00"
+  },
+  "newsletter_invalid_status": 400,
+  "recipient_access": {
+    "other_notification_read": 404,
+    "other_delivery_retry": 404,
+    "repeat_sent_retry": 409
+  },
+  "cleanup": {
+    "site_settings": "original values restored",
+    "preferences": "original QA customer preferences restored",
+    "contact_ticket": "resolved",
+    "compliance_evidence": "review_due, explicitly synthetic",
+    "unread": "zero after QA mark-all-read",
+    "newsletter": "synthetic subscriber deactivated"
+  },
+  "delivery_retry": {
+    "id": 169,
+    "notification_id": 541,
+    "status": "sent",
+    "attempts": [
+      {
+        "at": "2026-10-30T17:43:34.224120+00:00",
+        "error": "SYNTHETIC QA email failure",
+        "number": 1,
+        "status": "failed"
+      },
+      {
+        "at": "2026-10-30T17:52:59.846404+00:00",
+        "error": "",
+        "number": 2,
+        "status": "sent"
+      }
+    ],
+    "notification_records": 1,
+    "delivery_records": 1,
+    "execution": "initial failure simulated; browser retry accepted by configured SMTP backend; external receipt not independently confirmed"
+  },
+  "controlled_trigger_events": [
+    {
+      "id": 537,
+      "type": "prescription_status",
+      "recipient_id": 75,
+      "reference": "RX-6856F1",
+      "url": "/account/prescriptions?prescription=46",
+      "is_read": true
+    },
+    {
+      "id": 538,
+      "type": "consultation_message",
+      "recipient_id": 75,
+      "reference": "CONS-EE8CBC",
+      "url": "/account/consultations?consultation=34",
+      "is_read": true
+    },
+    {
+      "id": 539,
+      "type": "lab_result",
+      "recipient_id": 75,
+      "reference": "LAB-395DA4",
+      "url": "/account/lab-tests?request=1",
+      "is_read": true
+    },
+    {
+      "id": 540,
+      "type": "order_status",
+      "recipient_id": 75,
+      "reference": "ORD-33DED1F4",
+      "url": "/account/orders/2007",
+      "is_read": true
+    }
+  ],
+  "newsletter": {
+    "matching_records": 1,
+    "confirmation_backend_accepted": true,
+    "duplicate_browser_response": "You are already subscribed.",
+    "external_receipt_verified": false
+  }
+}

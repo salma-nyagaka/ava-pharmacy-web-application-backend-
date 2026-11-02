@@ -1,8 +1,9 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
 
 from apps.products.models import Brand, Category, HealthConcern, Product, Subcategory, Variant, VariantInventory
@@ -167,9 +168,14 @@ RECOVERED_PRODUCTS = [
 
 
 class Command(BaseCommand):
-    help = 'Recover identifiable Uncover skincare products from local media files.'
+    help = 'DEMO ONLY: recover the old synthetic Uncover catalog and inventory.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--confirm-demo-catalog', action='store_true')
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or not options['confirm_demo_catalog']:
+            raise CommandError('Synthetic Uncover recovery is disabled for the real catalog.')
         admin = get_user_model().objects.filter(role='admin').first()
         brand, _ = Brand.objects.get_or_create(
             name='Uncover',
@@ -264,4 +270,4 @@ class Command(BaseCommand):
             f'Recovered {created} Uncover products and updated {updated}. '
             f'Backfilled {variant_images} variant images. Total defined: {len(RECOVERED_PRODUCTS)}.'
         ))
-        call_command('normalize_product_families')
+        call_command('normalize_product_families', confirm_demo_catalog=True)

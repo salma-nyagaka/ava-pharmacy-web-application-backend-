@@ -1,0 +1,26 @@
+{
+  "environment": "sandbox",
+  "callback_url": "https://ac3f-41-79-237-222.ngrok-free.app/callbacks/consultation/stk/",
+  "checks": [
+    {
+      "check": "unsigned",
+      "http": 403,
+      "expected": 403
+    },
+    {
+      "check": "signed_empty",
+      "http": 400,
+      "expected": 400
+    }
+  ],
+  "initiate_http": 201,
+  "intent_id": 48,
+  "status": "requires_action",
+  "amount": "500.00",
+  "checkout_request_id": "ws_CO_301020260836264708374149",
+  "provider_reference": "0",
+  "sync_http": 200,
+  "status_after_sync": "failed",
+  "consultation_after_sync": null,
+  "last_error": "No response from user."
+}

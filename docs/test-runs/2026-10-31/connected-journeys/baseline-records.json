@@ -1,0 +1,185 @@
+{
+  "orders": [
+    {
+      "id": 2008,
+      "order_number": "ORD-141616A6",
+      "customer_id": 75,
+      "status": "paid",
+      "payment_status": "paid",
+      "payment_reference": "SIMULATED-CONSULT-CHECKOUT-pediatrician",
+      "total": "310.00",
+      "inventory_committed": true
+    },
+    {
+      "id": 2007,
+      "order_number": "ORD-33DED1F4",
+      "customer_id": 75,
+      "status": "paid",
+      "payment_status": "paid",
+      "payment_reference": "SIMULATED-CONSULT-CHECKOUT-doctor",
+      "total": "310.00",
+      "inventory_committed": true
+    },
+    {
+      "id": 2003,
+      "order_number": "ORD-7FF17F50",
+      "customer_id": 75,
+      "status": "paid",
+      "payment_status": "paid",
+      "payment_reference": "UJTI203HXA",
+      "total": "1.00",
+      "inventory_committed": true
+    }
+  ],
+  "consultations": [
+    {
+      "id": 38,
+      "reference": "CONS-8AF578",
+      "patient_id": 75,
+      "child_patient_id": 6,
+      "status": "completed",
+      "consent_status": "granted",
+      "clinician_id": 31
+    },
+    {
+      "id": 35,
+      "reference": "CONS-DC28FB",
+      "patient_id": 75,
+      "child_patient_id": 4,
+      "status": "completed",
+      "consent_status": "granted",
+      "clinician_id": 28
+    },
+    {
+      "id": 34,
+      "reference": "CONS-EE8CBC",
+      "patient_id": 75,
+      "child_patient_id": null,
+      "status": "completed",
+      "consent_status": "pending",
+      "clinician_id": 27
+    }
+  ],
+  "consultation_payments": [
+    {
+      "id": 51,
+      "status": "succeeded",
+      "consultation_id": 38,
+      "amount": "1.00",
+      "provider_reference": "UJUI207MTB",
+      "external_reference": "CPAY-AA622F3C586B"
+    },
+    {
+      "id": 50,
+      "status": "requires_action",
+      "consultation_id": null,
+      "amount": "1.00",
+      "provider_reference": "0",
+      "external_reference": "CPAY-ADC01877D5D2"
+    },
+    {
+      "id": 48,
+      "status": "failed",
+      "consultation_id": null,
+      "amount": "500.00",
+      "provider_reference": "0",
+      "external_reference": "CPAY-682195BA178D"
+    }
+  ],
+  "earnings": [
+    {
+      "id": 12,
+      "consultation_id": 38,
+      "clinician_id": 31,
+      "amount": "0.90"
+    },
+    {
+      "id": 11,
+      "consultation_id": 35,
+      "clinician_id": 28,
+      "amount": "450.00"
+    },
+    {
+      "id": 10,
+      "consultation_id": 34,
+      "clinician_id": 27,
+      "amount": "450.00"
+    }
+  ],
+  "prescriptions": [
+    {
+      "id": 48,
+      "reference": "RX-7D2A2E",
+      "patient_id": 75,
+      "clinician_prescription_id": 30,
+      "status": "approved"
+    },
+    {
+      "id": 47,
+      "reference": "RX-F54BA8",
+      "patient_id": 75,
+      "clinician_prescription_id": 29,
+      "status": "approved"
+    },
+    {
+      "id": 46,
+      "reference": "RX-6856F1",
+      "patient_id": 75,
+      "clinician_prescription_id": 28,
+      "status": "approved"
+    }
+  ],
+  "qa_shipping": [
+    {
+      "id": 1,
+      "name": "QA Standard Delivery",
+      "fee": "150.00",
+      "is_active": true
+    },
+    {
+      "id": 2,
+      "name": "Synthetic ORD05 QA pickup",
+      "fee": "0.00",
+      "is_active": false
+    },
+    {
+      "id": 3,
+      "name": "Synthetic Paybill QA delivery",
+      "fee": "0.00",
+      "is_active": false
+    }
+  ],
+  "payouts": [
+    {
+      "id": 1,
+      "reference": "PAY-2442FD",
+      "source_reference": "CONS-EE8CBC",
+      "status": "paid",
+      "reconciliation_status": "matched",
+      "amount": "450.00"
+    }
+  ],
+  "lab": [
+    {
+      "id": 2,
+      "reference": "LAB-217755",
+      "status": "completed",
+      "payment_status": "pending"
+    },
+    {
+      "id": 1,
+      "reference": "LAB-395DA4",
+      "status": "completed",
+      "payment_status": "pending"
+    }
+  ],
+  "pediatric_item_stock": [
+    {
+      "id": 64283,
+      "stock_quantity": 2,
+      "location": "branch",
+      "store_listing_id": null
+    }
+  ],
+  "qa_customer_cart": []
+}

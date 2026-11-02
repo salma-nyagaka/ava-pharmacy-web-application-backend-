@@ -69,6 +69,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
+    date_of_birth = serializers.DateField(required=True, allow_null=False, error_messages={
+        'required': 'Date of birth is required.',
+        'null': 'Date of birth is required.',
+        'invalid': 'Enter a valid date of birth.',
+    })
     delivery_address = serializers.CharField(write_only=True, required=False, allow_blank=True)
     city = serializers.CharField(write_only=True, required=False, allow_blank=True)
     county = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -95,6 +100,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         """Ensure registration phone numbers are unique."""
         return validate_unique_phone(value)
 
+    def validate_date_of_birth(self, value):
+        if value > timezone.localdate():
+            raise serializers.ValidationError('Date of birth cannot be in the future.')
+        return value
+
     def validate(self, attrs):
         """Ensure the two password fields match."""
         if attrs['password'] != attrs.pop('password_confirm'):
@@ -104,6 +114,14 @@ class RegisterSerializer(serializers.ModelSerializer):
             city = (attrs.get('city') or '').strip()
             county = (attrs.get('county') or '').strip()
             errors = {}
+            for field, message in (
+                ('first_name', 'First name is required.'),
+                ('last_name', 'Last name is required.'),
+                ('phone', 'Phone number is required.'),
+                ('gender', 'Please select your gender or Prefer not to say.'),
+            ):
+                if not (attrs.get(field) or '').strip():
+                    errors[field] = message
             if not delivery_address:
                 errors['delivery_address'] = 'Delivery address is required.'
             if not city:
@@ -466,23 +484,40 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
         return value
 
     def validate_expiry_month(self, value):
+        brand = self.initial_data.get('brand', getattr(self.instance, 'brand', 'unknown'))
+        if brand == 'mpesa' and int(value) == 0:
+            return value
         if not 1 <= int(value) <= 12:
             raise serializers.ValidationError('Expiry month must be between 1 and 12.')
         return value
 
     def validate_expiry_year(self, value):
+        brand = self.initial_data.get('brand', getattr(self.instance, 'brand', 'unknown'))
+        if brand == 'mpesa' and int(value) == 0:
+            return value
         if int(value) < timezone.now().year:
             raise serializers.ValidationError('Expiry year cannot be in the past.')
         return value
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        brand = attrs.get('brand', getattr(self.instance, 'brand', 'unknown'))
+        if brand != 'mpesa':
+            raise serializers.ValidationError({'brand': 'Only M-Pesa payment methods are supported.'})
         month = attrs.get('expiry_month', getattr(self.instance, 'expiry_month', None))
         year = attrs.get('expiry_year', getattr(self.instance, 'expiry_year', None))
+        if brand == 'mpesa':
+            attrs['expiry_month'] = 0
+            attrs['expiry_year'] = 0
+            return attrs
         if month is None or year is None:
             return attrs
 
         now = timezone.now()
+        if not 1 <= int(month) <= 12:
+            raise serializers.ValidationError({'expiry_month': ['Expiry month must be between 1 and 12.']})
+        if int(year) < now.year:
+            raise serializers.ValidationError({'expiry_year': ['Expiry year cannot be in the past.']})
         if int(year) == now.year and int(month) < now.month:
             raise serializers.ValidationError({'expiry_month': ['Expiry date cannot be in the past.']})
         return attrs
@@ -621,7 +656,7 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
     license = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
     licenseBoard = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
     licenseCountry = serializers.CharField(max_length=100, required=False, allow_blank=True, default='Kenya')
-    licenseExpiry = serializers.DateField(required=False, allow_null=True)
+    licenseExpiry = serializers.DateField(required=False, allow_null=True, default=None)
     idNumber = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
     specialty = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
     facility = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')

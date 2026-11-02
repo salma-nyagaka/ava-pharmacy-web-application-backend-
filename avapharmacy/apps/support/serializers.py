@@ -1,3 +1,6 @@
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.urls import reverse
 from rest_framework import serializers
 from .models import ComplianceEvidence, NewsletterSubscriber, SiteSettings, SupportTicket, SupportNote
 
@@ -40,7 +43,55 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
         read_only_fields = ('active_delivery_zones_list', 'updated_at')
 
 
+    def validate(self, attrs):
+        for field in ('base_delivery_fee', 'free_delivery_threshold'):
+            if attrs.get(field, 0) < 0:
+                raise serializers.ValidationError({field: 'The amount cannot be negative.'})
+        for field in ('complaint_policy_url', 'privacy_policy_url', 'returns_policy_url'):
+            value = attrs.get(field)
+            if value:
+                local_path = value.startswith('/') and not value.startswith('//') and '\\' not in value and not any(ord(char) < 32 for char in value)
+                if not local_path:
+                    try:
+                        URLValidator(schemes=['http', 'https'])(value)
+                    except DjangoValidationError:
+                        raise serializers.ValidationError({field: 'Use a local path or a valid HTTP(S) URL.'})
+
+        return attrs
+
+
 class ComplianceEvidenceSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+    upload = serializers.FileField(write_only=True, required=False, source='file')
+
+    def get_file(self, obj):
+        if not obj.file:
+            return None
+        path = reverse('compliance-evidence-download', args=[obj.pk])
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
+
+    def to_internal_value(self, data):
+        if 'file' in data and 'upload' not in data:
+            data = data.copy()
+            data['upload'] = data['file']
+        return super().to_internal_value(data)
+
+    def validate_upload(self, file):
+        if file.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError('Maximum file size is 10 MB.')
+        header = file.read(8); file.seek(0)
+        if not (header.startswith(b'%PDF-') or header == b'\x89PNG\r\n\x1a\n' or header.startswith(b'\xff\xd8\xff')):
+            raise serializers.ValidationError('Upload a PDF, PNG or JPEG file.')
+        return file
+
+    def validate(self, attrs):
+        issued = attrs.get('issued_at', getattr(self.instance, 'issued_at', None))
+        expires = attrs.get('expires_at', getattr(self.instance, 'expires_at', None))
+        if issued and expires and expires < issued:
+            raise serializers.ValidationError({'expires_at': 'Expiry cannot precede issue date.'})
+        return attrs
+
     evidence_type_display = serializers.ReadOnlyField(source='get_evidence_type_display')
     status_display = serializers.ReadOnlyField(source='get_status_display')
     created_by_name = serializers.ReadOnlyField(source='created_by.full_name')
@@ -50,7 +101,7 @@ class ComplianceEvidenceSerializer(serializers.ModelSerializer):
         model = ComplianceEvidence
         fields = (
             'id', 'evidence_type', 'evidence_type_display', 'title', 'reference_number',
-            'issuing_authority', 'file', 'external_url', 'issued_at', 'expires_at',
+            'issuing_authority', 'file', 'upload', 'external_url', 'issued_at', 'expires_at',
             'status', 'status_display', 'notes', 'created_by', 'created_by_name',
             'updated_by', 'updated_by_name', 'created_at', 'updated_at',
         )
@@ -82,12 +133,19 @@ class NewsletterSubscriberSerializer(serializers.ModelSerializer):
 class SupportNoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportNote
-        fields = ('id', 'author', 'author_name', 'message', 'created_at')
+        fields = ('id', 'author', 'author_name', 'message', 'is_internal', 'created_at')
         read_only_fields = ('id', 'author', 'author_name', 'created_at')
 
 
 class SupportTicketSerializer(serializers.ModelSerializer):
-    notes = SupportNoteSerializer(many=True, read_only=True)
+    notes = serializers.SerializerMethodField()
+
+    def get_notes(self, obj):
+        request = self.context.get('request')
+        notes = obj.notes.all()
+        if not request or request.user.role != 'admin':
+            notes = [note for note in notes if not note.is_internal]
+        return SupportNoteSerializer(notes, many=True).data
     assigned_to_name = serializers.ReadOnlyField(source='assigned_to.full_name')
 
     class Meta:
@@ -112,5 +170,12 @@ class SupportTicketUpdateSerializer(serializers.ModelSerializer):
         fields = ('status', 'priority', 'assigned_to')
 
 
+    def validate_assigned_to(self, user):
+        if user and (user.role != 'admin' or not user.is_active or user.status != 'active'):
+            raise serializers.ValidationError('Assign an active support administrator.')
+        return user
+
+
 class SupportNoteCreateSerializer(serializers.Serializer):
-    message = serializers.CharField()
+    message = serializers.CharField(max_length=10000)
+    is_internal = serializers.BooleanField(default=False)

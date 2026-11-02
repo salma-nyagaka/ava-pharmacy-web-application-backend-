@@ -1,0 +1,69 @@
+{
+  "payment": "SIMULATED QA consultation and medicine checkout payments; no provider transfer",
+  "checks": [
+    {
+      "check": "doctor: finalize checkout idempotently",
+      "http": 200
+    },
+    {
+      "check": "doctor: finalize checkout idempotently",
+      "http": 200
+    },
+    {
+      "check": "doctor: linked prescription",
+      "http": 200
+    },
+    {
+      "check": "doctor: reject paid item reuse",
+      "http": 400
+    },
+    {
+      "check": "doctor: complete consultation idempotently",
+      "http": 200
+    },
+    {
+      "check": "doctor: complete consultation idempotently",
+      "http": 200
+    },
+    {
+      "check": "doctor: earnings",
+      "http": 200
+    },
+    {
+      "check": "doctor: customer completed status",
+      "http": 200
+    },
+    {
+      "check": "pediatrician: finalize checkout idempotently",
+      "http": 200
+    },
+    {
+      "check": "pediatrician: finalize checkout idempotently",
+      "http": 200
+    },
+    {
+      "check": "pediatrician: linked prescription",
+      "http": 200
+    },
+    {
+      "check": "pediatrician: reject paid item reuse",
+      "http": 400
+    },
+    {
+      "check": "pediatrician: complete consultation idempotently",
+      "http": 200
+    },
+    {
+      "check": "pediatrician: complete consultation idempotently",
+      "http": 200
+    },
+    {
+      "check": "pediatrician: earnings",
+      "http": 200
+    },
+    {
+      "check": "pediatrician: customer completed status",
+      "http": 200
+    }
+  ]
+}

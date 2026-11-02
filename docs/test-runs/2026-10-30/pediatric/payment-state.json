@@ -1,0 +1,26 @@
+[
+  {
+    "intent_id": 49,
+    "amount": "1.00",
+    "status": "failed",
+    "provider": "mpesa",
+    "provider_reference": "0",
+    "consultation_id": null,
+    "consent_in_payment_payload": true,
+    "child_patient_id": 6,
+    "last_error": "DS timeout user cannot be reached.",
+    "processed_at": "2026-10-30T10:46:56.892940+00:00"
+  },
+  {
+    "intent_id": 50,
+    "amount": "1.00",
+    "status": "requires_action",
+    "provider": "mpesa",
+    "provider_reference": "0",
+    "consultation_id": null,
+    "consent_in_payment_payload": true,
+    "child_patient_id": 6,
+    "last_error": "",
+    "processed_at": null
+  }
+]

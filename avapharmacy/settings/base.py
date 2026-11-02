@@ -146,10 +146,12 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
+        'avapharmacy.throttles.PublicReadRateThrottle',
+        'avapharmacy.throttles.AnonWriteRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
+        'public_read': config('API_PUBLIC_READ_THROTTLE_RATE', default='3000/hour'),
         'anon': '120/hour',
         'user': '2000/hour',
         'login': '5/min',
@@ -234,8 +236,8 @@ EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='rtchxnlghxfbvjku')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='salmanyagaka@gmail.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='info@avapharmacy.co.ke')
 ADMIN_EMAIL = config('ADMIN_EMAIL', default='info@avapharmacy.co.ke')
 PRESCRIPTION_UPLOAD_ALERT_EMAIL = config('PRESCRIPTION_UPLOAD_ALERT_EMAIL', default='info@avapharmacy.co.ke')
 
@@ -299,11 +301,13 @@ MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
 MPESA_SHORTCODE = config('MPESA_SHORTCODE', default='')
 MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
 MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='')
+CONSULTATION_MPESA_CALLBACK_URL = config('CONSULTATION_MPESA_CALLBACK_URL', default='')
 MPESA_TRANSACTION_TYPE = config('MPESA_TRANSACTION_TYPE', default='CustomerPayBillOnline')
 MPESA_TIMEOUT_SECONDS = config('MPESA_TIMEOUT_SECONDS', default=30, cast=int)
 MPESA_STK_PUSH_AMOUNT_OVERRIDE = config('MPESA_STK_PUSH_AMOUNT_OVERRIDE', default='', cast=str)
 MPESA_PAYBILL_NUMBER = config('MPESA_PAYBILL_NUMBER', default='')
 MPESA_C2B_SHORTCODE = config('MPESA_C2B_SHORTCODE', default=MPESA_PAYBILL_NUMBER)
+MPESA_C2B_API_VERSION = config('MPESA_C2B_API_VERSION', default='v2')
 MPESA_C2B_RESPONSE_TYPE = config('MPESA_C2B_RESPONSE_TYPE', default='Completed')
 MPESA_C2B_URLS_REGISTERED = config('MPESA_C2B_URLS_REGISTERED', default=False, cast=bool)
 MPESA_REQUIRE_PUBLIC_CALLBACK_URLS = config('MPESA_REQUIRE_PUBLIC_CALLBACK_URLS', default=True, cast=bool)
@@ -398,3 +402,9 @@ LOGGING = {
         },
     },
 }
+
+# Include ?token=<secret> in all registered M-Pesa callback URLs.
+MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
+
+# Optional HTTPS origin for payment-only callback gateways (local QA tunnels).
+PAYMENT_PUBLIC_CALLBACK_BASE_URL = config('PAYMENT_PUBLIC_CALLBACK_BASE_URL', default='')

@@ -387,6 +387,7 @@ class LabRequest(models.Model):
     patient = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_requests'
     )
+    quoted_test_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     patient_name = models.CharField(max_length=200)
     patient_phone = models.CharField(max_length=20)
     patient_email = models.EmailField(blank=True)

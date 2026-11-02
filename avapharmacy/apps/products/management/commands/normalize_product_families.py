@@ -1,4 +1,5 @@
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
 
 from apps.products.models import Brand, Product, Variant
@@ -92,7 +93,10 @@ DUPLICATE_FAMILY_GROUPS = {
 
 
 class Command(BaseCommand):
-    help = 'Normalize products as parent families and variants as sellable items.'
+    help = 'DEMO ONLY: normalize the old hard-coded seeded product families.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--confirm-demo-catalog', action='store_true')
 
     def _unique_slug(self, base, product_id=None):
         base_slug = slugify(base) or 'product'
@@ -223,6 +227,8 @@ class Command(BaseCommand):
         return moved, renamed, removed_empty_products
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or not options['confirm_demo_catalog']:
+            raise CommandError('Seed-specific family normalization is disabled for the real catalog.')
         renamed_products, renamed_variants, cleaned_strengths = self._normalize_standard_variants()
         moved_uncover, renamed_uncover, removed_uncover_products = self._normalize_uncover()
         moved_duplicates, renamed_duplicates, removed_duplicate_products = self._normalize_duplicate_families()

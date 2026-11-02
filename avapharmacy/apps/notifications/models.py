@@ -13,6 +13,7 @@ class Notification(models.Model):
     PAYOUT_STATUS = 'payout_status'
     DOCTOR_VERIFIED = 'doctor_verified'
     CONSENT_REQUEST = 'consent_request'
+    MARKETING = 'marketing'
     SYSTEM = 'system'
 
     TYPE_CHOICES = [
@@ -28,6 +29,7 @@ class Notification(models.Model):
         (DOCTOR_VERIFIED, 'Doctor Profile Verified'),
         (CONSENT_REQUEST, 'Guardian Consent Request'),
         (SYSTEM, 'System Notification'),
+        (MARKETING, 'Optional Marketing'),
     ]
 
     recipient = models.ForeignKey(

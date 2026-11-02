@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('compliance/evidence/<int:pk>/download/', views.ComplianceEvidenceDownloadView.as_view(), name='compliance-evidence-download'),
     path('site-settings/', views.SiteSettingsView.as_view(), name='site-settings'),
     path('compliance/evidence/', views.ComplianceEvidenceListCreateView.as_view(), name='compliance-evidence'),
     path('compliance/evidence/<int:pk>/', views.ComplianceEvidenceDetailView.as_view(), name='compliance-evidence-detail'),

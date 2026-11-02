@@ -1,0 +1,92 @@
+{
+  "order": "ORD-68AA360B",
+  "before": [
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 50
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20
+    },
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10
+    }
+  ],
+  "committed": [
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 48
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20
+    },
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10
+    }
+  ],
+  "repeated_commit": [
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 48
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20
+    },
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10
+    }
+  ],
+  "released_twice": [
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 50
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20
+    },
+    {
+      "variant_id": 23502,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30
+    },
+    {
+      "variant_id": 23503,
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10
+    }
+  ],
+  "seeded_review_order": "ORD-B8DA328B"
+}

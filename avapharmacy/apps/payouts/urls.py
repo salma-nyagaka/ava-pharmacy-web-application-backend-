@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('admin/payout-recipients/', views.PayoutRecipientListView.as_view(), name='admin-payout-recipients'),
+    path('payouts/mine/', views.MyPayoutListView.as_view(), name='my-payouts'),
     path('admin/payouts/', views.PayoutListCreateView.as_view(), name='admin-payouts'),
     path('admin/payouts/<int:pk>/', views.PayoutDetailView.as_view(), name='admin-payout-detail'),
     path('admin/payouts/<int:pk>/actions/', views.PayoutActionView.as_view(), name='admin-payout-action'),

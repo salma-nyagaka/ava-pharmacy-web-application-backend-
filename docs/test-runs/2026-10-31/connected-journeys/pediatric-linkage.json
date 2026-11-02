@@ -1,0 +1,20 @@
+{
+  "consultation_id": 38,
+  "consultation_reference": "CONS-8AF578",
+  "consultation_status": "completed",
+  "guardian_id": 75,
+  "child_id": 6,
+  "consent": "granted",
+  "clinician_prescription_id": 30,
+  "dispensing_prescription_id": 48,
+  "order_items_rx": [
+    "RX-7D2A2E"
+  ],
+  "stock": 1,
+  "earnings": [
+    {
+      "id": 12,
+      "amount": "0.90"
+    }
+  ]
+}

@@ -275,7 +275,7 @@ def send_customer_welcome_email(*, user):
     context = {
         'first_name': user.first_name or 'there',
         'login_url': getattr(settings, 'FRONTEND_LOGIN_URL', f'{frontend_base}/login'),
-        'shop_url': getattr(settings, 'FRONTEND_SHOP_URL', f'{frontend_base}/products'),
+        'shop_url': f'{frontend_base}/',
         'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
     }
     send_rendered_email(

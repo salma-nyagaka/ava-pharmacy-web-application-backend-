@@ -1,7 +1,8 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.products.models import Product, Variant, VariantInventory
 
@@ -59,9 +60,14 @@ PANADOL_VARIANTS = [
 
 
 class Command(BaseCommand):
-    help = 'Recover product-family variants such as Panadol -> Panadol Flu, syrup, pain reliever.'
+    help = 'DEMO ONLY: recover synthetic variants for the old seeded catalog.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--confirm-demo-catalog', action='store_true')
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or not options['confirm_demo_catalog']:
+            raise CommandError('Synthetic product-family recovery is disabled for the real catalog.')
         admin = get_user_model().objects.filter(role='admin').first()
         product = Product.objects.filter(name__iexact='Panadol').first()
         if not product:

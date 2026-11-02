@@ -1,0 +1,9 @@
+{
+  "sync_http": 202,
+  "intent_id": 50,
+  "status": "requires_action",
+  "amount": "1.00",
+  "provider_reference": "0",
+  "consultation_id": null,
+  "last_error": "We could not check M-Pesa status right now. We will continue waiting for the payment callback."
+}

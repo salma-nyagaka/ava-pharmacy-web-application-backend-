@@ -69,3 +69,34 @@ def calculate_product_pricing(product, promotions=None):
         'final_price': max(Decimal('0.00'), selling_price - discount_total),
         'promotions': applied,
     }
+
+
+def calculate_variant_pricing(variant, promotions=None, qualifying_subtotal=None):
+    """Price the exact sellable SKU; never apply a sibling SKU's promotion."""
+    base = Decimal(variant.price)
+    qualifying_subtotal = base if qualifying_subtotal is None else Decimal(qualifying_subtotal)
+    candidates = get_active_promotions_queryset() if promotions is None else promotions
+    product = variant.product
+    applied = []
+    remaining = base
+    for promotion in candidates:
+        if not promotion.is_currently_active or qualifying_subtotal < promotion.minimum_order_amount:
+            continue
+        targets = {str(value) for value in promotion.targets}
+        if promotion.scope == Promotion.SCOPE_PRODUCT:
+            matches = bool(targets.intersection({str(product.pk), product.slug, product.sku, variant.sku}))
+        else:
+            matches = promotion.applies_to_product(product)
+        if not matches or (applied and not promotion.is_stackable):
+            continue
+        discount = max(Decimal('0'), promotion.calculate_discount(remaining)).quantize(Decimal('0.01'))
+        discount = min(discount, remaining)
+        if not discount:
+            continue
+        applied.append({'id': promotion.pk, 'title': promotion.title, 'code': promotion.code,
+                        'badge': promotion.badge, 'discount': discount})
+        remaining -= discount
+        if not promotion.is_stackable:
+            break
+    return {'base_price': base, 'discount_total': base - remaining,
+            'final_price': remaining, 'promotions': applied}

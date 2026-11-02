@@ -1,0 +1,7 @@
+{% extends "accounts/emails/qa/base.html" %}
+{% block introduction %}Register with these details, then verify your email.{% endblock %}
+{% block details %}{% if registration_details %}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:14px 0 0;">
+  {% for label, value in registration_details %}<tr><td valign="top" style="padding:3px 10px 3px 0;color:#647089;font-size:11px;line-height:1.5;width:100px;">{{ label }}</td><td style="padding:3px 0;color:#031b4e;font-size:11px;line-height:1.5;">{{ value }}</td></tr>{% endfor %}
+</table>
+{% endif %}{% endblock %}

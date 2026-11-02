@@ -28,17 +28,33 @@ def _validate_unique_lab_phone(phone, instance=None, partner=False):
 
 
 class LabPartnerDocumentSerializer(serializers.ModelSerializer):
+    download_url = serializers.SerializerMethodField()
+
+    def get_download_url(self, obj):
+        path = reverse('lab-partner-document-download', kwargs={'pk': obj.pk})
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
+
     class Meta:
         model = LabPartnerDocument
-        fields = ('id', 'name', 'file', 'uploaded_at')
+        fields = ('id', 'name', 'download_url', 'uploaded_at')
         read_only_fields = ('id', 'uploaded_at')
 
 
 class LabTechDocumentSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
+    def get_file(self, obj):
+        if not obj.file:
+            return None
+        path = reverse('lab-tech-document-download', args=[obj.pk])
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
+
     class Meta:
         model = LabTechDocument
         fields = ('id', 'name', 'file', 'status', 'uploaded_at')
-        read_only_fields = ('id', 'uploaded_at')
+        read_only_fields = fields
 
 
 class LabTechnicianProfileSerializer(serializers.ModelSerializer):
@@ -91,19 +107,40 @@ class LabPartnerSerializer(serializers.ModelSerializer):
 
 
 class LabPartnerCreateSerializer(serializers.ModelSerializer):
+    documents = serializers.ListField(
+        child=serializers.FileField(), min_length=1, write_only=True,
+        error_messages={'min_length': 'Upload at least one legal or compliance document.'},
+    )
+    document_names = serializers.ListField(
+        child=serializers.CharField(), required=False, write_only=True,
+    )
+
     class Meta:
         model = LabPartner
         fields = (
             'name', 'email', 'phone', 'location', 'contact_name',
             'accreditation', 'license_number', 'license_expiry', 'id_number',
             'county', 'address', 'years_in_operation', 'references', 'document_checklist',
-            'payout_method', 'payout_account', 'notes'
+            'payout_method', 'payout_account', 'notes', 'documents', 'document_names'
         )
+
+    def create(self, validated_data):
+        documents = validated_data.pop('documents', [])
+        document_names = validated_data.pop('document_names', [])
+        partner = LabPartner.objects.create(**validated_data)
+        for index, document in enumerate(documents):
+            LabPartnerDocument.objects.create(
+                partner=partner,
+                name=document_names[index] if index < len(document_names) else document.name,
+                file=document,
+            )
+        return partner
 
 
 class LabPartnerRegistrationSerializer(serializers.ModelSerializer):
     documents = serializers.ListField(
-        child=serializers.FileField(), required=False, write_only=True
+        child=serializers.FileField(), min_length=1, write_only=True,
+        error_messages={'min_length': 'Upload at least one legal or compliance document.'},
     )
     document_names = serializers.ListField(
         child=serializers.CharField(), required=False, write_only=True
@@ -166,8 +203,7 @@ class LabPartnerUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = LabPartner
         fields = (
-            'status', 'status_note', 'rejection_note', 'notes',
-            'verified_at', 'payout_method', 'payout_account'
+            'notes', 'payout_method', 'payout_account'
         )
 
 
@@ -346,15 +382,32 @@ class LaboratoryFacilitySerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         partner = getattr(self.instance, 'partner', None) or self.context.get('partner')
+        if self.instance is None and ('test_ids' in self.initial_data or 'test_offerings' in self.initial_data):
+            raise serializers.ValidationError({
+                'test_offerings': 'Submit the laboratory for approval first. The test catalogue is available after Ava verifies the facility.'
+            })
+        if (
+            'technician_ids' in self.initial_data
+            and (self.instance is None or self.instance.status != LaboratoryFacility.STATUS_VERIFIED)
+        ):
+            raise serializers.ValidationError({
+                'technician_ids': 'Technicians can be assigned only after Ava verifies this laboratory.'
+            })
+        if self.instance and self.instance.status != LaboratoryFacility.STATUS_VERIFIED and (
+            'test_ids' in self.initial_data or 'test_offerings' in self.initial_data
+        ):
+            raise serializers.ValidationError({
+                'test_offerings': 'The test catalogue can be changed only after Ava verifies this laboratory.'
+            })
         technicians = attrs.get('selected_technicians', [])
         if partner and any(technician.partner_id != partner.id for technician in technicians):
             raise serializers.ValidationError({
                 'technician_ids': 'Every technician must belong to this lab partner.'
             })
         tests = attrs.get('selected_tests')
-        if (self.instance is None or tests is not None) and not tests:
+        if tests is not None and not tests:
             raise serializers.ValidationError({
-                'test_ids': 'Select at least one test offered by this laboratory.'
+                'test_ids': 'Select at least one test when updating the test catalogue.'
             })
         offering_data = attrs.get('test_offerings', [])
         if offering_data and tests is None:
@@ -363,12 +416,13 @@ class LaboratoryFacilitySerializer(serializers.ModelSerializer):
         for offering in offering_data:
             try:
                 test_id = int(offering.get('test'))
-                price = float(offering.get('price'))
-            except (TypeError, ValueError):
+                from decimal import Decimal, InvalidOperation
+                price = Decimal(str(offering.get('price')))
+            except (TypeError, ValueError, InvalidOperation):
                 raise serializers.ValidationError({'test_offerings': 'Each offering needs a valid test and price.'})
             if selected_ids and test_id not in selected_ids:
                 raise serializers.ValidationError({'test_offerings': 'Offering tests must also appear in test_ids.'})
-            if price <= 0 or not str(offering.get('turnaround', '')).strip():
+            if not price.is_finite() or price <= 0 or not str(offering.get('turnaround', '')).strip():
                 raise serializers.ValidationError({'test_offerings': 'Each offering needs a positive price and turnaround.'})
         county = attrs.get('county', getattr(self.instance, 'county', ''))
         supported = list(attrs.get(
@@ -406,7 +460,8 @@ class LaboratoryFacilitySerializer(serializers.ModelSerializer):
         offering_data = validated_data.pop('test_offerings', [])
         facility = super().create(validated_data)
         facility.technicians.set(technicians)
-        self._sync_offerings(facility, tests, offering_data)
+        if tests:
+            self._sync_offerings(facility, tests, offering_data)
         return facility
 
     def update(self, instance, validated_data):
@@ -454,7 +509,10 @@ class LabResultSerializer(serializers.ModelSerializer):
 class LabRequestSerializer(serializers.ModelSerializer):
     test_name = serializers.ReadOnlyField(source='test.name')
     test_category = serializers.ReadOnlyField(source='test.category')
-    test_price = serializers.ReadOnlyField(source='test.price')
+    test_price = serializers.SerializerMethodField()
+
+    def get_test_price(self, obj):
+        return obj.quoted_test_price if obj.quoted_test_price is not None else (obj.test.price if obj.test else None)
     test_turnaround = serializers.ReadOnlyField(source='test.turnaround')
     test_sample_type = serializers.ReadOnlyField(source='test.sample_type')
     audit_logs = LabAuditLogSerializer(many=True, read_only=True)
@@ -468,9 +526,20 @@ class LabRequestSerializer(serializers.ModelSerializer):
     collection_verification_required = serializers.SerializerMethodField()
     collection_code_active = serializers.SerializerMethodField()
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.role == 'lab_technician' and instance.assigned_technician_id != request.user.pk:
+            for field in ('patient_phone', 'patient_email', 'collection_address', 'collection_instructions', 'ordering_doctor', 'notes'):
+                data[field] = ''
+            data.update(patient=None, patient_name='Unassigned patient', audit_logs=[], result=None)
+        return data
+
     def get_result(self, obj):
         request = self.context.get('request')
-        if request and request.user.role == 'pharmacist':
+        if not request or request.user.role == 'pharmacist':
+            return None
+        if request.user.role == 'lab_technician' and obj.assigned_technician_id != request.user.pk:
             return None
         try:
             result = obj.result
@@ -518,6 +587,15 @@ class LabRequestSerializer(serializers.ModelSerializer):
 
 
 class LabRequestCreateSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        validated_data['quoted_test_price'] = validated_data['test'].price
+        return super().create(validated_data)
+
+    def validate_test(self, test):
+        if not test.is_active or not test.facility_offerings.filter(is_active=True, facility__status='verified', facility__is_active=True, facility__partner__status='verified', facility__partner__user__is_active=True, facility__partner__user__status='active').exists():
+            raise serializers.ValidationError('This test has no approved, active laboratory offering.')
+        return test
+
     class Meta:
         model = LabRequest
         fields = (
@@ -560,6 +638,9 @@ class LabRequestUpdateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         from apps.accounts.models import User
 
+        if set(attrs) == {'status'} and attrs['status'] == LabRequest.STATUS_CANCELLED:
+            return attrs
+
         partner = attrs.get('assigned_partner', getattr(self.instance, 'assigned_partner', None))
         laboratory = attrs.get('laboratory', getattr(self.instance, 'laboratory', None))
         technician = attrs.get('assigned_technician', getattr(self.instance, 'assigned_technician', None))
@@ -573,7 +654,7 @@ class LabRequestUpdateSerializer(serializers.ModelSerializer):
                 attrs['assigned_partner'] = None
                 partner = None
 
-        if partner and partner.status != LabPartner.STATUS_VERIFIED:
+        if partner and (partner.status != LabPartner.STATUS_VERIFIED or not partner.user_id or not partner.user.is_active or partner.user.status != 'active'):
             raise serializers.ValidationError({'assigned_partner': 'Only verified lab partners can receive requests.'})
 
         if laboratory:
@@ -599,7 +680,7 @@ class LabRequestUpdateSerializer(serializers.ModelSerializer):
                 profile = technician.lab_tech_profile
             except LabTechnicianProfile.DoesNotExist:
                 raise serializers.ValidationError({'assigned_technician': 'The selected user is not a lab technician.'})
-            if profile.status != LabTechnicianProfile.STATUS_ACTIVE:
+            if profile.status != LabTechnicianProfile.STATUS_ACTIVE or not technician.is_active or technician.status != 'active':
                 raise serializers.ValidationError({'assigned_technician': 'The selected technician is not active.'})
             if partner and profile.partner_id != partner.id:
                 raise serializers.ValidationError({

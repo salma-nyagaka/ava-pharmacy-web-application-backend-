@@ -16,6 +16,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.db import transaction
@@ -303,6 +305,13 @@ class MeView(generics.RetrieveUpdateAPIView):
             return UserUpdateSerializer
         return UserSerializer
 
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        # The account screen replaces its profile with this response. Return
+        # the complete read representation after validating writable fields.
+        response.data = UserSerializer(self.get_object(), context=self.get_serializer_context()).data
+        return response
+
 
 class PasswordChangeView(APIView):
     """Allow an authenticated user to change their own password."""
@@ -318,6 +327,7 @@ class PasswordChangeView(APIView):
             return Response({'old_password': 'Wrong password.'}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(serializer.validated_data['new_password'])
         user.save()
+        blacklist_user_refresh_tokens(user)
         return Response({'detail': 'Password updated successfully.'})
 
 
@@ -860,13 +870,16 @@ class ResetPasswordView(APIView):
                 {'error': {'code': 'invalid_token', 'message': 'Reset link is invalid or has expired.'}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if len(new_password) < 8:
+        try:
+            validate_password(new_password, user=user)
+        except DjangoValidationError as exc:
             return Response(
-                {'error': {'code': 'validation_error', 'message': 'Password must be at least 8 characters.'}},
+                {'new_password': exc.messages},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         user.set_password(new_password)
         user.save()
+        blacklist_user_refresh_tokens(user)
         return Response({'message': 'Password reset successfully. You can now log in.'})
 
 
@@ -912,18 +925,8 @@ class ResendVerificationView(APIView):
         return Response({'message': 'Verification email resent if the address is registered.'})
 
 
-class AccountProfileView(generics.RetrieveUpdateAPIView):
+class AccountProfileView(MeView):
     """Retrieve or update the authenticated user's own profile (alias for MeView)."""
-
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
-
-    def get_serializer_class(self):
-        if self.request.method in ['PUT', 'PATCH']:
-            return UserUpdateSerializer
-        return UserSerializer
 
 
 class AccountDeleteView(APIView):
@@ -938,4 +941,4 @@ class AccountDeleteView(APIView):
         user.status = User.STATUS_SUSPENDED
         user.email = f'deleted_{user.pk}_{user.email}'
         user.save(update_fields=['is_active', 'status', 'email', 'updated_at'])
-        return Response({'message': 'Account deleted. Personal data will be anonymized within 30 days.'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Account deactivated. Contact support to request removal of retained records.'}, status=status.HTTP_200_OK)

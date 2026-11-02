@@ -1,0 +1,10 @@
+{
+  "authorized_action": "One additional KSh 1 pediatric sandbox prompt explicitly requested by user",
+  "previous_intent_id": 49,
+  "http": 201,
+  "phone_last4": "8457",
+  "intent_id": 50,
+  "amount": "1.00",
+  "status": "requires_action",
+  "consultation_id": null
+}

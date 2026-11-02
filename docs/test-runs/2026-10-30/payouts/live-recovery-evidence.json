@@ -1,0 +1,415 @@
+{
+  "recovery": {
+    "id": 2,
+    "reference": "PAY-0FA556",
+    "execution_mode": "administrative_record",
+    "recipient": 82,
+    "recipient_name": "Synthetic Setup QA lab-partner",
+    "recipient_email": "setup28.lab-partner@avapharmacy.test",
+    "role": "lab_partner",
+    "period": "SYNTHETIC QA October 2026",
+    "source_type": "manual_adjustment",
+    "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+    "idempotency_key": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+    "gross_amount": "500.00",
+    "commission_amount": "50.00",
+    "withholding_amount": "20.00",
+    "deduction_amount": "10.00",
+    "amount": "420.00",
+    "currency": "KES",
+    "method": "mpesa",
+    "payment_reference": "SYNTHETIC-QA-RECOVERY-30",
+    "provider_transaction_id": "SYNTHETIC-QA-RECOVERY-30",
+    "batch_reference": "",
+    "status": "reversed",
+    "reconciliation_status": "exception",
+    "notes": "SYNTHETIC QA administrative record only; no money transferred.",
+    "hold_reason": "",
+    "failure_code": "",
+    "failure_message": "",
+    "retry_count": 1,
+    "requested_at": "2026-10-30T20:00:33.367785+03:00",
+    "reviewed_at": "2026-10-30T20:00:33.388219+03:00",
+    "approved_at": "2026-10-30T20:00:49.125930+03:00",
+    "submitted_at": "2026-10-30T20:00:52.308611+03:00",
+    "paid_at": "2026-10-30T20:01:02.520803+03:00",
+    "created_by": 77,
+    "created_by_name": "Synthetic Setup QA admin",
+    "reviewed_by": 77,
+    "reviewed_by_name": "Synthetic Setup QA admin",
+    "approved_by": 71,
+    "approved_by_name": "Synthetic Module2 admin",
+    "submitted_by": 71,
+    "submitted_by_name": "Synthetic Module2 admin",
+    "audit_logs": [
+      {
+        "id": 16,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "reverse",
+        "from_status": "paid",
+        "to_status": "reversed",
+        "reason": "SYNTHETIC QA reversal record; no funds moved",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "SYNTHETIC-QA-RECOVERY-30",
+          "reconciliation_status": "exception",
+          "provider_transaction_id": "SYNTHETIC-QA-RECOVERY-30"
+        },
+        "created_at": "2026-10-30T20:01:06.043998+03:00"
+      },
+      {
+        "id": 15,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "reconcile",
+        "from_status": "paid",
+        "to_status": "paid",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "SYNTHETIC-QA-RECOVERY-30",
+          "reconciliation_status": "matched",
+          "provider_transaction_id": "SYNTHETIC-QA-RECOVERY-30"
+        },
+        "created_at": "2026-10-30T20:01:06.027114+03:00"
+      },
+      {
+        "id": 14,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "mark_paid",
+        "from_status": "approved",
+        "to_status": "paid",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "SYNTHETIC-QA-RECOVERY-30",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": "SYNTHETIC-QA-RECOVERY-30"
+        },
+        "created_at": "2026-10-30T20:01:02.526117+03:00"
+      },
+      {
+        "id": 13,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "retry",
+        "from_status": "failed",
+        "to_status": "approved",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:57.403431+03:00"
+      },
+      {
+        "id": 12,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "mark_failed",
+        "from_status": "processing",
+        "to_status": "failed",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:54.969503+03:00"
+      },
+      {
+        "id": 11,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "process",
+        "from_status": "approved",
+        "to_status": "processing",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:52.309765+03:00"
+      },
+      {
+        "id": 10,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "approve",
+        "from_status": "pending",
+        "to_status": "approved",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:49.126985+03:00"
+      },
+      {
+        "id": 9,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "release",
+        "from_status": "on_hold",
+        "to_status": "pending",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:46.576626+03:00"
+      },
+      {
+        "id": 8,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "hold",
+        "from_status": "approved",
+        "to_status": "on_hold",
+        "reason": "SYNTHETIC QA review",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:42.509775+03:00"
+      },
+      {
+        "id": 7,
+        "actor": 71,
+        "actor_name": "Synthetic Module2 admin",
+        "action": "approve",
+        "from_status": "pending",
+        "to_status": "approved",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:38.855597+03:00"
+      },
+      {
+        "id": 6,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "submit",
+        "from_status": "draft",
+        "to_status": "pending",
+        "reason": "",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:00:33.389483+03:00"
+      },
+      {
+        "id": 5,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "created",
+        "from_status": "",
+        "to_status": "draft",
+        "reason": "",
+        "metadata": {
+          "source_reference": "SYNTHETIC-QA-PAYOUT-RECOVERY-30"
+        },
+        "created_at": "2026-10-30T20:00:33.369476+03:00"
+      }
+    ]
+  },
+  "cancel": {
+    "id": 4,
+    "reference": "PAY-038A60",
+    "execution_mode": "administrative_record",
+    "recipient": 82,
+    "recipient_name": "Synthetic Setup QA lab-partner",
+    "recipient_email": "setup28.lab-partner@avapharmacy.test",
+    "role": "lab_partner",
+    "period": "SYNTHETIC QA October 2026",
+    "source_type": "manual_adjustment",
+    "source_reference": "SYNTHETIC-QA-PAYOUT-CANCEL-30",
+    "idempotency_key": "SYNTHETIC-QA-PAYOUT-CANCEL-30",
+    "gross_amount": "500.00",
+    "commission_amount": "50.00",
+    "withholding_amount": "20.00",
+    "deduction_amount": "10.00",
+    "amount": "420.00",
+    "currency": "KES",
+    "method": "mpesa",
+    "payment_reference": "",
+    "provider_transaction_id": "",
+    "batch_reference": "",
+    "status": "cancelled",
+    "reconciliation_status": "unmatched",
+    "notes": "SYNTHETIC QA administrative record only; no money transferred.",
+    "hold_reason": "",
+    "failure_code": "",
+    "failure_message": "",
+    "retry_count": 0,
+    "requested_at": "2026-10-30T20:01:10.018991+03:00",
+    "reviewed_at": null,
+    "approved_at": null,
+    "submitted_at": null,
+    "paid_at": null,
+    "created_by": 77,
+    "created_by_name": "Synthetic Setup QA admin",
+    "reviewed_by": null,
+    "approved_by": null,
+    "submitted_by": null,
+    "audit_logs": [
+      {
+        "id": 18,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "cancel",
+        "from_status": "draft",
+        "to_status": "cancelled",
+        "reason": "SYNTHETIC QA cancellation",
+        "metadata": {
+          "amount": "420.00",
+          "recipient_id": 82,
+          "execution_mode": "administrative_record",
+          "source_reference": "SYNTHETIC-QA-PAYOUT-CANCEL-30",
+          "payment_reference": "",
+          "reconciliation_status": "unmatched",
+          "provider_transaction_id": ""
+        },
+        "created_at": "2026-10-30T20:01:10.029387+03:00"
+      },
+      {
+        "id": 17,
+        "actor": 77,
+        "actor_name": "Synthetic Setup QA admin",
+        "action": "created",
+        "from_status": "",
+        "to_status": "draft",
+        "reason": "",
+        "metadata": {
+          "source_reference": "SYNTHETIC-QA-PAYOUT-CANCEL-30"
+        },
+        "created_at": "2026-10-30T20:01:10.020039+03:00"
+      }
+    ]
+  },
+  "events": [
+    {
+      "action": "submit",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "approve",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "hold",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "release",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "process",
+      "status": 409,
+      "payout": 2
+    },
+    {
+      "action": "approve",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "process",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "mark_failed",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "retry",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "mark_paid",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "mark_paid",
+      "status": 409,
+      "payout": 2
+    },
+    {
+      "action": "reconcile",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "reverse",
+      "status": 200,
+      "payout": 2
+    },
+    {
+      "action": "cancel",
+      "status": 200,
+      "payout": 4
+    }
+  ]
+}

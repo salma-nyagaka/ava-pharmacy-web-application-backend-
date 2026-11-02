@@ -1,0 +1,14 @@
+{
+  "ping": [
+    {
+      "ava-local-dev@localhost": {
+        "ok": "pong"
+      }
+    }
+  ],
+  "scheduler_dispatched_task": "apps.products.tasks.sync_inventory_task",
+  "queue": "ava_local_dev",
+  "result": [],
+  "success": true,
+  "scope": "Local development web, worker and beat now share Redis databases 14/15 and queue ava_local_dev. A real scheduler dispatch ran the empty sync task. POS endpoints remain unconfigured; real POS behavior is still blocked."
+}

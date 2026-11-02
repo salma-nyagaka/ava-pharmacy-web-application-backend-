@@ -1,0 +1,19 @@
+{
+  "experiment": "query-free authenticated C2B callback URLs",
+  "gateway_pid": 81341,
+  "public_base": "https://ac3f-41-79-237-222.ngrok-free.app",
+  "probes": [
+    {
+      "probe": "valid_credential",
+      "http": 200,
+      "result_code": 1
+    },
+    {
+      "probe": "invalid_credential",
+      "http": 403,
+      "result_code": null
+    }
+  ],
+  "accepted": false,
+  "error": "M-Pesa HTTP error 500: {\n                    \"requestId\":\"135b-4679-8ea6-1c3dca88c6a4376484\",\n                    \"errorCode\": \"500.003.1001\",\n                    \"errorMessage\": \"Service is currently unreachable. Please try again later.\"\n                }\n            "
+}

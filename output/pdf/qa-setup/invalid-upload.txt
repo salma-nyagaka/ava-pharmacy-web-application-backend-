@@ -1,0 +1,1 @@
+SYNTHETIC QA ONLY: plain text, deliberately unsupported as a prescription/result PDF upload.

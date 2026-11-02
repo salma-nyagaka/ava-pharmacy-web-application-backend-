@@ -4,6 +4,7 @@ Django admin registrations for the products app.
 Registers Category, Brand, Product (with image and variant inlines),
 VariantReview, Wishlist, Banner, Promotion, and CMSBlock.
 """
+from django import forms
 from django.contrib import admin
 from .models import (
     Banner,
@@ -15,6 +16,9 @@ from .models import (
     ProductImage,
     Promotion,
     StockMovement,
+    Store,
+    StoreFulfillmentPolicy,
+    StoreVariantListing,
     Variant,
     VariantInventory,
     VariantReview,
@@ -47,10 +51,29 @@ class VariantInline(admin.TabularInline):
     extra = 0
 
 
+class VariantInventoryAdminForm(forms.ModelForm):
+    class Meta:
+        model = VariantInventory
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        variant = cleaned_data.get('variant') or getattr(self.instance, 'variant', None)
+        listing = cleaned_data.get('store_listing')
+        if variant is not None and listing is not None and listing.variant_id != variant.pk:
+            self.add_error(
+                'store_listing',
+                'The selected store listing belongs to a different product variant.',
+            )
+        return cleaned_data
+
+
 class VariantInventoryInline(admin.TabularInline):
     model = VariantInventory
+    form = VariantInventoryAdminForm
     extra = 0
     fields = (
+        'store_listing',
         'location',
         'batch_number',
         'supplier',
@@ -66,9 +89,9 @@ class VariantInventoryInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'display_sku', 'brand', 'category', 'display_price', 'stock_source', 'stock_quantity', 'is_active')
-    list_filter = ('is_active',)
-    search_fields = ('name', 'variants__sku', 'slug')
+    list_display = ('name', 'display_sku', 'brand', 'family_review_status', 'image_source', 'image_verified', 'category', 'display_price', 'stock_source', 'stock_quantity', 'is_active')
+    list_filter = ('is_active', 'family_review_status', 'image_source', 'image_verified')
+    search_fields = ('name', 'master_product_id', 'manufacturer', 'variants__sku', 'slug')
     prepopulated_fields = {'slug': ('name',)}
     inlines = [ProductImageInline, VariantInline]
     readonly_fields = ('created_at', 'updated_at')
@@ -80,9 +103,15 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
-    list_display = ('name', 'product', 'sku', 'barcode', 'price', 'display_stock_quantity', 'display_inventory_status', 'is_active')
-    list_filter = ('is_active', 'requires_prescription', 'category')
-    search_fields = ('name', 'sku', 'barcode', 'product__name', 'product__brand__name')
+    list_display = ('name', 'product', 'sku', 'barcode', 'image_source', 'image_verified', 'price', 'display_stock_quantity', 'display_inventory_status', 'is_active')
+    list_filter = (
+        'is_active', 'requires_prescription', 'prescription_classification',
+        'prescription_review_status', 'regulatory_status', 'category', 'image_source', 'image_verified',
+    )
+    search_fields = (
+        'name', 'sku', 'barcode', 'ppb_registration_number',
+        'marketing_authorization_number', 'product__name', 'product__brand__name',
+    )
     inlines = [VariantInventoryInline]
 
     @admin.display(description='Stock')
@@ -96,8 +125,11 @@ class VariantAdmin(admin.ModelAdmin):
 
 @admin.register(VariantInventory)
 class VariantInventoryAdmin(admin.ModelAdmin):
+    form = VariantInventoryAdminForm
+    list_select_related = ('variant', 'variant__product', 'store_listing__store')
     list_display = (
         'variant',
+        'display_store',
         'location',
         'batch_number',
         'supplier',
@@ -107,8 +139,53 @@ class VariantInventoryAdmin(admin.ModelAdmin):
         'shelf_location',
         'status',
     )
-    list_filter = ('location', 'status', 'expiry_date')
-    search_fields = ('variant__name', 'variant__sku', 'variant__product__name', 'batch_number', 'supplier')
+    list_filter = ('store_listing__store', 'location', 'status', 'expiry_date')
+    search_fields = (
+        'variant__name', 'variant__sku', 'variant__product__name',
+        'store_listing__store__name', 'batch_number', 'supplier',
+    )
+
+    @admin.display(description='Store', ordering='store_listing__store__name')
+    def display_store(self, obj):
+        return obj.store_name or 'Unassigned'
+
+
+@admin.register(Store)
+class StoreAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'city', 'is_active', 'updated_at')
+    list_filter = ('is_active', 'city')
+    search_fields = ('name', 'code', 'city')
+    prepopulated_fields = {'code': ('name',)}
+
+
+@admin.register(StoreFulfillmentPolicy)
+class StoreFulfillmentPolicyAdmin(admin.ModelAdmin):
+    list_select_related = ('store',)
+    list_display = (
+        'store', 'online_fulfillment_enabled', 'customer_pickup_enabled',
+        'inter_store_transfer_enabled', 'fulfillment_priority',
+        'estimated_lead_time_hours', 'daily_order_capacity',
+    )
+    list_filter = (
+        'online_fulfillment_enabled', 'customer_pickup_enabled',
+        'inter_store_transfer_enabled',
+    )
+    search_fields = ('store__name', 'store__code', 'service_areas', 'notes')
+
+
+@admin.register(StoreVariantListing)
+class StoreVariantListingAdmin(admin.ModelAdmin):
+    list_select_related = ('variant', 'variant__product', 'store')
+    list_display = (
+        'variant', 'store', 'external_product_id', 'price', 'cost_price',
+        'minimum_price', 'vat_rate', 'status', 'review_status', 'is_active',
+    )
+    list_filter = ('store', 'is_active', 'status', 'review_status')
+    search_fields = (
+        'variant__name', 'variant__sku', 'variant__product__name',
+        'store__name', 'external_product_id',
+    )
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(StockMovement)

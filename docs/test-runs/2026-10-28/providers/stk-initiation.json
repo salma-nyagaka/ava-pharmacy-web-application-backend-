@@ -1,0 +1,8 @@
+{
+  "provider": "stk",
+  "http_status": 201,
+  "order": "ORD-A6BC700E",
+  "intent_id": 42,
+  "status": "requires_action",
+  "checkout_link_available": true
+}

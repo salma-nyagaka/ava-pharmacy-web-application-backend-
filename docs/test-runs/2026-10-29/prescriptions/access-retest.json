@@ -1,0 +1,30 @@
+{
+  "prescription_id": 44,
+  "reference": "RX-E1E8ED",
+  "status": "approved",
+  "items": [
+    {
+      "id": 90,
+      "name": "SYNTHETIC RX QA ONLY 29 October Synthetic approved pack",
+      "product_id": 22368,
+      "product_name": "SYNTHETIC RX QA ONLY 29 October",
+      "product_slug": "synthetic-rx-qa-only-29-october",
+      "product_image": null,
+      "variant_id": 23507,
+      "variant_name": "Synthetic approved pack",
+      "variant_sku": "RX-QA-20261029-A",
+      "dose": "",
+      "frequency": "",
+      "duration": "",
+      "quantity": 1,
+      "quantity_measurement": "unit(s)",
+      "is_controlled_substance": false,
+      "is_paid_for": false
+    }
+  ],
+  "download_status": 200,
+  "download_cache_control": "private, no-store",
+  "old_public_url_status": 404,
+  "other_customer_detail": 404,
+  "other_customer_list_hides_rx": true
+}

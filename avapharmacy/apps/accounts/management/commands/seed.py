@@ -1,12 +1,18 @@
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
 from decimal import Decimal
 
 
 class Command(BaseCommand):
-    help = 'Seed the database with initial data for all apps'
+    help = 'DEMO ONLY: seed synthetic data for all apps.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--confirm-demo-data', action='store_true')
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or not options['confirm_demo_data']:
+            raise CommandError('Synthetic all-app seeding is disabled for the real database.')
         self.stdout.write('Seeding database...')
         self._seed_users()
         self._seed_categories()

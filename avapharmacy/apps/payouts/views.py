@@ -1,10 +1,10 @@
 from decimal import Decimal
 
-from django.db import IntegrityError, models, transaction
+from django.db import IntegrityError, models, transaction, connection
 from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from rest_framework import generics, status
+from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -26,8 +26,13 @@ def _audit(payout, actor, action, previous_status='', reason='', metadata=None):
     )
 
 
+class ActiveFinanceAdmin(IsAdminUser):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and request.user.is_active and request.user.status == 'active'
+
+
 class PayoutListCreateView(generics.ListCreateAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [ActiveFinanceAdmin]
     filterset_fields = ['status', 'role', 'method', 'reconciliation_status', 'source_type']
     search_fields = ['reference', 'recipient_name', 'source_reference', 'payment_reference', 'provider_transaction_id']
     ordering_fields = ['requested_at', 'amount', 'paid_at', 'approved_at']
@@ -46,12 +51,13 @@ class PayoutListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            payout = serializer.save(
-                created_by=request.user,
-                recipient_name=serializer.validated_data.get('recipient_name') or serializer.validated_data.get('recipient').full_name,
-                amount=serializer.validated_data['gross_amount'],
-                status=Payout.STATUS_DRAFT,
-            )
+            with transaction.atomic():
+                payout = serializer.save(
+                    created_by=request.user,
+                    recipient_name=serializer.validated_data['recipient_name'],
+                    amount=serializer.validated_data['gross_amount'],
+                    status=Payout.STATUS_DRAFT,
+                )
         except IntegrityError:
             return Response({'detail': 'A payout already exists for this source or idempotency key.'}, status=status.HTTP_409_CONFLICT)
         _audit(payout, request.user, 'created', metadata={'source_reference': payout.source_reference})
@@ -59,7 +65,7 @@ class PayoutListCreateView(generics.ListCreateAPIView):
 
 
 class PayoutDetailView(generics.RetrieveAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [ActiveFinanceAdmin]
     serializer_class = PayoutSerializer
     queryset = Payout.objects.select_related(
         'recipient', 'created_by', 'reviewed_by', 'approved_by', 'submitted_by',
@@ -67,7 +73,7 @@ class PayoutDetailView(generics.RetrieveAPIView):
 
 
 class PayoutActionView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [ActiveFinanceAdmin]
 
     @transaction.atomic
     def post(self, request, pk):
@@ -84,7 +90,7 @@ class PayoutActionView(APIView):
         now = timezone.now()
 
         allowed = {
-            'submit': {Payout.STATUS_DRAFT, Payout.STATUS_FAILED},
+            'submit': {Payout.STATUS_DRAFT},
             'approve': {Payout.STATUS_PENDING},
             'hold': {Payout.STATUS_PENDING, Payout.STATUS_APPROVED, Payout.STATUS_PROCESSING},
             'release': {Payout.STATUS_ON_HOLD},
@@ -99,6 +105,10 @@ class PayoutActionView(APIView):
             return Response({'detail': f'Cannot {action.replace("_", " ")} a {payout.get_status_display().lower()} payout.'}, status=status.HTTP_409_CONFLICT)
         if action in {'reconcile', 'unmatch', 'flag_exception'} and payout.status not in {Payout.STATUS_PAID, Payout.STATUS_REVERSED}:
             return Response({'detail': 'Only paid or reversed payouts can be reconciled.'}, status=status.HTTP_409_CONFLICT)
+
+        recon_targets = {'reconcile': Payout.RECON_MATCHED, 'unmatch': Payout.RECON_UNMATCHED, 'flag_exception': Payout.RECON_EXCEPTION}
+        if action in recon_targets and payout.reconciliation_status == recon_targets[action]:
+            return Response({'detail': 'This reconciliation state is already recorded.'}, status=409)
 
         if action == 'submit':
             payout.status = Payout.STATUS_PENDING
@@ -117,6 +127,8 @@ class PayoutActionView(APIView):
             payout.hold_reason = reason
         elif action == 'release':
             payout.status = Payout.STATUS_PENDING
+            payout.approved_by = None
+            payout.approved_at = None
             payout.hold_reason = ''
         elif action == 'process':
             payout.status = Payout.STATUS_PROCESSING
@@ -124,17 +136,24 @@ class PayoutActionView(APIView):
             payout.submitted_at = now
             payout.batch_reference = data.get('batch_reference', '') or payout.batch_reference
         elif action == 'mark_paid':
-            reference = data.get('payment_reference', '').strip() or data.get('provider_transaction_id', '').strip()
+            reference = data.get('payment_reference', '').strip().upper() or data.get('provider_transaction_id', '').strip().upper()
             if not reference:
                 return Response({'payment_reference': 'A verified payment reference is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            provider_reference = data.get('provider_transaction_id', '').strip()
-            reference_query = models.Q(payment_reference=reference)
-            if provider_reference:
-                reference_query |= models.Q(provider_transaction_id=provider_reference)
+            provider_reference = data.get('provider_transaction_id', '').strip().upper()
+            references = sorted({value for value in (reference, provider_reference) if value})
+            if connection.vendor == 'postgresql':
+                with connection.cursor() as cursor:
+                    for value in references:
+                        cursor.execute('SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))', [value])
+            reference_query = models.Q()
+            for value in references:
+                reference_query |= models.Q(payment_reference__iexact=value) | models.Q(provider_transaction_id__iexact=value)
             if Payout.objects.exclude(pk=payout.pk).filter(reference_query).exists():
                 return Response({'detail': 'This payment reference is already assigned to another payout.'}, status=status.HTTP_409_CONFLICT)
+            if data.get('paid_at', now) < payout.requested_at:
+                return Response({'paid_at': 'Payment time cannot precede this payout request.'}, status=400)
             payout.status = Payout.STATUS_PAID
-            payout.payment_reference = data.get('payment_reference', '').strip() or reference
+            payout.payment_reference = reference
             payout.provider_transaction_id = provider_reference or payout.provider_transaction_id
             payout.method = data.get('method', payout.method)
             payout.paid_at = data.get('paid_at', now)
@@ -167,8 +186,16 @@ class PayoutActionView(APIView):
         elif action == 'flag_exception':
             payout.reconciliation_status = Payout.RECON_EXCEPTION
 
-        payout.save()
+        try:
+            with transaction.atomic():
+                payout.save()
+        except IntegrityError:
+            return Response({'detail': 'This payment reference is already assigned to another payout.'}, status=409)
         _audit(payout, request.user, action, previous_status=previous, reason=reason, metadata={
+            'execution_mode': 'administrative_record',
+            'amount': str(payout.amount),
+            'recipient_id': payout.recipient_id,
+            'source_reference': payout.source_reference,
             'payment_reference': payout.payment_reference,
             'provider_transaction_id': payout.provider_transaction_id,
             'reconciliation_status': payout.reconciliation_status,
@@ -176,14 +203,14 @@ class PayoutActionView(APIView):
         if payout.status != previous and payout.recipient:
             try:
                 from apps.notifications.utils import notify_payout_status
-                notify_payout_status(payout)
+                transaction.on_commit(lambda: notify_payout_status(payout), robust=True)
             except Exception:
                 pass
         return Response(PayoutSerializer(payout, context={'request': request}).data)
 
 
 class PayoutSummaryView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [ActiveFinanceAdmin]
 
     def get(self, request):
         queryset = Payout.objects.all()
@@ -203,12 +230,31 @@ class PayoutSummaryView(APIView):
 
 
 class PayoutRuleListView(generics.ListCreateAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [ActiveFinanceAdmin]
     serializer_class = PayoutRuleSerializer
     queryset = PayoutRule.objects.all()
 
 
 class PayoutRuleDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [ActiveFinanceAdmin]
     serializer_class = PayoutRuleSerializer
     queryset = PayoutRule.objects.all()
+
+
+class PayoutRecipientListView(APIView):
+    permission_classes = [ActiveFinanceAdmin]
+
+    def get(self, request):
+        from apps.accounts.models import User
+        users = User.objects.filter(role__in=[role for role, _ in Payout.ROLE_CHOICES], is_active=True, status='active').order_by('first_name', 'id')
+        return Response([{'id': user.pk, 'name': user.full_name, 'role': user.role} for user in users])
+
+
+class MyPayoutListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PayoutSerializer
+
+    def get_queryset(self):
+        if not self.request.user.is_active or self.request.user.status != 'active':
+            return Payout.objects.none()
+        return Payout.objects.filter(recipient=self.request.user).prefetch_related('audit_logs__actor')

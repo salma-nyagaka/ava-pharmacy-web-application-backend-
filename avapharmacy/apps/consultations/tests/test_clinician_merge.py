@@ -51,6 +51,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
         clinician = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_DOCTOR,
             legacy_doctor_id=77,
+            user=User.objects.create_user(email='legacy-active-doctor@example.test', role='doctor'),
             name='Dr Legacy',
             specialty='Family Medicine',
             email='legacy-doctor@example.com',
@@ -69,6 +70,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
         clinician = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_PEDIATRICIAN,
             legacy_pediatrician_id=88,
+            user=User.objects.create_user(email='legacy-active-ped@example.test', role='pediatrician'),
             name='Dr Legacy Child',
             specialty='Pediatrics',
             email='legacy-ped@example.com',
@@ -87,6 +89,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
         clinician = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_DOCTOR,
             legacy_doctor_id=101,
+            user=User.objects.create_user(email='legacy-bookable-doctor@example.test', role='doctor'),
             name='Dr Consultation',
             specialty='Internal Medicine',
             email='consultation-doctor@example.com',

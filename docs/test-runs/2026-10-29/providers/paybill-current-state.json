@@ -1,0 +1,40 @@
+{
+  "orders": [
+    {
+      "id": 2006,
+      "order_number": "ORD-874A0705",
+      "status": "pending",
+      "payment_status": "requires_action",
+      "payment_reference": "",
+      "total": "2.00"
+    },
+    {
+      "id": 2005,
+      "order_number": "ORD-20CDFB9E",
+      "status": "pending",
+      "payment_status": "requires_action",
+      "payment_reference": "",
+      "total": "1.00"
+    }
+  ],
+  "intents": [
+    {
+      "id": 48,
+      "status": "requires_action",
+      "provider_reference": "",
+      "last_error": "",
+      "callback_payload": {}
+    },
+    {
+      "id": 47,
+      "status": "requires_action",
+      "provider_reference": "",
+      "last_error": "",
+      "callback_payload": {}
+    }
+  ],
+  "inventory": {
+    "id": 64281,
+    "stock": 4
+  }
+}

@@ -39,8 +39,8 @@ class ExternalOrderWorkflowTests(TestCase):
         self.order = Order.objects.create(
             customer=self.customer,
             status=Order.STATUS_PENDING,
-            payment_method=Order.PAYMENT_COD,
-            payment_status=Order.PAYMENT_STATUS_PENDING,
+            payment_method=Order.PAYMENT_MPESA_PAYBILL,
+            payment_status=Order.PAYMENT_STATUS_PAID,
             shipping_first_name='Order',
             shipping_last_name='Customer',
             shipping_email='orders-customer@example.com',
@@ -92,7 +92,9 @@ class ExternalOrderWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['order_number'], self.order.order_number)
-        self.assertEqual(response.data['order']['shipping_phone'], self.order.shipping_phone)
+        self.assertFalse(response.data['can_view_details'])
+        for field in ['shipping_phone', 'shipping_email', 'shipping_address', 'items', 'total']:
+            self.assertNotIn(field, response.data['order'])
         self.assertEqual(response.data['current_status'], self.order.status)
         self.assertIn('tracking_steps', response.data)
 

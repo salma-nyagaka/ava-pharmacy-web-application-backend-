@@ -26,8 +26,8 @@ class PayoutWorkflowTests(TestCase):
             'recipient_name': self.provider.full_name,
             'role': Payout.ROLE_DOCTOR,
             'period': 'July 2026',
-            'source_type': 'consultation',
-            'source_reference': 'CONS-PAYOUT-001',
+            'source_type': 'manual_adjustment',
+            'source_reference': 'MANUAL-PAYOUT-001',
             'idempotency_key': 'payout:consultation:001',
             'gross_amount': '1500.00',
             'commission_amount': '150.00',
@@ -95,8 +95,8 @@ class PayoutWorkflowTests(TestCase):
         self.client.force_authenticate(self.maker)
         second = self.client.post(reverse('admin-payouts'), {
             'recipient': self.provider.id, 'recipient_name': self.provider.full_name,
-            'role': Payout.ROLE_DOCTOR, 'period': 'July 2026', 'source_type': 'consultation',
-            'source_reference': 'CONS-PAYOUT-002', 'idempotency_key': 'payout:consultation:002',
+            'role': Payout.ROLE_DOCTOR, 'period': 'July 2026', 'source_type': 'manual_adjustment',
+            'source_reference': 'MANUAL-PAYOUT-002', 'idempotency_key': 'payout:consultation:002',
             'gross_amount': '900.00', 'currency': 'KES', 'method': Payout.METHOD_MPESA,
         }, format='json')
         self.assertEqual(second.status_code, 201)

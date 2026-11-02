@@ -1,0 +1,8 @@
+{
+  "provider": "card",
+  "http_status": 201,
+  "order": "ORD-FBEAE0E8",
+  "intent_id": 41,
+  "status": "requires_action",
+  "checkout_link_available": true
+}

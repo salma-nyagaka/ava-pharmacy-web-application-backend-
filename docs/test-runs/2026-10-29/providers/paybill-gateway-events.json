@@ -1,0 +1,26 @@
+[
+  {
+    "at": "2026-10-29T18:07:45.586816+00:00",
+    "method": "POST",
+    "path": "/callbacks/mobile/validate/",
+    "status": 403
+  },
+  {
+    "at": "2026-10-29T18:07:46.127040+00:00",
+    "method": "POST",
+    "path": "/callbacks/mobile/confirm/",
+    "status": 403
+  },
+  {
+    "at": "2026-10-29T18:07:46.652344+00:00",
+    "method": "GET",
+    "path": "/admin/",
+    "status": 404
+  },
+  {
+    "at": "2026-10-29T18:08:28.712560+00:00",
+    "method": "POST",
+    "path": "/callbacks/mobile/validate/",
+    "status": 200
+  }
+]

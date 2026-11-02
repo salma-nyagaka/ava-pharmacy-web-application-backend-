@@ -1,0 +1,28 @@
+{
+  "journeys": [
+    {
+      "role": "doctor",
+      "consultation": "CONS-EE8CBC",
+      "order": "ORD-33DED1F4",
+      "prescription_id": 46,
+      "earning_count": 1,
+      "earning_amount": "450.00",
+      "audit_entries": 9,
+      "prescription_notifications": 21
+    },
+    {
+      "role": "pediatrician",
+      "consultation": "CONS-DC28FB",
+      "order": "ORD-141616A6",
+      "prescription_id": 47,
+      "earning_count": 1,
+      "earning_amount": "450.00",
+      "audit_entries": 209,
+      "prescription_notifications": 13
+    }
+  ],
+  "stock_before": 4,
+  "stock_after": 2,
+  "payment_confirmation": "SIMULATED application fixtures; provider STK attempt separately failed with no user response",
+  "qa_catalog_fixture_hidden": true
+}

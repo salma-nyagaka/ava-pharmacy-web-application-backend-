@@ -1,0 +1,34 @@
+{
+  "order": "ORD-FBEAE0E8",
+  "id": 1996,
+  "provider": "Flutterwave V3 test",
+  "transaction_id": 10580035,
+  "provider_confirmed_total": "350.00",
+  "currency": "KES",
+  "payment_status": "paid",
+  "first_finalize_status": 200,
+  "replayed_finalize_status": 200,
+  "before": [
+    {
+      "id": 64275,
+      "stock_quantity": 50
+    },
+    {
+      "id": 64277,
+      "stock_quantity": 30
+    }
+  ],
+  "committed": [
+    {
+      "id": 64275,
+      "stock_quantity": 48
+    },
+    {
+      "id": 64277,
+      "stock_quantity": 30
+    }
+  ],
+  "inventory_committed": true,
+  "browser_paid_review_verified_before_interruption": true,
+  "finalization_retested_through": "authenticated live HTTP API"
+}

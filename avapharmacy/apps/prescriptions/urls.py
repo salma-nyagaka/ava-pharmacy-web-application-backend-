@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('prescriptions/<int:pk>/files/<int:file_pk>/download/<str:filename>', views.PrescriptionFileDownloadView.as_view(), name='prescription-file-download-named'),
+    path('prescriptions/<int:pk>/files/<int:file_pk>/download/', views.PrescriptionFileDownloadView.as_view(), name='prescription-file-download'),
     path('prescriptions/', views.PrescriptionListView.as_view(), name='prescriptions'),
     path('prescriptions/upload/', views.PrescriptionUploadView.as_view(), name='prescription-upload'),
     path('prescriptions/<int:pk>/', views.PrescriptionDetailView.as_view(), name='prescription-detail'),

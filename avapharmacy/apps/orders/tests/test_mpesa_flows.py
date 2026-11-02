@@ -13,6 +13,7 @@ from apps.orders.payment_helpers import build_paybill_account_reference
 
 
 @override_settings(
+    MPESA_CALLBACK_SECRET='synthetic-callback-secret',
     MPESA_ENVIRONMENT='sandbox',
     MPESA_CONSUMER_KEY='test-key',
     MPESA_CONSUMER_SECRET='test-secret',
@@ -39,6 +40,7 @@ from apps.orders.payment_helpers import build_paybill_account_reference
 class MpesaFlowTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.client.credentials(HTTP_X_AVA_MPESA_SECRET="synthetic-callback-secret")
         self.user = User.objects.create_user(
             email='customer@example.com',
             password='testpass123',
@@ -86,31 +88,11 @@ class MpesaFlowTests(TestCase):
         self.assertEqual(len(receipts), 1)
 
     @patch('apps.orders.views.FlutterwaveClient')
-    def test_flutterwave_initiate_sets_checkout_link_and_order_tx_ref(self, flutterwave_client_cls):
-        order = self._create_order(payment_method=Order.PAYMENT_CARD, total=Decimal('1200.00'))
-        flutterwave_client_cls.return_value.create_card_checkout.return_value = {
-            'status': 'success',
-            'message': 'Hosted link created',
-            'data': {
-                'link': 'https://checkout.flutterwave.com/v3/hosted/pay/test-link',
-                'tx_ref': 'PAY-TX-REF-001',
-            },
-        }
-
-        response = self.client.post(
-            reverse('orders-payment-flutterwave-initiate'),
-            {'order_id': order.id, 'return_url': 'http://localhost:3000/checkout'},
-            format='json',
-        )
-        self.assertEqual(response.status_code, 201)
-
-        intent = PaymentIntent.objects.get(order=order, provider=PaymentIntent.PROVIDER_CARD)
-        order.refresh_from_db()
-        self.assertEqual(intent.status, PaymentIntent.STATUS_REQUIRES_ACTION)
-        self.assertEqual(intent.client_secret, 'https://checkout.flutterwave.com/v3/hosted/pay/test-link')
-        self.assertEqual(intent.external_reference, 'PAY-TX-REF-001')
-        self.assertEqual(order.flutterwave_tx_ref, 'PAY-TX-REF-001')
-        self.assertEqual(order.payment_status, Order.PAYMENT_STATUS_REQUIRES_ACTION)
+    def test_flutterwave_initiation_is_disabled(self, flutterwave_client_cls):
+        order = self._create_order(payment_method=Order.PAYMENT_CARD)
+        response = self.client.post(reverse('orders-payment-flutterwave-initiate'), {'order_id': order.pk}, format='json')
+        self.assertEqual(response.status_code, 410)
+        flutterwave_client_cls.assert_not_called()
 
     @patch('apps.orders.views.FlutterwaveClient')
     def test_flutterwave_redirect_verifies_payment_and_redirects_to_checkout(self, flutterwave_client_cls):
