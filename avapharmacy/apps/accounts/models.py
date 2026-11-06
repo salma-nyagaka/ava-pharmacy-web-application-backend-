@@ -10,6 +10,29 @@ from django.db.models import Q
 from django.utils import timezone
 
 
+class MFACredential(models.Model):
+    """Secrets are Fernet ciphertext; recovery codes are keyed hashes."""
+
+    user = models.OneToOneField('User', on_delete=models.CASCADE, related_name='mfa_credential')
+    secret = models.TextField(blank=True)
+    enabled = models.BooleanField(default=False)
+    version = models.CharField(max_length=64, blank=True)
+    last_counter = models.BigIntegerField(default=-1)
+    recovery_hashes = models.JSONField(default=list)
+    failed_attempts = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+
+
+class MFAChallenge(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    token_hash = models.CharField(max_length=64, unique=True)
+    credential_fingerprint = models.CharField(max_length=64)
+    enrollment = models.BooleanField(default=False)
+    pending_secret = models.TextField(blank=True)
+    expires_at = models.DateTimeField()
+    consumed = models.BooleanField(default=False)
+
+
 class UserManager(BaseUserManager):
     """Custom manager for the User model using email as the unique identifier."""
 

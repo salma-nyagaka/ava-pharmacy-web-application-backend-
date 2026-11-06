@@ -7,7 +7,8 @@ from django.urls import re_path
 from channels.routing import URLRouter
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.models import User
+from apps.accounts.models import MFACredential, User
+from apps.accounts import mfa
 from apps.consultations.consumers import ConsultationConsumer
 from apps.consultations.models import ClinicianProfile, Consultation
 
@@ -22,7 +23,12 @@ class ConsultationSocketIntegrationTests(TransactionTestCase):
         self.application = URLRouter([re_path(r'^ws/consultations/(?P<pk>\d+)/$', ConsultationConsumer.as_asgi())])
 
     def socket(self, user):
-        token = str(RefreshToken.for_user(user).access_token)
+        refresh = RefreshToken.for_user(user)
+        if mfa.required(user):
+            credential, _ = MFACredential.objects.get_or_create(user=user, defaults={'enabled': True, 'version': 'socket-test-version'})
+            refresh['mfa_version'] = credential.version
+            refresh['amr'] = ['pwd', 'otp']
+        token = str(refresh.access_token)
         return WebsocketCommunicator(self.application, f'/ws/consultations/{self.consultation.pk}/?token={token}')
 
     def test_unrelated_user_and_invalid_token_are_rejected(self):
@@ -33,6 +39,24 @@ class ConsultationSocketIntegrationTests(TransactionTestCase):
             self.assertEqual(await invalid.connect(), (False, 4401))
             await other.disconnect()
             await invalid.disconnect()
+        async_to_sync(run)()
+
+    def test_doctor_password_only_token_is_rejected(self):
+        token = str(RefreshToken.for_user(self.user).access_token)
+        socket = WebsocketCommunicator(self.application, f'/ws/consultations/{self.consultation.pk}/?token={token}')
+        async def run():
+            self.assertEqual(await socket.connect(), (False, 4401))
+            await socket.disconnect()
+        async_to_sync(run)()
+
+    def test_mfa_reset_closes_connected_doctor_socket(self):
+        socket = self.socket(self.user)
+        async def run():
+            self.assertTrue((await socket.connect())[0])
+            await database_sync_to_async(MFACredential.objects.filter(user=self.user).delete)()
+            await socket.send_json_to({'type': 'typing.indicator'})
+            self.assertEqual((await socket.receive_output())['code'], 4403)
+            await socket.disconnect()
         async_to_sync(run)()
 
     def test_participants_receive_live_typing_and_revocation_closes_socket(self):
