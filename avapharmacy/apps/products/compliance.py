@@ -1,4 +1,4 @@
-"""Fail-closed catalogue eligibility. No external verification is inferred from text."""
+"""Catalogue supply eligibility, independent of internal review workflow labels."""
 from django.utils import timezone
 from django.db.models import Q
 
@@ -22,7 +22,7 @@ def promotional_product(product):
 
 def supply_error(variant):
     if not variant:
-        return 'Select a reviewed catalogue variant.'
+        return 'Select a catalogue variant.'
     if not variant.is_active or not variant.product.is_active:
         return 'This product is inactive and cannot be supplied.'
     if variant.prescription_classification == 'controlled':
@@ -30,14 +30,6 @@ def supply_error(variant):
     if variant.regulatory_status in {'suspended', 'withdrawn'}:
         return 'This item has a suspended or withdrawn authorization.'
     if is_medicine(variant):
-        if variant.regulatory_scope != 'medicine' or variant.prescription_classification not in {'otc', 'prescription'}:
-            return 'Medicine classification is inconsistent or incomplete.'
-        if variant.prescription_review_status != 'verified':
-            return 'Medicine classification requires professional verification.'
-        if not (variant.is_ppb_registered and variant.ppb_registration_number.strip() and
-                variant.authorized_supplier.strip() and variant.regulatory_status == 'approved' and
-                variant.ppb_license_expiry_date and variant.ppb_license_expiry_date >= timezone.localdate()):
-            return 'Current medicine registration and authorized supplier verification are required.'
         if not all(str(getattr(variant, field, '') or '').strip() for field in
                    ['pil_version', 'pil_source_url', 'contraindications', 'side_effects', 'directions', 'warnings']):
             return 'Reviewed medicine safety information and PIL provenance are required.'

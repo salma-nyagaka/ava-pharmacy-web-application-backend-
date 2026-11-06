@@ -196,7 +196,10 @@ class PrescriptionUploadItemSerializer(serializers.Serializer):
 
 class PrescriptionUploadSerializer(serializers.Serializer):
     patient_name = serializers.CharField(max_length=200)
-    doctor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    doctor_name = serializers.CharField(
+        max_length=200,
+        error_messages={'required': 'Enter the prescribing doctor’s name.', 'blank': 'Enter the prescribing doctor’s name.'},
+    )
     notes = serializers.CharField(required=False, allow_blank=True)
     items = PrescriptionUploadItemSerializer(many=True, required=False)
     bot_challenge_token = serializers.CharField(required=False, allow_blank=True, write_only=True)
@@ -247,7 +250,7 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
                 from apps.products.compliance import supply_error
                 error = supply_error(variant)
                 if error:
-                    raise serializers.ValidationError({'items': error})
+                    raise serializers.ValidationError({'items': f'{variant.product.name}: {error}'})
                 from .views import _is_controlled_substance
                 if row.get('is_controlled_substance') or _is_controlled_substance(row.get('name'), instance.notes, variant.product.name, variant.name):
                     raise serializers.ValidationError({'items': 'Controlled drugs cannot be supplied online.'})
@@ -360,6 +363,13 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
                         )
                     })
         return attrs
+
+
+class PendingPrescriptionEditSerializer(serializers.Serializer):
+    patient_name = serializers.CharField(max_length=200)
+    doctor_name = serializers.CharField(max_length=200)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    files = serializers.ListField(child=serializers.FileField(), required=False, max_length=5)
 
 
 class PrescriptionResubmitSerializer(serializers.Serializer):

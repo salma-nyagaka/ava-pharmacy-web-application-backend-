@@ -329,13 +329,13 @@ Use a synthetic prescription file.
 
 - [x] **S09-01** — As customer, upload a valid PDF/JPG/PNG and confirm it appears in prescription history.
 - [x] **S09-02** — Try an unsupported file, a file over 5 MB and more than five files; check the errors.
-- [ ] **S09-03** — As pharmacist, open the same prescription and review its files and patient details.
-- [ ] **S09-04** — Request clarification; reply as the customer and confirm the pharmacist sees the reply.
-- [ ] **S09-05** — Reject a separate prescription with a reason; confirm the customer sees it and cannot buy from it.
-- [ ] **S09-06** — Approve the main prescription with exact medicine variants and allowed quantities.
-- [ ] **S09-07** — As customer, add the approved items, pay and complete the medicine order.
-- [ ] **S09-08** — Confirm extra quantities, another variant and unauthorized reuse of the prescription are blocked.
-- [ ] **S09-09** — Complete dispensing/delivery and check the prescription and order statuses agree.
+- [x] **S09-03** — As pharmacist, open the same prescription and review its files and patient details.
+- [x] **S09-04** — Request clarification; reply as the customer and confirm the pharmacist sees the reply.
+- [x] **S09-05** — Reject a separate prescription with a reason; confirm the customer sees it and cannot buy from it.
+- [x] **S09-06** — Approve the main prescription with exact medicine variants and allowed quantities.
+- [x] **S09-07** — As customer, add the approved items, pay and complete the medicine order.
+- [x] **S09-08** — Confirm extra quantities, another variant and unauthorized reuse of the prescription are blocked.
+- [x] **S09-09** — Complete dispensing/delivery and check the prescription and order statuses agree.
 
 ### Missing values and errors
 

@@ -252,6 +252,9 @@ def score_checkout_risk(request, items, checkout_phone=''):
 
     recent_checkout_count = _recent_events(
         event_type=BotRiskEvent.EVENT_CHECKOUT,
+        # Denied requests must not escalate their own subsequent retries.
+        # Request throttling still limits repeated blocked submissions.
+        decision=BotRiskEvent.DECISION_ALLOW,
         user=user,
         since=now - timedelta(minutes=30),
     )
@@ -300,10 +303,11 @@ def enforce_checkout_risk(request, items, *, checkout_phone=''):
     hard_stop_reasons = {
         'account_not_active',
         'disposable_email_domain',
-        'many_registrations_from_ip',
         'rapid_checkout_attempts',
         'recent_payment_failures',
     }
+    # A shared network does not establish a problem with this account.
+    # Keep its risk score, but resolve it through the challenge below.
     has_hard_stop_reason = bool(hard_stop_reasons.intersection(reasons))
 
     if score >= review_threshold and has_hard_stop_reason:

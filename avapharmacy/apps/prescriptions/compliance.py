@@ -26,7 +26,7 @@ def approval_error(rx):
         return 'A current prescription issue date and validity date are required.'
     from .access import can_review
     if rx.verified_by_id and not can_review(rx.verified_by):
-        return 'A currently credentialed pharmacist must verify this prescription.'
+        return 'An active pharmacist with prescription review permission must verify this prescription.'
     if not rx.verified_by_id or not rx.verified_at:
         return 'An attributable professional verification is required.'
     if rx.source == 'e_prescription':

@@ -39,9 +39,12 @@ def _build_error(code, message, details=None):
 def _first_error_message(details, default_message):
     """Return the first human-readable message from nested error details."""
     if isinstance(details, dict):
+        for key in ('message', 'detail'):
+            if details.get(key) not in (None, '', [], {}):
+                return _first_error_message(details[key], default_message)
         for key, value in details.items():
-            if key in {'detail', 'message'} and value not in (None, '', [], {}):
-                return _first_error_message(value, default_message)
+            if key == 'code':
+                continue
             message = _first_error_message(value, None)
             if message:
                 return message
@@ -92,6 +95,12 @@ def custom_exception_handler(exc, context):
                 )
             elif 'detail' in response.data and len(response.data) == 1:
                 response.data = _build_error('request_error', str(response.data['detail']))
+            elif 'code' in response.data and 'message' in response.data:
+                response.data = _build_error(
+                    str(response.data['code']),
+                    _first_error_message(response.data, 'Request failed.'),
+                    {key: value for key, value in response.data.items() if key not in {'code', 'message'}},
+                )
             else:
                 response.data = _build_error(
                     'validation_error',

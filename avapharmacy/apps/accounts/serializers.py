@@ -385,6 +385,10 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                     queryset = queryset.exclude(user=self.instance)
                 if queryset.exists():
                     raise serializers.ValidationError({'pharmacist_license_number': 'A pharmacist with this license number already exists.'})
+            if self.instance is None and not attrs.get('pharmacist_license_document'):
+                raise serializers.ValidationError({
+                    'pharmacist_license_document': 'Upload the pharmacist licence document when creating the account.'
+                })
         if self.instance is None:
             password = attrs.get('password')
             if role != User.PHARMACIST and not password:
@@ -420,7 +424,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         if user.role == User.PHARMACIST:
             user.is_active = False
             user.save(update_fields=['is_active', 'updated_at'])
-            Pharmacist.objects.create(
+            profile = Pharmacist.objects.create(
                 user=user,
                 **credential_fields,
                 license_number=license_number,
@@ -430,6 +434,8 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 created_by=actor if getattr(actor, 'is_authenticated', False) else None,
                 updated_by=actor if getattr(actor, 'is_authenticated', False) else None,
             )
+            if document:
+                profile.documents.add(profile.credential_evidence)
             token, raw_token = issue_pharmacist_activation_token(user, created_by=actor)
             send_pharmacist_activation_email(
                 user=user,

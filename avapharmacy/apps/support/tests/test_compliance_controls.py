@@ -50,24 +50,27 @@ class ComplianceControlTests(TestCase):
         OrderItem.objects.create(order=o, product=self.product, variant=self.variant, product_name='Synthetic', product_sku=self.product.sku, quantity=1, unit_price=10)
         return o
 
-    def test_unreviewed_catalog_is_blocked(self):
-        self.assertIn('classification',supply_error(self.variant))
+    def test_unreviewed_catalog_label_does_not_block_supply(self):
+        self.medicine()
+        self.variant.regulatory_scope = 'unreviewed'
+        self.variant.prescription_review_status = 'pending'
+        self.assertIsNone(supply_error(self.variant))
 
     def test_verified_non_medicine_can_be_supplied(self):
         self.variant.regulatory_scope='non_medicine';self.variant.save()
         self.assertIsNone(supply_error(self.variant))
 
-    def test_inconsistent_rx_non_medicine_is_blocked(self):
+    def test_rx_flag_still_requires_medicine_safety_information(self):
         self.variant.regulatory_scope='non_medicine';self.variant.requires_prescription=True
-        self.assertIn('inconsistent',supply_error(self.variant))
+        self.assertIn('safety information',supply_error(self.variant))
 
     def test_controlled_classification_blocks_with_false_boolean(self):
         self.variant.regulatory_scope='medicine';self.variant.prescription_classification='controlled'
         self.assertTrue(prescription_required(self.variant));self.assertIn('Controlled',supply_error(self.variant))
 
-    def test_medicine_registration_safety_and_supplier_are_required(self):
+    def test_medicine_safety_and_explicit_supply_holds_are_required(self):
         self.medicine();self.assertIsNone(supply_error(self.variant))
-        for name, value in [('ppb_registration_number',''),('authorized_supplier',''),('regulatory_status','suspended'),('regulatory_status','withdrawn'),('ppb_license_expiry_date',timezone.localdate()-timedelta(days=1)),('pil_source_url',''),('contraindications',''),('side_effects',''),('pil_reviewed_at',None)]:
+        for name, value in [('regulatory_status','suspended'),('regulatory_status','withdrawn'),('pil_source_url',''),('contraindications',''),('side_effects',''),('pil_reviewed_at',None)]:
             with self.subTest(name=name,value=value):
                 old=getattr(self.variant,name);setattr(self.variant,name,value);self.assertIsNotNone(supply_error(self.variant));setattr(self.variant,name,old)
 

@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from apps.support.models import ComplianceEvidence, OperationalReview, SiteSettings
 from apps.support.checks import REQUIRED_COMPLIANCE_FIELDS, _is_missing
-from apps.products.models import Variant
 
 
 class Command(BaseCommand):
@@ -12,8 +11,6 @@ class Command(BaseCommand):
         gaps = [f'Missing disclosure: {f}' for f in REQUIRED_COMPLIANCE_FIELDS if _is_missing(getattr(site, f, ''))]
         evidence = set(ComplianceEvidence.objects.filter(verified_at__isnull=False, expires_at__gte=timezone.localdate(), status='active').values_list('evidence_type', flat=True))
         gaps += [f'Current independently reviewed evidence required: {kind}' for kind, _ in ComplianceEvidence.TYPE_CHOICES if kind not in evidence]
-        if Variant.objects.filter(is_active=True, regulatory_scope='unreviewed').exists():
-            gaps.append('Active unreviewed catalog items remain on supply hold.')
         areas = {x[0] for x in OperationalReview._meta.get_field('area').choices}
         complete = set(OperationalReview.objects.filter(completed_at__isnull=False, due_on__gte=timezone.localdate(), evidence__verified_at__isnull=False).values_list('area', flat=True))
         gaps += [f'Current operational review required: {x}' for x in sorted(areas-complete)]

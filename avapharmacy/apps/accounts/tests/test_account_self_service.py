@@ -667,11 +667,12 @@ class AdminPharmacistAccountTests(TestCase):
                 'phone': '+254700001001',
                 'role': User.PHARMACIST,
                 'pharmacist_license_number': 'PPB-PHARM-001',
+                'pharmacist_license_document': SimpleUploadedFile('licence.pdf', b'%PDF-1.4\nlicence evidence', content_type='application/pdf'),
                 'pharmacist_branch_location': 'Main Branch, Nairobi',
                 'pharmacist_position': 'Senior Pharmacist',
                 'pharmacist_permissions': [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
             },
-            format='json',
+            format='multipart',
         )
 
         self.assertEqual(response.status_code, 201)

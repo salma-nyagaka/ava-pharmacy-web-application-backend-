@@ -34,6 +34,7 @@ from .serializers import (
     PrescriptionUpdateSerializer, PrescriptionAuditCreateSerializer,
     PharmacistPrescriptionReviewSerializer, PrescriptionResubmitSerializer,
     PrescriptionClarificationReplySerializer,
+    PendingPrescriptionEditSerializer,
 )
 from apps.accounts.permissions import IsAdminUser, IsPharmacist, IsPharmacistAdminOrPPBInspector, IsPharmacistOrAdmin, IsPrescriptionReviewPharmacist
 from apps.accounts.models import User
@@ -359,6 +360,7 @@ class PharmacistVariantSearchView(APIView):
     permission_classes = [IsPharmacistOrAdmin]
 
     def get(self, request):
+        from apps.products.compliance import supply_error
         query = str(request.query_params.get('q') or '').strip()
         try:
             limit = min(max(int(request.query_params.get('limit', 500)), 1), 500)
@@ -395,7 +397,8 @@ class PharmacistVariantSearchView(APIView):
                     'requires_prescription': variant.requires_prescription,
                     'inventory_status': variant.inventory_status,
                     'available_quantity': variant.available_quantity,
-                    'can_select': variant.available_quantity > 0,
+                    'can_select': variant.available_quantity > 0 and not supply_error(variant),
+                    'unavailable_reason': supply_error(variant) or ('Out of stock' if variant.available_quantity <= 0 else ''),
                 }
                 for variant in variants.order_by('product__name', 'sort_order', 'name')[:limit]
             ]
@@ -621,6 +624,54 @@ class PharmacistPrescriptionReviewView(APIView):
             notes=notes,
             performed_by=request.user,
         )
+        return Response(PrescriptionSerializer(prescription, context={'request': request}).data)
+
+
+class PendingPrescriptionEditView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        prescription = generics.get_object_or_404(
+            Prescription.objects.select_for_update(), pk=pk, patient=request.user,
+        )
+        if prescription.status != Prescription.STATUS_PENDING or prescription.source != Prescription.SOURCE_UPLOAD:
+            raise ValidationError({'detail': 'Only your pending uploaded prescriptions can be edited.'})
+        serializer = PendingPrescriptionEditSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        files = data.get('files', [])
+        if prescription.files.count() + len(files) > MAX_PRESCRIPTION_FILES:
+            raise ValidationError({'files': f'You can keep at most {MAX_PRESCRIPTION_FILES} files on a prescription.'})
+        for file in files:
+            if file.size > MAX_FILE_SIZE:
+                raise ValidationError({'files': f'File "{file.name}" exceeds 5 MB limit.'})
+            if file.content_type not in ALLOWED_FILE_TYPES:
+                raise ValidationError({'files': f'File "{file.name}" has unsupported type. Allowed: PDF, JPEG, PNG.'})
+        changes = {}
+        for field in ('patient_name', 'doctor_name', 'notes'):
+            if field in data and data[field] != getattr(prescription, field):
+                changes[field] = {'before': getattr(prescription, field), 'after': data[field]}
+                setattr(prescription, field, data[field])
+        for file in files:
+            PrescriptionFile.objects.create(prescription=prescription, file=file, filename=file.name)
+        if changes or files:
+            # Patient edits invalidate any verification recorded against the old content.
+            prescription.verified_by = None
+            prescription.verified_at = None
+            prescription.prescriber_verification_reference = ''
+            prescription.authenticity_method = ''
+            prescription.authenticity_evidence = ''
+            prescription.save(update_fields=[
+                *changes, 'verified_by', 'verified_at', 'prescriber_verification_reference',
+                'authenticity_method', 'authenticity_evidence', 'updated_at',
+            ])
+            PrescriptionAuditLog.objects.create(
+                prescription=prescription, action='Pending prescription edited by patient',
+                notes=json.dumps({'changes': changes, 'added_files': [file.name for file in files]}),
+                performed_by=request.user,
+            )
         return Response(PrescriptionSerializer(prescription, context={'request': request}).data)
 
 

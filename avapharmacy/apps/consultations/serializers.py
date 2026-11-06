@@ -95,6 +95,9 @@ def _serialize_consultation_prescription_item(item):
         'dose': item.get('dose') or item.get('dosage') or '',
         'frequency': item.get('frequency') or '',
         'duration': item.get('duration') or '',
+        'duration_value': item.get('duration_value'),
+        'duration_unit': item.get('duration_unit') or '',
+        'duration_notation': item.get('duration_notation') or '',
         'quantity': item.get('quantity') or 1,
         'notes': item.get('notes') or item.get('note') or '',
         'catalog_name': item.get('catalog_name') or '',
@@ -781,11 +784,14 @@ def validate_clinician_prescription_items(items):
 
         dose = str(item.get('dose') or item.get('dosage') or '').strip()
         frequency = str(item.get('frequency') or '').strip()
-        duration = str(item.get('duration') or '').strip()
         quantity_measurement = str(item.get('quantity_measurement') or item.get('measurement') or 'unit(s)').strip()
         item['dose'] = dose
         item['frequency'] = frequency
-        item['duration'] = duration
+        from .duration import normalize_duration
+        try:
+            item.update(normalize_duration(item))
+        except ValueError as exc:
+            raise serializers.ValidationError({index: {'duration': str(exc)}})
         item['quantity_measurement'] = quantity_measurement
 
         if variant_id:

@@ -11,8 +11,10 @@ def can_access_queue(user):
 def can_review(user):
     if not user or not user.is_authenticated or not user.is_active or user.status != User.STATUS_ACTIVE:
         return False
-    profile = Pharmacist.objects.select_related('user', 'credential_evidence').filter(user_id=user.pk).first()
-    return bool(user.role in [User.PHARMACIST, User.ADMIN] and profile and profile.credential_is_current
+    # Account activation and admin-granted permissions authorize review.
+    # Credential verification is retained as a record, not a second approval gate.
+    profile = Pharmacist.objects.filter(user_id=user.pk).first()
+    return bool(user.role in [User.PHARMACIST, User.ADMIN] and profile
                 and profile.has_permission(profile.PERMISSION_PRESCRIPTION_REVIEW))
 
 

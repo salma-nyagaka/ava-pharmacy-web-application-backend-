@@ -1,10 +1,20 @@
 from unittest.mock import patch
 from datetime import date
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from apps.accounts.serializers import AdminUserCreateSerializer
 
 
 class PharmacistModalCredentialTests(TestCase):
+    def setUp(self):
+        from tempfile import TemporaryDirectory
+        from django.test import override_settings
+        media = TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        settings = override_settings(MEDIA_ROOT=media.name)
+        settings.enable()
+        self.addCleanup(settings.disable)
+
     @patch('apps.accounts.serializers.send_pharmacist_activation_email')
     def test_creation_saves_credential_fields_without_verifying(self, email):
         serializer = AdminUserCreateSerializer(data={
@@ -13,6 +23,7 @@ class PharmacistModalCredentialTests(TestCase):
             'pharmacist_license_country': 'Kenya', 'pharmacist_license_board': 'Pharmacy and Poisons Board',
             'pharmacist_license_expiry': '2027-12-31', 'pharmacist_credential_evidence': None,
             'pharmacist_permissions': ['prescription_review'],
+            'pharmacist_license_document': SimpleUploadedFile('licence.pdf', b'%PDF-1.4\nlicence evidence', content_type='application/pdf'),
         })
         self.assertTrue(serializer.is_valid(), serializer.errors)
         user = serializer.save()
@@ -25,6 +36,16 @@ class PharmacistModalCredentialTests(TestCase):
         self.assertFalse(profile.credential_is_current)
         self.assertFalse(user.is_active)
         email.assert_called_once()
+
+    def test_creation_requires_document(self):
+        from apps.accounts.models import User
+        serializer = AdminUserCreateSerializer(data={
+            'email': 'missing-document@example.com', 'first_name': 'Missing', 'last_name': 'Document',
+            'role': 'pharmacist', 'pharmacist_license_number': 'MISSING-DOC',
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('pharmacist_license_document', serializer.errors)
+        self.assertFalse(User.objects.filter(email='missing-document@example.com').exists())
 
     def test_invalid_evidence_rejected_before_creation(self):
         serializer = AdminUserCreateSerializer(data={
@@ -54,6 +75,7 @@ class PharmacistModalCredentialTests(TestCase):
             self.assertEqual(response.status_code, 201, response.data)
             profile = Pharmacist.objects.get(user__email='upload-pharm@example.com')
             self.assertEqual(profile.credential_evidence.reference_number, 'UPLOAD-123')
+            self.assertTrue(profile.documents.filter(pk=profile.credential_evidence_id).exists())
             self.assertEqual(profile.credential_evidence.created_by_id, admin.pk)
             self.assertIsNone(profile.credential_evidence.verified_at)
             self.assertEqual(set(profile.permissions), {'prescription_review', 'inventory_add'})

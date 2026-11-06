@@ -24,19 +24,19 @@ class PharmacistCredentialValidityTests(TestCase):
     def test_current_matching_verified_credentials_allow_review(self):
         self.assertTrue(can_review(self.pharmacist))
 
-    def test_expiry_and_identity_change_invalidate_verification(self):
+    def test_expiry_and_identity_change_do_not_remove_admin_granted_review(self):
         self.profile.license_expiry=timezone.localdate()-timedelta(days=1)
         self.profile.save(update_fields=['license_expiry'])
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.credential_status,'pending');self.assertIsNone(self.profile.credential_verified_at)
-        self.assertFalse(can_review(self.pharmacist))
+        self.assertTrue(can_review(self.pharmacist))
 
-    def test_revoked_evidence_and_mismatched_reference_block_review(self):
+    def test_evidence_metadata_does_not_gate_admin_granted_review(self):
         evidence=self.profile.credential_evidence
         evidence.reference_number='OTHER-LICENCE';evidence.save()
-        self.assertFalse(can_review(self.pharmacist))
+        self.assertTrue(can_review(self.pharmacist))
         evidence.reference_number=self.profile.license_number;evidence.status='expired';evidence.save()
-        self.assertFalse(can_review(self.pharmacist))
+        self.assertTrue(can_review(self.pharmacist))
 
     def test_subject_or_maker_cannot_self_verify(self):
         self.profile.created_by=self.maker;self.profile.updated_by=self.maker;self.profile.save()
@@ -52,7 +52,7 @@ class PharmacistCredentialValidityTests(TestCase):
         response=self.client.post(url+'verify/',{'verification_reference':'Synthetic independently checked'},format='json')
         self.assertEqual(response.status_code,200,response.data);self.assertTrue(can_review(self.pharmacist))
         self.assertEqual(self.client.post(url+'suspend/',{'verification_reference':'Synthetic suspension'},format='json').status_code,200)
-        self.assertFalse(can_review(self.pharmacist))
+        self.assertTrue(can_review(self.pharmacist))
         self.assertEqual(ComplianceEvent.objects.filter(record_id=self.profile.pk,model_label='accounts.pharmacist').count(),2)
 
     def test_forged_verification_stamps_rejected(self):
@@ -73,9 +73,51 @@ class PharmacistCredentialValidityTests(TestCase):
         other=User.objects.create_user(email='credential-pending@example.invalid',role='pharmacist')
         p=Pharmacist.objects.create(user=other,license_number='SYNTHETIC-NOT-VERIFIED',permissions=['prescription_review'])
         self.assertEqual(p.credential_status,'pending');self.assertFalse(p.credential_is_current)
+        self.assertTrue(can_review(other))
 
     def test_edit_via_admin_user_api_clears_prior_verification(self):
         self.client.force_authenticate(self.maker)
         r=self.client.patch(f'/api/admin/users/{self.pharmacist.pk}/',{'pharmacist_license_number':'SYNTHETIC-CHANGED'},format='json')
         self.assertEqual(r.status_code,200,r.data)
+        self.assertTrue(can_review(self.pharmacist))
+
+    def test_account_suspension_and_permission_removal_still_block_review(self):
+        self.profile.permissions = []
+        self.profile.save(update_fields=['permissions'])
         self.assertFalse(can_review(self.pharmacist))
+        self.profile.permissions = ['prescription_review']
+        self.profile.save(update_fields=['permissions'])
+        self.pharmacist.is_active = False
+        self.assertFalse(can_review(self.pharmacist))
+        self.pharmacist.is_active = True
+        self.pharmacist.status = 'suspended'
+        self.assertFalse(can_review(self.pharmacist))
+
+    def test_pending_credentials_can_approve_with_complete_prescription_evidence(self):
+        from apps.products.models import Product
+        from apps.prescriptions.models import Prescription, PrescriptionItem
+        from avapharmacy.test_compliance_fixtures import catalogue_fixture, prescription_fixture
+        self.profile.credential_status = 'pending'
+        self.profile.credential_verified_at = None
+        self.profile.credential_verified_by = None
+        self.profile.save()
+        product = Product.objects.create(sku='ADMIN-REVIEW', name='Review medication', price='100', is_active=True)
+        variant = product.variants.get()
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(variant, field, value)
+        variant.regulatory_scope = 'unreviewed'
+        variant.prescription_review_status = 'pending'
+        variant.is_ppb_registered = False
+        variant.ppb_registration_number = ''
+        variant.authorized_supplier = ''
+        variant.regulatory_status = 'unknown'
+        variant.ppb_license_expiry_date = None
+        variant.save()
+        patient = User.objects.create_user(email='review-patient@example.invalid', role='customer')
+        rx = Prescription.objects.create(patient=patient, patient_name='Test Patient', **prescription_fixture())
+        PrescriptionItem.objects.create(prescription=rx, product=product, variant=variant, name=product.name, quantity=1)
+        self.client.force_authenticate(self.pharmacist)
+        response = self.client.post(f'/api/pharmacist/prescriptions/{rx.pk}/review/', {'action': 'approve'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        rx.refresh_from_db()
+        self.assertEqual(rx.status, 'approved')

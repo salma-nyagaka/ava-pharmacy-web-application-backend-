@@ -1408,6 +1408,54 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
 
 # ─── Consultation Messages ────────────────────────────────────────────────────
 
+class ConsultationClinicalNotesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _consultation(self, request, pk):
+        from django.shortcuts import get_object_or_404
+        if not request.user.is_active or request.user.status != 'active':
+            raise Http404
+        consultation = get_object_or_404(
+            Consultation.objects.select_related('clinician').filter(
+                Q(patient=request.user) | Q(clinician__user=request.user, clinician__status='active')
+            ), pk=pk,
+        )
+        if consultation.patient_id != request.user.id and not consultation.clinician.eligible_to_practice:
+            raise Http404
+        return consultation
+
+    def _payload(self, consultation):
+        return {
+            'notes': consultation.clinical_notes,
+            'updated_at': consultation.clinical_notes_updated_at,
+        }
+
+    def get(self, request, pk):
+        consultation = self._consultation(request, pk)
+        _audit_consultation(request, consultation, ConsultationAuditLog.ACTION_VIEW_DETAIL,
+                            metadata={'section': 'clinical_notes'})
+        return Response(self._payload(consultation))
+
+    def put(self, request, pk):
+        consultation = self._consultation(request, pk)
+        if (request.user.role not in ['doctor', 'pediatrician']
+                or not consultation.clinician_id
+                or consultation.clinician.user_id != request.user.id):
+            return Response({'detail': 'Only the assigned clinician can save clinical notes.'}, status=403)
+        notes = request.data.get('notes')
+        allowed = {'complaint', 'history', 'exam', 'diagnosis', 'plan', 'followUp', 'assessment'}
+        if not isinstance(notes, dict) or set(notes) - allowed:
+            raise ValidationError({'notes': 'Provide recognized clinical note fields.'})
+        if any(not isinstance(value, str) or len(value) > 10000 for value in notes.values()):
+            raise ValidationError({'notes': 'Each note must be text of at most 10,000 characters.'})
+        consultation.clinical_notes = {key: value.strip() for key, value in notes.items()}
+        consultation.clinical_notes_updated_at = timezone.now()
+        consultation.save(update_fields=['clinical_notes', 'clinical_notes_updated_at', 'updated_at'])
+        _audit_consultation(request, consultation, ConsultationAuditLog.ACTION_SAVE_CLINICAL_NOTES,
+                            metadata={'section': 'clinical_notes', 'operation': 'save'})
+        return Response(self._payload(consultation))
+
+
 class ConsultationMessageListCreateView(generics.ListCreateAPIView):
     serializer_class = ConsultationMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -1701,6 +1749,23 @@ class ClinicianVariantSearchView(APIView):
         return Response({'results': payload})
 
 
+def _announce_prescription_in_chat(prescription, provider):
+    consultation = prescription.consultation
+    message, created = ConsultationMessage.objects.get_or_create(
+        consultation=consultation,
+        message_type=ConsultationMessage.TYPE_E_PRESCRIPTION,
+        message=f'Prescription {prescription.reference} has been issued. A pharmacist will review it before checkout.',
+        defaults={'sender': provider.user, 'sender_name': provider.name},
+    )
+    if created:
+        Consultation.objects.filter(pk=consultation.pk).update(last_message_at=message.sent_at)
+        payload = ConsultationMessageSerializer(message).data
+        transaction.on_commit(
+            lambda: _broadcast_consultation_event(consultation.pk, 'message.new', payload),
+            robust=True,
+        )
+
+
 class ClinicianPrescriptionSendView(APIView):
     permission_classes = [IsDoctor]
 
@@ -1816,6 +1881,7 @@ class ClinicianPrescriptionSendView(APIView):
         prescription.status = ClinicianPrescription.STATUS_SENT
         prescription.sent_at = timezone.now()
         prescription.save(update_fields=['digital_signature', 'status', 'sent_at'])
+        _announce_prescription_in_chat(prescription, provider)
         _audit_consultation(
             request,
             prescription.consultation,

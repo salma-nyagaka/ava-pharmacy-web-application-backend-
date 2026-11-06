@@ -279,6 +279,8 @@ class Consultation(models.Model):
     ]
 
     agreed_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    clinical_notes = models.JSONField(default=dict, blank=True)
+    clinical_notes_updated_at = models.DateTimeField(null=True, blank=True)
     agreed_clinician_share = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     reference = models.CharField(max_length=20, unique=True, blank=True)
@@ -483,6 +485,7 @@ class ConsultationMessage(models.Model):
 
 class ConsultationAuditLog(models.Model):
     ACTION_VIEW_DETAIL = 'view_detail'
+    ACTION_SAVE_CLINICAL_NOTES = 'save_clinical_notes'
     ACTION_LIST_MESSAGES = 'list_messages'
     ACTION_SEND_MESSAGE = 'send_message'
     ACTION_UPDATE_STATUS = 'update_status'
@@ -491,6 +494,7 @@ class ConsultationAuditLog(models.Model):
     ACTION_DOWNLOAD_ATTACHMENT = 'download_attachment'
     ACTION_CHOICES = [
         (ACTION_VIEW_DETAIL, 'View Detail'),
+        (ACTION_SAVE_CLINICAL_NOTES, 'Save Clinical Notes'),
         (ACTION_LIST_MESSAGES, 'List Messages'),
         (ACTION_SEND_MESSAGE, 'Send Message'),
         (ACTION_UPDATE_STATUS, 'Update Status'),
