@@ -16,10 +16,9 @@ LOG_DIR.mkdir(exist_ok=True)
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
 FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default=None)
-MFA_ENCRYPTION_KEY = config('MFA_ENCRYPTION_KEY', default='')
 
 INSTALLED_APPS = [
-    'apps.accounts.admin_config.MFAAdminConfig',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -133,7 +132,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'apps.accounts.authentication.MFAJWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -156,7 +155,6 @@ REST_FRAMEWORK = {
         'anon': '120/hour',
         'user': '2000/hour',
         'login': '5/min',
-        'mfa': '20/min',
         'upload': '30/hour',
         'register': '10/hour',
         'checkout': '20/hour',

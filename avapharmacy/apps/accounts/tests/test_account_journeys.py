@@ -1,7 +1,6 @@
 """Account acceptance journeys using real JWT login and an isolated test database."""
 from avapharmacy.test_compliance_fixtures import clinician_fixture
 import re
-import pyotp
 from datetime import timedelta
 from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch
@@ -41,18 +40,6 @@ class AccountJourneyTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['tokens']['access']}")
         return response.data['tokens']
-
-    def complete_staff_login(self, response):
-        self.assertEqual(response.status_code, 200, response.data)
-        challenge = response.data['challenge_token']
-        client = APIClient()
-        setup = client.post(reverse('mfa-setup'), {'challenge_token': challenge}, format='json')
-        self.assertEqual(setup.status_code, 200, setup.data)
-        confirmed = client.post(reverse('mfa-confirm'), {
-            'challenge_token': challenge, 'code': pyotp.TOTP(setup.data['secret']).now(),
-        }, format='json')
-        self.assertEqual(confirmed.status_code, 200, confirmed.data)
-        return confirmed
 
     def test_registration_verification_login_and_duplicate_rejection(self):
         payload = {
@@ -230,16 +217,15 @@ class AccountJourneyTests(TestCase):
     def test_staff_activation_login_and_activation_reuse(self):
         admin = User.objects.create_user(email='admin.journey@example.test', password=self.password, role=User.ADMIN)
         admin_tokens = APIClient().post(reverse('login'), {'email': admin.email, 'password': self.password}, format='json')
-        admin_tokens = self.complete_staff_login(admin_tokens)
+        self.assertEqual(admin_tokens.status_code, 200)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {admin_tokens.data['tokens']['access']}")
         email = 'pharmacist.journey@example.test'
         response = self.client.post(reverse('admin-users'), {
             'email': email, 'first_name': 'QA', 'last_name': 'Pharmacist', 'role': User.PHARMACIST,
             'pharmacist_license_number': 'E2E-QA-PHARM-001',
-            'pharmacist_license_document': SimpleUploadedFile('licence.pdf', b'%PDF-1.4\nSynthetic QA licence', content_type='application/pdf'),
             'pharmacist_branch_location': 'Synthetic QA branch',
             'pharmacist_permissions': [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
-        }, format='multipart')
+        }, format='json')
         self.assertEqual(response.status_code, 201, response.data)
         raw = re.search(r'/activate/([^/\s]+)/', mail.outbox[0].body).group(1)
         payload = {'token': raw, 'new_password': self.password, 'new_password_confirm': self.password, 'accepted_terms': True}
@@ -248,7 +234,6 @@ class AccountJourneyTests(TestCase):
         self.assertEqual(public.post(reverse('professional-activate'), payload, format='json').status_code, 400)
         response = public.post(reverse('login'), {'email': email, 'password': self.password}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
-        response = self.complete_staff_login(response)
         self.assertEqual(response.data['user']['role'], User.PHARMACIST)
 
     def test_suspend_and_reactivate_controls_existing_session_and_login(self):
@@ -256,7 +241,7 @@ class AccountJourneyTests(TestCase):
         admin = User.objects.create_user(email='admin.lifecycle@example.test', password=self.password, role=User.ADMIN)
         admin_client = APIClient()
         admin_tokens = admin_client.post(reverse('login'), {'email': admin.email, 'password': self.password}, format='json')
-        admin_tokens = self.complete_staff_login(admin_tokens)
+        self.assertEqual(admin_tokens.status_code, 200)
         admin_client.credentials(HTTP_AUTHORIZATION=f"Bearer {admin_tokens.data['tokens']['access']}")
         self.assertEqual(admin_client.post(reverse('admin-user-suspend', args=[self.user.pk]), {}, format='json').status_code, 200)
         self.assertEqual(self.client.get(reverse('me')).status_code, 401)
@@ -338,7 +323,7 @@ class AccountJourneyTests(TestCase):
         admin = User.objects.create_user(email='onboarding.admin@example.test', password=self.password, role=User.ADMIN)
         admin_client = APIClient()
         admin_login = admin_client.post(reverse('login'), {'email': admin.email, 'password': self.password}, format='json')
-        admin_login = self.complete_staff_login(admin_login)
+        self.assertEqual(admin_login.status_code, 200)
         admin_client.credentials(HTTP_AUTHORIZATION=f"Bearer {admin_login.data['tokens']['access']}")
         for number, provider in enumerate(['doctor', 'pediatrician'], 1):
             with self.subTest(provider=provider):
@@ -370,7 +355,6 @@ class AccountJourneyTests(TestCase):
                 self.assertEqual(public.post(reverse('professional-activate'), payload, format='json').status_code, 400)
                 response = public.post(reverse('login'), {'email': email, 'password': self.password}, format='json')
                 self.assertEqual(response.status_code, 200, response.data)
-                response = self.complete_staff_login(response)
                 self.assertEqual(response.data['user']['role'], provider)
                 public.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['tokens']['access']}")
                 self.assertEqual(public.get(reverse(f'{provider}-dashboard')).status_code, 200)

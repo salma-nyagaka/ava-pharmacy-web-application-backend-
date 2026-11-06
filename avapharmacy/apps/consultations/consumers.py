@@ -6,7 +6,7 @@ from django.contrib.auth.models import AnonymousUser
 try:  # pragma: no cover - optional dependency in local dev
     from channels.db import database_sync_to_async
     from channels.generic.websocket import AsyncJsonWebsocketConsumer
-    from apps.accounts.authentication import MFAJWTAuthentication as JWTAuthentication
+    from rest_framework_simplejwt.authentication import JWTAuthentication
 except Exception:  # pragma: no cover
     AsyncJsonWebsocketConsumer = object
     database_sync_to_async = None
@@ -67,14 +67,6 @@ class ConsultationConsumer(AsyncJsonWebsocketConsumer):  # pragma: no cover - we
         from .models import Consultation
         from .access import can_access_chat
         user = User.objects.filter(pk=self.user.pk).first()
-        from apps.accounts.mfa import require_verified_token
-        from rest_framework.exceptions import APIException
-        if not user:
-            return False
-        try:
-            require_verified_token(user, self.validated_token)
-        except APIException:
-            return False
         consultation = Consultation.objects.select_related('clinician').filter(pk=self.consultation_id).first()
         return bool(consultation and can_access_chat(user, consultation))
 
@@ -90,7 +82,6 @@ class ConsultationConsumer(AsyncJsonWebsocketConsumer):  # pragma: no cover - we
         from rest_framework.exceptions import APIException
         try:
             validated = authenticator.get_validated_token(token)
-            self.validated_token = validated
             return authenticator.get_user(validated)
         except APIException:
             return AnonymousUser()

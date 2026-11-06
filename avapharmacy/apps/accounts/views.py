@@ -83,8 +83,6 @@ class ActiveUserTokenRefreshSerializer(TokenRefreshSerializer):
         user = User.objects.filter(pk=user_id).first()
         if user is None or not user.is_active or user.status != User.STATUS_ACTIVE:
             raise InvalidToken('User account is inactive or no longer exists.')
-        from .mfa import require_verified_token
-        require_verified_token(user, refresh)
         return super().validate(attrs)
 
 
@@ -122,12 +120,6 @@ class RegisterView(generics.CreateAPIView):
                     'expires_at': token.expires_at,
                 },
                 'user': UserSerializer(user).data,
-            }, status=status.HTTP_201_CREATED)
-        from .mfa import required
-        if required(user):
-            return Response({
-                'user': UserSerializer(user).data,
-                'detail': 'Registration successful. Please log in to continue.',
             }, status=status.HTTP_201_CREATED)
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -276,15 +268,6 @@ class LoginView(APIView):
                 reasons=['pending_customer_verification'],
             )
             return Response({'detail': 'Please activate your account via the email we sent you before logging in.'}, status=status.HTTP_403_FORBIDDEN)
-        from .mfa import issue_challenge, required
-        if required(user):
-            with transaction.atomic():
-                user = User.objects.select_for_update().get(pk=user.pk)
-                if not user.is_active or user.status != User.STATUS_ACTIVE or not user.check_password(serializer.validated_data['password']):
-                    return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
-                response = Response(issue_challenge(user))
-                response['Cache-Control'] = 'no-store'
-                return response
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,

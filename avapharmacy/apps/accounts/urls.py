@@ -8,7 +8,6 @@ password change, addresses) and admin-only user management endpoints.
 from django.urls import path
 from . import views
 from .record_stats import AdminRecordStatsView
-from .mfa_views import MFAView, MFASetupView, MFAConfirmView
 
 urlpatterns = [
     path('auth/confirm-email-change/', views.ConfirmEmailChangeView.as_view(), name='confirm-email-change'),
@@ -23,9 +22,6 @@ urlpatterns = [
     path('compliance/pharmacist-credentials/<int:pk>/suspend/', credential_api.PharmacistCredentialSuspendView.as_view(), name='pharmacist-credential-suspend'),
     path('auth/register/', views.RegisterView.as_view(), name='register'),
     path('auth/login/', views.LoginView.as_view(), name='login'),
-    path('auth/mfa/setup/', MFASetupView.as_view(), name='mfa-setup'),
-    path('auth/mfa/confirm/', MFAConfirmView.as_view(), name='mfa-confirm'),
-    path('auth/mfa/verify/', MFAView.as_view(), name='mfa-verify'),
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     path('auth/verify-email/', views.VerifyEmailView.as_view(), name='verify-email'),
     path('auth/resend-verification/', views.ResendVerificationView.as_view(), name='resend-verification'),
