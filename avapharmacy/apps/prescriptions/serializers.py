@@ -1,4 +1,10 @@
+from django.utils import timezone
+from .compliance import EVIDENCE_FIELDS, approval_error, working_day_due
 from rest_framework import serializers
+from django.core import signing
+from django.urls import reverse
+from urllib.parse import urlencode
+from pathlib import PurePosixPath
 from .models import (
     Prescription,
     PrescriptionFile,
@@ -35,7 +41,11 @@ class PrescriptionFileSerializer(serializers.ModelSerializer):
         if not _prescription_file_exists(obj):
             return ''
         try:
-            return obj.file.url
+            request = self.context.get('request')
+            if not request or not request.user.is_authenticated:
+                return ''
+            token = signing.dumps({'file': obj.pk, 'user': request.user.pk}, salt='prescription-download')
+            return request.build_absolute_uri(reverse('prescription-file-download-named', args=[obj.prescription_id, obj.pk, PurePosixPath(obj.filename or obj.file.name).name]) + '?' + urlencode({'token': token}))
         except Exception:
             return ''
 
@@ -140,7 +150,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
         model = Prescription
         fields = (
             'id', 'reference', 'patient', 'patient_name', 'patient_name_display',
-            'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'clinician_type', 'clinician_prescription', 'status', 'dispatch_status',
+            *EVIDENCE_FIELDS[1:], 'verified_by', 'verified_at', 'original_due_on', 'legal_hold', 'doctor_name', 'pharmacist', 'pharmacist_name', 'source', 'clinician_type', 'clinician_prescription', 'status', 'dispatch_status',
             'notes', 'pharmacist_notes', 'clarification_message',
             'files', 'items', 'audit_logs', 'review_decisions', 'clarification_messages', 'is_overdue',
             'resubmitted_at', 'submitted_at', 'updated_at'
@@ -186,7 +196,10 @@ class PrescriptionUploadItemSerializer(serializers.Serializer):
 
 class PrescriptionUploadSerializer(serializers.Serializer):
     patient_name = serializers.CharField(max_length=200)
-    doctor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    doctor_name = serializers.CharField(
+        max_length=200,
+        error_messages={'required': 'Enter the prescribing doctor’s name.', 'blank': 'Enter the prescribing doctor’s name.'},
+    )
     notes = serializers.CharField(required=False, allow_blank=True)
     items = PrescriptionUploadItemSerializer(many=True, required=False)
     bot_challenge_token = serializers.CharField(required=False, allow_blank=True, write_only=True)
@@ -196,6 +209,7 @@ class PrescriptionUploadSerializer(serializers.Serializer):
         child=serializers.FileField(),
         min_length=1,
         max_length=5,
+        error_messages={'max_length': 'You can upload up to 5 prescription files.'},
     )
 
 
@@ -204,39 +218,55 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Prescription
-        fields = ('status', 'dispatch_status', 'pharmacist_notes', 'items')
+        fields = ('status', 'dispatch_status', 'pharmacist_notes', 'items', *EVIDENCE_FIELDS)
 
     def validate(self, attrs):
-        next_status = attrs.get('status', self.instance.status)
-        items_data = attrs.get('items')
-        if next_status != Prescription.STATUS_APPROVED:
-            return attrs
-
-        if items_data is None:
-            missing_products = list(
-                self.instance.items.filter(product__isnull=True).values_list('name', flat=True)
-            )
-        else:
-            missing_products = [
-                item.get('name') or 'Unnamed item'
-                for item in items_data
-                if not (item.get('variant_id') or item.get('product_id'))
-            ]
-
-        if missing_products:
-            raise serializers.ValidationError({
-                'items': (
-                    'Approved prescriptions require every item to be mapped to a product. '
-                    f'Missing mappings: {", ".join(missing_products)}.'
-                )
-            })
+        instance = self.instance
+        if attrs.get('items') is not None and instance.status == 'approved':
+            raise serializers.ValidationError({'items': 'Approved prescriptions are permanent; issue a new prescription to change medication.'})
+        if attrs.get('items') is not None and instance.items.filter(order_items__isnull=False).exists():
+            raise serializers.ValidationError({'items': 'Items linked to an order cannot be replaced.'})
+        next_status = attrs.get('status', instance.status)
+        items = attrs.get('items')
+        if next_status == Prescription.STATUS_APPROVED:
+            import copy
+            candidate = copy.copy(instance)
+            for field in EVIDENCE_FIELDS:
+                if field in attrs:
+                    setattr(candidate, field, attrs[field])
+            if any(field in attrs for field in EVIDENCE_FIELDS):
+                candidate.verified_by = self.context['request'].user
+                candidate.verified_at = timezone.now()
+            error = approval_error(candidate)
+            if error:
+                raise serializers.ValidationError({'verification': error})
+            rows = items if items is not None else list(instance.items.values('name', 'product_id', 'variant_id', 'quantity', 'is_controlled_substance'))
+            if not rows:
+                raise serializers.ValidationError({'items': 'At least one mapped medication is required.'})
+            for row in rows:
+                variant = Variant.objects.filter(pk=row.get('variant_id'), is_active=True, product__is_active=True).first()
+                if not variant or (row.get('product_id') and row['product_id'] != variant.product_id):
+                    raise serializers.ValidationError({'items': 'Select the exact active catalog variant for every medication.'})
+                from apps.products.compliance import supply_error
+                error = supply_error(variant)
+                if error:
+                    raise serializers.ValidationError({'items': f'{variant.product.name}: {error}'})
+                from .views import _is_controlled_substance
+                if row.get('is_controlled_substance') or _is_controlled_substance(row.get('name'), instance.notes, variant.product.name, variant.name):
+                    raise serializers.ValidationError({'items': 'Controlled drugs cannot be supplied online.'})
+                if row.get('quantity', 0) < 1:
+                    raise serializers.ValidationError({'items': 'Quantity must be at least 1.'})
+        dispatch = attrs.get('dispatch_status', instance.dispatch_status)
+        if dispatch != instance.dispatch_status:
+            states = [value for value, _ in Prescription.DISPATCH_CHOICES]
+            if next_status != Prescription.STATUS_APPROVED or states.index(dispatch) != states.index(instance.dispatch_status) + 1:
+                raise serializers.ValidationError({'dispatch_status': 'Approve the prescription and progress through queued, packed, dispatched, delivered in order.'})
+        if next_status in [Prescription.STATUS_REJECTED, Prescription.STATUS_CLARIFICATION] and not (attrs.get('pharmacist_notes') or instance.pharmacist_notes).strip():
+            raise serializers.ValidationError({'pharmacist_notes': 'Enter the rejection reason.'})
         return attrs
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
         if items_data is not None:
             instance.items.all().delete()
             for item_data in items_data:
@@ -244,12 +274,16 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
                 variant_id = item_data.pop('variant_id', None)
                 if variant_id and not product_id:
                     product_id = Variant.objects.filter(pk=variant_id).values_list('product_id', flat=True).first()
-                PrescriptionItem.objects.create(
-                    prescription=instance,
-                    product_id=product_id,
-                    variant_id=variant_id,
-                    **item_data,
-                )
+                PrescriptionItem.objects.create(prescription=instance, product_id=product_id, variant_id=variant_id, **item_data)
+        if any(field in validated_data for field in EVIDENCE_FIELDS):
+            instance.verified_by = self.context['request'].user
+            instance.verified_at = timezone.now()
+            instance.original_due_on = instance.original_due_on or working_day_due(timezone.localdate(instance.submitted_at))
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if 'status' in validated_data:
+            instance.clarification_message = instance.pharmacist_notes if instance.status in [Prescription.STATUS_REJECTED, Prescription.STATUS_CLARIFICATION] else ''
+        instance.save()
         return instance
 
 
@@ -265,6 +299,8 @@ class PharmacistPrescriptionReviewItemSerializer(serializers.Serializer):
     dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
     frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
     quantity = serializers.IntegerField(min_value=1)
+    duration = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    quantity_measurement = serializers.CharField(max_length=60, required=False, allow_blank=True)
 
     def validate(self, attrs):
         product_id = attrs.get('product_id')
@@ -291,6 +327,15 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
         (ACTION_REQUEST_CLARIFICATION, 'Request Clarification'),
     ]
 
+    doctor_name = serializers.CharField(required=False, allow_blank=True)
+    prescriber_registration = serializers.CharField(required=False, allow_blank=True)
+    prescriber_verification_reference = serializers.CharField(required=False, allow_blank=True)
+    authenticity_method = serializers.CharField(required=False, allow_blank=True)
+    authenticity_evidence = serializers.CharField(required=False, allow_blank=True)
+    original_receipt_reference = serializers.CharField(required=False, allow_blank=True)
+    prescribed_on = serializers.DateField(required=False)
+    valid_until = serializers.DateField(required=False)
+    original_received_at = serializers.DateTimeField(required=False, allow_null=True)
     action = serializers.ChoiceField(choices=ACTION_CHOICES)
     notes = serializers.CharField(required=False, allow_blank=True)
     items = PharmacistPrescriptionReviewItemSerializer(many=True, required=False)
@@ -308,7 +353,7 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
                 missing_products = [
                     item.get('name') or 'Unnamed item'
                     for item in items
-                    if not (item.get('variant_id') or item.get('product_id'))
+                    if not item.get('variant_id')
                 ]
                 if missing_products:
                     raise serializers.ValidationError({
@@ -320,12 +365,20 @@ class PharmacistPrescriptionReviewSerializer(serializers.Serializer):
         return attrs
 
 
+class PendingPrescriptionEditSerializer(serializers.Serializer):
+    patient_name = serializers.CharField(max_length=200)
+    doctor_name = serializers.CharField(max_length=200)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    files = serializers.ListField(child=serializers.FileField(), required=False, max_length=5)
+
+
 class PrescriptionResubmitSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
     files = serializers.ListField(
         child=serializers.FileField(),
         required=False,
         max_length=5,
+        error_messages={'max_length': 'You can upload up to 5 prescription files.'},
     )
 
 

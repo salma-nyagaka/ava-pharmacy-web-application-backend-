@@ -1,0 +1,87 @@
+[
+  {
+    "method": "POST",
+    "path": "/auth/login/",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/professionals/register/",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/admin/doctors/1/action/",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login/",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/auth/professional/activate/",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/professional/activate/",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login/",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/doctor/dashboard/",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/admin/users/",
+    "status": 403
+  },
+  {
+    "method": "POST",
+    "path": "/professionals/register/",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/admin/pediatricians/2/action/",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login/",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/auth/professional/activate/",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/professional/activate/",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login/",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/pediatrician/dashboard/",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/admin/users/",
+    "status": 403
+  }
+]

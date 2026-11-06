@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import catalogue_fixture, grant_clinical_credentials
 import json
 import io
 from datetime import timedelta
@@ -112,7 +113,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('1000.00'),
             cost_price=Decimal('600.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'cost_price', 'is_active')))
         self.assertEqual(product.brand, brand)
 
         promotion_response = self.client.post(
@@ -276,6 +277,7 @@ class AdminCatalogAndWishlistTests(TestCase):
         self.assertTrue(product.sku.startswith('PRD-NOPRODUCTBARCODEPRODUCT'))
 
     def test_admin_can_create_variant_with_medication_fields(self):
+        grant_clinical_credentials(self.admin)
         self.client.force_authenticate(self.admin)
         product = Product.objects.create(
             sku='PARENT-001',
@@ -394,14 +396,14 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Panadol Extra',
             price=Decimal('150.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         variant_b = product.variants.create(
             sku='PANADOL-FLU',
             name='Panadol Flu Gone',
             price=Decimal('175.00'),
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('sku', 'name', 'price', 'requires_prescription', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=variant_a,
             location=Product.STOCK_BRANCH,
@@ -440,13 +442,13 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Panadol Normal',
             price=Decimal('120.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         product.variants.create(
             sku='PANADOL-EXTRA-2',
             name='Panadol Extra',
             price=Decimal('150.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         response = self.client.get(reverse('products'))
 
@@ -472,7 +474,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Detail Variant',
             price=Decimal('120.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         response = self.client.get(reverse('product-detail-by-id', kwargs={'pk': variant.id}))
 
@@ -495,7 +497,7 @@ class AdminCatalogAndWishlistTests(TestCase):
                 name=f'Stocked {index}',
                 price=Decimal('100.00'),
                 is_active=True,
-            )
+            **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
             VariantInventory.objects.create(
                 variant=variant,
                 location=Product.STOCK_BRANCH,
@@ -511,7 +513,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='No Stock Latest',
             price=Decimal('100.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.create(
             variant=no_stock_variant,
             location=Product.STOCK_BRANCH,
@@ -555,7 +557,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Visible Variant',
             price=Decimal('120.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         hidden_product = Product.objects.create(
             sku='HIDDEN-PARENT',
             name='Hidden Product',
@@ -568,7 +570,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Hidden Variant',
             price=Decimal('150.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         brands_response = self.client.get(reverse('brands'))
         self.assertEqual(brands_response.status_code, 200)
@@ -631,7 +633,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Active Variant',
             price=Decimal('120.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         inactive_product = Product.objects.create(
             sku='INACTIVE-PARENT',
             name='Inactive Product',
@@ -643,7 +645,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Inactive Variant',
             price=Decimal('150.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         products_response = self.client.get(reverse('products'))
         self.assertEqual(products_response.status_code, 200)
@@ -714,7 +716,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Panadol Cold and Flu',
             price=Decimal('180.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         response = self.client.get(reverse('admin-inventory'))
 
@@ -750,7 +752,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             pos_product_id='POS-250',
             price=Decimal('150.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'strength', 'pos_product_id', 'price', 'is_active')))
 
         response = self.client.get(reverse('admin-pos-product-options'))
         self.assertEqual(response.status_code, 200)
@@ -760,7 +762,7 @@ class AdminCatalogAndWishlistTests(TestCase):
 
         self.assertEqual(variant_item['source'], 'variant')
         self.assertEqual(variant_item['variant_name'], '250mg - 10 tablets')
-        self.assertEqual(product_item['source'], 'product')
+        self.assertEqual(product_item['source'], 'variant')
 
     def test_admin_brand_create_accepts_image_alias(self):
         self.client.force_authenticate(self.admin)
@@ -835,7 +837,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('120.00'),
             stock_quantity=8,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'stock_quantity', 'is_active')))
         variant = product.variants.get(sku='WISH-VAR-001-TAB')
         wishlist = Wishlist.objects.create(user=self.customer, variant=variant)
 
@@ -859,7 +861,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('300.00'),
             stock_quantity=5,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'stock_quantity', 'is_active')))
 
         response = self.client.patch(
             reverse('admin-inventory-adjust', args=[product.id]),
@@ -933,7 +935,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Tablets',
             price=Decimal('500.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=variant,
             location=Product.STOCK_BRANCH,
@@ -984,7 +986,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Tablets',
             price=Decimal('250.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         self.client.force_authenticate(self.customer)
         self.client.post(reverse('wishlist'), {'product_id': product.id}, format='json')
         response = self.client.post(reverse('wishlist'), {'product_id': product.id}, format='json')
@@ -1002,7 +1004,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('1000.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         today = timezone.now().date()
         Promotion.objects.create(
             title='Badge Promotion',
@@ -1031,7 +1033,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('1000.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         response = self.client.get(reverse('products'))
         self.assertEqual(response.status_code, 200)
@@ -1049,7 +1051,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('1000.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         response = self.client.get(reverse('products'))
         self.assertEqual(response.status_code, 200)
@@ -1079,7 +1081,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('1500.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         best_seller = Product.objects.create(
             sku='TOP-002',
             name='Best Seller',
@@ -1091,7 +1093,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('1200.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         unrated = Product.objects.create(
             sku='TOP-003',
             name='No Ratings Yet',
@@ -1103,7 +1105,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('900.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         VariantReview.objects.create(
             variant=top_rated_variant,
@@ -1166,7 +1168,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('1500.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         next_product = Product.objects.create(
             sku='FALLBACK-002',
             name='Next Seller',
@@ -1178,7 +1180,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('1200.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         low_rated_product = Product.objects.create(
             sku='FALLBACK-003',
             name='Low Rated Product',
@@ -1190,7 +1192,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('900.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
 
         VariantReview.objects.create(
             variant=low_rated_variant,
@@ -1281,7 +1283,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('800.00'),
             requires_prescription=False,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'requires_prescription', 'is_active')))
         prescription_product = Product.objects.create(
             sku='RX-001',
             name='Prescription Antibiotic',
@@ -1294,7 +1296,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             price=Decimal('1500.00'),
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('sku', 'name', 'price', 'requires_prescription', 'is_active')))
 
         VariantReview.objects.create(
             variant=otc_variant,
@@ -1329,7 +1331,7 @@ class AdminCatalogAndWishlistTests(TestCase):
             name='Standard',
             price=Decimal('500.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         delivered_order = Order.objects.create(
             customer=self.customer,
             status=Order.STATUS_DELIVERED,

@@ -1,0 +1,8 @@
+{
+  "http_status": 200,
+  "application_response": {
+    "ResultCode": 1,
+    "ResultDesc": "Payment intent not found."
+  },
+  "origin": "Controlled route/authentication probe; not a provider payment confirmation"
+}

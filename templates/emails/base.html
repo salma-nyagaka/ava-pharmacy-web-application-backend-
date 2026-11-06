@@ -27,7 +27,7 @@
           <tr>
             <td style="padding:0 24px 24px;">
               <p style="margin:0;font-size:12px;line-height:1.7;color:#8a91a8;">
-                {% block footnote %}AVA Pharmacy transactional email{% endblock %}
+                {% block footnote %}AVA Pharmacy transactional email{% endblock %}<br>Superintendent: {{ pharmacy.superintendent_name|default:"Awaiting verification" }} · Registration: {{ pharmacy.superintendent_registration_number|default:"Awaiting verification" }} · Health safety code: {{ pharmacy.health_safety_code|default:"Awaiting verification" }}
               </p>
             </td>
           </tr>

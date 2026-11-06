@@ -95,6 +95,9 @@ def _serialize_consultation_prescription_item(item):
         'dose': item.get('dose') or item.get('dosage') or '',
         'frequency': item.get('frequency') or '',
         'duration': item.get('duration') or '',
+        'duration_value': item.get('duration_value'),
+        'duration_unit': item.get('duration_unit') or '',
+        'duration_notation': item.get('duration_notation') or '',
         'quantity': item.get('quantity') or 1,
         'notes': item.get('notes') or item.get('note') or '',
         'catalog_name': item.get('catalog_name') or '',
@@ -224,6 +227,17 @@ class PediatricianProfileListSerializer(serializers.ModelSerializer):
         )
 
 
+class PublicClinicianProfileSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='provider_type', read_only=True)
+    class Meta:
+        model = ClinicianProfile
+        fields = (
+            'id', 'reference', 'name', 'type', 'specialty', 'facility', 'consult_fee',
+            'rating', 'availability', 'availability_schedule', 'status', 'bio',
+            'languages', 'consult_modes', 'years_experience', 'county',
+        )
+
+
 class BaseClinicianOnboardingSerializer(serializers.ModelSerializer):
     documents = serializers.ListField(child=serializers.FileField(), required=False, write_only=True)
     document_names = serializers.ListField(child=serializers.CharField(), required=False, write_only=True)
@@ -322,6 +336,19 @@ class ChildPatientSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not attrs.get('date_of_birth') and attrs.get('age_years') is None and self.instance is None:
             raise serializers.ValidationError({'age_years': 'Provide age or date of birth.'})
+        from django.utils import timezone
+        birth = attrs.get('date_of_birth')
+        if birth:
+            today = timezone.localdate()
+            if birth > today:
+                raise serializers.ValidationError({'date_of_birth': 'Date of birth cannot be in the future.'})
+            attrs['age_years'] = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+        age = attrs.get('age_years')
+        if age is not None and not 0 <= age <= 18:
+            raise serializers.ValidationError({'age_years': 'Pediatric profiles must be aged 0 to 18 years.'})
+        for field in ('weight_kg', 'height_cm', 'bmi', 'muac_cm', 'blood_glucose_mmol_l'):
+            if attrs.get(field) is not None and attrs[field] <= 0:
+                raise serializers.ValidationError({field: 'Enter a value greater than zero, or leave this measurement blank.'})
         return attrs
 
     def create(self, validated_data):
@@ -347,12 +374,14 @@ class AdminDoctorUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = ('status', 'status_note', 'rejection_note', 'commission', 'consult_fee', 'verified_at')
+        read_only_fields = ('commission', 'consult_fee')
 
 
 class AdminPediatricianUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = ('status', 'status_note', 'rejection_note', 'commission', 'consult_fee', 'verified_at')
+        read_only_fields = ('commission', 'consult_fee')
 
 
 class ConsultationMessageSerializer(serializers.ModelSerializer):
@@ -364,6 +393,11 @@ class ConsultationMessageSerializer(serializers.ModelSerializer):
         model = ConsultationMessage
         fields = ('id', 'sender', 'sender_name', 'message', 'message_type', 'attachment', 'attachment_url', 'sent_at')
         read_only_fields = ('id', 'sender', 'sender_name', 'attachment_url', 'sent_at')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['attachment'] = data['attachment_url'] or None
+        return data
 
     def get_attachment_url(self, obj):
         if not obj.attachment:
@@ -378,6 +412,8 @@ class ConsultationMessageSerializer(serializers.ModelSerializer):
         message = attrs.get('message', '').strip()
         attachment = attrs.get('attachment')
         message_type = attrs.get('message_type', ConsultationMessage.TYPE_TEXT)
+        if attachment and attachment.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError({'attachment': 'Choose a file smaller than 10 MB.'})
         if not message and not attachment:
             raise serializers.ValidationError('Provide a message or attachment.')
         if message_type == ConsultationMessage.TYPE_IMAGE and attachment is None:
@@ -418,21 +454,41 @@ class ConsultationListSerializer(serializers.ModelSerializer):
     doctor = serializers.SerializerMethodField()
     pediatrician = serializers.SerializerMethodField()
     doctor_name = serializers.ReadOnlyField(source='provider_name')
+    patient = serializers.SerializerMethodField()
     patient_name = serializers.SerializerMethodField()
+    patient_email = serializers.SerializerMethodField()
+    patient_phone = serializers.SerializerMethodField()
     issue = serializers.SerializerMethodField()
     prescriptions = serializers.SerializerMethodField()
     messages = serializers.SerializerMethodField()
+    child_snapshot = serializers.SerializerMethodField()
+    guardian_snapshot = serializers.SerializerMethodField()
 
     class Meta:
         model = Consultation
         fields = (
-            'id', 'reference', 'doctor', 'pediatrician', 'doctor_name', 'patient_name', 'issue',
+            'id', 'reference', 'doctor', 'pediatrician', 'doctor_name', 'patient', 'patient_name', 'patient_email', 'patient_phone', 'issue',
             'status', 'priority', 'requested_specialty', 'is_pediatric', 'child_patient',
             'guardian_name', 'child_name', 'child_age', 'weight_kg', 'height_cm', 'bmi', 'muac_cm',
             'blood_glucose_mmol_l', 'consent_status', 'dosage_alert',
             'last_message_at', 'created_at',
-            'messages', 'prescriptions'
+            'messages', 'prescriptions', 'child_snapshot', 'guardian_snapshot'
         )
+
+    def get_patient(self, obj):
+        return None if self._is_limited_open_queue_record(obj) else obj.patient_id
+
+    def get_patient_email(self, obj):
+        return '' if self._is_limited_open_queue_record(obj) else obj.patient_email
+
+    def get_patient_phone(self, obj):
+        return '' if self._is_limited_open_queue_record(obj) else obj.patient_phone
+
+    def get_child_snapshot(self, obj):
+        return {} if self._is_limited_open_queue_record(obj) else obj.child_snapshot
+
+    def get_guardian_snapshot(self, obj):
+        return {} if self._is_limited_open_queue_record(obj) else obj.guardian_snapshot
 
     def get_doctor(self, obj):
         return obj.clinician_id if obj.clinician and obj.clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None
@@ -482,13 +538,14 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
     doctor = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     pediatrician = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     child_patient_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    guardian_consent = serializers.BooleanField(required=False, write_only=True)
 
     class Meta:
         model = Consultation
         fields = (
             'doctor', 'pediatrician', 'patient_name', 'patient_email', 'patient_phone',
             'patient_age', 'issue', 'requested_specialty', 'priority', 'scheduled_at', 'is_pediatric',
-            'child_patient_id', 'guardian_name', 'child_name',
+            'child_patient_id', 'guardian_consent', 'guardian_name', 'child_name',
             'child_age', 'weight_kg', 'height_cm', 'bmi', 'muac_cm', 'blood_glucose_mmol_l'
         )
 
@@ -500,7 +557,7 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
         return ''
 
     def _default_doctor_for_issue(self, issue, requested_specialty=''):
-        doctors = ClinicianProfile.objects.doctors().active().select_related('user').order_by('id')
+        doctors = ClinicianProfile.objects.doctors().active().filter(user__is_active=True, user__status='active').select_related('user').order_by('id')
         preferred_specialty = (requested_specialty or self._preferred_specialty_from_issue(issue)).strip()
         if preferred_specialty:
             specialty_doctors = doctors.filter(specialty__iexact=preferred_specialty)
@@ -510,6 +567,7 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
         return doctors.first()
 
     def create(self, validated_data):
+        validated_data.pop('guardian_consent', None)
         validated_data.pop('_billing_clinician', None)
         open_doctor_queue = validated_data.pop('_open_doctor_queue', False)
         if open_doctor_queue:
@@ -539,10 +597,12 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
             attrs['_open_doctor_queue'] = True
         if clinician is None:
             raise serializers.ValidationError('A doctor or pediatrician is required.')
+        if not clinician.eligible_to_practice:
+            raise serializers.ValidationError('A currently verified Kenyan clinician with an unexpired licence is required.')
         if clinician.status != ClinicianProfile.STATUS_ACTIVE:
             field = 'pediatrician' if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else 'doctor'
             raise serializers.ValidationError({field: 'Selected clinician is not active.'})
-        if clinician.user_id and (not clinician.user.is_active or clinician.user.status != 'active'):
+        if not clinician.user_id or not clinician.user.is_active or clinician.user.status != 'active':
             field = 'pediatrician' if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else 'doctor'
             raise serializers.ValidationError({field: 'Selected clinician account is not active.'})
         if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN:
@@ -555,6 +615,8 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'child_patient_id': 'Selected child does not belong to this guardian.'})
             attrs['child_patient'] = child
             attrs['is_pediatric'] = True
+            if attrs.get('guardian_consent'):
+                attrs['consent_status'] = 'granted'
             attrs['guardian_name'] = attrs.get('guardian_name') or (user.full_name if user else child.guardian.full_name)
             attrs['child_name'] = child.full_name
             attrs['child_age'] = child.age_years
@@ -722,11 +784,14 @@ def validate_clinician_prescription_items(items):
 
         dose = str(item.get('dose') or item.get('dosage') or '').strip()
         frequency = str(item.get('frequency') or '').strip()
-        duration = str(item.get('duration') or '').strip()
         quantity_measurement = str(item.get('quantity_measurement') or item.get('measurement') or 'unit(s)').strip()
         item['dose'] = dose
         item['frequency'] = frequency
-        item['duration'] = duration
+        from .duration import normalize_duration
+        try:
+            item.update(normalize_duration(item))
+        except ValueError as exc:
+            raise serializers.ValidationError({index: {'duration': str(exc)}})
         item['quantity_measurement'] = quantity_measurement
 
         if variant_id:
@@ -760,21 +825,34 @@ def validate_clinician_prescription_items(items):
     return validated
 
 
-class DoctorEarningSerializer(serializers.ModelSerializer):
+class EarningPayoutMixin:
+    def get_payout(self, obj):
+        if not obj.consultation_id or not obj.clinician.user_id:
+            return None
+        from apps.payouts.models import Payout
+        payout = Payout.objects.filter(recipient_id=obj.clinician.user_id, source_type='consultation', source_reference=obj.consultation.reference).first()
+        if not payout:
+            return None
+        return {'reference': payout.reference, 'status': payout.status, 'reconciliation_status': payout.reconciliation_status, 'amount': str(payout.amount), 'paid_at': payout.paid_at, 'execution_mode': 'administrative_record'}
+
+
+class DoctorEarningSerializer(EarningPayoutMixin, serializers.ModelSerializer):
+    payout = serializers.SerializerMethodField()
     doctor = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_DOCTOR, source='clinician', required=False, allow_null=True)
 
     class Meta:
         model = ClinicianEarning
-        fields = ('id', 'doctor', 'consultation', 'amount', 'description', 'earned_at')
+        fields = ('id', 'doctor', 'consultation', 'amount', 'description', 'earned_at', 'payout')
         read_only_fields = ('id', 'earned_at')
 
 
-class PediatricianEarningSerializer(serializers.ModelSerializer):
+class PediatricianEarningSerializer(EarningPayoutMixin, serializers.ModelSerializer):
+    payout = serializers.SerializerMethodField()
     pediatrician = ClinicianCompatibilityField(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN, source='clinician', required=False, allow_null=True)
 
     class Meta:
         model = ClinicianEarning
-        fields = ('id', 'pediatrician', 'consultation', 'amount', 'description', 'earned_at')
+        fields = ('id', 'pediatrician', 'consultation', 'amount', 'description', 'earned_at', 'payout')
         read_only_fields = ('id', 'earned_at')
 
 
@@ -788,6 +866,7 @@ class DoctorOnboardingAvailabilityStepSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = ('consult_fee', 'currency', 'availability_schedule')
+        read_only_fields = ('consult_fee', 'currency')
 
     def validate_availability_schedule(self, value):
         if not isinstance(value, list):

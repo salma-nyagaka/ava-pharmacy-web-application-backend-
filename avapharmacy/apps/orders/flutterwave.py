@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-from urllib import error, request
+from urllib import error, request, parse
 
 from django.conf import settings
 
@@ -80,6 +80,9 @@ class FlutterwaveClient:
 
     def verify_transaction(self, transaction_id):
         return self._request('GET', f'/v3/transactions/{transaction_id}/verify')
+
+    def verify_transaction_by_reference(self, reference):
+        return self._request('GET', '/v3/transactions/verify_by_reference?' + parse.urlencode({'tx_ref': reference}))
 
     def verify_signature(self, raw_body, headers):
         signature = (

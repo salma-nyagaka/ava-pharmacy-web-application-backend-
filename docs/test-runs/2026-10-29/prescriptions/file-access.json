@@ -1,0 +1,7 @@
+{
+  "test": "Unauthenticated prescription file request",
+  "http": 200,
+  "content_type": "application/pdf",
+  "bytes": 1814,
+  "is_pdf": true
+}

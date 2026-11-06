@@ -5,15 +5,17 @@ Provides public catalog endpoints (categories, brands, products, reviews,
 wishlist, banners, CMS blocks, promotions) and admin-only endpoints for full
 CRUD on all catalog entities, inventory adjustment, and CMS management.
 """
+from decimal import Decimal
 from django.conf import settings
 from django.http import Http404
 from django.db import models
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, Exists, F, OuterRef, Q, Sum, Window
 from django.db.models import Prefetch
 from django.db.models.functions import Coalesce
+from django.db.models.functions.window import RowNumber
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, serializers as drf_serializers, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
@@ -24,11 +26,17 @@ from apps.accounts.utils import log_admin_action
 from avapharmacy.security import verify_hmac_signature
 
 from .filters import ProductFilter, VariantInventoryFilter
-from .inventory_sync import apply_inventory_sync, normalize_inventory_payload
-from .models import Banner, Brand, Category, CMSBlock, FAQ, HealthConcern, Product, ProductImage, Promotion, StockMovement, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, annotate_product_inventory, annotate_variant_inventory
+from .inventory_sync import (
+    InventoryTargetError,
+    apply_inventory_sync,
+    normalize_inventory_payload,
+    resolve_variant_inventory_target,
+)
+from .models import Banner, Brand, Category, CMSBlock, FAQ, HealthConcern, Product, ProductImage, Promotion, StockMovement, Store, StoreVariantListing, Subcategory, Variant, VariantInventory, VariantReview, Wishlist, annotate_product_inventory, annotate_variant_inventory
 from .pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from .serializers import (
     AdminProductSerializer,
+    AdminProductTableSerializer,
     BannerSerializer,
     BrandSerializer,
     CMSBlockSerializer,
@@ -40,26 +48,83 @@ from .serializers import (
     ProductImageSerializer,
     ProductListSerializer,
     AdminInventoryItemSerializer,
+    AdminStoreVariantListingSerializer,
+    AdminStoreSerializer,
     PublicInventoryItemSerializer,
     VariantReviewSerializer,
     AdminVariantSerializer,
     VariantSerializer,
     PromotionSerializer,
     StockMovementSerializer,
+    StoreSerializer,
     SubcategorySerializer,
     WishlistSerializer,
 )
+from .admin_cache import CachedAdminListMixin
 from .services import get_active_promotions_queryset
 
 
 def _coerce_non_negative_int(value):
-    return max(0, int(value))
+    if isinstance(value, bool) or value is None:
+        raise ValueError('Quantity must be a non-negative integer.')
+    parsed = int(value)
+    if parsed < 0 or str(parsed) != str(value).strip():
+        raise ValueError('Quantity must be a non-negative integer.')
+    return parsed
 
 
 def _coerce_bool(value):
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {'true', '1', 'yes', 'on'}
+
+
+def _inventory_prefetch(lookup='inventories', *, public=False):
+    queryset = VariantInventory.objects.select_related('store_listing__store')
+    if public:
+        queryset = queryset.filter(
+            Q(store_listing__isnull=True)
+            | Q(store_listing__is_active=True, store_listing__store__is_active=True)
+        )
+    return Prefetch(lookup, queryset=queryset)
+
+
+def _inventory_selector(item, *, prefix=''):
+    listing_key = f'{prefix}store_listing_id' if prefix else 'store_listing_id'
+    store_key = f'{prefix}store_code' if prefix else 'store_code'
+    batch_key = f'{prefix}batch_number' if prefix else 'batch_number'
+    return {
+        'store_listing_id': item.get(listing_key, item.get('store_listing_id')),
+        'store_code': item.get(store_key, item.get('store_code', '')),
+        'batch_number': item.get(batch_key, item.get('batch_number', '')),
+    }
+
+
+def _invalid_inventory_result(item, exc):
+    return {
+        'sku': item.get('sku'),
+        'product_id': item.get('product_id'),
+        'variant_id': item.get('variant_id'),
+        'code': getattr(exc, 'code', 'invalid_inventory_target'),
+        'message': str(exc),
+    }
+
+
+def _resolve_or_create_inventory(variant, location, item, *, prefix=''):
+    selector = _inventory_selector(item, prefix=prefix)
+    inventory, listing = resolve_variant_inventory_target(
+        variant,
+        location=location,
+        **selector,
+    )
+    if inventory is None:
+        inventory = VariantInventory.objects.create(
+            variant=variant,
+            store_listing=listing,
+            location=location,
+            batch_number=selector['batch_number'],
+        )
+    return inventory
 
 
 def annotate_product_reviews(queryset):
@@ -83,15 +148,16 @@ def annotate_product_units_sold(queryset):
 
 
 def annotate_variant_reviews(queryset):
+    # A separate aggregation avoids multiplying stock rows by the review count.
+    approved = VariantReview.objects.filter(variant_id=OuterRef('pk'), is_approved=True).order_by().values('variant_id')
     return queryset.annotate(
-        approved_average_rating=models.Avg(
-            'reviews__rating',
-            filter=models.Q(reviews__is_approved=True),
+        approved_average_rating=Coalesce(
+            models.Subquery(approved.annotate(value=Avg('rating')).values('value')[:1], output_field=models.FloatField()),
+            models.Value(0.0),
         ),
-        approved_review_count=models.Count(
-            'reviews',
-            filter=models.Q(reviews__is_approved=True),
-            distinct=True,
+        approved_review_count=Coalesce(
+            models.Subquery(approved.annotate(value=Count('pk')).values('value')[:1]),
+            models.Value(0),
         ),
     )
 
@@ -108,7 +174,7 @@ def public_variant_queryset():
         product__is_active=True,
     ).filter(
         Q(product__brand__isnull=True) | Q(product__brand__is_active=True)
-    )
+    ).prefetch_related(_inventory_prefetch(public=True))
 
 
 def annotate_product_variant_catalog(queryset):
@@ -154,6 +220,15 @@ class PromotionContextMixin:
         return context
 
 
+class AdminOrderingFilter(OrderingFilter):
+    """Stable page boundaries when multiple rows share a sort value."""
+    def get_ordering(self, request, queryset, view):
+        ordering = list(super().get_ordering(request, queryset, view) or [])
+        if not any(field.lstrip('-') in {'pk', 'id'} for field in ordering):
+            ordering.append('-pk' if '-created_at' in ordering else 'pk')
+        return ordering
+
+
 class ProductListPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 200
@@ -162,10 +237,38 @@ class ProductListPagination(PageNumberPagination):
 class CategoryListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = CategorySerializer
+    pagination_class = None
 
     def get_queryset(self):
+        public_stock = VariantInventory.objects.filter(
+            variant_id=OuterRef('pk'),
+            stock_quantity__gt=0,
+        ).filter(
+            Q(store_listing__isnull=True)
+            | Q(store_listing__is_active=True, store_listing__store__is_active=True)
+        )
+        navigation_variants = (
+            Variant.objects.filter(
+                is_active=True,
+                product__is_active=True,
+            )
+            .filter(Q(product__brand__isnull=True) | Q(product__brand__is_active=True))
+            .annotate(has_public_stock=Exists(public_stock))
+            .filter(has_public_stock=True)
+            .annotate(
+                navigation_rank=Window(
+                    expression=RowNumber(),
+                    partition_by=[F('category_id')],
+                    order_by=[F('requires_prescription').asc(), F('name').asc(), F('pk').asc()],
+                )
+            )
+            .filter(navigation_rank__lte=48)
+            .select_related('product')
+            .order_by('category_id', 'requires_prescription', 'name', 'pk')
+        )
         return Category.objects.filter(is_active=True).prefetch_related(
-            Prefetch('subcategories', queryset=Subcategory.objects.filter(is_active=True).order_by('name'))
+            Prefetch('subcategories', queryset=Subcategory.objects.filter(is_active=True).order_by('name')),
+            Prefetch('variants', queryset=navigation_variants, to_attr='navigation_variants'),
         )
 
 
@@ -173,6 +276,12 @@ class BrandListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = BrandSerializer
     queryset = Brand.objects.filter(is_active=True)
+
+
+class StoreListView(generics.ListAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = StoreSerializer
+    queryset = Store.objects.filter(is_active=True)
 
 
 class HealthConcernListView(generics.ListAPIView):
@@ -199,7 +308,7 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = VariantInventoryFilter
     search_fields = ['name', 'product__name', 'product__brand__name', 'category__name', 'sku']
-    ordering_fields = ['price', 'created_at', 'name']
+    ordering_fields = ['price', 'created_at', 'name', 'approved_average_rating']
     ordering = ['-created_at']
 
     def get_queryset(self):
@@ -212,7 +321,6 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
                 'category',
                 'subcategory',
             ).prefetch_related(
-                'inventories',
                 'health_concerns',
             )
         ).distinct()
@@ -232,7 +340,6 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
                 'category',
                 'subcategory',
             ).prefetch_related(
-                'inventories',
                 'health_concerns',
             )
         )
@@ -242,6 +349,7 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
         subcategory = (params.get('subcategory') or '').strip()
         brand = (params.get('brand') or '').strip()
         health_concern = (params.get('health_concern') or '').strip()
+        store = (params.get('store') or '').strip()
         query = (params.get('search') or params.get('q') or '').strip()
         requires_prescription = params.get('requires_prescription')
         min_price = params.get('min_price')
@@ -256,6 +364,12 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
             queryset = queryset.filter(product__brand__slug=brand)
         if health_concern:
             queryset = queryset.filter(health_concerns__slug=health_concern)
+        if store:
+            queryset = queryset.filter(
+                inventories__store_listing__store__code=store,
+                inventories__store_listing__store__is_active=True,
+                inventories__store_listing__is_active=True,
+            )
         if query:
             queryset = queryset.filter(
                 Q(name__icontains=query)
@@ -298,7 +412,7 @@ class FeaturedProductListView(PromotionContextMixin, generics.ListAPIView):
         queryset = annotate_product_variant_catalog(public_product_queryset().prefetch_related(
             Prefetch(
                 'variants',
-                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(public=True), 'health_concerns').order_by('sort_order', 'name', 'pk'),
             )
         )).exclude(
             variants__is_active=True,
@@ -338,7 +452,7 @@ class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
                     'gallery',
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                        queryset=annotate_variant_reviews(Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(public=True), 'health_concerns').order_by('sort_order', 'name', 'pk')),
                     ),
                 )
             )
@@ -346,6 +460,7 @@ class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
 
 
 class AdminCategoryListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = CatalogCategorySerializer
     queryset = Category.objects.prefetch_related(
@@ -385,6 +500,7 @@ class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminSubCategoryListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = SubcategorySerializer
     search_fields = ['name', 'slug', 'category__name']
@@ -409,9 +525,10 @@ class AdminSubCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminBrandListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = BrandSerializer
-    queryset = Brand.objects.all()
+    queryset = Brand.objects.annotate(product_count=Count('products', distinct=True))
     filterset_fields = ['is_active']
     search_fields = ['name', 'slug']
 
@@ -442,26 +559,77 @@ class AdminBrandDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
 
-class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIView):
+class AdminStoreListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = AdminStoreSerializer
+    queryset = Store.objects.all()
+    filterset_fields = ['is_active', 'city']
+    search_fields = ['name', 'code', 'city']
+
+
+class AdminStoreDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = AdminStoreSerializer
+    queryset = Store.objects.all()
+
+
+class AdminStoreVariantListingListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = AdminStoreVariantListingSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['store', 'variant', 'is_active', 'status', 'review_status']
+    search_fields = [
+        'store__name', 'store__code', 'variant__name', 'variant__sku',
+        'variant__product__name', 'external_product_id',
+    ]
+    ordering_fields = ['updated_at', 'price', 'store__name', 'variant__name']
+    ordering = ['store__name', 'variant__name']
+    queryset = StoreVariantListing.objects.select_related(
+        'store', 'variant', 'variant__product'
+    )
+
+
+class AdminStoreVariantListingDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = AdminStoreVariantListingSerializer
+    queryset = StoreVariantListing.objects.select_related(
+        'store', 'variant', 'variant__product'
+    )
+
+
+class AdminProductListCreateView(CachedAdminListMixin, PromotionContextMixin, generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = AdminProductSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, AdminOrderingFilter]
     filterset_class = ProductFilter
     search_fields = ['name', 'variants__sku']
-    ordering_fields = ['created_at', 'price', 'name']
-    ordering = ['-created_at']
+    pagination_class = ProductListPagination
+    ordering_fields = ['created_at', 'price', 'name', 'brand__name', 'is_active', 'catalog_subcategory', 'catalog_requires_rx', 'total_stock_quantity']
+    ordering = ['-created_at', '-pk']
+
+    def get_serializer_class(self):
+        return AdminProductTableSerializer if self.request.method == 'GET' else AdminProductSerializer
 
     def get_queryset(self):
-        return annotate_product_variant_catalog(
+        queryset = annotate_product_variant_catalog(
             annotate_product_reviews(
-                Product.objects.all().prefetch_related(
+                Product.objects.select_related('brand', 'created_by', 'updated_by').prefetch_related(
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(), 'health_concerns').order_by('sort_order', 'name', 'pk'),
                     ),
                 )
             )
         )
+
+        ordering = self.request.query_params.get('ordering', '').lstrip('-')
+        if ordering == 'total_stock_quantity':
+            queryset = annotate_product_inventory(queryset)
+        elif ordering == 'catalog_subcategory':
+            queryset = queryset.annotate(catalog_subcategory=models.Min('variants__subcategory__name'))
+        elif ordering == 'catalog_requires_rx':
+            queryset = queryset.annotate(catalog_requires_rx=Exists(Variant.objects.filter(product_id=OuterRef('pk'), requires_prescription=True)))
+        return queryset
 
     def perform_create(self, serializer):
         product = serializer.save(created_by=self.request.user, updated_by=self.request.user)
@@ -497,6 +665,11 @@ class AdminPosProductOptionListView(APIView):
         seen = set()
 
         variants = Variant.objects.exclude(pos_product_id='').select_related('product').order_by('product__name', 'name')
+        product_id = request.query_params.get('product_id')
+        if product_id:
+            if not product_id.isdecimal():
+                return Response({'detail': 'A valid product ID is required.'}, status=400)
+            variants = variants.filter(product_id=product_id)
         for variant in variants:
             pos_product_id = (variant.pos_product_id or '').strip()
             if not pos_product_id or pos_product_id in seen:
@@ -511,21 +684,6 @@ class AdminPosProductOptionListView(APIView):
                 'source': 'variant',
             })
 
-        products = Product.objects.exclude(pos_product_id='').order_by('name')
-        for product in products:
-            pos_product_id = (product.pos_product_id or '').strip()
-            if not pos_product_id or pos_product_id in seen:
-                continue
-            seen.add(pos_product_id)
-            options.append({
-                'pos_product_id': pos_product_id,
-                'label': product.name,
-                'product_name': product.name,
-                'variant_name': '',
-                'sku': product.get_display_sku(),
-                'source': 'product',
-            })
-
         return Response(options)
 
 
@@ -537,7 +695,7 @@ class AdminProductDetailView(PromotionContextMixin, generics.RetrieveUpdateDestr
             'gallery',
             Prefetch(
                 'variants',
-                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'),
+                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(), 'health_concerns').order_by('sort_order', 'name', 'pk'),
             ),
         )
     )
@@ -564,6 +722,8 @@ class ProductReviewListCreateView(generics.ListCreateAPIView):
     serializer_class = VariantReviewSerializer
 
     def _resolve_target_variant(self):
+        if 'variant_pk' in self.kwargs:
+            return public_variant_queryset().filter(pk=self.kwargs['variant_pk']).select_related('product').first()
         raw_pk = self.kwargs['pk']
         product = public_product_queryset().filter(pk=raw_pk).prefetch_related('variants').first()
         if product is not None:
@@ -636,7 +796,10 @@ class WishlistView(generics.ListCreateAPIView):
             'variant__category',
             'variant__subcategory',
             'variant__product',
-        ).prefetch_related('variant__inventories', 'variant__product__variants__inventories')
+        ).prefetch_related(
+            _inventory_prefetch('variant__inventories'),
+            _inventory_prefetch('variant__product__variants__inventories'),
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -747,7 +910,8 @@ class BannerListView(generics.ListAPIView):
         placement = self.request.query_params.get('placement')
         if placement:
             queryset = queryset.filter(placement=placement)
-        return queryset
+        from .compliance import public_advertisement_allowed
+        return queryset.exclude(pk__in=[row.pk for row in queryset if not public_advertisement_allowed(row.link)])
 
 
 class CMSBlockListView(generics.ListAPIView):
@@ -759,7 +923,8 @@ class CMSBlockListView(generics.ListAPIView):
         placement = self.request.query_params.get('placement')
         if placement:
             queryset = queryset.filter(placement=placement)
-        return queryset
+        from .compliance import public_advertisement_allowed
+        return queryset.exclude(pk__in=[row.pk for row in queryset if not public_advertisement_allowed(row.cta_url)])
 
 
 class FAQListView(generics.ListAPIView):
@@ -778,7 +943,7 @@ class FAQListView(generics.ListAPIView):
 class AdminBannerListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = BannerSerializer
-    queryset = Banner.objects.all()
+    queryset = Banner.objects.order_by('-created_at', '-pk')
 
     def perform_create(self, serializer):
         banner = serializer.save()
@@ -812,14 +977,24 @@ class PromotionListView(generics.ListAPIView):
     serializer_class = PromotionSerializer
 
     def get_queryset(self):
-        return get_active_promotions_queryset()
+        from .compliance import promotional_product
+        qs = get_active_promotions_queryset()
+        excluded = []
+        for promotion in qs:
+            if promotion.scope == Promotion.SCOPE_PRODUCT:
+                targets = {str(value) for value in promotion.targets}
+                products = Product.objects.filter(Q(slug__in=targets) | Q(sku__in=targets) | Q(variants__sku__in=targets) | Q(pk__in=[int(v) for v in targets if v.isdecimal()])).distinct()
+                if any(not promotional_product(product) for product in products):
+                    excluded.append(promotion.pk)
+        return qs.exclude(pk__in=excluded)
 
 
 class AdminPromotionListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminUser]
     serializer_class = PromotionSerializer
     filterset_fields = ['status', 'scope', 'type', 'is_stackable']
-    queryset = Promotion.objects.all()
+    queryset = Promotion.objects.order_by('-created_at', '-pk')
 
     def perform_create(self, serializer):
         promotion = serializer.save()
@@ -849,6 +1024,7 @@ class AdminPromotionDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminHealthConcernListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = HealthConcernSerializer
     queryset = HealthConcern.objects.all()
@@ -905,10 +1081,12 @@ class AdminProductVariantListCreateView(generics.ListCreateAPIView):
         return context
 
     def get_queryset(self):
-        return Variant.objects.filter(product_id=self.kwargs['product_pk']).prefetch_related('inventories').order_by('sort_order', 'name')
+        return Variant.objects.filter(product_id=self.kwargs['product_pk']).prefetch_related(_inventory_prefetch()).order_by('sort_order', 'name')
 
     def perform_create(self, serializer):
         product = generics.get_object_or_404(Product, pk=self.kwargs['product_pk'])
+        if product.variants.exists():
+            raise drf_serializers.ValidationError({'product': 'This item already has a sellable SKU. Create a separate product item for another SKU.'})
         variant = serializer.save(product=product)
         log_admin_action(
             self.request.user,
@@ -925,7 +1103,7 @@ class AdminProductVariantDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminVariantSerializer
 
     def get_queryset(self):
-        return Variant.objects.filter(product_id=self.kwargs['product_pk']).prefetch_related('inventories')
+        return Variant.objects.filter(product_id=self.kwargs['product_pk']).prefetch_related(_inventory_prefetch())
 
 
 class AdminCMSBlockListCreateView(generics.ListCreateAPIView):
@@ -965,7 +1143,7 @@ class AdminCMSBlockDetailView(generics.RetrieveUpdateDestroyAPIView):
 class AdminFAQListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = FAQSerializer
-    queryset = FAQ.objects.all()
+    queryset = FAQ.objects.order_by('-created_at', '-pk')
     filterset_fields = ['category', 'is_published']
     search_fields = ['category', 'question', 'answer']
     ordering_fields = ['category', 'sort_order', 'question', 'created_at', 'updated_at']
@@ -1008,14 +1186,15 @@ class AdminFAQDetailView(generics.RetrieveUpdateDestroyAPIView):
             message=f'Deleted FAQ {question}',
         )
 
-class AdminInventoryListView(generics.ListAPIView):
+class AdminInventoryListView(CachedAdminListMixin, generics.ListAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = AdminInventoryItemSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, AdminOrderingFilter]
     filterset_class = VariantInventoryFilter
     search_fields = ['name', 'sku', 'product__name', 'product__brand__name']
-    ordering_fields = ['updated_at', 'name', 'stock_quantity', 'price']
-    ordering = ['name', 'pk']
+    pagination_class = ProductListPagination
+    ordering_fields = ['created_at', 'updated_at', 'name', 'stock_quantity', 'branch_stock_quantity', 'warehouse_stock_quantity', 'price']
+    ordering = ['-created_at', '-pk']
 
     def get_queryset(self):
         queryset = annotate_variant_inventory(annotate_variant_reviews(
@@ -1025,7 +1204,7 @@ class AdminInventoryListView(generics.ListAPIView):
                 'category',
                 'subcategory',
             ).prefetch_related(
-                'inventories',
+                _inventory_prefetch(),
                 'health_concerns',
             )
         ))
@@ -1067,7 +1246,7 @@ class AdminInventoryPosRefreshView(APIView):
             )
 
         products = list(Product.objects.filter(pk__in=ids).prefetch_related(
-            Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories', 'health_concerns').order_by('sort_order', 'name', 'pk'))
+            Prefetch('variants', queryset=Variant.objects.prefetch_related(_inventory_prefetch(), 'health_concerns').order_by('sort_order', 'name', 'pk'))
         ))
         if not products:
             return Response({'updated': [], 'refreshed_ids': []})
@@ -1082,7 +1261,11 @@ class AdminInventoryPosRefreshView(APIView):
         )
         return Response({
             'updated': serializer.data,
-            'refreshed_ids': list(refreshed.keys()),
+            'refreshed_ids': [key for key, value in refreshed.items() if not value.get('error')],
+            'invalid': [
+                {'product_id': key, **value['error']}
+                for key, value in refreshed.items() if value.get('error')
+            ],
         })
 
 
@@ -1113,7 +1296,7 @@ class AdminInventoryVariantPosRefreshView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        variants = list(Variant.objects.filter(pk__in=ids).select_related('product').prefetch_related('inventories'))
+        variants = list(Variant.objects.filter(pk__in=ids).select_related('product').prefetch_related(_inventory_prefetch()))
         if not variants:
             return Response({'updated': [], 'refreshed_ids': []})
 
@@ -1126,7 +1309,11 @@ class AdminInventoryVariantPosRefreshView(APIView):
         )
         return Response({
             'updated': serializer.data,
-            'refreshed_ids': list(refreshed.keys()),
+            'refreshed_ids': [key for key, value in refreshed.items() if not value.get('error')],
+            'invalid': [
+                {'variant_id': key, **value['error']}
+                for key, value in refreshed.items() if value.get('error')
+            ],
         })
 
 
@@ -1136,7 +1323,7 @@ class AdminInventoryAdjustView(APIView):
     def patch(self, request, pk):
         try:
             product = Product.objects.prefetch_related(
-                Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories').order_by('sort_order', 'name', 'pk'))
+                Prefetch('variants', queryset=Variant.objects.prefetch_related(_inventory_prefetch()).order_by('sort_order', 'name', 'pk'))
             ).get(pk=pk)
         except Product.DoesNotExist:
             return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1193,7 +1380,7 @@ class ProductDetailByIdView(PromotionContextMixin, generics.RetrieveAPIView):
                     'gallery',
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
+                        queryset=annotate_variant_reviews(Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(public=True)).order_by('sort_order', 'name', 'pk')),
                     ),
                 )
             )
@@ -1235,7 +1422,7 @@ class ProductSearchView(PromotionContextMixin, generics.ListAPIView):
                 public_product_queryset().prefetch_related(
                     Prefetch(
                         'variants',
-                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
+                        queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(public=True)).order_by('sort_order', 'name', 'pk'),
                     )
                 )
             )
@@ -1312,7 +1499,7 @@ class ProductSuggestionsView(APIView):
         ).prefetch_related(
             Prefetch(
                 'variants',
-                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related('inventories').order_by('sort_order', 'name', 'pk'),
+                queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(public=True)).order_by('sort_order', 'name', 'pk'),
             )
         ).distinct()[:5]
 
@@ -1343,11 +1530,16 @@ class ProductAvailabilityView(APIView):
         except (ValueError, TypeError):
             return Response({'error': {'code': 'validation_error', 'message': 'product_ids must be comma-separated integers.'}}, status=400)
 
-        products = list(public_product_queryset().filter(pk__in=ids).prefetch_related(Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories').order_by('sort_order', 'name', 'pk'))))
+        products = list(public_product_queryset().filter(pk__in=ids).prefetch_related(Prefetch(
+            'variants',
+            queryset=Variant.objects.prefetch_related(_inventory_prefetch(public=True)).order_by('sort_order', 'name', 'pk'),
+        )))
         pos_refresh = refresh_pos_inventory_for_products(products)
         availability = []
         for product in products:
             pos_info = pos_refresh.get(product.id)
+            if pos_info and pos_info.get('error'):
+                pos_info = None
             pos_quantity = pos_info.get('quantity') if pos_info else None
             pos_stores = pos_info.get('stores', []) if pos_info else []
             availability.append({
@@ -1368,7 +1560,12 @@ class ProductAvailabilityDetailView(APIView):
 
     def get(self, request, pk):
         try:
-            product = public_product_queryset().prefetch_related(Prefetch('variants', queryset=Variant.objects.prefetch_related('inventories').order_by('sort_order', 'name', 'pk'))).get(pk=pk)
+            product = public_product_queryset().prefetch_related(Prefetch(
+                'variants',
+                queryset=Variant.objects.prefetch_related(
+                    _inventory_prefetch(public=True)
+                ).order_by('sort_order', 'name', 'pk'),
+            )).get(pk=pk)
         except Product.DoesNotExist:
             return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1376,6 +1573,7 @@ class ProductAvailabilityDetailView(APIView):
             Product.STOCK_BRANCH: {'location': Product.STOCK_BRANCH, 'quantity': 0, 'allow_backorder': False, 'max_backorder_quantity': 0, 'next_restock_date': None},
             Product.STOCK_WAREHOUSE: {'location': Product.STOCK_WAREHOUSE, 'quantity': 0, 'allow_backorder': False, 'max_backorder_quantity': 0, 'next_restock_date': None},
         }
+        store_totals = {}
         if product.uses_variant_inventory:
             for variant in product.get_active_variants():
                 for inventory in variant.inventories.all():
@@ -1385,12 +1583,23 @@ class ProductAvailabilityDetailView(APIView):
                     row['max_backorder_quantity'] += inventory.max_backorder_quantity
                     if inventory.next_restock_date and (row['next_restock_date'] is None or inventory.next_restock_date < row['next_restock_date']):
                         row['next_restock_date'] = inventory.next_restock_date
+                    if inventory.store_listing_id:
+                        store = inventory.store_listing.store
+                        store_row = store_totals.setdefault(store.code, {
+                            'id': store.id,
+                            'code': store.code,
+                            'name': store.name,
+                            'city': store.city,
+                            'quantity': 0,
+                        })
+                        store_row['quantity'] += inventory.stock_quantity
         location_stock = [value for value in location_totals.values()]
         next_restock_date = next((item['next_restock_date'] for item in location_stock if item['next_restock_date']), None)
         return Response({
             'in_stock': product.stock_quantity > 0 or product.allow_backorder,
             'quantity': product.available_quantity,
             'location_stock': location_stock,
+            'store_stock': sorted(store_totals.values(), key=lambda item: item['name']),
             'next_restock_date': next_restock_date,
         })
 
@@ -1424,7 +1633,7 @@ class AdminInventoryBulkUpdateView(APIView):
             if not sku:
                 continue
             try:
-                variant = Variant.objects.select_related('product').prefetch_related('inventories').get(sku=sku)
+                variant = Variant.objects.select_related('product').prefetch_related(_inventory_prefetch()).get(sku=sku)
                 pos_quantity = item.get('pos_quantity', item.get('warehouse_quantity'))
                 if pos_quantity is not None:
                     try:
@@ -1432,18 +1641,29 @@ class AdminInventoryBulkUpdateView(APIView):
                     except (TypeError, ValueError):
                         results['invalid'].append({'sku': sku, 'warehouse_quantity': item.get('warehouse_quantity'), 'pos_quantity': item.get('pos_quantity')})
                         continue
-                    serializer = AdminVariantSerializer(
-                        variant,
-                        data={'warehouse_inventory': {'stock_quantity': pos_quantity}},
-                        partial=True,
-                        context={'request': request},
-                    )
-                    serializer.is_valid(raise_exception=True)
-                    serializer.save()
-                    warehouse_inventory = VariantInventory.objects.get(
-                        variant=variant,
-                        location=Product.STOCK_WAREHOUSE,
-                    )
+                    selector = _inventory_selector(item)
+                    warehouse_payload = {
+                        'stock_quantity': pos_quantity,
+                        'source_name': item.get('source_name', ''),
+                        **selector,
+                    }
+                    try:
+                        serializer = AdminVariantSerializer(
+                            variant,
+                            data={'warehouse_inventory': warehouse_payload},
+                            partial=True,
+                            context={'request': request},
+                        )
+                        serializer.is_valid(raise_exception=True)
+                        serializer.save()
+                        warehouse_inventory, _ = resolve_variant_inventory_target(
+                            variant,
+                            location=Product.STOCK_WAREHOUSE,
+                            **selector,
+                        )
+                    except (InventoryTargetError, drf_serializers.ValidationError) as exc:
+                        results['invalid'].append(_invalid_inventory_result(item, exc))
+                        continue
                     warehouse_inventory.source_name = item.get('source_name', warehouse_inventory.source_name or 'POS Store')
                     warehouse_inventory.is_pos_synced = True
                     warehouse_inventory.last_synced_at = timezone.now()
@@ -1490,11 +1710,13 @@ class AdminInventoryPosSyncView(APIView):
 
             try:
                 if variant_id:
-                    variant = Variant.objects.select_related('product').prefetch_related('inventories').get(pk=variant_id)
+                    variant = Variant.objects.select_related('product').prefetch_related(_inventory_prefetch()).get(pk=variant_id)
                 elif sku:
-                    variant = Variant.objects.select_related('product').prefetch_related('inventories').get(sku=sku)
+                    variant = Variant.objects.select_related('product').prefetch_related(_inventory_prefetch()).get(sku=sku)
                 else:
-                    product = Product.objects.prefetch_related('variants__inventories').get(pk=product_id)
+                    product = Product.objects.prefetch_related(
+                        Prefetch('variants', queryset=Variant.objects.prefetch_related(_inventory_prefetch()))
+                    ).get(pk=product_id)
                     variant = product.get_representative_variant()
                     if variant is None:
                         raise Variant.DoesNotExist
@@ -1505,6 +1727,7 @@ class AdminInventoryPosSyncView(APIView):
             try:
                 warehouse_payload = {
                     'stock_quantity': _coerce_non_negative_int(quantity),
+                    **_inventory_selector(item),
                 }
                 if 'low_stock_threshold' in item:
                     warehouse_payload['low_stock_threshold'] = _coerce_non_negative_int(item.get('low_stock_threshold'))
@@ -1516,19 +1739,23 @@ class AdminInventoryPosSyncView(APIView):
                 results['invalid'].append({'sku': sku, 'product_id': product_id, 'variant_id': variant_id})
                 continue
 
-            serializer = AdminVariantSerializer(
-                variant,
-                data={'warehouse_inventory': warehouse_payload},
-                partial=True,
-                context={'request': request},
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-
-            warehouse_inventory = VariantInventory.objects.get(
-                variant=variant,
-                location=Product.STOCK_WAREHOUSE,
-            )
+            try:
+                serializer = AdminVariantSerializer(
+                    variant,
+                    data={'warehouse_inventory': warehouse_payload},
+                    partial=True,
+                    context={'request': request},
+                )
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                warehouse_inventory, _ = resolve_variant_inventory_target(
+                    variant,
+                    location=Product.STOCK_WAREHOUSE,
+                    **_inventory_selector(item),
+                )
+            except (InventoryTargetError, drf_serializers.ValidationError) as exc:
+                results['invalid'].append(_invalid_inventory_result(item, exc))
+                continue
             warehouse_inventory.source_name = item.get('source_name', warehouse_inventory.source_name or 'POS Store')
             warehouse_inventory.is_pos_synced = True
             warehouse_inventory.last_synced_at = synced_at
@@ -1574,137 +1801,172 @@ class AdminInventoryMovementsView(APIView):
 
 
 class AdminInventoryReserveView(APIView):
-    """Reserve stock for a pending order (informational — actual deduction on finalize)."""
+    """Validate availability; stock is committed atomically during checkout."""
 
     permission_classes = [IsAdminOrInventoryStaff]
 
     def post(self, request):
-        order_id = request.data.get('order_id')
-        items = request.data.get('items', [])
-        if not items:
-            return Response({'error': {'code': 'validation_error', 'message': 'items array is required.'}}, status=400)
-        reserved = []
+        items = request.data.get('items')
+        if not isinstance(items, list) or not items:
+            return Response({'detail': 'A non-empty items array is required.'}, status=400)
+        checked = []
+        quantities = {}
         for item in items:
             try:
-                variant = Variant.objects.get(pk=item['variant_id'])
-                quantity = int(item.get('quantity', 1))
-                if variant.available_quantity >= quantity:
-                    reserved.append({'product_id': variant.product_id, 'variant_id': variant.id, 'quantity': quantity})
-            except (Variant.DoesNotExist, KeyError, ValueError):
-                pass
-        return Response({'order_id': order_id, 'reserved': reserved, 'message': 'Stock reserved.'})
+                if not isinstance(item, dict):
+                    raise ValueError
+                if isinstance(item.get('quantity'), bool):
+                    raise ValueError
+                quantity = _coerce_non_negative_int(item.get('quantity', 1))
+                if quantity <= 0:
+                    raise ValueError
+                variant = public_variant_queryset().get(pk=item['variant_id'])
+                quantities[variant.pk] = quantities.get(variant.pk, 0) + quantity
+                if variant.available_quantity < quantities[variant.pk]:
+                    return Response({'detail': f'{variant.name} has insufficient stock.'}, status=400)
+                checked.append({'product_id': variant.product_id, 'variant_id': variant.pk, 'quantity': quantity})
+            except (Variant.DoesNotExist, KeyError, TypeError, ValueError):
+                return Response({'detail': 'Every item must specify an active variant and a positive integer quantity.'}, status=400)
+        return Response({'order_id': request.data.get('order_id'), 'available': checked, 'reserved': [],
+                         'message': 'Availability checked. Stock is committed when checkout is finalized.'})
 
 
 class AdminInventoryReleaseView(APIView):
-    """Release reserved stock when an order is cancelled."""
+    """Restore only allocations recorded for a cancelled or refunded order."""
 
     permission_classes = [IsAdminOrInventoryStaff]
 
     def post(self, request):
-        order_id = request.data.get('order_id')
-        items = request.data.get('items', [])
-        released = []
-        for item in items:
-            try:
-                variant = Variant.objects.select_related('product').prefetch_related('inventories').get(pk=item['variant_id'])
-                quantity = int(item.get('quantity', 1))
-                branch_release = int(item.get('branch_quantity', quantity))
-                warehouse_release = int(item.get('warehouse_quantity', 0))
-                backorder_release = int(item.get('backorder_quantity', 0))
-                branch_inventory, _ = VariantInventory.objects.get_or_create(
-                    variant=variant,
-                    location=Product.STOCK_BRANCH,
-                    batch_number='',
-                )
-                warehouse_inventory, _ = VariantInventory.objects.get_or_create(
-                    variant=variant,
-                    location=Product.STOCK_WAREHOUSE,
-                    batch_number='',
-                )
-                if branch_release > 0:
-                    branch_inventory.stock_quantity += branch_release
-                    branch_inventory.save(update_fields=['stock_quantity', 'updated_at'])
-                if warehouse_release > 0:
-                    warehouse_inventory.stock_quantity += warehouse_release
-                    warehouse_inventory.save(update_fields=['stock_quantity', 'updated_at'])
-                if backorder_release > 0:
-                    target_inventory = branch_inventory if branch_inventory.allow_backorder else warehouse_inventory
-                    target_inventory.max_backorder_quantity += backorder_release
-                    target_inventory.save(update_fields=['max_backorder_quantity', 'updated_at'])
-                qty_before = variant.stock_quantity
-                variant._clear_inventory_cache()
-                variant.save()
-                StockMovement.objects.create(
-                    variant_inventory=branch_inventory if branch_release > 0 else warehouse_inventory,
-                    movement_type=StockMovement.TYPE_RELEASE,
-                    quantity_change=quantity,
-                    quantity_before=qty_before,
-                    quantity_after=variant.stock_quantity,
-                    reason=f'Variant stock released for order {order_id}',
-                    reference=str(order_id) if order_id else '',
-                    created_by=request.user,
-                    updated_by=request.user,
-                )
-                released.append({'product_id': variant.product_id, 'variant_id': variant.id, 'quantity': quantity})
-                log_admin_action(
-                    request.user, action='inventory_released', entity_type='variant',
-                    entity_id=variant.id, message=f'Released {quantity} units for order {order_id}',
-                )
-            except (Variant.DoesNotExist, KeyError, ValueError):
-                pass
-        return Response({'order_id': order_id, 'released': released, 'message': 'Stock released.'})
+        from apps.orders.models import Order
+        from apps.orders.stock import release_order_inventory
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=request.data.get('order_id'))
+                if order.status not in [Order.STATUS_CANCELLED, Order.STATUS_REFUNDED]:
+                    return Response({'detail': 'Cancel or refund the order before releasing its stock.'}, status=400)
+                was_committed = order.inventory_committed
+                release_order_inventory(order)
+                return Response({'order_id': order.pk, 'released': was_committed,
+                                 'message': 'Recorded order stock released.' if was_committed else 'No committed stock to release.'})
+        except (Order.DoesNotExist, TypeError, ValueError):
+            return Response({'detail': 'A valid order_id is required.'}, status=400)
 
 
 class AdminInventoryDeductView(APIView):
-    """Permanently deduct reserved stock when an order is dispatched."""
+    """Checkout owns deduction; this endpoint reports recorded commitment."""
 
     permission_classes = [IsAdminOrInventoryStaff]
 
     def post(self, request):
-        order_id = request.data.get('order_id')
-        items = request.data.get('items', [])
-        deducted = []
-        for item in items:
+        from apps.orders.models import Order
+        try:
+            order = Order.objects.get(pk=request.data.get('order_id'))
+        except (Order.DoesNotExist, TypeError, ValueError):
+            return Response({'detail': 'A valid order_id is required.'}, status=400)
+        if not order.inventory_committed:
+            return Response({'detail': 'Finalize the order through checkout to validate payment and commit stock.'}, status=409)
+        return Response({'order_id': order.pk, 'deducted': [], 'message': 'Stock was already committed by checkout; no additional deduction performed.'})
+
+
+class AdminCatalogStatsView(APIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def get(self, request):
+        from .admin_summary import admin_catalog_summary
+        return Response(admin_catalog_summary())
+
+
+class AdminStockHistoryView(generics.ListAPIView):
+    """Paginated history for Products & Stock, scoped by exact family/variant."""
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = StockMovementSerializer
+    pagination_class = ProductListPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, AdminOrderingFilter]
+    filterset_fields = ['variant_inventory', 'movement_type', 'source', 'variant_inventory__variant', 'variant_inventory__variant__product']
+    search_fields = ['reference', 'reason', 'variant_inventory__variant__sku', 'variant_inventory__variant__product__name']
+    ordering = ['-created_at', '-pk']
+
+    def get_queryset(self):
+        qs = StockMovement.objects.select_related('created_by', 'variant_inventory__variant__product', 'variant_inventory__store_listing__store')
+        product_id = self.request.query_params.get('product_id')
+        if product_id:
+            if not product_id.isdecimal():
+                raise drf_serializers.ValidationError({'product_id': 'A valid product ID is required.'})
+            qs = qs.filter(variant_inventory__variant__product_id=product_id)
+        return qs
+
+
+class AdminFlatItemCreateView(APIView):
+    """Create one product/SKU and its opening stock as one atomic operation."""
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def post(self, request):
+        import json
+        from django.db import transaction
+        item = request.data.get('item')
+        if isinstance(item, str):
             try:
-                variant = Variant.objects.select_related('product').prefetch_related('inventories').get(pk=item['variant_id'])
-                quantity = int(item.get('quantity', 1))
-                qty_before = variant.stock_quantity
-                branch_take = int(item.get('branch_quantity', quantity))
-                warehouse_take = int(item.get('warehouse_quantity', 0))
-                branch_inventory, _ = VariantInventory.objects.get_or_create(
-                    variant=variant,
-                    location=Product.STOCK_BRANCH,
-                    batch_number='',
-                )
-                warehouse_inventory, _ = VariantInventory.objects.get_or_create(
-                    variant=variant,
-                    location=Product.STOCK_WAREHOUSE,
-                    batch_number='',
-                )
-                if branch_take > 0:
-                    branch_inventory.stock_quantity = max(0, branch_inventory.stock_quantity - branch_take)
-                    branch_inventory.save(update_fields=['stock_quantity', 'updated_at'])
-                if warehouse_take > 0:
-                    warehouse_inventory.stock_quantity = max(0, warehouse_inventory.stock_quantity - warehouse_take)
-                    warehouse_inventory.save(update_fields=['stock_quantity', 'updated_at'])
-                variant._clear_inventory_cache()
-                variant.save()
-                StockMovement.objects.create(
-                    variant_inventory=branch_inventory if branch_take > 0 else warehouse_inventory,
-                    movement_type=StockMovement.TYPE_SALE,
-                    quantity_change=-(qty_before - variant.stock_quantity),
-                    quantity_before=qty_before,
-                    quantity_after=variant.stock_quantity,
-                    reason=f'Variant stock deducted for order {order_id}',
-                    reference=str(order_id) if order_id else '',
-                    created_by=request.user,
-                    updated_by=request.user,
-                )
-                deducted.append({'product_id': variant.product_id, 'variant_id': variant.id, 'quantity': quantity})
-                log_admin_action(
-                    request.user, action='inventory_deducted', entity_type='variant',
-                    entity_id=variant.id, message=f'Deducted {quantity} units for order {order_id}',
-                )
-            except (Variant.DoesNotExist, KeyError, ValueError):
-                pass
-        return Response({'order_id': order_id, 'deducted': deducted, 'message': 'Stock deducted.'})
+                item = json.loads(item)
+            except (TypeError, ValueError):
+                raise drf_serializers.ValidationError({'item': 'Provide valid item details.'})
+        if not isinstance(item, dict):
+            raise drf_serializers.ValidationError({'item': 'Exact SKU, price and stock details are required.'})
+        price = drf_serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0')).run_validation(item.get('price'))
+        quantity = drf_serializers.IntegerField(min_value=0).run_validation(item.get('stock_quantity', 0))
+        threshold = drf_serializers.IntegerField(min_value=0).run_validation(item.get('low_stock_threshold', 5))
+        store = None
+        if item.get('store_id'):
+            store = drf_serializers.PrimaryKeyRelatedField(queryset=Store.objects.filter(is_active=True)).run_validation(item['store_id'])
+        if quantity and not store:
+            raise drf_serializers.ValidationError({'store_id': 'Select the store that owns the opening stock.'})
+        catalog = request.data.copy()
+        del catalog['item']
+        serializer = AdminProductSerializer(data=catalog, context={'request': request, 'active_promotions': []})
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            product = serializer.save(created_by=request.user, updated_by=request.user)
+            variant = product.variants.first()
+            payload = {key: item[key] for key in ['sku','barcode','pos_product_id','strength','pack_size','directions','warnings','dosage_instructions'] if key in item and item[key] != ''}
+            payload.update(name=str(item.get('name') or product.name)[:120], price=price, is_active=product.is_active)
+            exact = AdminVariantSerializer(variant, data=payload, partial=variant is not None, context={'request': request, 'product': product})
+            exact.is_valid(raise_exception=True)
+            variant = exact.save(product=product)
+            inventory = {'stock_quantity': quantity, 'low_stock_threshold': threshold, 'batch_number': item.get('batch_number', '')}
+            if item.get('expiry_date'):
+                inventory['expiry_date'] = item['expiry_date']
+            if store:
+                listing = StoreVariantListing.objects.create(store=store, variant=variant, price=price, is_active=True)
+                inventory['store_listing_id'] = listing.pk
+            stock = AdminVariantSerializer(variant, data={'branch_inventory': inventory}, partial=True, context={'request': request, 'product': product})
+            stock.is_valid(raise_exception=True)
+            stock.save()
+            log_admin_action(request.user, action='product_item_created', entity_type='product', entity_id=product.pk, message=f'Created exact item {variant.sku} with opening stock', metadata={'variant_id':variant.pk,'quantity':quantity,'store_id':store.pk if store else None})
+        product = Product.objects.get(pk=product.pk)
+        return Response(AdminProductSerializer(product, context={'request':request, 'active_promotions':[]}).data, status=201)
+
+    def patch(self, request, pk):
+        from django.db import transaction
+        import json
+        item = request.data.get('item', {})
+        if isinstance(item, str):
+            try: item=json.loads(item)
+            except (ValueError, TypeError): raise drf_serializers.ValidationError({'item':'Invalid item details.'})
+        if not isinstance(item,dict): raise drf_serializers.ValidationError({'item':'Provide an object.'})
+        if 'price' in item:
+            item['price'] = drf_serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0')).run_validation(item['price'])
+        allowed={'price','sku','barcode','pos_product_id','strength','pack_size'}
+        if set(item)-allowed: raise drf_serializers.ValidationError({'item':'Use stock adjustments for store/batch quantity changes.'})
+        catalog=request.data.copy()
+        if 'item' in catalog: del catalog['item']
+        with transaction.atomic():
+            product=generics.get_object_or_404(Product.objects.select_for_update(),pk=pk)
+            serializer=AdminProductSerializer(product,data=catalog,partial=True,context={'request':request,'active_promotions':[]})
+            serializer.is_valid(raise_exception=True)
+            serializer.save(updated_by=request.user)
+            variant=generics.get_object_or_404(Variant,product=product)
+            exact=AdminVariantSerializer(variant,data=item,partial=True,context={'request':request,'product':product})
+            exact.is_valid(raise_exception=True);exact.save()
+            log_admin_action(request.user, action='product_item_updated', entity_type='product',entity_id=product.pk,message=f'Updated exact item {variant.sku}')
+        product.refresh_from_db()
+        return Response(AdminProductSerializer(product,context={'request':request,'active_promotions':[]}).data)

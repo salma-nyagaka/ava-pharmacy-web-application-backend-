@@ -1,3 +1,5 @@
+from avapharmacy.test_compliance_fixtures import credential_fixture
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 import re
 from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch
@@ -90,10 +92,10 @@ class AccountSelfServiceTests(TestCase):
         create_response = self.client.post(
             reverse('payment-methods'),
             {
-                'brand': 'visa',
+                'brand': 'mpesa',
                 'last4': '4242',
-                'expiry_month': 8,
-                'expiry_year': 2030,
+                'expiry_month': 0,
+                'expiry_year': 0,
                 'cardholder_name': 'Customer User',
                 'is_default': True,
             },
@@ -106,10 +108,10 @@ class AccountSelfServiceTests(TestCase):
         second_response = self.client.post(
             reverse('payment-methods'),
             {
-                'brand': 'mastercard',
+                'brand': 'mpesa',
                 'last4': '5454',
-                'expiry_month': 11,
-                'expiry_year': 2031,
+                'expiry_month': 0,
+                'expiry_year': 0,
                 'cardholder_name': 'Customer User',
                 'is_default': True,
             },
@@ -413,7 +415,7 @@ class ProfessionalRegistrationTests(TestCase):
             license_number='KMPDC-RESUBMIT-001',
             specialty='General Medicine',
             status=ClinicianProfile.STATUS_PENDING,
-        )
+        **clinician_fixture(exclude=('provider_type', 'name', 'email', 'phone', 'license_number', 'specialty', 'status')))
 
         response = self.client.post(
             reverse('admin-doctor-action', args=[profile.id]),
@@ -443,7 +445,7 @@ class ProfessionalRegistrationTests(TestCase):
             specialty='Dermatology',
             status=ClinicianProfile.STATUS_PENDING,
             status_note='Upload current CV and license.',
-        )
+        **clinician_fixture(exclude=('provider_type', 'name', 'email', 'phone', 'license_number', 'specialty', 'status', 'status_note')))
         from apps.consultations.views import _professional_resubmission_token
 
         token = _professional_resubmission_token(profile)
@@ -602,6 +604,7 @@ class CustomerRegistrationVerificationTests(TestCase):
             reverse('register'),
             {
                 'email': 'no.address@example.com',
+                'date_of_birth': '1990-01-01',
                 'first_name': 'No',
                 'last_name': 'Address',
                 'phone': '+254700000102',
@@ -628,6 +631,7 @@ class CustomerRegistrationVerificationTests(TestCase):
                 'delivery_address': 'Ava Towers, Westlands',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
+                'date_of_birth': '1990-01-01',
             },
             format='json',
         )
@@ -663,11 +667,12 @@ class AdminPharmacistAccountTests(TestCase):
                 'phone': '+254700001001',
                 'role': User.PHARMACIST,
                 'pharmacist_license_number': 'PPB-PHARM-001',
+                'pharmacist_license_document': SimpleUploadedFile('licence.pdf', b'%PDF-1.4\nlicence evidence', content_type='application/pdf'),
                 'pharmacist_branch_location': 'Main Branch, Nairobi',
                 'pharmacist_position': 'Senior Pharmacist',
                 'pharmacist_permissions': [Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
             },
-            format='json',
+            format='multipart',
         )
 
         self.assertEqual(response.status_code, 201)
@@ -738,7 +743,7 @@ class AdminPharmacistAccountTests(TestCase):
                 role=User.PHARMACIST,
             ),
             license_number='PPB-DUP-001',
-        )
+        **credential_fixture(license_number='PPB-DUP-001', exclude=('user', 'license_number')))
         response = self.client.post(
             reverse('admin-users'),
             {
@@ -768,6 +773,7 @@ class BotProtectionFlowTests(TestCase):
             'email': 'bot-check@example.com',
             'first_name': 'Bot',
             'last_name': 'Check',
+            'gender': 'prefer_not_to_say',
             'phone': '+254700123987',
             'password': 'StrongPass123!',
             'password_confirm': 'StrongPass123!',
@@ -775,6 +781,7 @@ class BotProtectionFlowTests(TestCase):
             'delivery_address': '123 Test Street',
             'city': 'Nairobi',
             'county': 'Nairobi',
+            'date_of_birth': '1990-01-01',
         }
         payload.update(overrides)
         return payload

@@ -1,0 +1,90 @@
+{
+  "orders": [
+    {
+      "id": 1996,
+      "order": "ORD-FBEAE0E8",
+      "status": "cancelled",
+      "payment": "paid",
+      "inventory_committed": false,
+      "events": [
+        "order_cancelled",
+        "order_finalized",
+        "payment_succeeded",
+        "payment_intent_created"
+      ],
+      "movements": [
+        {
+          "movement_type": "release",
+          "quantity_change": 2,
+          "reference": "ORD-FBEAE0E8"
+        },
+        {
+          "movement_type": "sale",
+          "quantity_change": -2,
+          "reference": "ORD-FBEAE0E8"
+        }
+      ]
+    },
+    {
+      "id": 1997,
+      "order": "ORD-A6BC700E",
+      "status": "cancelled",
+      "payment": "pending",
+      "inventory_committed": false,
+      "events": [
+        "order_cancelled",
+        "payment_cancelled",
+        "payment_notice",
+        "payment_intent_created"
+      ],
+      "movements": []
+    },
+    {
+      "id": 1998,
+      "order": "ORD-1A26DEA3",
+      "status": "cancelled",
+      "payment": "pending",
+      "inventory_committed": false,
+      "events": [
+        "order_cancelled"
+      ],
+      "movements": []
+    },
+    {
+      "id": 1999,
+      "order": "ORD-3F3589D1",
+      "status": "cancelled",
+      "payment": "paid",
+      "inventory_committed": false,
+      "events": [
+        "order_cancelled",
+        "order_finalized"
+      ],
+      "movements": [
+        {
+          "movement_type": "release",
+          "quantity_change": 2,
+          "reference": "ORD-3F3589D1"
+        },
+        {
+          "movement_type": "sale",
+          "quantity_change": -2,
+          "reference": "ORD-3F3589D1"
+        }
+      ]
+    }
+  ],
+  "final_stock": [
+    {
+      "id": 64275,
+      "stock_quantity": 50
+    },
+    {
+      "id": 64277,
+      "stock_quantity": 30
+    }
+  ],
+  "synthetic_product_active": false,
+  "provider_refund_executed": false,
+  "note": "Application orders cancelled for synthetic cleanup. Confirmed card payment record retained; no refund transfer claimed."
+}

@@ -36,17 +36,18 @@ def create_notification(recipient, notification_type, title, message, data=None,
             message=message,
             data=data or {},
         )
-        _push_to_websocket(recipient.id, NotificationSerializer(notification).data)
-
         preferences = get_notification_preferences(recipient)
+        if preferences and preferences.push_enabled:
+            _push_to_websocket(recipient.id, NotificationSerializer(notification).data)
         delivery_title = title
         delivery_message = message
         if (data or {}).get('sensitive'):
             delivery_title = 'Secure account update'
             delivery_message = 'You have a secure update in your Ava Pharmacy account. Please log in to view details.'
-        if send_email and preferences and preferences.email_enabled:
+        optional_allowed = notification_type != 'marketing' or bool(preferences and preferences.marketing_enabled)
+        if send_email and preferences and preferences.email_enabled and optional_allowed:
             deliver_email(notification, recipient.email, delivery_title, delivery_message)
-        if send_sms and preferences and preferences.sms_enabled and recipient.phone:
+        if send_sms and preferences and preferences.sms_enabled and recipient.phone and optional_allowed:
             deliver_sms(notification, recipient.phone, delivery_message)
         return notification
     except Exception as exc:
@@ -74,20 +75,30 @@ def mark_delivery_sent(delivery, provider_reference=''):
     delivery.provider_reference = provider_reference
     delivery.sent_at = timezone.now()
     delivery.error_message = ''
-    delivery.save(update_fields=['status', 'provider_reference', 'sent_at', 'error_message'])
+    _record_attempt(delivery)
+    delivery.save(update_fields=['status', 'provider_reference', 'sent_at', 'error_message', 'metadata'])
 
 
 def mark_delivery_failed(delivery, error_message):
     delivery.status = delivery.STATUS_FAILED
     delivery.error_message = str(error_message)[:255]
-    delivery.save(update_fields=['status', 'error_message'])
+    _record_attempt(delivery)
+    delivery.save(update_fields=['status', 'error_message', 'metadata'])
 
 
-def deliver_email(notification, destination, subject, message):
+def _record_attempt(delivery):
+    metadata = dict(delivery.metadata or {})
+    attempts = list(metadata.get('attempts', []))
+    attempts.append({'number': len(attempts) + 1, 'status': delivery.status, 'at': timezone.now().isoformat(), 'error': delivery.error_message})
+    metadata['attempts'] = attempts
+    delivery.metadata = metadata
+
+
+def deliver_email(notification, destination, subject, message, delivery=None):
     if not destination:
         return None
 
-    delivery = record_delivery(
+    delivery = delivery or record_delivery(
         notification=notification,
         recipient=notification.recipient,
         channel='email',
@@ -106,7 +117,7 @@ def deliver_email(notification, destination, subject, message):
         if not data.get('sensitive') and data.get('status'):
             detail_rows.append({'label': 'Status', 'value': data['status']})
 
-        send_rendered_email(
+        sent = send_rendered_email(
             subject=subject,
             recipient_list=[destination],
             text_template='emails/notification.txt',
@@ -123,6 +134,8 @@ def deliver_email(notification, destination, subject, message):
             },
             fail_silently=False,
         )
+        if sent == 0:
+            raise RuntimeError('The email backend did not accept the message.')
         mark_delivery_sent(delivery)
     except Exception as exc:
         logger.error("Email delivery failed: %s", exc)
@@ -130,12 +143,12 @@ def deliver_email(notification, destination, subject, message):
     return delivery
 
 
-def deliver_sms(notification, destination, message):
+def deliver_sms(notification, destination, message, delivery=None):
     if not destination:
         return None
 
     backend = getattr(settings, 'SMS_BACKEND', 'console')
-    delivery = record_delivery(
+    delivery = delivery or record_delivery(
         notification=notification,
         recipient=notification.recipient,
         channel='sms',
@@ -226,8 +239,9 @@ def order_status_message(order):
 def notify_order_status(order):
     preferences = get_notification_preferences(order.customer) if order.customer else None
     status_message = order_status_message(order)
+    notification = None
     if order.customer:
-        create_notification(
+        notification = create_notification(
             recipient=order.customer,
             notification_type='order_status',
             title=status_message,
@@ -236,19 +250,21 @@ def notify_order_status(order):
             send_email=False,
             send_sms=bool(preferences and preferences.order_updates_sms),
         )
-    if order.status == 'processing' and order.shipping_email:
+    if order.status == 'processing' and order.shipping_email and (preferences is None or (preferences.email_enabled and preferences.order_updates_email)):
         queue_order_status_email(
             order,
             subject=status_message,
             heading=status_message,
             intro='Your order has been marked as processing. Our pharmacy team is now preparing the items for dispatch or pickup.',
+            notification=notification,
         )
-    elif preferences and preferences.order_updates_email:
+    elif preferences and preferences.email_enabled and preferences.order_updates_email:
         queue_order_status_email(
             order,
             subject=status_message,
             heading=status_message,
             intro=status_message,
+            notification=notification,
         )
 
 
@@ -278,7 +294,7 @@ def notify_lab_result_ready(lab_request):
         notification_type='lab_result',
         title="Lab Result Ready",
         message=f"Your result for {lab_request.reference} is ready.",
-        data={'url': f'/lab/requests/{lab_request.id}', 'reference': lab_request.reference},
+        data={'url': f'/account/lab-tests?request={lab_request.id}', 'reference': lab_request.reference},
         send_email=True,
     )
 
@@ -295,7 +311,7 @@ def notify_new_consultation(doctor_user, consultation):
         title="New Consultation Request",
         message=f"A new paid consultation request is available in your {dashboard_segment} dashboard.",
         data={
-            'url': f'/{dashboard_segment}/consultations/{consultation.id}',
+            'url': f'/{dashboard_segment}/dashboard?consultation={consultation.id}',
             'consultation_id': consultation.id,
             'reference': consultation.reference,
             'is_pediatric': is_pediatric,
@@ -313,7 +329,7 @@ def notify_consultation_message(recipient, consultation, sender_name):
         notification_type='consultation_message',
         title=f"New message from {sender_name}",
         message=f"New message in consultation {consultation.reference}",
-        data={'url': f'/consultations/{consultation.id}', 'reference': consultation.reference, 'sensitive': True},
+        data={'url': (f'/{recipient.role}/dashboard?consultation={consultation.id}' if recipient.role in ('doctor', 'pediatrician') else f'/account/consultations?consultation={consultation.id}'), 'reference': consultation.reference, 'sensitive': True},
     )
 
 
@@ -325,7 +341,7 @@ def notify_support_update(ticket):
         notification_type='support_update',
         title=f"Support Ticket {ticket.reference} Updated",
         message=f"Your ticket status is now: {ticket.get_status_display()}",
-        data={'url': f'/support/tickets/{ticket.id}', 'reference': ticket.reference, 'status': ticket.status},
+        data={'url': f'/account/support?ticket={ticket.id}', 'reference': ticket.reference, 'status': ticket.status},
         send_email=True,
     )
 
@@ -337,8 +353,8 @@ def notify_payout_status(payout):
         recipient=payout.recipient,
         notification_type='payout_status',
         title=f"Payout {payout.reference} {payout.get_status_display()}",
-        message=f"Your payout of KSh {payout.amount} is {payout.get_status_display().lower()}.",
-        data={'reference': payout.reference, 'amount': str(payout.amount), 'status': payout.status},
+        message=f"Your payout ledger entry of KSh {payout.amount} is recorded as {payout.get_status_display().lower()}. Confirm actual receipt through your bank or M-Pesa.",
+        data={'reference': payout.reference, 'amount': str(payout.amount), 'status': payout.status, 'execution_mode': 'administrative_record'},
         send_email=True,
     )
 

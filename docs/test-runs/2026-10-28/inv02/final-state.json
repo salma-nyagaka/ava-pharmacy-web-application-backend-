@@ -1,0 +1,54 @@
+{
+  "order_id": 1993,
+  "order_number": "ORD-83D5AC44",
+  "status": "cancelled",
+  "inventory_committed": false,
+  "payment_origin": "SIMULATED local test notification; no external payment or refund",
+  "stock": [
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 50
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10
+    }
+  ],
+  "movements": [
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-A",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-1",
+      "movement_type": "release",
+      "quantity_change": 2
+    },
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-A",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-1",
+      "movement_type": "sale",
+      "quantity_change": -2
+    }
+  ],
+  "replay_statuses": {
+    "order-cancel": 400,
+    "checkout-finalize": 400
+  },
+  "extra_test_drafts_cancelled": [
+    "ORD-48B2E39B",
+    "ORD-1E36ED34"
+  ],
+  "temporary_addresses_removed": 3,
+  "product_deactivated": true,
+  "cart_cleared": true
+}

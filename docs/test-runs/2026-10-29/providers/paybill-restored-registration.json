@@ -1,0 +1,22 @@
+{
+  "public_base": "https://ac3f-41-79-237-222.ngrok-free.app",
+  "unsigned_probes": [
+    {
+      "path": "/callbacks/mobile/validate/",
+      "http": 403
+    },
+    {
+      "path": "/callbacks/mobile/confirm/",
+      "http": 403
+    }
+  ],
+  "admin_path_http": 404,
+  "registration": {
+    "OriginatorCoversationID": "8e77-4dec-98af-2e0707a6447d379662",
+    "ResponseCode": "00000000",
+    "ResponseDescription": "Success"
+  },
+  "accepted": true,
+  "version": "v1",
+  "shortcode": "600980"
+}

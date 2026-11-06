@@ -1,0 +1,918 @@
+[
+  {
+    "section": "1. Prepare your manual run",
+    "id": "M01",
+    "title": "Confirm the environment and test accounts",
+    "role": "Tester; administrator",
+    "covers": "SET-01 SET-02 SET-03",
+    "setup": "Use a test environment prepared by the project owner.",
+    "steps": [
+      "Open the website URL recorded in your run sheet. Start with http://localhost:3000 only if testing on the same computer as the running application. => Homepage loads and its product requests finish; no endless spinner or generic connection error.",
+      "Write the date, tester name, browser/version, device and website URL in the run sheet. Ask the administrator to record the release/build. => The run can be reproduced against one identified environment.",
+      "Prepare Customer A, unrelated Customer B, guardian, pharmacist, doctor, pediatrician, lab partner, technician, inventory staff and two separate administrators. => Each person has an individual test login and the correct dashboard; maker and checker are different people.",
+      "Prepare one pending and one suspended professional account. Do not suspend your only administrator. => These accounts can be used for eligibility tests without disrupting the team.",
+      "Use separate browser profiles for different roles. Use two tabs within the same profile only for concurrency tests involving the same account. => A customer session is not accidentally replaced by a staff login; private/incognito windows from one browser may still share one private session.",
+      "Open one customer account page and one staff dashboard, refresh, then sign out and back in. => Each session shows the correct name and role and recovers after refresh."
+    ]
+  },
+  {
+    "section": "1. Prepare your manual run",
+    "id": "M02",
+    "title": "Prepare products, files, amounts and a clean baseline",
+    "role": "Tester; administrator; inventory staff",
+    "covers": "SET-04 SET-05 SET-06 SET-07",
+    "setup": "Label all new fixtures MANUAL-QA-20261104 or your actual run date.",
+    "steps": [
+      "Prepare one non-prescription item, two variants of the same product, a prescription-only item, an out-of-stock item and a low-stock item. Record each exact SKU, strength, pack and price. => You can tell the variants apart without relying on a shared product name.",
+      "Prepare stores S1 and S2 with variant A at 50 and 30 packs, plus a different stock balance for variant B. Record reserved and available quantities if shown. => Every stock baseline identifies variant and store separately.",
+      "Ask the administrator for isolated KSh 1 payment fixtures and free QA pickup if you intend KSh 1 prompts. Record the displayed final total before each payment. => Ordinary catalog and consultation fees remain separate; two units at KSh 1 each cost KSh 2 unless an authorized fixture produces a KSh 1 final total.",
+      "Prepare a valid and expired coupon, approved doctor/pediatrician with recorded fees, and approved lab facility/test/technician with recorded quote. => Expected discounts, shipping, fees, commission and lab payment policy are written down.",
+      "Prepare the supplied synthetic prescription PDF, synthetic lab-result PDF, invalid text file, a valid JPG/PNG, a file over 5 MB, six small valid prescription files, and a chat file over 10 MB. => Files contain synthetic information only and can exercise accepted and rejected uploads.",
+      "Prepare two child profiles with deliberately similar or identical names but different dates of birth/measurements. => Identity mistakes can be detected by child ID and distinct measurements.",
+      "Check whether email is delivered to a real test mailbox or a local mail viewer; check the configured phone with its owner. => You know where verification/reset/receipt messages should actually arrive.",
+      "Empty only your new test carts and record any existing pending payments separately. => Old references and completed prescriptions are not accidentally reused as new test fixtures."
+    ]
+  },
+  {
+    "section": "2. Public website and catalog",
+    "id": "M03",
+    "title": "Visit public pages and navigation",
+    "role": "Visitor",
+    "covers": "CAT-02 CAT-06",
+    "setup": "Start signed out.",
+    "steps": [
+      "Open Home, Products, Categories, Brands, Offers, Conditions, Health services, Store locator, FAQs and Help from the visible menus. => Each link opens the appropriate page; back navigation works.",
+      "Open About, Contact, Privacy, Terms, Cookies, Blog and Careers from the footer or menus. => Content is readable and relevant; any offered form/action has a meaningful outcome. Record placeholders or dead links as failures.",
+      "Use search with an exact product name, a partial name, a misspelling and a name with no matches. => Relevant results or a useful empty state appear; previous results do not masquerade as new results.",
+      "Combine and clear available category, brand, price and availability filters. Change sorting and pagination. => Results, count and selected filters stay consistent; clearing filters restores the list.",
+      "Check offer start/end visibility using prepared fixtures with the administrator. => Expired or future promotions do not appear active; published content changes reach the storefront after refresh."
+    ]
+  },
+  {
+    "section": "2. Public website and catalog",
+    "id": "M04",
+    "title": "Inspect exact variants, prices, stock and enriched content",
+    "role": "Customer A",
+    "covers": "CAT-02 CAT-03",
+    "setup": "Use a multi-variant product and one product from the recent enrichment report.",
+    "steps": [
+      "Open a product and read its brand, description, image, strength, pack size, price, prescription badge and availability. => The displayed information describes the sellable item rather than a different strength or pack.",
+      "Select variant A, then variant B, and record the label, price, image and availability each time. => Variant-specific information changes together; out-of-stock variants are not presented as immediately purchasable.",
+      "Add variant B to the cart and open the cart. => The line contains variant B, its exact pack/strength, the selected quantity and the correct unit price.",
+      "Open an enriched item, such as Wisdom Travel Toothbrush Medium, and inspect its description/specifications/image on desktop and phone. => Text is readable, the image shows that product, and a store logo or unrelated pack is not substituted.",
+      "Open an item still using a placeholder image. => The placeholder is honestly identified and does not pretend to be an exact product photo.",
+      "Refresh the detail page and use back/forward navigation. => The product remains accessible and selection/cart state does not silently change to another variant."
+    ]
+  },
+  {
+    "section": "2. Public website and catalog",
+    "id": "M05",
+    "title": "Wishlist and product reviews",
+    "role": "Customer A; Customer B",
+    "covers": "CAT-04 CAT-05",
+    "setup": "Use separate unrelated customer sessions.",
+    "steps": [
+      "Add a product to favourites, open /account/favourites, refresh and remove it. => The saved entry appears once, persists and is removed when requested.",
+      "Add a favourite to the cart. => Correct variant/selection rules apply; the cart does not receive an arbitrary strength.",
+      "Open Customer B favourites. => Customer A favourites are absent.",
+      "Submit a valid test review where the interface allows it; reload the product. => Rating/text appear according to the displayed review policy and remain attached to the correct product/variant.",
+      "Try an empty review, out-of-range rating if the control permits, and duplicate submission. => Validation is useful and a double click does not create unintended duplicate reviews.",
+      "Try to edit/remove Customer A review as Customer B using available controls or a copied review link. => Other users cannot change the review; record a missing review screen as a UI gap rather than assuming an API pass."
+    ]
+  },
+  {
+    "section": "3. Accounts and sessions",
+    "id": "M06",
+    "title": "Register and verify a new customer",
+    "role": "New Customer A",
+    "covers": "ACC-01 ACC-02",
+    "setup": "Use a new email address you can receive messages at; do not reuse completed QA accounts.",
+    "steps": [
+      "Open /register and submit an empty form. => Required fields are identified next to the form without creating an account.",
+      "Enter invalid email, mismatched passwords and incomplete required details in separate attempts. => Each error is explained; previously valid fields are retained where appropriate.",
+      "Enter valid synthetic details, review the displayed terms and submit once. => Registration success and verification instructions appear; repeated clicking does not create duplicate accounts.",
+      "Before verification, try logging in. => The configured verification restriction is enforced and guidance is clear.",
+      "Open the verification message in the configured mailbox and follow its link. => The correct account is verified and can sign in.",
+      "Open the same verification link again; use an administrator-prepared expired link separately. => Reused/expired links fail safely without changing another account.",
+      "Try registering the same email again and sign in with a wrong password once. => Duplicate and invalid-login messages are useful and no private account details are exposed."
+    ]
+  },
+  {
+    "section": "3. Accounts and sessions",
+    "id": "M07",
+    "title": "Edit profile, addresses and saved M-Pesa details",
+    "role": "Customer A; Customer B",
+    "covers": "ACC-03 ACC-04",
+    "setup": "Log in as Customer A.",
+    "steps": [
+      "Open /account/edit, change permitted profile fields, save, refresh and log out/in. => Saved values persist and role/status cannot be promoted through profile controls.",
+      "Open /account/addresses, add two distinguishable synthetic addresses and make one default. => Both appear with correct labels and the chosen default is clear.",
+      "Edit one address and reload; remove the other using the confirmation. => Only the intended address changes or disappears.",
+      "Open /account/payment and add/edit/remove a permitted M-Pesa entry if that screen offers it. => Phone validation and persistence work; non-card entries do not demand card expiry fields.",
+      "Try invalid phone/address values. => Invalid data is rejected with an actionable message.",
+      "Open Customer B address and payment pages, then try Customer A copied record links. => A details do not appear and cannot be changed by B.",
+      "Check available payment-entry methods. => Card entry and cash-on-delivery are excluded by current product scope; report them if offered as usable new methods."
+    ]
+  },
+  {
+    "section": "3. Accounts and sessions",
+    "id": "M08",
+    "title": "Password change, reset and logout",
+    "role": "Customer A",
+    "covers": "ACC-05 ACC-06 ACC-07",
+    "setup": "Use your own disposable test account; keep new passwords out of screenshots and reports.",
+    "steps": [
+      "Open account security/settings and attempt a change with the wrong current password. => Change is denied and the existing password remains valid.",
+      "Change to a new password and sign out. Try the old password, then the new one. => Old password fails and new password succeeds.",
+      "Open /auth/forgot-password, request a reset and inspect the configured mailbox. => A reset message arrives or a recorded delivery problem is shown; the screen does not expose other users details.",
+      "Use the reset link, enter a new password and sign in. => The new password works and the previous password fails.",
+      "Reuse the reset link and use an expired test link separately. => Both are rejected safely.",
+      "Stay signed in long enough to exercise the configured session timeout/refresh, then revisit an account page. => Session either renews normally or returns cleanly to sign-in; no infinite refresh loop.",
+      "Log out, press Back and refresh a private page. => Private records cannot be loaded without authentication. Token revocation itself requires the technical evidence check in M56."
+    ]
+  },
+  {
+    "section": "3. Accounts and sessions",
+    "id": "M09",
+    "title": "Role restrictions, suspension and account deactivation",
+    "role": "Customer A; Customer B; administrator",
+    "covers": "ACC-08 ACC-09 ACC-11",
+    "setup": "Use a dedicated disposable customer for deactivation.",
+    "steps": [
+      "As a customer, type /admin, /inventory, /doctor/dashboard, /pharmacist/dashboard, /lab/dashboard and /labtech/dashboard in the address bar. => Staff records/actions are denied or redirected; customer role is unchanged.",
+      "Have the administrator suspend a disposable customer while it has an open session; refresh and attempt a protected action. => Current status is enforced even with the old session.",
+      "Reactivate that customer and log in. => Access resumes according to the restored status.",
+      "On a separate disposable account, open deletion/deactivation settings and first cancel the confirmation. => Account stays active.",
+      "Repeat and confirm deactivation yourself, then try login and an old private bookmark. => Access is removed; copy explains retained service records/soft deactivation rather than promising unsupported erasure.",
+      "Confirm Customer A and B remain unaffected. => No unrelated profile, order or session is changed."
+    ]
+  },
+  {
+    "section": "4. Shopping and checkout",
+    "id": "M10",
+    "title": "Cart editing, persistence and guest merge",
+    "role": "Visitor; Customer A",
+    "covers": "ORD-01 ORD-02",
+    "setup": "Use ordinary and multi-variant test products.",
+    "steps": [
+      "As a visitor, add one item if guest carts are supported; sign in to an account that already has a different item. => Both lines survive the supported merge without doubling quantities; if guest carts are not offered, record N/A with that reason.",
+      "Add two different variants of one product and another product. => Separate variant lines appear with correct names, pack/strength and unit prices.",
+      "Increase/decrease quantity using the visible controls. => Line totals and cart subtotal update consistently; zero/negative/overstock quantities cannot be accepted silently.",
+      "Refresh and reopen the cart after leaving the page. => Intended contents and quantities persist for that customer.",
+      "Remove one line, then clear the cart using its confirmation. => Only intended lines are removed and the empty state offers a useful next step.",
+      "Open Customer B cart. => It is independent from A cart."
+    ]
+  },
+  {
+    "section": "4. Shopping and checkout",
+    "id": "M11",
+    "title": "Coupons, shipping, totals and address consent",
+    "role": "Customer A",
+    "covers": "ORD-03 ORD-04",
+    "setup": "Write expected prices and shipping quotes before checkout.",
+    "steps": [
+      "Add known quantities and calculate subtotal yourself: sum of unit price \u00d7 quantity. => Cart subtotal equals your calculation.",
+      "Apply a valid coupon, remove it, try an expired coupon and a minimum-spend-ineligible coupon. => Discount applies only when eligible, removal restores totals, errors explain rejection.",
+      "If another promotion is active, compare the result with the configured stacking rule. => No unexplained double discount; record the rule used.",
+      "Open /checkout and choose an existing address, then enter a different unsaved address with Save address unchecked. => Checkout uses the chosen details and does not silently save the new address.",
+      "Choose Save address explicitly and test again on a fresh draft. => Address is saved only with consent and is available after refresh.",
+      "Select Doorstep delivery, record the quote, then select Store pickup and record that quote. => Total equals subtotal minus allowed discount plus the selected service fee.",
+      "Reopen the same saved draft or refresh checkout. => Selected shipping service, address, quantity and final total match the saved draft; a default fee does not replace a saved QA pickup quote.",
+      "Leave required county/area/address/phone fields empty or invalid, then correct them. => Continue is blocked with useful validation until required details are valid."
+    ]
+  },
+  {
+    "section": "4. Shopping and checkout",
+    "id": "M12",
+    "title": "Successful M-Pesa STK checkout",
+    "role": "Customer A",
+    "covers": "ORD-05",
+    "setup": "Use one new unpaid draft and an explicitly authorized payment amount/phone.",
+    "steps": [
+      "Write order reference, exact item/variant, final total, shipping quote and phone suffix before initiating. => This is the amount and order you intend to pay; KSh 1 testing requires an actual KSh 1 displayed final total.",
+      "Click the STK initiation button once and watch the status. => Request moves to a clear waiting state; acceptance alone is not displayed as paid.",
+      "Approve the prompt yourself on the authorized phone. Never enter the PIN into the website. => Provider outcome/receipt is available independently on the phone where supported.",
+      "Wait for website confirmation, or use the visible Check status action after its cooldown. => Provider-confirmed status appears; a timeout or acknowledgement is not treated as success.",
+      "Record the genuine receipt and final amount. => Website payment record, phone/provider receipt and order total match.",
+      "Use the final order/checkout button once after confirmation. => One completed checkout appears; unpaid finalization was not allowed.",
+      "Open /account/orders, select that reference and refresh. => Correct items, amounts, payment status and customer confirmation/receipt persist.",
+      "Ask inventory staff to record exact variant/store balances before and after the finalization stage. => Stock changes once at the configured stage; other variants/stores are unchanged.",
+      "Check the configured receipt email and in-app notification separately. => Record actual external delivery, inbox delivery and backend-accepted status separately; do not infer mailbox delivery."
+    ]
+  },
+  {
+    "section": "4. Shopping and checkout",
+    "id": "M13",
+    "title": "Failed prompt, cancellation, retry and duplicate protection",
+    "role": "Customer A; administrator",
+    "covers": "ORD-09 ORD-10",
+    "setup": "Use a separate new draft; decline one prompt intentionally.",
+    "steps": [
+      "Initiate one prompt and decline it, or allow its documented timeout. => Status eventually reports failure/cancellation with a useful explanation; order is not fulfillable as paid.",
+      "Without a successful payment, try the final checkout button and refresh the draft. => Completion remains blocked and unpaid stock has not been committed.",
+      "If no prompt arrives but the request is still processing, record it and check status after cooldown. => No automatic overlapping prompts or invented success; escalate an unresolved request before resending.",
+      "After a terminal failure or the supported local-cancellation flow, initiate a fresh retry for the same draft and approve it. => The application safely reuses the intended order; the new successful payment is distinguishable from the failed attempt.",
+      "After confirmed success, refresh, use Back/Forward and reopen the confirmation URL. On the test site, rapidly double-click a visible finalization control once if it remains enabled. => One order/payment application and one stock deduction; the button should prevent or safely handle repeat submission.",
+      "Ask admin to inspect payment history and stock movement for the same reference. => One successful attempt, failed/cancelled history retained and no duplicate receipt/stock allocation.",
+      "If you used Cancel Payment, check the phone/provider separately. => A local cancellation is not misrepresented as cancellation or refund of money already processed by the provider."
+    ]
+  },
+  {
+    "section": "4. Shopping and checkout",
+    "id": "M14",
+    "title": "Paybill matching and excluded payment methods",
+    "role": "Customer A; administrator",
+    "covers": "ORD-06 ORD-07 ORD-08",
+    "setup": "Current Paybill provider confirmation remains an unresolved integration; run only in the approved sandbox.",
+    "steps": [
+      "Select Paybill if available and record displayed Paybill number, account reference and amount. => All fields belong to this draft; do not reuse historic example references.",
+      "With the authorized sandbox provider, submit the exact amount/reference and retain the independent receipt. => Website becomes paid only after a verified matching provider confirmation.",
+      "Refresh and finalize only after confirmation. => Correct order is paid once and correct stock is committed once.",
+      "Have the integration tester submit wrong-amount and unmatched-reference sandbox cases. => Neither falsely pays this order; the user sees a pending/rejected result rather than false success.",
+      "If registration/provider callbacks fail or never arrive, stop and mark this case Blocked with the provider message. => No administrator status edit or simulated callback is counted as genuine payment proof.",
+      "Check checkout for card and cash-on-delivery. => These methods are unavailable under current scope; record their exclusions as N/A, not as untested enabled features."
+    ]
+  },
+  {
+    "section": "4. Shopping and checkout",
+    "id": "M15",
+    "title": "Price changes, unavailable stock and stale carts",
+    "role": "Customer A; administrator; inventory staff",
+    "covers": "ORD-12 INV-05",
+    "setup": "Use a fresh draft and a staff-controlled synthetic item.",
+    "steps": [
+      "Add an item to cart, then ask staff to change its test price before checkout. => Checkout revalidates and shows the current price or asks you to review the change.",
+      "Repeat with an item that staff deactivates or reduces below the requested quantity. => Checkout blocks or applies the explicitly configured backorder policy; no negative stock.",
+      "Try the out-of-stock item and a quantity above available stock. => The message and purchasability reflect the exact selected variant.",
+      "If backorders are enabled, test the configured maximum and a quantity above it. => Limits and expected availability are clear. If disabled, record backorder-only steps N/A.",
+      "Ask staff to restore the original test price/status and reopen a clean cart. => Ordinary catalog values are restored and no unintended order was paid."
+    ]
+  },
+  {
+    "section": "5. Fulfillment, cancellations and returns",
+    "id": "M16",
+    "title": "Order processing, delivery, receipt and reporting",
+    "role": "Customer A; administrator/pharmacist; inventory staff",
+    "covers": "ORD-13 ORD-17",
+    "setup": "Continue the same genuinely paid order from M12.",
+    "steps": [
+      "As staff, find the exact paid order reference and compare customer, items, address, delivery method and total. => All match the customer order; do not process an order found only by a similar name.",
+      "Move it through the allowed Processing \u2192 Shipped/On the way \u2192 Delivered stages using synthetic fulfillment. => Each transition has a timestamp/actor/history entry; terminal status is not silently reopened.",
+      "After each stage, refresh the customer order and open /track-order using the intended reference/details. => Tracking, timestamps, notes and notifications agree with staff status and disclose only intended public information.",
+      "Open the customer receipt/confirmation and print/download if offered. => Reference, paid amount, exact items and shipping match; no other customer data is included.",
+      "As finance/admin, find the order in invoices, reconciliation and orders/revenue reports where offered. => Amount and payment status agree with the customer record.",
+      "Download a report with a date range including the original order creation date. => The order appears once; a short range excluding that date is not mistaken for a missing-record bug.",
+      "Refresh both role views after completion. => Status and stock stay stable. No real medicine shipment is made for a synthetic QA record."
+    ]
+  },
+  {
+    "section": "5. Fulfillment, cancellations and returns",
+    "id": "M17",
+    "title": "Eligible cancellation and stock release",
+    "role": "Customer A; administrator; inventory staff",
+    "covers": "ORD-15 INV-04",
+    "setup": "Use one unpaid order and a separate eligible paid-but-unshipped synthetic order.",
+    "steps": [
+      "On the unpaid order, choose Cancel and first dismiss the confirmation. => Order stays unchanged.",
+      "Choose Cancel again and confirm; refresh order/cart. => Order is cancelled, no unpaid stock is deducted and further checkout finalization is blocked.",
+      "For a paid eligible order, record stock and payment status before cancelling with the authorized staff/customer flow. => The configured cancellation policy is explained and payment/refund handling is visible.",
+      "If committed stock is released, ask inventory staff to verify exact variant/store balances. Repeat the cancellation action if it is still offered. => Stock is released only once; no payment is falsely described as refunded.",
+      "Try customer cancellation after dispatch/delivery or outside the permitted policy. => It is rejected with guidance to the return/support process.",
+      "If cancellation creates a refund obligation, record it as pending until external refund proof exists. => Cancellation alone is not a receipt for money returned."
+    ]
+  },
+  {
+    "section": "5. Fulfillment, cancellations and returns",
+    "id": "M18",
+    "title": "Return request, quarantine, refund and support closure",
+    "role": "Customer A; administrator; inventory staff",
+    "covers": "ORD-16 E2E-06",
+    "setup": "Use a delivered synthetic order with a genuine test payment. Current external refund execution is not implemented by the refund-record endpoint.",
+    "steps": [
+      "Open /returns and submit the visible form with your delivered order reference and a clear synthetic reason. => A saved return reference should appear and persist after refresh. Current source has no submission handler: if it merely refreshes/no record appears, mark Failed/UI gap; do not mark return creation passed.",
+      "If the UI is unavailable, create an order-linked support ticket at /account/support and request staff assistance. => Support reference and the missing return-screen behavior are recorded; a staff/API workaround does not convert the website step into a pass.",
+      "As staff, locate the saved return in the returns/finance workspace if offered; verify owner, order, item, reason and requested amount. => The return is associated with the correct paid order. If no UI exists, mark that step Blocked and request a technical handoff.",
+      "Approve then receive the synthetic return with quarantine and non-resale acknowledgement plus a disposition note. => It cannot be closed as received/refunded without required quarantine safeguards.",
+      "Ask inventory staff to compare saleable stock before and after receipt. => Dispatched returned medicine is not put back into saleable stock; repeating receipt does not increase stock.",
+      "Attempt to close as refunded before external refund evidence exists. => It is rejected; customer cannot perform staff refund actions.",
+      "Only after an authorized external refund actually completes, retain its independent reference/amount and have staff record it. => Administrative recording is labelled accurately and is backed by a real refund, not an invented reference.",
+      "Have staff retry the recording/check the same operation after refresh, then close the return as refunded. => One refund event/record and no duplicate restock; payment and finance reporting reflect the actual disposition.",
+      "Compare customer order/return history, original successful payment, refund evidence and report. => Original charge remains traceable; recorded refund is not mistaken for a second charge.",
+      "Add a public support explanation and resolve only once the actual financial issue is settled; customer refreshes the ticket. => Correct visible reply/status persists and internal notes remain private.",
+      "If an actual provider refund cannot be executed/confirmed, leave the live inquiry open and mark the full journey Blocked/Partial. => Application-only simulated refund tests are recorded separately."
+    ]
+  },
+  {
+    "section": "5. Fulfillment, cancellations and returns",
+    "id": "M19",
+    "title": "Order, payment and return ownership",
+    "role": "Customer A; unrelated Customer B; visitor",
+    "covers": "ORD-11 ORD-18",
+    "setup": "Copy A order detail/tracking/receipt/return URLs without putting secrets in your report.",
+    "steps": [
+      "Open A private order URL as B, then as a signed-out visitor. => Private items/address/payment details cannot be read or changed.",
+      "Try A cancellation/return controls from B session if any record is exposed. => No action succeeds; A order stays unchanged.",
+      "Enter A reference with incorrect verification details in public tracking. => Tracking reveals only its intended limited information and does not expose full account or payment data.",
+      "Attempt to use a payment reference from a different order only through controls offered in the sandbox. => It cannot satisfy this order payment. If no UI permits it, request the technical security check rather than inventing a browser pass.",
+      "Ask admin to check both original records after the attempts. => No payment reassignment, stock movement or ownership change occurred."
+    ]
+  },
+  {
+    "section": "6. Prescription upload and dispensing",
+    "id": "M20",
+    "title": "Upload valid files and reject invalid files",
+    "role": "Customer A",
+    "covers": "RX-01 RX-02",
+    "setup": "Use fresh synthetic prescription files, not a real prescription or a previously dispensed fixture.",
+    "steps": [
+      "Open /prescriptions or Account \u2192 Prescriptions and choose the upload action. => Form identifies the signed-in patient and offers supported upload types.",
+      "Submit without required details/files, then select the invalid text file. => Clear validation; no incomplete prescription is created.",
+      "Try a file larger than 5 MB and then six small valid files. => Current limits are enforced: PDF/JPG/PNG, up to 5 files, each at most 5 MB.",
+      "Upload the valid PDF with synthetic prescriber name and notes, then submit once. => A new prescription reference appears with pending review status.",
+      "Refresh history and reopen its files. => Correct patient, file names, notes and status persist; authenticated downloads display the original intended file.",
+      "Add the same file twice before submission. => Duplicate selection is handled clearly and does not multiply attachments unexpectedly."
+    ]
+  },
+  {
+    "section": "6. Prescription upload and dispensing",
+    "id": "M21",
+    "title": "Pharmacist assignment, clarification and customer reply",
+    "role": "Pharmacist; administrator; Customer A",
+    "covers": "RX-03 RX-04",
+    "setup": "Continue M20 using the recorded prescription reference.",
+    "steps": [
+      "As authorized pharmacist/admin, open /pharmacist/dashboard or the prescription workspace and find that reference. => Correct patient and files appear; review permission is required.",
+      "Assign the pharmacist if assignment is offered/required. Open the file and review the synthetic details. => Assignment and actor are saved; no unrelated prescription is substituted.",
+      "Request clarification with a specific question. => Customer status changes to clarification and receives the intended in-app notice.",
+      "As customer, open the notification and the prescription; reply to the question and resubmit/upload a replacement only if requested. => Full exchange persists and returns to the configured review state.",
+      "As pharmacist, refresh and read the reply. => Both messages, dates and authors appear; the panel does not repeatedly reopen after you close it.",
+      "Use Back/navigation after opening from a notification. => You can close the detail panel and navigate normally."
+    ]
+  },
+  {
+    "section": "6. Prescription upload and dispensing",
+    "id": "M22",
+    "title": "Reject a prescription and block checkout",
+    "role": "Pharmacist; Customer A",
+    "covers": "RX-05",
+    "setup": "Create a separate synthetic prescription so the approval journey remains available.",
+    "steps": [
+      "Reject that prescription with a clear synthetic reason. => Reason is mandatory/useful and saved with the review actor.",
+      "As customer, refresh history and open its notification/detail. => Rejected status and the same reason are visible.",
+      "Try to add medicine from the rejected prescription or proceed from a previously open approval/cart link. => Rejected authorization cannot purchase medicine.",
+      "Repeat the checkout attempt while another fresh prescription is still pending. => Pending authorization is also blocked; no paid order or stock movement occurs."
+    ]
+  },
+  {
+    "section": "6. Prescription upload and dispensing",
+    "id": "M23",
+    "title": "Approve exact items, purchase and prevent unauthorized reuse",
+    "role": "Pharmacist; Customer A; inventory staff",
+    "covers": "RX-03 RX-06 RX-07 RX-08 E2E-02",
+    "setup": "Continue the clarified prescription; keep unrelated cart lines distinguishable.",
+    "steps": [
+      "As pharmacist, map each approved line to an active exact catalog variant; record medicine name, strength, pack, quantity and synthetic instructions. => Approval cannot silently use the parent product or another strength.",
+      "Approve and refresh the prescription. => Customer sees approved status, allowed quantities and the same clinical details.",
+      "As customer, add an approved item to cart. Try increasing beyond its allowance or substituting a different variant. => Authorized quantity/variant rules hold and invalid additions are explained.",
+      "Create a prescription-scoped checkout with another unrelated line still in the cart. => Only intended approved items are in this draft; unrelated lines are not unexpectedly removed.",
+      "Follow M11\u2013M12 to confirm the displayed amount, pay once, record receipt and finalize once. => Paid order links to this prescription and exact variants; stock changes once.",
+      "As staff, move the linked dispensing/order through the supported queued/packed/dispatched/delivered flow. => Prescription dispatch, order tracking and notifications agree; use the controls actually available, not invented intermediate statuses.",
+      "Try adding/reusing the already fulfilled prescription beyond the remaining authorized amount. => Reuse is denied according to dispensing limits.",
+      "Compare prescription reference, order reference, variants/quantities, receipt and stock after refresh. => One traceable chain persists across customer and pharmacist views."
+    ]
+  },
+  {
+    "section": "6. Prescription upload and dispensing",
+    "id": "M24",
+    "title": "Prescription privacy and download access",
+    "role": "Customer A; Customer B; pharmacist without review permission",
+    "covers": "RX-09",
+    "setup": "Copy the test prescription detail and authenticated file links.",
+    "steps": [
+      "As B, open A prescription history/detail/file links. => Record and file are denied or absent.",
+      "As a pharmacist without review permission, try the same review/detail actions. => No review or private download succeeds.",
+      "As A, open the authorized file; sign out and try the same link again. => Authorized access works and signed-out access fails; expired links should require fresh authorized access.",
+      "Ask technical tester to verify raw media URLs and hosted web-server configuration if this is a release test. => A working authorized download alone is not counted as proof that raw media is protected.",
+      "As authorized reviewer, inspect the audit/history screen if offered. => Upload, assignment, clarification, reply and decision have identifiable actors and timestamps; missing audit UI is recorded."
+    ]
+  },
+  {
+    "section": "7. Professional applications",
+    "id": "M25",
+    "title": "Apply, approve and activate professional accounts",
+    "role": "New professional; two administrators",
+    "covers": "ACC-10 CON-01 LAB-01",
+    "setup": "Use separate synthetic doctor, pediatrician and lab-partner applications; prepare required test documents.",
+    "steps": [
+      "Open /professional/register and select the intended professional type. => Correct identity, role, facility/practice, documents and payout/availability fields are shown where applicable.",
+      "Attempt an incomplete submission and invalid file uploads. => Missing fields and file errors are explicit; no incomplete approval is silently granted.",
+      "Fill the required steps, upload synthetic credentials and review the final summary. Accept terms yourself only when appropriate, then submit once. => Application reference and pending status appear.",
+      "As admin, locate the exact application, inspect protected documents and request correction if supported. => Application/document association and review history persist.",
+      "As applicant, follow the correction/resubmission process, then ask admin to approve and provision. => Correct linked role account is created; repeated approval does not create duplicates.",
+      "Open the activation email and set the new password yourself. Sign in and verify the appropriate dashboard. => Activated doctor, pediatrician or lab partner reaches only the permitted workspace.",
+      "Reuse the activation link, and use a prepared expired link separately. => Both fail safely; resend delivers a fresh link if supported.",
+      "Repeat the application/approval/activation journey for the other two professional types. => Each gets the correct role, scope and dashboard; record results separately."
+    ]
+  },
+  {
+    "section": "7. Professional applications",
+    "id": "M26",
+    "title": "Pending/suspended professionals and document privacy",
+    "role": "Pending/suspended professional; administrator; customer",
+    "covers": "CON-02",
+    "setup": "Use dedicated test professionals; retain a separate active professional for later bookings.",
+    "steps": [
+      "Try login/dashboard access with pending or suspended accounts. => Access follows current eligibility and clear guidance is given.",
+      "As customer, browse doctor/pediatrician/lab selections. => Ineligible providers/facilities are not offered for new service.",
+      "As admin, suspend an eligible test professional with an existing open session; have them refresh/attempt a protected action. => Existing tokens/sessions do not retain revoked permissions.",
+      "Inspect a public clinician page. => Only intended booking/profile details appear; private credentials, identity documents and payout details are absent.",
+      "Reactivate the disposable test professional through the permitted flow and recheck booking eligibility. => Status changes restore only intended access and keep historical records."
+    ]
+  },
+  {
+    "section": "8. Doctor consultation",
+    "id": "M27",
+    "title": "Choose a doctor, pay and finalize exactly one booking",
+    "role": "Customer A; doctor",
+    "covers": "CON-03 CON-04 CON-05",
+    "setup": "Use an approved synthetic doctor and record the current fee.",
+    "steps": [
+      "Open /doctor-consultation, choose the doctor or supported routing option, and read the displayed specialty and fee. => Selected clinician/routing and fee are clear; any schedule choice matches the form.",
+      "Enter synthetic complaint, required patient details and the authorized phone. Leave required fields empty once first. => Validation is useful and no booking is created prematurely.",
+      "Initiate payment once, decline the first attempt on a separate test case, then approve a valid retry after failure. => Waiting/failure/success are distinct; an unpaid booking cannot be finalized.",
+      "Approve the successful prompt yourself and retain the provider receipt. => Consultation payment amount equals displayed fee; receipt is genuine.",
+      "Finalize, refresh and reopen the waiting/account page. => One consultation reference appears in customer history and assigned clinician queue.",
+      "Reopen the payment return/finalize page and retry a visible finalization action if offered. => No duplicate consultation or reused payment for a second booking.",
+      "As doctor, locate the same reference and compare patient, issue, payment eligibility and schedule. => Correct patient and booking appear once; fee changes after payment do not rewrite the paid amount."
+    ]
+  },
+  {
+    "section": "8. Doctor consultation",
+    "id": "M28",
+    "title": "Open queue specialty routing and competing claims",
+    "role": "Customer A; two eligible doctors",
+    "covers": "CON-06",
+    "setup": "Run only if booking without a named doctor/open queue is offered.",
+    "steps": [
+      "Create a paid synthetic booking through the open queue and record requested specialty/routing. => Queue description matches the selected mode; do not expect an already named doctor booking to be unassigned.",
+      "As eligible doctor 1 and doctor 2, open the same unclaimed consultation in separate sessions. => Only permitted doctors can see/claim the case.",
+      "Coordinate a near-simultaneous Claim click in both sessions. => Exactly one clinician is assigned; the other gets a useful denial/update.",
+      "Refresh both doctors and the patient view. => One stable assignment is shown everywhere; an ineligible/suspended doctor cannot take over.",
+      "If open queue is unavailable, record N/A with the offered booking mode and request technical concurrency evidence separately. => An unavailable website path is not falsely marked tested."
+    ]
+  },
+  {
+    "section": "8. Doctor consultation",
+    "id": "M29",
+    "title": "Chat, live updates and protected attachments",
+    "role": "Customer A; assigned doctor; unrelated clinician",
+    "covers": "CON-07 CON-11",
+    "setup": "Use the same paid consultation and two simultaneous role sessions.",
+    "steps": [
+      "Open the conversation as patient and clinician and exchange distinguishable synthetic messages. => Messages appear on both sides with correct author and time.",
+      "Refresh both sides, leave the page, then return. => Full history persists under the same consultation.",
+      "Upload a small permitted synthetic attachment from each side and download it from the other role. => Correct file opens; no public raw file URL is required.",
+      "Try an unsupported file and a file larger than 10 MB. => Both are rejected clearly without losing existing conversation history.",
+      "Disconnect one browser network briefly, reconnect, then send one test message. => Connection state is understandable and history recovers without unintended duplicates.",
+      "As Customer B or an unrelated doctor, open the consultation/attachment URL. => Message history and files are denied; revoked account access is also denied after refresh."
+    ]
+  },
+  {
+    "section": "8. Doctor consultation",
+    "id": "M30",
+    "title": "E-prescription, pharmacist handoff and medicine order",
+    "role": "Doctor; pharmacist; Customer A",
+    "covers": "CON-08 CON-09 E2E-03",
+    "setup": "Continue the same consultation; synthetic instructions only.",
+    "steps": [
+      "As doctor, draft a prescription selecting exact catalog variants and quantities with required instructions. Save, reopen and edit before sending. => Draft details persist and remain linked to this consultation.",
+      "Send it and download the prescription PDF. => Patient, clinician, consultation reference, exact items, quantities, full instructions and signature information are readable; long lines are not clipped.",
+      "As patient and pharmacist, follow the received notification. => Both reach the correct new prescription rather than a similarly named record.",
+      "As pharmacist, review and approve exact mapped variants. As patient, add allowed items and create a separate medicine checkout. => Consultation payment is not mistakenly reused to pay for medicine.",
+      "Pay the displayed medicine total through M12 and retain the second receipt. => Medicine order, dispensing prescription and original clinician prescription link back to the same consultation.",
+      "Progress synthetic delivery and compare both role histories and stock. => Paid/delivered/dispensing status matches, with one stock deduction and no unauthorized prescription reuse."
+    ]
+  },
+  {
+    "section": "8. Doctor consultation",
+    "id": "M31",
+    "title": "Complete consultation and verify one earning",
+    "role": "Doctor; Customer A; finance/admin",
+    "covers": "CON-10",
+    "setup": "Complete chat and prescription checks before ending the session.",
+    "steps": [
+      "As doctor, end/complete the consultation through its normal control. => Completed status and end timestamp appear; patient history agrees after refresh.",
+      "Refresh and repeat an offered completion action or reopen a stale completed tab. => No duplicate completion earning or duplicate financial notice.",
+      "Open doctor earnings and find the consultation reference. => One earning is calculated from the fee actually paid and recorded commission, with stated rounding.",
+      "Ask admin to compare paid fee, commission and net. Example: KSh 1 less 10% commission gives KSh 0.90. => Current profile fee changes do not change the historical paid-fee calculation.",
+      "Try another unrelated clinician view. => This consultation/earning is not attributed to someone else."
+    ]
+  },
+  {
+    "section": "9. Pediatric journey",
+    "id": "M32",
+    "title": "Create two children and keep identity separate",
+    "role": "Guardian; second unrelated guardian",
+    "covers": "PED-01 PED-06 PED-07",
+    "setup": "Prepare similar or identical child names and distinct dates of birth/measurements.",
+    "steps": [
+      "Open /pediatric-consultation and the supported child-profile controls. Add child A with synthetic details, then child B with deliberately similar/same name. => Two separate child records exist with distinct IDs or unambiguous profile details.",
+      "Edit A measurements/profile only, save and refresh. => A changes persist while B stays unchanged.",
+      "Select A and inspect history, then select B. => Records are grouped by child identity rather than name alone.",
+      "As an unrelated guardian, try a copied child/profile/history link. => Neither child can be read, selected or edited.",
+      "If a repeated consultation is needed later, keep A and B IDs on your run sheet. => Matching names cannot hide a wrong-patient booking."
+    ]
+  },
+  {
+    "section": "9. Pediatric journey",
+    "id": "M33",
+    "title": "Consent, measurements, fee and paid booking",
+    "role": "Guardian; pediatrician",
+    "covers": "PED-02 PED-03 PED-04",
+    "setup": "Use an approved pediatrician and select child A explicitly.",
+    "steps": [
+      "Select child A, selected pediatrician and required complaint/patient details. Compare the displayed fee with that clinician. => Correct child and clinician fee are clear before payment.",
+      "Try proceeding without affirmative guardian consent. => Required consent restriction/message appears; any permitted pending-consent state cannot issue a pediatric prescription.",
+      "Try a future birth date, negative or zero supplied measurements, and an out-of-range child age where editable. => Invalid data is rejected; optional measurements are not invented when absent.",
+      "Enter distinct valid synthetic measurements, explicitly grant consent and review the summary. => Child A, guardian, clinician, measurements and consent all match.",
+      "Approve the authorized payment prompt and finalize once using M27 payment checks. => One paid pediatric consultation is linked to child A with consent retained through payment.",
+      "As pediatrician, open that consultation and compare guardian, child ID/name, age/date of birth, measurements and consent. => Child B data is never substituted, and absent data is shown as not recorded.",
+      "Refresh both views. => Consent and child identity persist, not only the client-side checkbox state."
+    ]
+  },
+  {
+    "section": "9. Pediatric journey",
+    "id": "M34",
+    "title": "Pediatric chat, prescription, delivery, completion and history",
+    "role": "Guardian; pediatrician; pharmacist; finance",
+    "covers": "PED-05 PED-06 E2E-04",
+    "setup": "Continue child A paid consultation; use the same references throughout.",
+    "steps": [
+      "Repeat the patient/clinician chat and attachment checks in M29. => Authorized guardian/pediatrician see the correct child conversation and protected files.",
+      "Issue an exact-variant synthetic prescription and inspect its PDF. => Child, guardian and consultation references are correct; no sibling substitution or unsupported measurement/clinical placeholders.",
+      "Complete pharmacist review, separate medicine checkout/payment and synthetic delivery using M23/M30. => Paid medicine and dispensing remain linked to the same child A consultation.",
+      "Complete the pediatric consultation twice if the UI permits retry and inspect earnings. => One correct earning; no duplicate completion or stock deduction.",
+      "Book a second authorized consultation for child A, then view A history and B history. => Both A consultations group under A and never under B.",
+      "As unrelated guardian/pediatrician, try copied consultation, child-history and prescription/file links. => Private records are denied; record provider payments and medicine payments separately."
+    ]
+  },
+  {
+    "section": "10. Lab services",
+    "id": "M35",
+    "title": "Partner approval, facility offerings and staff assignment",
+    "role": "Lab partner; administrator",
+    "covers": "LAB-01 LAB-02",
+    "setup": "Use an approved/provisioned partner from M25 and a synthetic facility.",
+    "steps": [
+      "As partner, open /lab/dashboard, add required facility details and synthetic supporting documents. => Facility is associated with this partner and enters its approval workflow.",
+      "As admin, inspect facility and protected documents, then approve through /admin/lab-partners or the applicable workspace. => Correct facility/partner becomes eligible, with review history.",
+      "As partner, add offered tests, prices, sample types/turnaround and assigned technicians. => Only permitted active tests/staff can be assigned.",
+      "As customer, browse /lab-tests. => Approved offered tests/facilities and correct price/availability are shown.",
+      "Try a technician from an unrelated partner/facility, and view pending/suspended facility offerings. => Assignment is denied and ineligible services are not bookable.",
+      "Record facility, test, technician and quoted price in the run sheet. => Later results can be matched to one request."
+    ]
+  },
+  {
+    "section": "10. Lab services",
+    "id": "M36",
+    "title": "Walk-in booking and cancellation",
+    "role": "Customer A; lab technician/partner",
+    "covers": "LAB-03 LAB-08",
+    "setup": "Current lab flow is pay-later; no online lab payment is offered.",
+    "steps": [
+      "Open /lab-tests, choose Walk-in, facility and test. Enter required synthetic patient details. => Selected test, facility and quote are shown before confirmation.",
+      "Submit once, open /account/lab-tests and refresh. => One request reference appears with correct test/facility/quote and the stated payment arrangement.",
+      "Change the catalog test price with staff on a separate prepared test, then reopen this booking. => Saved booking quote does not silently change with later catalog price.",
+      "Create a separate eligible uncollected request and choose Cancel; first keep it, then confirm cancellation. => Keeping makes no change; confirming cancels the intended request with history.",
+      "Try cancellation after collection/processing where policy disallows it. => Clear denial and support guidance; cancellation does not imply a provider refund.",
+      "Check customer and staff payment copy. => Pay-later/pending status is honest; no fake online charge or automatic refund claim."
+    ]
+  },
+  {
+    "section": "10. Lab services",
+    "id": "M37",
+    "title": "Home collection, code verification and processing",
+    "role": "Customer A; assigned lab technician",
+    "covers": "LAB-04 LAB-05 LAB-06",
+    "setup": "Use a new home-collection request and a small set of agreed invalid-code tests.",
+    "steps": [
+      "Book home collection with facility/test, synthetic address and permitted date/time/contact details. => Request shows correct home details, saved quote and assignment.",
+      "As assigned technician, open /labtech/dashboard and locate the reference. => Correct patient/test/address appears; unrelated requests are absent.",
+      "Customer retrieves the collection code and gives it to the assigned test technician through the intended handoff. => Code belongs to this request and its validity is explained.",
+      "Try one wrong code and a code from another request, then the correct code. => Wrong codes do not collect the sample; correct code changes the intended request once.",
+      "Try reusing the accepted code; separately use an expired/reassigned/cancelled request code with staff-prepared fixtures. => Reuse and invalidated codes are rejected; stop if attempt limits trigger and record the result.",
+      "Move through awaiting sample, sample collected, processing, result ready and completed using allowed controls. => Invalid skips are rejected; history records actor/time and customer status agrees.",
+      "Refresh after every transition. => Status and collection verification persist without duplicated events."
+    ]
+  },
+  {
+    "section": "10. Lab services",
+    "id": "M38",
+    "title": "Result upload, notification, download and privacy",
+    "role": "Assigned lab technician; Customer A; unrelated users",
+    "covers": "LAB-07 LAB-09 E2E-05",
+    "setup": "Use the collected/processing home request from M37.",
+    "steps": [
+      "Attempt an invalid result file, then upload the synthetic lab PDF through the assigned technician workspace. => Invalid upload is rejected; valid result is attached to the intended request.",
+      "Publish/complete using the allowed workflow. => Completion requires the correct result and intended audit history.",
+      "As patient, open the lab notification and /account/lab-tests, select the exact request and download. => File and request reference match; PDF opens and is the synthetic report you uploaded.",
+      "Refresh, leave and return to the request; retry an offered upload/publish action once on a test fixture. => Existing result is stable and repeated actions do not create unintended duplicate publication.",
+      "As Customer B, unrelated technician and unrelated partner, try copied result/detail links. => Files and changes are denied; a revoked facility/account cannot publish.",
+      "Check in-app notification and actual external email receipt separately. => Correct recipient and record link; mailbox delivery is only marked passed if actually received."
+    ]
+  },
+  {
+    "section": "11. Staff catalog, inventory and content",
+    "id": "M39",
+    "title": "Create/edit catalog products and exact variants",
+    "role": "Administrator; customer",
+    "covers": "CAT-01",
+    "setup": "Use a new synthetic product; do not edit live medicine details for a test.",
+    "steps": [
+      "Open /admin/brands and /admin/categories; create a clearly labelled test brand/category/subcategory. => Records save once and are available in the product form.",
+      "Open /admin/products, create a product and two distinguishable variants with different strength/pack/price. Upload suitable test images. => Parent and variant fields are distinct and exact SKUs remain unique.",
+      "Save and reopen each variant. Try duplicate SKU, invalid price and missing required fields in separate attempts. => Valid values persist; invalid input does not partially replace good data.",
+      "Publish and open the storefront detail/search as customer. => Brand/category, descriptions, images, variant options, prices and badges match admin data.",
+      "Edit only variant B image/price and refresh the storefront. => Variant A is unchanged and B updates correctly.",
+      "Deactivate the test product after its test obligations finish. => It leaves new customer purchasing while historical records remain readable."
+    ]
+  },
+  {
+    "section": "11. Staff catalog, inventory and content",
+    "id": "M40",
+    "title": "Stock by variant/store, adjustments and low-stock indication",
+    "role": "Inventory staff; customer; administrator",
+    "covers": "INV-01 INV-02 INV-03 INV-07 INV-09",
+    "setup": "Use S1/S2 and variant A/B baselines from M02; coordinate a separate paid stock test.",
+    "steps": [
+      "Open /inventory/manage or /admin/inventory and record A/S1=50, A/S2=30 and B separate balances. => Each row identifies the exact variant and store/location.",
+      "Adjust A/S1 through the authorized control with a reason, then refresh movement history. => Quantity, actor, reason and timestamp are recorded; other rows are unchanged.",
+      "Restore the agreed A/S1 baseline with a separate documented adjustment. Complete an order for 2 packs allocated specifically to S1. => At the configured commitment stage A/S1=48, A/S2=30 and B unchanged.",
+      "Check reserved versus available stock if supported, then repeat finalization through an offered stale confirmation. => No second deduction or unexplained permanent reservation.",
+      "Use a prepared low-stock threshold fixture, cross its threshold and inspect staff/storefront indicator or notification. => Configured low-stock signal appears for the correct row; do not assume an email unless actually received.",
+      "Try a negative balance/invalid quantity or mismatched row through visible staff controls. => Validation prevents corrupt balances.",
+      "As customer, type the inventory URL and try any exposed edit action. => Modification is denied.",
+      "Restore only temporary adjustment/threshold changes with reasons. => Purchased stock movements and audit evidence are retained."
+    ]
+  },
+  {
+    "section": "11. Staff catalog, inventory and content",
+    "id": "M41",
+    "title": "Two customers competing for the last unit",
+    "role": "Customer A; Customer B; inventory staff",
+    "covers": "INV-06",
+    "setup": "Set one isolated exact variant to one available unit, with backorders disabled.",
+    "steps": [
+      "In separate customer sessions, each add that variant and open checkout. => Both see the same item; stock claims are not confused with parent availability.",
+      "Coordinate checkout/finalization as closely together as supported in the sandbox, approving only agreed test payments. => At most one order commits the last unit; no negative stock.",
+      "Have staff inspect both orders, successful payments and inventory movements. => Losing checkout has a useful outcome and any paid-but-unfulfillable order is flagged for reconciliation/refund, not hidden.",
+      "Refresh both customer views. => No silent extra order or unhandled spinner; final balances and obligations are clear.",
+      "If real simultaneous execution cannot be achieved manually, record the observed outcome and request the technical locking/concurrency test. => A sequential browser run is not reported as proof of concurrency."
+    ]
+  },
+  {
+    "section": "11. Staff catalog, inventory and content",
+    "id": "M42",
+    "title": "External POS synchronization and fulfillment",
+    "role": "Inventory staff; integration tester",
+    "covers": "INV-08 ORD-14",
+    "setup": "Real POS testing is currently held at the user request; this guide does not remove that hold.",
+    "steps": [
+      "Confirm a dedicated test POS and explicit authorization to resume exist before starting. => Otherwise mark Blocked; do not send synthetic orders to a real fulfillment service.",
+      "With authorized setup, map a known test SKU to exact variant/store and sync a known balance. => Correct mapped inventory changes; other variants/stores do not.",
+      "Repeat the same update and submit an unknown mapping. => Replays do not duplicate movements and unknown mappings are reported for review.",
+      "Use controlled test POS downtime/failure then restore service and retry. => Failure is visible, retry is tracked and state recovers without duplicate records.",
+      "Push one authorized test order, retry the same push and compare external order reference. => One external order, correct items/quantities and delivery data; store the external evidence.",
+      "If only mock/test-suite results are available, record them separately. => They do not check off this real integration step."
+    ]
+  },
+  {
+    "section": "11. Staff catalog, inventory and content",
+    "id": "M43",
+    "title": "Banners, FAQs, offers and settings on the storefront",
+    "role": "Administrator; visitor",
+    "covers": "CAT-06 SUP-04",
+    "setup": "Record original values and use one harmless test item/setting.",
+    "steps": [
+      "Open admin banner/FAQ/deal/content controls that are offered. Create a dated synthetic item and preview it on the public site. => Correct text/image/link, dates and intended placement; missing editor is recorded.",
+      "Edit and unpublish the synthetic content, refreshing the public page each time. => Saved visibility and changes persist; dates do not leak future/expired promotions.",
+      "Open /admin/settings, change a harmless public support/display setting and save. => Refreshed public page shows only that intended public value.",
+      "Try an invalid price or unsafe/invalid policy URL through the form. => Save is rejected clearly without replacing the valid setting.",
+      "As customer/visitor, check public settings content and try typing the admin settings URL. => Private configuration/secrets are absent and writes are denied.",
+      "Restore original settings and remove/deactivate only your disposable content. => Public information returns to its recorded baseline."
+    ]
+  },
+  {
+    "section": "12. Payouts and finance",
+    "id": "M44",
+    "title": "Calculate and create a source-linked payout",
+    "role": "Administrator maker; clinician",
+    "covers": "PAY-01",
+    "setup": "Use a completed paid synthetic consultation with a recorded earning; current payouts are administrative records.",
+    "steps": [
+      "Open /admin/invoices?view=payouts or the Payouts menu, inspect reference rules and record the applicable rate/commission. => Rules are labelled as reference configuration, not automatic money transfers.",
+      "Select a real active professional recipient and the completed consultation source. => Recipient role/account and source reference match; a display name alone cannot create an unlinked recipient.",
+      "Enter gross, commission, withholding and other deductions. Independently calculate net = gross \u2212 commission \u2212 withholding \u2212 deductions. => Preview and saved amounts match; examples: 500\u221250=450 and 500\u221250\u221220\u221210=420.",
+      "Try negative deductions, deductions exceeding gross, wrong recipient role and a different clinician consultation. => Validation blocks invalid amounts/source relationships.",
+      "Save the valid synthetic draft with a unique source/idempotency reference and explicit no-transfer note. => One draft record with correct professional and earning link.",
+      "Try creating the same source again. => Existing payout or useful conflict, never a second obligation."
+    ]
+  },
+  {
+    "section": "12. Payouts and finance",
+    "id": "M45",
+    "title": "Maker-checker, recorded payment and reconciliation",
+    "role": "Two administrators; clinician",
+    "covers": "PAY-02 PAY-03 PAY-04",
+    "setup": "Use one synthetic administrative payout from M44; no actual provider transfer is triggered by this application.",
+    "steps": [
+      "As maker, submit the payout; try approving your own entry. => Maker-checker policy prevents self-approval.",
+      "As independent checker, review amount/source/recipient and approve. => Approval actor/time are saved.",
+      "As permitted admin, progress to Processing, then record a clearly labelled SYNTHETIC-NO-TRANSFER payment reference only for this QA ledger test. => UI explicitly describes an administrative record, not proof of actual transfer.",
+      "Reconcile the record and refresh audit history. => Paid/matched status, reference and actor agree with the chosen source and amount.",
+      "Repeat mark-paid/reconcile or reuse the same reference on another disposable payout. => Duplicates are denied and no new transfer/earning is invented.",
+      "As clinician, open earnings/payout history and match source, net and status. => Only that professional records appear, with the administrative meaning clear.",
+      "If actual provider transfer is a requirement for your release, mark that additional requirement Blocked/unimplemented until an independent provider transfer exists. => A ledger status does not satisfy it."
+    ]
+  },
+  {
+    "section": "12. Payouts and finance",
+    "id": "M46",
+    "title": "Payout holds, failures, retries, reversals and access",
+    "role": "Administrator; unrelated professional; customer",
+    "covers": "PAY-05 PAY-06 PAY-07",
+    "setup": "Use separate synthetic ledger fixtures for terminal branches.",
+    "steps": [
+      "Hold a payout with a reason, release it and attempt processing without renewed approval. => Hold history persists and release requires approval again.",
+      "Mark a processing fixture failed with reason, then use Retry. => Amount stays stable and retry count/history update once.",
+      "Cancel a separate eligible payout and reverse a separate paid synthetic ledger fixture. => Correct terminal state/history and stated reconciliation exception; no claim that funds moved back automatically.",
+      "Try invalid transitions, missing required reason and future payment time. => Useful validation prevents inconsistent records.",
+      "As customer/unrelated professional, type the admin payout URL and try a copied payout link. => Admin actions and other recipients data are denied.",
+      "Refresh professional earnings after each appropriate branch. => Ledger status, pending/recorded-paid amounts and source remain consistent."
+    ]
+  },
+  {
+    "section": "13. Notifications, support and compliance",
+    "id": "M47",
+    "title": "Inbox, unread counts, search and record links",
+    "role": "Customer A; relevant staff",
+    "covers": "NOT-01 NOT-02 NOT-04",
+    "setup": "Use notifications generated by your prescription, consultation, order and lab journeys.",
+    "steps": [
+      "Open /account/notifications and record the unread count. => Correct signed-in recipient notices appear.",
+      "Mark one unread notice read, refresh and compare the count; then Mark all read and refresh. => Counts decrease accurately and read state persists.",
+      "Search for a recorded order/prescription/consultation/lab reference and use pagination. => Results and totals are correct and paging does not silently stop after the first page.",
+      "Open one link for each service type plus support. => Exact authorized record opens; prescription panels can be closed and do not repeatedly reopen.",
+      "As B, try A notification/detail/delivery links. => A private notices and records cannot be read or changed.",
+      "Have staff check the intended business recipient after each trigger. => Correct patient/guardian/professional receives the notice; no unrelated child/user is notified."
+    ]
+  },
+  {
+    "section": "13. Notifications, support and compliance",
+    "id": "M48",
+    "title": "Preferences, delivery failures and retries",
+    "role": "Customer A; notification test operator",
+    "covers": "NOT-03 NOT-05",
+    "setup": "Use only your disposable test notifications and authorized test destinations.",
+    "steps": [
+      "Open notification preferences; change an optional channel and save. Reload and sign in again. => Preference persists.",
+      "Trigger an optional test notice with that channel disabled. => Optional delivery follows preference; business record/inbox outcome follows the stated policy.",
+      "Request a verification/reset or permitted required receipt separately. => Required operational policy is clear; do not assume optional marketing preferences suppress necessary security messages.",
+      "With test operator help, create one controlled failed delivery, then use its Retry control once. => Attempt history records failure then retry on the same notification/delivery.",
+      "Retry a successful delivery, disable a channel before retry, or reach the configured cap with dedicated fixtures. => Invalid retries are denied; no duplicate order/booking occurs.",
+      "Inspect actual recipient mailbox/phone and delivery status separately; restore preferences. => Backend accepted/sent status is distinguished from actual recipient receipt; changes to addresses/preferences are respected."
+    ]
+  },
+  {
+    "section": "13. Notifications, support and compliance",
+    "id": "M49",
+    "title": "Customer ticket, public reply, private note and resolution",
+    "role": "Customer A; Customer B; support administrator",
+    "covers": "SUP-01 SUP-02",
+    "setup": "Use a new ticket about a synthetic record; keep genuine refund inquiries open until settled.",
+    "steps": [
+      "Open /account/support, create a ticket with channel, reference, subject and valid priority. Submit once and refresh. => One reference appears and is linked to the correct customer/service.",
+      "As admin, open /admin/support, find that reference and assign an eligible staff member if offered. => Assignment and status changes persist.",
+      "Add a public reply, then a distinct Internal note. => Staff can distinguish visibility and audit authors/times.",
+      "As customer, refresh the ticket and read history. => Public reply/status are visible; internal note is absent from detail/export.",
+      "As B, try A ticket link and note controls. => Read/write access is denied.",
+      "Resolve a settled synthetic inquiry and ask A to reply after resolution. => Configured follow-up/reopening behavior is clear and saved; no hidden loss of the customer reply.",
+      "Use search/filter/paging/export if offered. => Only authorized tickets/notes appear, and export preserves note privacy."
+    ]
+  },
+  {
+    "section": "13. Notifications, support and compliance",
+    "id": "M50",
+    "title": "Contact form and newsletter",
+    "role": "Visitor; signed-in customer; support administrator",
+    "covers": "SUP-03",
+    "setup": "Use your own test email and a synthetic non-sensitive contact message.",
+    "steps": [
+      "Open /contact signed out and inspect submission guidance. => Sign-in guidance matches the authenticated ticket policy; no false success from a non-working form.",
+      "Sign in, submit a valid contact message and note the resulting ticket. => Customer support history and admin queue show the saved inquiry.",
+      "Find the newsletter form and submit an invalid address. => Clear validation and no successful signup claim.",
+      "Submit a valid test email once, then submit the same email again. => Useful confirmation/duplicate message without duplicate subscription or repeated confirmation spam.",
+      "If a controlled email failure is available, have the operator exercise it with your test address. => Subscription state is not lost or duplicated; failure/retry information is honest.",
+      "Check external confirmation receipt only if configured, then have staff deactivate disposable marketing fixtures if needed. => Marketing consent is deliberate and your test does not leave unwanted subscriptions."
+    ]
+  },
+  {
+    "section": "13. Notifications, support and compliance",
+    "id": "M51",
+    "title": "Compliance evidence and role-limited download",
+    "role": "Administrator; PPB inspector/read-only role; customer",
+    "covers": "SUP-05",
+    "setup": "Use a clearly marked synthetic evidence PDF, not a real credential.",
+    "steps": [
+      "As admin, open /account/compliance and create evidence with required metadata and the synthetic document. => Saved evidence appears with correct status and owner.",
+      "Refresh, open and download the protected evidence. => File is the uploaded synthetic PDF and associated metadata persists.",
+      "As read-only inspector, open and download the permitted evidence, then try editing/upload/deletion controls. => Read permission works and write permission is denied.",
+      "As customer or signed-out visitor, open a copied evidence/download URL. => Private evidence is denied.",
+      "Ask technical tester to verify raw media denial on the actual hosted server. => Hosted protection is evidenced separately from a local authorized download.",
+      "Leave the disposable evidence in an agreed review/archive state and retain its reference. => Test evidence cannot be mistaken for a real approved license."
+    ]
+  },
+  {
+    "section": "14. Mobile, accessibility and recovery",
+    "id": "M52",
+    "title": "Repeat the main journeys on a phone",
+    "role": "Customer; relevant staff",
+    "covers": "Cross-cutting",
+    "setup": "Use your actual phone browser or a narrow browser window; record device/browser.",
+    "steps": [
+      "Open homepage, menus, search/results and product detail at narrow width. => No clipped text, missing navigation, overlapping buttons or horizontal scrolling needed for core actions.",
+      "Choose a variant, edit cart, select delivery, read totals and initiate one authorized payment if necessary. => Controls remain usable, keyboard does not hide required fields, and final amount is visible.",
+      "Upload a synthetic prescription from the phone file picker and open its status/history. => Accepted types/limits and progress/errors work on mobile.",
+      "Open doctor/pediatric chat, scroll history, send a test message and open an attachment. => Composer and latest messages are accessible with the keyboard open.",
+      "Open child selection, consent, lab booking/result, notifications and support. => All core customer functions can be completed without switching to desktop.",
+      "Rotate the device and return from another app/payment prompt. => Draft, session and current status remain stable; no duplicate payment/booking."
+    ]
+  },
+  {
+    "section": "14. Mobile, accessibility and recovery",
+    "id": "M53",
+    "title": "Keyboard, errors, loading and refresh recovery",
+    "role": "Customer; one representative staff role",
+    "covers": "Cross-cutting",
+    "setup": "Use a fresh disposable draft for interruptions; do not interrupt an unknown payment and immediately retry it.",
+    "steps": [
+      "Navigate sign-in, cart, checkout and support with Tab/Shift+Tab/Enter/Space. => Focus is visible, controls have readable labels and modal focus does not trap you unexpectedly.",
+      "Increase browser zoom to 200% and inspect required fields/status/errors. => Core content remains readable and operable without relying only on colour.",
+      "Submit a form with one invalid field and correct it. => Error associates with the field; useful valid input is retained and screen focus can reach the problem.",
+      "Throttle/disconnect network temporarily during a harmless read or saved draft, then reconnect and refresh. => Loading ends, a useful recovery action exists and saved state returns.",
+      "Navigate back/forward, refresh an account detail and open a direct bookmark after login. => Correct record/role persists without endless redirects.",
+      "Inspect long product names, large histories, empty carts, no search results and long PDF instructions. => Text is not clipped, empty states are useful and pagination works.",
+      "If session expires mid-form, sign back in through the intended flow and check the draft. => No accidental duplicate submission or disclosure to the wrong account."
+    ]
+  },
+  {
+    "section": "15. Connected runs and final reconciliation",
+    "id": "M54",
+    "title": "Run all six journeys with one reference chain each",
+    "role": "Tester; all relevant role partners",
+    "covers": "E2E-01 E2E-02 E2E-03 E2E-04 E2E-05 E2E-06",
+    "setup": "Use your own new references; historical passed references are examples only.",
+    "steps": [
+      "Journey 1: new registration/verification \u2192 correct variant/cart \u2192 payment \u2192 stock \u2192 synthetic fulfillment \u2192 receipt/report, using M06, M04 and M10\u2013M16. => One customer/order chain, one successful payment and expected exact stock.",
+      "Journey 2: upload \u2192 clarification/reply \u2192 pharmacist approval \u2192 prescription checkout \u2192 payment \u2192 dispensing/delivery, using M20\u2013M24. => Prescription/item/variant/order/payment references agree.",
+      "Journey 3: professional approval \u2192 paid doctor booking \u2192 chat \u2192 e-prescription \u2192 pharmacist \u2192 medicine payment/order \u2192 completion \u2192 earning \u2192 administrative payout/reconciliation. => Two distinct payment obligations, one consultation/earning and correctly labelled payout record.",
+      "Journey 4: guardian/two children \u2192 child A \u2192 consent \u2192 paid pediatric booking \u2192 prescription \u2192 separate medicine checkout \u2192 completion/history/earning. => Same child ID throughout and sibling history stays separate.",
+      "Journey 5: approved lab partner/facility \u2192 request \u2192 code/sample collection \u2192 processing \u2192 result \u2192 patient notice/download. => One consistent pay-later request with correct quote, facility, technician and private result.",
+      "Journey 6: failed payment \u2192 safe successful retry \u2192 one order \u2192 cancellation/return \u2192 quarantine \u2192 actual external refund evidence \u2192 correct finance \u2192 settled support ticket. => One successful charge; no duplicate stock/refund; if external refund is unavailable, the live journey remains partial.",
+      "For each journey, compare refreshed customer and staff views, receipt/reference and inventory/earning/report rows. => A nice-looking customer screen alone does not establish cross-role completion."
+    ]
+  },
+  {
+    "section": "15. Connected runs and final reconciliation",
+    "id": "M55",
+    "title": "Record defects, clean up and review",
+    "role": "Tester; administrator; reviewer",
+    "covers": "Completion criteria",
+    "setup": "Use the issue template and result fields included below.",
+    "steps": [
+      "For every failed/blocked step, write its case/step ID, exact action, expected and actual result, record reference and screenshot. => Someone else can reproduce it without your credentials.",
+      "After a fix, repeat the failed step and its surrounding journey with a clean fixture where needed. => Retest result/date/evidence are recorded separately from the original failure.",
+      "Ask staff to compare successful payment count, exact stock movements, child identity, consultation/earning count and return obligations for all your references. => No unresolved duplicate charge, wrong patient, unauthorized access or unexplained inventory movement.",
+      "List Paybill, POS, external refund, external email/SMS and hosted-file protection outcomes individually. => Unavailable integrations are Blocked, and card/COD/pay-later/administrative-ledger scope exclusions have explicit reasons.",
+      "Remove/deactivate only disposable fixtures that have no pending provider result/financial obligation. Restore settings, prices and reference rules. => Real evidence/history remains; old pending payments are not hidden by deleting fixtures.",
+      "Export/save the completed checklist and issue log, and retain screenshots/PDFs in a run folder. => Results can be reviewed even if browser local storage is cleared.",
+      "Have the reviewer record overall Pass/Conditional/Not ready and explicitly list accepted limitations. => Tester and reviewer names/date are recorded; an unexecuted integration is not quietly marked passed."
+    ]
+  },
+  {
+    "section": "15. Connected runs and final reconciliation",
+    "id": "M56",
+    "title": "Technical handoffs that a browser run cannot prove alone",
+    "role": "Tester coordinates; technical/integration tester performs",
+    "covers": "ACC-07 INV-06 ORD-10 ORD-11 RX-09 CON-05 CON-06 CON-07 LAB-05 LAB-09 PAY-04 NOT-05",
+    "setup": "You do not need to use developer tools or send API requests yourself for these checks.",
+    "steps": [
+      "Ask for a logout/refresh-token revocation test, including an old token after suspension. => Technical evidence confirms server enforcement beyond browser redirection.",
+      "Ask for concurrent last-unit stock allocation, open-doctor claim, collection-code use, result publication and payout-reference uniqueness tests. => Real parallel requests/locking are covered; a sequential manual test is not substituted.",
+      "Ask for forged, mismatched amount/reference/customer, replayed and late payment callback tests and repeated finalization. => Untrusted payment data cannot create paid records, duplicate bookings or stock movements.",
+      "Ask for file content/size, raw media, expired signed-link and revoked-account access tests in development and the intended hosted configuration. => Private prescription/chat/lab/compliance files remain protected on the target environment.",
+      "Ask for forced delivery/provider/POS downtime and retry-cap tests using controlled fixtures. => Business actions remain consistent and retries do not duplicate orders, bookings or transfers.",
+      "Record test report/log, environment/build, tester and outcome in your run sheet. => Mark technical-only evidence clearly; if the website step itself failed, it remains a website failure."
+    ]
+  }
+]

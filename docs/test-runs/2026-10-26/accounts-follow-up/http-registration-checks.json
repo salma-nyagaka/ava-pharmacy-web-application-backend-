@@ -1,0 +1,7 @@
+{
+  "email": "smtp.signup@avapharmacy.test",
+  "registration_status": 201,
+  "duplicate_status": 400,
+  "unverified_login_status": 403,
+  "smtp_delivery_received": true
+}

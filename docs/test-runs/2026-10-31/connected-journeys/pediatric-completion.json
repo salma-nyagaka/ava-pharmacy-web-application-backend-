@@ -1,0 +1,40 @@
+{
+  "payment": {
+    "id": 55,
+    "reference": "PAY-4BABA616879B",
+    "status": "succeeded",
+    "amount": "1.00",
+    "provider_reference": "UK1I20IVWS",
+    "last_error": "",
+    "processed_at": "2026-11-01T21:54:47.592548+03:00"
+  },
+  "finalization": [
+    {
+      "status": "paid",
+      "payment_status": "paid",
+      "inventory_committed": true
+    },
+    {
+      "status": "paid",
+      "payment_status": "paid",
+      "inventory_committed": true
+    }
+  ],
+  "order": {
+    "id": 2014,
+    "order_number": "ORD-1DD38A84",
+    "status": "delivered",
+    "payment_status": "paid",
+    "inventory_committed": true,
+    "total": "1.00"
+  },
+  "successful_attempts": 1,
+  "finalization_events": 1,
+  "prescription": {
+    "id": 48,
+    "reference": "RX-7D2A2E",
+    "status": "approved",
+    "dispatch_status": "delivered"
+  },
+  "finance_export_contains_order": true
+}

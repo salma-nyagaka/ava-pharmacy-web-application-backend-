@@ -1,0 +1,328 @@
+[
+  {
+    "brand": "Lulu Life",
+    "source": "https://lulu-life.ch/",
+    "image_url": "https://lulu-life.ch/cdn/shop/files/cropped-logo_150x.jpg?v=1641399710",
+    "brand_id": 799,
+    "sha256": "4f8bd7fe2566233b5e85714c1e6c3f9ebcb1aef3207849d2198c929b5d12b04e",
+    "result": "imported"
+  },
+  {
+    "brand": "Uncover",
+    "source": "https://uncoverskincare.com/ke/",
+    "image_url": "https://ke.uncoverskincare.com/cdn/shop/files/Artboard_14.png?crop=center&height=151&v=1754580056&width=400",
+    "brand_id": 1145,
+    "sha256": "3cdc2c9b5a48cbccbd411c3c9b4642aa5f8ccafa310895588caec0b4c934fb6c",
+    "result": "imported"
+  },
+  {
+    "brand": "ACM",
+    "source": "https://labo-acm.com/",
+    "image_url": "https://labo-acm.com/cdn/shop/files/ACM-LOGO-BLACK.png?crop=center&height=95&v=1736933161&width=200",
+    "brand_id": 258,
+    "sha256": "61c242023e919a4258cca8cc977a95e123168da54588d09c5c1844c1c5e9462e",
+    "result": "imported"
+  },
+  {
+    "brand": "OPI",
+    "source": "https://www.opi.com/",
+    "image_url": "https://www.opi.com/#inline-logo",
+    "brand_id": 900,
+    "sha256": "7e46853d2ff9b7bfcb2e5ca87b0391bba06046a56644bb248ca23eb3f0134058",
+    "result": "imported"
+  },
+  {
+    "brand": "Suresign",
+    "source": "https://www.suresign.com/",
+    "image_url": "https://www.suresign.com/hs-fs/hubfs/SureSign%20logo%202.png?width=200&height=58&name=SureSign%20logo%202.png",
+    "brand_id": 1077,
+    "sha256": "1deb7eecd8f29a109aee14a5af8491377af29712e07b12e0b847a8d8989a3465",
+    "result": "imported"
+  },
+  {
+    "brand": "Saraya",
+    "source": "https://saraya.world/",
+    "image_url": "https://saraya.world/images/sarayahqlogo.svg",
+    "brand_id": 1038,
+    "sha256": "a90cd141954934a00c369c5106638aff4d4a96d758b584c913cb47fb25fb54e9",
+    "result": "imported"
+  },
+  {
+    "brand": "Eco Style",
+    "source": "https://ecostyle.com/",
+    "image_url": "https://ecostyle.com/cdn/shop/files/logo_ecostyle.svg?v=1775235084&width=300",
+    "brand_id": 1346,
+    "sha256": "225c7a6302642c0b6a2b22f1843167c746bba323a4af3b40fea433d0a7eb301d",
+    "result": "imported"
+  },
+  {
+    "brand": "Advancis",
+    "source": "https://www.advancispharma.com/",
+    "image_url": "https://advancispharma.com/wp-content/themes/advancis/src/img/logo_phrased.png",
+    "brand_id": 1242,
+    "sha256": "de19d419482aceb7179dd191e17af273f6c1f6e5b8a2b2aaf04021bd05b528c5",
+    "result": "imported"
+  },
+  {
+    "brand": "Oilatum",
+    "source": "https://www.oilatum.co.uk/",
+    "image_url": "https://www.oilatum.co.uk/media/3ksalw51/oilatum-logo_1200x1200.png",
+    "brand_id": 906,
+    "sha256": "a7e646170b160364028a3355473aab402da8a554852f1d94d133af974e5d978e",
+    "result": "imported"
+  },
+  {
+    "brand": "Anusol",
+    "source": "https://www.anusol.co.uk/",
+    "image_url": "https://www.anusol.co.uk/wp-content/uploads/sites/2/2021/11/anusol_logo.png",
+    "brand_id": 304,
+    "sha256": "279a2b2be45d9f08921bf226346fc14a7823d13b42414901435b906039ae2072",
+    "result": "imported"
+  },
+  {
+    "brand": "Sudocrem",
+    "source": "https://www.sudocrem.co.uk/",
+    "image_url": "https://www.sudocrem.co.uk/globalassets/sudocrem-uk/logos/sudocrem-logo.svg",
+    "brand_id": 1074,
+    "sha256": "85a2ee4969a9a10a1526d745523187331f1056959dc08feea1e206d5ebbf8d29",
+    "result": "imported"
+  },
+  {
+    "brand": "Savlon",
+    "source": "https://www.savlon.co.uk/",
+    "image_url": "https://05.cdn.stada.com/media/k2hnoei5/high-res-new-logo.webp",
+    "brand_id": 1040,
+    "sha256": "393184b8fb88f08a47df8463c33fc2fdb1c1dd6c625f4a475ba517ed30c2bda6",
+    "result": "imported"
+  },
+  {
+    "brand": "Neubria",
+    "source": "https://neubria.com/",
+    "image_url": "https://neubria.com/cdn/shop/files/Mask_group.png?v=1720566754&width=600",
+    "brand_id": 877,
+    "sha256": "ad1bcfc467a348bbbd865a6e3f71f9caaf8ae42098394bd22df6f493cbdddc6c",
+    "result": "imported"
+  },
+  {
+    "brand": "Biofreeze",
+    "source": "https://biofreeze.com/",
+    "image_url": "https://biofreeze.com/static/7fed86f968340fdd0b895a4799f531bf/55163/blt72502230d3466020.png",
+    "brand_id": 1280,
+    "sha256": "a91a6d17f1eaf62ce8a757f991fbf3bb997dbeb435f1116194a6d4dd8598e7bf",
+    "result": "imported"
+  },
+  {
+    "brand": "BetterYou",
+    "source": "https://betteryou.com/",
+    "image_url": "https://betteryou.com/cdn/shop/files/Frame.svg?v=1766641969&width=140",
+    "brand_id": 1276,
+    "sha256": "2c442e81774d4ac2d3cf29d6f41b7129abde23ab9372eb100dafbaa8f2286d27",
+    "result": "imported"
+  },
+  {
+    "brand": "Voltaren",
+    "source": "https://www.voltarengel.com/",
+    "image_url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/voltaren-gel/en_US/header/voltaren-new-logo.png?auto=format",
+    "brand_id": 1179,
+    "sha256": "adb89c2865370d15d19bfbb99702f014cd1f95be98fb3ae8a0b13846dc7d6514",
+    "result": "imported"
+  },
+  {
+    "brand": "Corsodyl",
+    "source": "https://www.corsodyl.co.uk/",
+    "image_url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/parodontax-v3/en_GB/update-26/corsoryl-logo.png?auto=format",
+    "brand_id": 474,
+    "sha256": "590c99808242c6b47de4901dfac69a3d04a4d0bbe70480444ca7766104bda503",
+    "result": "imported"
+  },
+  {
+    "brand": "Geratherm",
+    "source": "https://www.geratherm.com/",
+    "image_url": "https://www.geratherm.com/fileadmin/Images_Downloads/geratherm-logo.svg",
+    "brand_id": 1380,
+    "sha256": "f4553cce5911f22ae942cbc72ff649f501212f233a144bbde8006690228de6c1",
+    "result": "imported"
+  },
+  {
+    "brand": "Power Health",
+    "source": "https://www.powerhealth.co.uk/",
+    "image_url": "https://www.powerhealth.co.uk/cdn/shop/files/Power_Health_Logo_Full_Colour.png?crop=center&height=160&v=1715525348&width=400",
+    "brand_id": 966,
+    "sha256": "ec4d6e884b5b4b0ddb0b1c1f972c16fa0d5c52e306aab72a93e9c3e4d28878a6",
+    "result": "imported"
+  },
+  {
+    "brand": "Compeed",
+    "source": "https://www.compeed.co.uk/",
+    "image_url": "https://www.compeed.co.uk/_ipx/q_60/https://www.compeed.co.uk/storage/assets/logo.svg",
+    "brand_id": 1320,
+    "sha256": "8485761fe85975162b97cc367e664a22fba83866562592ac227d176a1e0fc176",
+    "result": "imported"
+  },
+  {
+    "brand": "Chapstick",
+    "source": "https://www.chapstick.com/",
+    "image_url": "https://www.chapstick.com/cdn/shop/files/Chapstick_Logo.png?v=1784565713&width=180",
+    "brand_id": 1309,
+    "sha256": "cd906a2fbf167588a46d9f1f746969fac857f0eb5335b58e299aca6fced2e14f",
+    "result": "imported"
+  },
+  {
+    "brand": "Olbas",
+    "source": "https://www.olbas.co.uk/",
+    "image_url": "https://www.olbas.co.uk/images/logo.png",
+    "brand_id": 1458,
+    "sha256": "b35c7453df3a44ebdd31cfd9483f9626a9128e2e22547fb48d73e8cfebecdad1",
+    "result": "imported"
+  },
+  {
+    "brand": "MuscleTech",
+    "source": "https://www.muscletech.com/",
+    "image_url": "https://www.muscletech.com/cdn/shop/files/muscletech-logo-blk-checkout.png?v=1695820629&width=250",
+    "brand_id": 860,
+    "sha256": "1751d89e8dcae9620e97c6070bc0680d03d5b49f9c2d2f1ef620269692f7419a",
+    "result": "imported"
+  },
+  {
+    "brand": "Applied Nutrition",
+    "source": "https://appliednutrition.uk/",
+    "image_url": "https://appliednutrition.uk/cdn/shop/files/AN_Applied_Logo_June_2025.jpg?v=1753276798&width=500",
+    "brand_id": 309,
+    "sha256": "2dac3962ec6f31cfe5e01a58eb68c4c624d99c19d70b129e5c477c7c1c33bea4",
+    "result": "imported"
+  },
+  {
+    "brand": "Similac",
+    "source": "https://www.similac.com/",
+    "image_url": "https://www.similac.com/content/dam/an/similac/global/header/similac-logo.png",
+    "brand_id": 1509,
+    "sha256": "81b0acfd5c684bf38d19b4e63457ff2c2e5787f23b3ff8319bce1ff0c05ddf80",
+    "result": "imported"
+  },
+  {
+    "brand": "Trace Minerals",
+    "source": "https://www.traceminerals.com/",
+    "image_url": "https://www.traceminerals.com/cdn/shop/files/Logo_1_713bcd3e.png?v=1778180084&width=280",
+    "brand_id": 1122,
+    "sha256": "42a5e31e559cfafbbadd99d1d3144753db340eb53ce49784ca9e1f7b16e61c94",
+    "result": "imported"
+  },
+  {
+    "brand": "Aquafresh",
+    "source": "https://www.aquafresh.com/",
+    "image_url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/aquafresh-redesign/zh_us/Aquafresh-US-Logo.png?auto=format",
+    "brand_id": 313,
+    "sha256": "daadb29a6b167b7cebd20c694e50dab91516ea7ac33f5b18ff8ef28e12faca37",
+    "result": "imported"
+  },
+  {
+    "brand": "Skyn",
+    "source": "https://skyn.com/",
+    "image_url": "https://skyn.com/wp-content/uploads/2023/05/skynlogo-black.png",
+    "brand_id": 1513,
+    "sha256": "ed878fd8caca75a5b7d42034feb23987cafcff3aeaa835a0f76b900ffe2ffe1a",
+    "result": "imported"
+  },
+  {
+    "brand": "Clear Essence",
+    "source": "https://www.clearessence.com/",
+    "image_url": "https://www.clearessence.com/images/template/Clearessence-Logo-Black.png",
+    "brand_id": 1313,
+    "sha256": "08146bb6f80376f611a17f5ae3c866b8a00ac7b9f461e5207c4fbae40ceca0cf",
+    "result": "imported"
+  },
+  {
+    "brand": "Jergens",
+    "source": "https://www.jergens.com/en-us/",
+    "image_url": "https://images.ctfassets.net/3u5g31tazvm1/WQfPzmM7re33eGXmlea4H/7ca0b46504e067354486db036f361264/jergens-logo-navigation.svg",
+    "result": "rejected",
+    "reason": "SVG contains active or external content"
+  },
+  {
+    "brand": "Pantene",
+    "source": "https://pantene.com/en-us/",
+    "image_url": "https://pantene.com/cdn/shop/files/Pantene_Black.svg?v=1785846041&width=320",
+    "brand_id": 938,
+    "sha256": "66588f83e434292ad564f4fd5a81fe1f907ab8655dc7a066ad23bf84d9aeb561",
+    "result": "imported"
+  },
+  {
+    "brand": "Starbalm",
+    "source": "https://starbalm.com/",
+    "image_url": "https://starbalm.com/wp-content/uploads/2026/07/STARBALM-Logo.svg",
+    "brand_id": 1516,
+    "sha256": "9838f197e91a972883c0b3ee142e5b7bb8bdd0f7924937e081d6e50dabe1c653",
+    "result": "imported"
+  },
+  {
+    "brand": "Native",
+    "source": "https://www.nativecos.com/",
+    "image_url": "https://www.nativecos.com/cdn/shop/files/native-logo-black.png?v=1793747123&width=320",
+    "brand_id": 865,
+    "sha256": "b5a956697506309effa33f83f58e86dbf66ea8909c21fea7726037e5e0c556c5",
+    "result": "imported"
+  },
+  {
+    "brand": "Jakemans",
+    "source": "https://jakemans.com/",
+    "image_url": "https://www.jakemans.com/images/logo.png",
+    "brand_id": 1396,
+    "sha256": "81d3521fc2d959fce1239046ed369b74dc3da0a16de7c5be7ce2678e0354ea61",
+    "result": "imported"
+  },
+  {
+    "brand": "Canderel",
+    "source": "https://www.canderel.co.uk/",
+    "image_url": "https://www.canderel.co.uk/wp-content/uploads/2018/04/canderel-logo.png",
+    "brand_id": 1300,
+    "sha256": "845417706e57982c86095a85e2338f66b97a923608de4b5a962d1c69c785febb",
+    "result": "imported"
+  },
+  {
+    "brand": "Buscopan",
+    "source": "https://www.buscopan.com/",
+    "image_url": "https://www.buscopan.com/dam-v2/jcr:7ccc3e7e-f4be-4455-98fd-ee843cef79b5/Group%20657325220.c2c3b8b0737e06190e657401cda25c21.svg",
+    "result": "rejected",
+    "reason": "SVG contains active or external content"
+  },
+  {
+    "brand": "Actikid",
+    "source": "https://actikid.com/",
+    "image_url": "https://actikid.com/cdn/shop/files/ezgif.com-gif-maker_150x.png?v=1614935628",
+    "brand_id": 1238,
+    "sha256": "58fbea0058e44ffaf5b046b7eeefcc75f5e7d02168e84059e7a41a567c336af2",
+    "result": "imported"
+  },
+  {
+    "brand": "Dramamine",
+    "source": "https://www.dramamine.com/",
+    "image_url": "https://www.dramamine.com/sites/dramamine/themes/custom/dramamine_theme/images/dramamine-logo.png",
+    "brand_id": 1345,
+    "sha256": "f9c3a7404455330feedc17f6770b3768a64ab1a84827fad879b0eccb311031b7",
+    "result": "imported"
+  },
+  {
+    "brand": "Lakanto",
+    "source": "https://www.lakanto.com/",
+    "image_url": "https://www.lakanto.com/cdn/shop/files/Lakanto_Logos-06.png?v=1724946049&width=600",
+    "brand_id": 1411,
+    "sha256": "7b5e809a0d82ff96927b788b6f1b2038249f2fd870440a851fb7ff004eee58fb",
+    "result": "imported"
+  },
+  {
+    "brand": "Hedrin",
+    "source": "https://www.hedrin.co.uk/",
+    "image_url": "https://05.cdn.stada.com/media/hyzic2ko/hedrin_logo.png?format=webp",
+    "brand_id": 693,
+    "sha256": "f1e7f47a5cc71385e2ae9996de6cae7f7cbf716f1438c6681d121a3f4852980f",
+    "result": "imported"
+  },
+  {
+    "brand": "BU.KE\u2019",
+    "source": "https://bu-ke.co.ke/",
+    "image_url": "https://bu-ke.co.ke/wp-content/uploads/2022/11/buke-10.png",
+    "brand_id": 381,
+    "sha256": "f00a1ed40734aff6ac3163891ef6bf9041dd7493773cc98a7f3ffe4ec96424b7",
+    "result": "imported"
+  }
+]

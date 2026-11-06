@@ -1,0 +1,10 @@
+{
+  "id": 5,
+  "reference": "PAY-25D0E1",
+  "amount": "0.90",
+  "status": "paid",
+  "reconciliation_status": "matched",
+  "source_reference": "CONS-83F95C",
+  "execution_mode": "administrative_record",
+  "actual_transfer_executed": false
+}

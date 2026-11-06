@@ -1,0 +1,19 @@
+{
+  "receipt": "UJUI207MTB",
+  "intent_id": 51,
+  "amount": "1.00",
+  "consultation_id": 38,
+  "consultation_reference": "CONS-8AF578",
+  "status": "completed",
+  "guardian_id": 75,
+  "child_id": 6,
+  "consent": "granted",
+  "clinician_prescription_id": 30,
+  "dispensing_prescription_id": 48,
+  "prescription_status": "approved",
+  "earning_count": 1,
+  "earning_id": 12,
+  "net_earning": "0.90",
+  "completion_replayed_without_duplicate_earning": true,
+  "medicine_payment": "Not requested or claimed"
+}

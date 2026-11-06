@@ -1,0 +1,10 @@
+[
+  {
+    "action": "customer_read",
+    "status": "delivered",
+    "payment_status": "paid",
+    "inventory_committed": true,
+    "successful_attempts": 1,
+    "finalization_events": 1
+  }
+]

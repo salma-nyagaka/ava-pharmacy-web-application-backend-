@@ -5,7 +5,7 @@ Defines the custom User model (email-based auth), Customer, Pharmacist,
 Address, UserNote, and AdminAuditLog.
 """
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -29,7 +29,7 @@ class UserManager(BaseUserManager):
         """
         if not email:
             raise ValueError('Email is required')
-        email = self.normalize_email(email)
+        email = self.normalize_email(email).strip().lower()
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -135,9 +135,31 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def save(self, *args, **kwargs):
         """Ensure admin-role users always have is_staff=True."""
+        self.email = (self.email or '').strip().lower()
+        update_fields = kwargs.get('update_fields')
+        check_credentials = update_fields is None or bool({'email', 'password'} & set(update_fields))
+        using = kwargs.get('using') or self._state.db or 'default'
+        previous = None
+        if not self._state.adding and check_credentials:
+            previous = type(self).objects.using(using).filter(pk=self.pk).values('email', 'password').first()
         if self.role == self.ADMIN:
             self.is_staff = True
         super().save(*args, **kwargs)
+        if previous:
+            email_changed = (update_fields is None or 'email' in update_fields) and previous['email'].lower() != self.email
+            password_changed = (update_fields is None or 'password' in update_fields) and previous['password'] != self.password
+            if email_changed or password_changed:
+                from functools import partial
+                from .change_notifications import deliver_account_confirmation
+                self._confirmation_delivery = {'sent_to': [], 'failed_to': []}
+                recipients = {previous['email']} if email_changed else {self.email}
+                for recipient in sorted(recipients):
+                    transaction.on_commit(partial(
+                        deliver_account_confirmation, delivery=self._confirmation_delivery,
+                        first_name=self.first_name, recipient=recipient,
+                        email_changed=email_changed, password_changed=password_changed,
+                        new_email=self.email,
+                    ), using=using, robust=True)
 
     @property
     def full_name(self):
@@ -232,6 +254,16 @@ class Pharmacist(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='pharmacist')
     license_number = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    license_country = models.CharField(max_length=100, blank=True)
+    license_board = models.CharField(max_length=160, blank=True)
+    license_expiry = models.DateField(null=True, blank=True)
+    documents = models.ManyToManyField('support.ComplianceEvidence', blank=True, related_name='pharmacist_document_subjects')
+    credential_evidence = models.ForeignKey('support.ComplianceEvidence', on_delete=models.PROTECT, null=True, blank=True, related_name='pharmacist_credentials')
+    credential_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('verified', 'Verified'), ('suspended', 'Suspended')], default='pending')
+    credential_verified_at = models.DateTimeField(null=True, blank=True)
+    credential_verified_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='verified_pharmacist_credentials')
+    credential_verification_reference = models.TextField(blank=True)
+
     branch_location = models.CharField(max_length=200, blank=True)
     position = models.CharField(max_length=120, blank=True)
     # JSON list of permission strings granted to this pharmacist
@@ -262,11 +294,35 @@ class Pharmacist(models.Model):
             if permission in self.VALID_PERMISSIONS
         ]
 
+    @property
+    def credential_is_current(self):
+        from django.utils import timezone
+        evidence = self.credential_evidence
+        today = timezone.localdate()
+        return bool(self.user.is_active and self.user.status == User.STATUS_ACTIVE
+            and self.user.role in [User.PHARMACIST, User.ADMIN]
+            and self.credential_status == 'verified' and self.credential_verified_by_id
+            and self.credential_verified_by_id != self.user_id and self.credential_verified_at and self.credential_verified_at <= timezone.now()
+            and self.credential_verification_reference.strip() and (self.license_number or '').strip()
+            and self.license_country.strip().lower() in {'kenya', 'ke', 'ken'} and self.license_board.strip()
+            and self.license_expiry and self.license_expiry >= today
+            and evidence and evidence.evidence_type == 'professional_credential'
+            and evidence.status == 'active' and evidence.verified_at and evidence.verified_by_id
+            and evidence.issued_at and evidence.issued_at <= today
+            and evidence.expires_at and evidence.expires_at >= self.license_expiry
+            and evidence.reference_number.strip().lower() == self.license_number.strip().lower())
+
     def save(self, *args, **kwargs):
-        self.permissions = [
-            permission for permission in (self.permissions or [])
-            if permission in self.VALID_PERMISSIONS
-        ]
+        self.permissions = [p for p in (self.permissions or []) if p in self.VALID_PERMISSIONS]
+        guarded = ['license_number', 'license_country', 'license_board', 'license_expiry', 'credential_evidence_id']
+        previous = type(self).objects.filter(pk=self.pk).values(*guarded).first() if self.pk else None
+        if previous and any(previous[f] != getattr(self, f) for f in guarded):
+            self.credential_status = 'pending'
+            self.credential_verified_at = None
+            self.credential_verified_by = None
+            self.credential_verification_reference = ''
+            if kwargs.get('update_fields'):
+                kwargs['update_fields'] = set(kwargs['update_fields']) | {'credential_status', 'credential_verified_at', 'credential_verified_by', 'credential_verification_reference'}
         super().save(*args, **kwargs)
 
     def has_permission(self, permission):
@@ -459,3 +515,17 @@ class AdminAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} - {self.entity_type}"
+
+
+class EmailChangeRequest(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_changes')
+    old_email = models.EmailField()
+    new_email = models.EmailField()
+    password_fingerprint = models.CharField(max_length=64)
+    old_token_hash = models.CharField(max_length=64, unique=True)
+    new_token_hash = models.CharField(max_length=64, unique=True)
+    old_confirmed = models.BooleanField(default=False)
+    new_confirmed = models.BooleanField(default=False)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

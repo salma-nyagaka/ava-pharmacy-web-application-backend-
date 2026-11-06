@@ -8,7 +8,8 @@ from decimal import Decimal
 import re
 
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Coalesce, Lower
 from django.utils import timezone
@@ -33,6 +34,21 @@ DOSAGE_TOKEN_RE = re.compile(
     r'^(?:(?:\d+(?:[./+]\d+)*(?:mg|mcg|g|kg|ml|l|%|iu|spf))(?:/\d+(?:[./+]\d+)*(?:mg|mcg|g|kg|ml|l|%|iu|spf))*|\d+(?:s|pcs|pc))$',
     re.IGNORECASE,
 )
+
+IMAGE_SOURCE_MISSING = 'missing'
+IMAGE_SOURCE_PLACEHOLDER = 'placeholder'
+IMAGE_SOURCE_OPEN_FACTS = 'open_facts'
+IMAGE_SOURCE_WEB_SCRAPE = 'web_scrape'
+IMAGE_SOURCE_SUPPLIER = 'supplier'
+IMAGE_SOURCE_MANUAL = 'manual'
+IMAGE_SOURCE_CHOICES = [
+    (IMAGE_SOURCE_MISSING, 'Missing'),
+    (IMAGE_SOURCE_PLACEHOLDER, 'Category placeholder'),
+    (IMAGE_SOURCE_OPEN_FACTS, 'Open Facts barcode database'),
+    (IMAGE_SOURCE_WEB_SCRAPE, 'Strictly matched web scrape'),
+    (IMAGE_SOURCE_SUPPLIER, 'Supplier catalogue'),
+    (IMAGE_SOURCE_MANUAL, 'Manual upload'),
+]
 
 
 def normalize_generic_product_name(name):
@@ -251,10 +267,66 @@ class Brand(models.Model):
         super().save(*args, **kwargs)
 
 
-class Product(models.Model):
-    """A sellable product in the pharmacy catalog.
+class Store(models.Model):
+    """A physical or external store that carries catalog variants."""
 
-    Acts as a catalog parent for sellable variants.
+    code = models.SlugField(max_length=50, unique=True)
+    name = models.CharField(max_length=120, unique=True)
+    city = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['is_active', 'name']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = slugify(self.name)
+        super().save(*args, **kwargs)
+
+
+class StoreFulfillmentPolicy(models.Model):
+    """Online fulfilment rules for a store.
+
+    A separate one-to-one record keeps operational policy out of the store's
+    identity and allows it to remain explicitly unconfigured after import.
+    """
+
+    store = models.OneToOneField(
+        Store,
+        on_delete=models.CASCADE,
+        related_name='fulfillment_policy',
+    )
+    online_fulfillment_enabled = models.BooleanField(default=False)
+    customer_pickup_enabled = models.BooleanField(default=False)
+    inter_store_transfer_enabled = models.BooleanField(default=False)
+    fulfillment_priority = models.PositiveIntegerField(default=100)
+    estimated_lead_time_hours = models.PositiveIntegerField(null=True, blank=True)
+    daily_order_capacity = models.PositiveIntegerField(null=True, blank=True)
+    service_areas = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['fulfillment_priority', 'store__name']
+
+    def __str__(self):
+        return f'{self.store.name} fulfilment policy'
+
+
+class Product(models.Model):
+    """One exact sellable item in Products & Stock.
+
+    Variant is its one-to-one detail extension, retained for existing order,
+    prescription and stock references. Store/batch balances stay independent.
     """
 
     STOCK_BRANCH = 'branch'
@@ -270,6 +342,8 @@ class Product(models.Model):
         (STOCK_WAREHOUSE, 'POS Store'),
     ]
     LEGACY_VARIANT_FIELD_NAMES = {
+        'barcode',
+        'pos_product_id',
         'strength',
         'category',
         'category_id',
@@ -290,13 +364,38 @@ class Product(models.Model):
         'requires_prescription',
     }
 
-    sku = models.CharField(max_length=50, unique=True)
-    barcode = models.CharField(max_length=64, blank=True)
-    pos_product_id = models.CharField(max_length=80, blank=True)
+    sku = models.CharField(max_length=60, unique=True)
+    master_product_id = models.CharField(max_length=100, blank=True, db_index=True)
+    catalog_family_key = models.CharField(max_length=100, blank=True, db_index=True, help_text='Original family/group reference; never combines stock or sellable SKUs.')
     slug = models.SlugField(unique=True, max_length=200)
     name = models.CharField(max_length=200)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    manufacturer = models.CharField(max_length=160, blank=True)
+    marketing_authorization_holder = models.CharField(max_length=160, blank=True)
+    FAMILY_REVIEW_PENDING = 'pending'
+    FAMILY_REVIEW_INFERRED = 'inferred'
+    FAMILY_REVIEW_VERIFIED = 'verified'
+    FAMILY_REVIEW_SPLIT_REQUIRED = 'split_required'
+    FAMILY_REVIEW_CHOICES = [
+        (FAMILY_REVIEW_PENDING, 'Pending'),
+        (FAMILY_REVIEW_INFERRED, 'Inferred'),
+        (FAMILY_REVIEW_VERIFIED, 'Verified'),
+        (FAMILY_REVIEW_SPLIT_REQUIRED, 'Split required'),
+    ]
+    family_review_status = models.CharField(
+        max_length=20,
+        choices=FAMILY_REVIEW_CHOICES,
+        default=FAMILY_REVIEW_PENDING,
+    )
+    curation_notes = models.TextField(blank=True)
     image = models.ImageField(upload_to='products/', blank=True)
+    image_source = models.CharField(
+        max_length=20, choices=IMAGE_SOURCE_CHOICES, default=IMAGE_SOURCE_MISSING, db_index=True
+    )
+    image_source_url = models.URLField(max_length=1000, blank=True)
+    image_source_page_url = models.URLField(max_length=1000, blank=True)
+    image_verified = models.BooleanField(default=False)
+    image_checked_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -304,6 +403,8 @@ class Product(models.Model):
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_products')
 
     class Meta:
+        verbose_name = 'product item'
+        verbose_name_plural = 'Products & Stock'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['brand', 'is_active']),
@@ -314,7 +415,9 @@ class Product(models.Model):
         legacy_variant_values = {}
         for field_name in self.LEGACY_VARIANT_FIELD_NAMES:
             if field_name in kwargs:
-                legacy_variant_values[field_name] = kwargs.pop(field_name)
+                value = kwargs.pop(field_name)
+                if field_name not in {'barcode', 'pos_product_id'} or value:
+                    legacy_variant_values[field_name] = value
         super().__init__(*args, **kwargs)
         self._pending_variant_seed = legacy_variant_values
 
@@ -339,7 +442,7 @@ class Product(models.Model):
 
     def _get_inventory_rows(self):
         rows = []
-        for variant in self.get_active_variants():
+        for variant in self.variants.all():
             rows.extend(variant._get_inventory_rows())
         return rows
 
@@ -420,6 +523,39 @@ class Product(models.Model):
         # Product-level inventory writes are disabled. Stock is derived from variants only.
         return None
 
+    @property
+    def barcode(self):
+        """Compatibility alias; barcode is stored only on the exact variant."""
+        pending = self._get_variant_seed()
+        if 'barcode' in pending:
+            return pending['barcode']
+        return self._representative_variant_value('barcode', '') if self.pk else ''
+
+    @barcode.setter
+    def barcode(self, value):
+        self._set_variant_seed_value('barcode', value or '')
+
+    @property
+    def pos_product_id(self):
+        """Compatibility alias; POS identity belongs to the sellable variant."""
+        pending = self._get_variant_seed()
+        if 'pos_product_id' in pending:
+            return pending['pos_product_id']
+        return self._representative_variant_value('pos_product_id', '') if self.pk else ''
+
+    @pos_product_id.setter
+    def pos_product_id(self, value):
+        self._set_variant_seed_value('pos_product_id', value or '')
+
+    @property
+    def stock_records(self):
+        """All exact-variant/store/batch rows for this product family."""
+        return VariantInventory.objects.filter(variant__product_id=self.pk).select_related('variant', 'store_listing__store')
+
+    @property
+    def stock_movements(self):
+        return StockMovement.objects.filter(variant_inventory__variant__product_id=self.pk)
+
     def _get_variant_seed(self):
         return getattr(self, '_pending_variant_seed', {})
 
@@ -481,23 +617,27 @@ class Product(models.Model):
 
         self._pending_variant_seed = {}
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         """Auto-generate slug and persist catalog fields only."""
-        self.name = normalize_generic_product_name(self.name)
         if not self.slug:
             self.slug = slugify(self.name)
         if not self.sku:
             self.sku = generate_internal_product_sku(self.name, exclude_pk=self.pk)
 
+        sync_status = bool(self.pk and Product.objects.filter(pk=self.pk).exclude(is_active=self.is_active).exists())
         original_update_fields = kwargs.get('update_fields')
         if original_update_fields is not None:
             update_fields = set(original_update_fields)
-            kwargs['update_fields'] = [field for field in update_fields if field not in self.INVENTORY_FIELD_NAMES]
+            kwargs['update_fields'] = [field for field in update_fields if field not in self.INVENTORY_FIELD_NAMES | self.LEGACY_VARIANT_FIELD_NAMES]
             if not kwargs['update_fields']:
                 kwargs.pop('update_fields')
 
         if self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields')):
             super().save(*args, **kwargs)
+        if sync_status:
+            Variant.objects.filter(product_id=self.pk).update(is_active=self.is_active)
+            getattr(self, '_prefetched_objects_cache', {}).pop('variants', None)
         self._sync_pending_variant_seed()
 
     @property
@@ -510,6 +650,8 @@ class Product(models.Model):
         Returns:
             str: One of 'in_stock', 'low_stock', 'backorder', 'out_of_stock', 'inactive'.
         """
+        if not self.is_active:
+            return 'inactive'
         if self.has_variants:
             statuses = [variant.inventory_status for variant in self.variants.filter(is_active=True)]
             if 'in_stock' in statuses:
@@ -532,6 +674,8 @@ class Product(models.Model):
     @property
     def available_quantity(self):
         """Return the total purchasable quantity, including backorder allowance."""
+        if not self.is_active:
+            return 0
         if self.has_variants:
             return sum(variant.available_quantity for variant in self.variants.filter(is_active=True))
         inventory = self._get_inventory_values()
@@ -542,7 +686,8 @@ class Product(models.Model):
     @property
     def can_purchase(self):
         """Return True if the product is active and has available stock."""
-        return self.is_active and self.available_quantity > 0
+        from .compliance import supply_error
+        return self.is_active and self.available_quantity > 0 and any(not supply_error(v) for v in self.get_active_variants())
 
     @property
     def stock_source(self):
@@ -634,7 +779,12 @@ class Product(models.Model):
     def get_representative_variant(self):
         """Return the lead active variant used for derived display fields."""
         variants = sorted(self.get_active_variants(), key=self._variant_sort_key)
-        return variants[0] if variants else None
+        if variants:
+            return variants[0]
+        prefetched = getattr(self, '_prefetched_objects_cache', {}).get('variants')
+        if prefetched is not None:
+            return sorted(prefetched, key=self._variant_sort_key)[0] if prefetched else None
+        return self.variants.order_by('sort_order', 'pk').first()
 
     def get_display_sku(self):
         """Return the lead variant SKU for API/display usage."""
@@ -649,7 +799,8 @@ class Product(models.Model):
 
     def has_prescription_required_variant(self):
         active_variants = self.get_active_variants()
-        return any(variant.requires_prescription for variant in active_variants)
+        from .compliance import prescription_required
+        return any(prescription_required(variant) for variant in active_variants)
 
     def get_health_concerns(self):
         active_variants = self.get_active_variants()
@@ -814,15 +965,33 @@ class Product(models.Model):
 
 
 def annotate_product_inventory(queryset):
-    branch_filter = models.Q(variants__is_active=True, variants__inventories__location=Product.STOCK_BRANCH)
-    warehouse_filter = models.Q(variants__is_active=True, variants__inventories__location=Product.STOCK_WAREHOUSE)
+    active_inventory_filter = (
+        models.Q(variants__inventories__store_listing__isnull=True)
+        | models.Q(
+            variants__inventories__store_listing__is_active=True,
+            variants__inventories__store_listing__store__is_active=True,
+        )
+    )
+    active_variant_filter = models.Q(variants__is_active=True) & active_inventory_filter
+    branch_filter = active_variant_filter & models.Q(
+        variants__inventories__location=Product.STOCK_BRANCH
+    )
+    warehouse_filter = active_variant_filter & models.Q(
+        variants__inventories__location=Product.STOCK_WAREHOUSE
+    )
     queryset = queryset.annotate(
         branch_stock_quantity=Coalesce(models.Sum('variants__inventories__stock_quantity', filter=branch_filter), 0),
         warehouse_stock_quantity=Coalesce(models.Sum('variants__inventories__stock_quantity', filter=warehouse_filter), 0),
-        total_low_stock_threshold=Coalesce(models.Sum('variants__inventories__low_stock_threshold', filter=models.Q(variants__is_active=True)), 0),
-        total_max_backorder_quantity=Coalesce(models.Sum('variants__inventories__max_backorder_quantity', filter=models.Q(variants__is_active=True)), 0),
+        total_low_stock_threshold=Coalesce(models.Sum('variants__inventories__low_stock_threshold', filter=active_variant_filter), 0),
+        total_max_backorder_quantity=Coalesce(models.Sum('variants__inventories__max_backorder_quantity', filter=active_variant_filter), 0),
         backorder_inventory_count=Coalesce(
-            models.Count('variants__inventories', filter=models.Q(variants__is_active=True, variants__inventories__allow_backorder=True), distinct=True),
+            models.Count(
+                'variants__inventories',
+                filter=active_variant_filter & models.Q(
+                    variants__inventories__allow_backorder=True
+                ),
+                distinct=True,
+            ),
             0,
         ),
     )
@@ -837,15 +1006,30 @@ def annotate_product_inventory(queryset):
 
 
 def annotate_variant_inventory(queryset):
-    branch_filter = models.Q(inventories__location=Product.STOCK_BRANCH)
-    warehouse_filter = models.Q(inventories__location=Product.STOCK_WAREHOUSE)
+    active_inventory_filter = (
+        models.Q(inventories__store_listing__isnull=True)
+        | models.Q(
+            inventories__store_listing__is_active=True,
+            inventories__store_listing__store__is_active=True,
+        )
+    )
+    branch_filter = active_inventory_filter & models.Q(
+        inventories__location=Product.STOCK_BRANCH
+    )
+    warehouse_filter = active_inventory_filter & models.Q(
+        inventories__location=Product.STOCK_WAREHOUSE
+    )
     queryset = queryset.annotate(
         branch_stock_quantity=Coalesce(models.Sum('inventories__stock_quantity', filter=branch_filter), 0),
         warehouse_stock_quantity=Coalesce(models.Sum('inventories__stock_quantity', filter=warehouse_filter), 0),
-        low_stock_threshold=Coalesce(models.Sum('inventories__low_stock_threshold'), 0),
-        max_backorder_quantity=Coalesce(models.Sum('inventories__max_backorder_quantity'), 0),
+        low_stock_threshold=Coalesce(models.Sum('inventories__low_stock_threshold', filter=active_inventory_filter), 0),
+        max_backorder_quantity=Coalesce(models.Sum('inventories__max_backorder_quantity', filter=active_inventory_filter), 0),
         backorder_inventory_count=Coalesce(
-            models.Count('inventories', filter=models.Q(inventories__allow_backorder=True), distinct=True),
+            models.Count(
+                'inventories',
+                filter=active_inventory_filter & models.Q(inventories__allow_backorder=True),
+                distinct=True,
+            ),
             0,
         ),
     )
@@ -881,9 +1065,10 @@ class ProductImage(models.Model):
 
 
 class Variant(models.Model):
-    """A specific variant of a product (e.g. size, colour, strength).
+    """Exact SKU detail extension for one Product item.
 
-    Maintains its own SKU and price.
+    The unique product link prevents multiple sellable SKUs sharing one item.
+    The reverse manager remains for API compatibility with existing clients.
     """
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
@@ -892,6 +1077,10 @@ class Variant(models.Model):
     pos_product_id = models.CharField(max_length=80, blank=True)
     name = models.CharField(max_length=120)
     strength = models.CharField(max_length=50, blank=True, help_text="e.g. 500mg, 10mg/5ml, 2%")
+    dosage_form = models.CharField(max_length=80, blank=True)
+    pack_size = models.CharField(max_length=80, blank=True)
+    colour = models.CharField(max_length=80, blank=True)
+    flavour = models.CharField(max_length=80, blank=True)
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='variants'
     )
@@ -914,19 +1103,84 @@ class Variant(models.Model):
     dosage_frequency = models.CharField(max_length=50, blank=True, help_text="e.g. once_daily, twice_daily")
     dosage_notes = models.CharField(max_length=150, blank=True, help_text="e.g. with food, before meals")
     attributes = models.JSONField(default=dict, blank=True)  # e.g. {"size": "500mg"}
+    regulatory_scope = models.CharField(max_length=20, choices=[('unreviewed', 'Unreviewed'), ('medicine', 'Medicine'), ('non_medicine', 'Non-medicine')], default='unreviewed')
+    pil_source_url = models.URLField(max_length=1000, blank=True)
+    pil_reviewed_at = models.DateTimeField(null=True, blank=True)
+    pil_reviewed_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='reviewed_medicine_information')
     ppb_registration_number = models.CharField(max_length=100, blank=True)
     marketing_authorization_number = models.CharField(max_length=100, blank=True)
     pil_version = models.CharField(max_length=80, blank=True)
     contraindications = models.TextField(blank=True)
     side_effects = models.TextField(blank=True)
     authorized_supplier = models.CharField(max_length=160, blank=True)
+    PRESCRIPTION_UNKNOWN = 'unknown'
+    PRESCRIPTION_OTC = 'otc'
+    PRESCRIPTION_REQUIRED = 'prescription'
+    PRESCRIPTION_CONTROLLED = 'controlled'
+    PRESCRIPTION_CLASSIFICATION_CHOICES = [
+        (PRESCRIPTION_UNKNOWN, 'Unknown'),
+        (PRESCRIPTION_OTC, 'Over the counter'),
+        (PRESCRIPTION_REQUIRED, 'Prescription'),
+        (PRESCRIPTION_CONTROLLED, 'Controlled medicine'),
+    ]
+    prescription_classification = models.CharField(
+        max_length=20,
+        choices=PRESCRIPTION_CLASSIFICATION_CHOICES,
+        default=PRESCRIPTION_UNKNOWN,
+    )
+    REVIEW_PENDING = 'pending'
+    REVIEW_INFERRED = 'inferred'
+    REVIEW_VERIFIED = 'verified'
+    REVIEW_STATUS_CHOICES = [
+        (REVIEW_PENDING, 'Pending'),
+        (REVIEW_INFERRED, 'Inferred'),
+        (REVIEW_VERIFIED, 'Verified'),
+    ]
+    prescription_review_status = models.CharField(
+        max_length=20,
+        choices=REVIEW_STATUS_CHOICES,
+        default=REVIEW_PENDING,
+    )
+    REGULATORY_UNKNOWN = 'unknown'
+    REGULATORY_PENDING = 'pending'
+    REGULATORY_APPROVED = 'approved'
+    REGULATORY_SUSPENDED = 'suspended'
+    REGULATORY_WITHDRAWN = 'withdrawn'
+    REGULATORY_STATUS_CHOICES = [
+        (REGULATORY_UNKNOWN, 'Unknown'),
+        (REGULATORY_PENDING, 'Pending'),
+        (REGULATORY_APPROVED, 'Approved'),
+        (REGULATORY_SUSPENDED, 'Suspended'),
+        (REGULATORY_WITHDRAWN, 'Withdrawn'),
+    ]
+    regulatory_status = models.CharField(
+        max_length=20,
+        choices=REGULATORY_STATUS_CHOICES,
+        default=REGULATORY_UNKNOWN,
+    )
+    ppb_license_expiry_date = models.DateField(null=True, blank=True)
+    kra_classification = models.CharField(max_length=100, blank=True)
     is_ppb_registered = models.BooleanField(default=False)
     is_temperature_sensitive = models.BooleanField(default=False)
+    storage_temperature_min_c = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    storage_temperature_max_c = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     storage_instructions = models.TextField(blank=True)
+    curation_notes = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/variants/', blank=True)
+    image_source = models.CharField(
+        max_length=20, choices=IMAGE_SOURCE_CHOICES, default=IMAGE_SOURCE_MISSING, db_index=True
+    )
+    image_source_url = models.URLField(max_length=1000, blank=True)
+    image_source_page_url = models.URLField(max_length=1000, blank=True)
+    image_verified = models.BooleanField(default=False)
+    image_checked_at = models.DateTimeField(null=True, blank=True)
     requires_prescription = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)
@@ -936,6 +1190,9 @@ class Variant(models.Model):
     class Meta:
         db_table = 'products_variant'
         ordering = ['sort_order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['product'], name='one_sellable_sku_per_product'),
+        ]
         indexes = [
             models.Index(fields=['product', 'is_active']),
             models.Index(fields=['category', 'is_active']),
@@ -963,6 +1220,19 @@ class Variant(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.name}"
 
+    def clean(self):
+        super().clean()
+        if (
+            self.storage_temperature_min_c is not None
+            and self.storage_temperature_max_c is not None
+            and self.storage_temperature_min_c > self.storage_temperature_max_c
+        ):
+            raise ValidationError({
+                'storage_temperature_max_c': (
+                    'Maximum storage temperature must be greater than or equal to the minimum.'
+                ),
+            })
+
     @property
     def brand(self):
         return self.product.brand
@@ -983,8 +1253,21 @@ class Variant(models.Model):
         if not self.pk:
             return []
         if hasattr(self, '_prefetched_objects_cache') and 'inventories' in self._prefetched_objects_cache:
-            return list(self._prefetched_objects_cache['inventories'])
-        return list(self.inventories.all())
+            rows = list(self._prefetched_objects_cache['inventories'])
+            return [
+                inventory for inventory in rows
+                if not inventory.store_listing_id
+                or (
+                    inventory.store_listing.is_active
+                    and inventory.store_listing.store.is_active
+                )
+            ]
+        return list(
+            self.inventories.select_related('store_listing__store').filter(
+                Q(store_listing__isnull=True)
+                | Q(store_listing__is_active=True, store_listing__store__is_active=True)
+            )
+        )
 
     def _get_inventory_map(self):
         inventory_map = {}
@@ -1122,6 +1405,7 @@ class Variant(models.Model):
                 inventory_map[location].save()
             self._clear_inventory_cache()
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         """Persist variant inventory and keep parent display fields in sync."""
         original_update_fields = kwargs.get('update_fields')
@@ -1141,6 +1425,7 @@ class Variant(models.Model):
         should_save_variant = self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields'))
         if should_save_variant:
             super().save(*args, **kwargs)
+            Product.objects.filter(pk=self.product_id).exclude(is_active=self.is_active, sku=self.sku).update(is_active=self.is_active, sku=self.sku)
 
         if original_update_fields is None:
             inventory_update_fields.update(pending.keys())
@@ -1156,8 +1441,9 @@ class Variant(models.Model):
 
     @property
     def effective_price(self):
-        """Return this variant's price."""
-        return self.price
+        """Return the exact SKU price after eligible automatic promotions."""
+        from .services import calculate_variant_pricing
+        return calculate_variant_pricing(self)['final_price']
 
     @property
     def inventory_status(self):
@@ -1188,6 +1474,58 @@ class Variant(models.Model):
         return self._get_location_inventory_values()
 
 
+class StoreVariantListing(models.Model):
+    """Store-specific commercial data for a catalog variant.
+
+    Variant keeps the canonical storefront record, while this model preserves
+    the price, cost, source identifier, and status supplied by each store.
+    """
+
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name='variant_listings')
+    variant = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='store_listings')
+    external_product_id = models.CharField(max_length=80, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    minimum_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    vat_rate = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=32, blank=True)
+    is_active = models.BooleanField(default=True)
+    raw_data = models.JSONField(default=dict, blank=True)
+    REVIEW_UNREVIEWED = 'unreviewed'
+    REVIEW_NEEDS_REVIEW = 'needs_review'
+    REVIEW_VERIFIED = 'verified'
+    REVIEW_REJECTED = 'rejected'
+    REVIEW_STATUS_CHOICES = [
+        (REVIEW_UNREVIEWED, 'Unreviewed'),
+        (REVIEW_NEEDS_REVIEW, 'Needs review'),
+        (REVIEW_VERIFIED, 'Verified'),
+        (REVIEW_REJECTED, 'Rejected'),
+    ]
+    data_quality_flags = models.JSONField(default=list, blank=True)
+    review_status = models.CharField(
+        max_length=20,
+        choices=REVIEW_STATUS_CHOICES,
+        default=REVIEW_UNREVIEWED,
+    )
+    review_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['store__name', 'variant__name']
+        constraints = [
+            models.UniqueConstraint(fields=['store', 'variant'], name='unique_store_variant_listing'),
+        ]
+        indexes = [
+            models.Index(fields=['store', 'is_active']),
+            models.Index(fields=['variant', 'is_active']),
+            models.Index(fields=['external_product_id']),
+        ]
+
+    def __str__(self):
+        return f'{self.store.name}: {self.variant}'
+
+
 class VariantInventory(models.Model):
     """Current inventory snapshot for a variant location."""
 
@@ -1205,6 +1543,14 @@ class VariantInventory(models.Model):
     ]
 
     variant = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='inventories')
+    store_listing = models.ForeignKey(
+        StoreVariantListing,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='inventories',
+        help_text='Store-specific listing that owns this inventory row.',
+    )
     location = models.CharField(max_length=20, choices=Product.INVENTORY_LOCATION_CHOICES, default=Product.STOCK_BRANCH)
     batch_number = models.CharField(max_length=80, blank=True)
     supplier = models.CharField(max_length=160, blank=True)
@@ -1220,22 +1566,61 @@ class VariantInventory(models.Model):
     next_restock_date = models.DateField(null=True, blank=True)
     is_pos_synced = models.BooleanField(default=False)
     last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='stock_records_added')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='stock_records_updated')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['variant_id', 'location']
         constraints = [
-            models.UniqueConstraint(fields=['variant', 'location', 'batch_number'], name='unique_variant_inventory_location_batch'),
+            models.UniqueConstraint(
+                fields=['store_listing', 'batch_number'],
+                name='unique_store_listing_inventory_batch',
+            ),
+            models.UniqueConstraint(
+                fields=['variant', 'location', 'batch_number'],
+                condition=Q(store_listing__isnull=True),
+                name='unique_unlisted_variant_inventory_batch',
+            ),
         ]
         indexes = [
             models.Index(fields=['location']),
             models.Index(fields=['variant', 'location', 'expiry_date']),
+            models.Index(fields=['store_listing', 'expiry_date']),
             models.Index(fields=['status', 'expiry_date']),
         ]
 
     def __str__(self):
-        return f"{self.get_location_display()} inventory for {self.variant}"
+        store_name = self.store_listing.store.name if self.store_listing_id else self.get_location_display()
+        return f"{store_name} inventory for {self.variant}"
+
+    def clean(self):
+        super().clean()
+        if self.store_listing_id and self.variant_id:
+            listing_variant_id = self.store_listing.variant_id
+            if listing_variant_id != self.variant_id:
+                raise ValidationError({
+                    'store_listing': (
+                        'The selected store listing belongs to a different product variant.'
+                    ),
+                })
+
+    @property
+    def product(self):
+        return self.variant.product
+
+    @property
+    def product_id(self):
+        return self.variant.product_id
+
+    @property
+    def store(self):
+        return self.store_listing.store if self.store_listing_id else None
+
+    @property
+    def store_name(self):
+        return self.store.name if self.store else self.source_name
 
     @property
     def quantity_on_hand(self):
@@ -1255,10 +1640,16 @@ class VariantInventory(models.Model):
         return self.STATUS_IN_STOCK
 
     def save(self, *args, **kwargs):
-        if self.location == Product.STOCK_WAREHOUSE and not self.source_name:
+        if self.store_listing_id and self.variant_id:
+            listing_variant_id = self.store_listing.variant_id
+            if listing_variant_id != self.variant_id:
+                raise ValidationError(
+                    'VariantInventory.variant must match StoreVariantListing.variant.'
+                )
+        if self.store_listing_id and not self.source_name:
+            self.source_name = self.store_listing.store.name
+        elif self.location == Product.STOCK_WAREHOUSE and not self.source_name:
             self.source_name = 'POS Store'
-        if self.location == Product.STOCK_BRANCH:
-            self.source_name = ''
         self.status = self.effective_status
         update_fields = kwargs.get('update_fields')
         if update_fields is not None and 'status' not in update_fields:
@@ -1435,6 +1826,8 @@ class Promotion(models.Model):
         today = timezone.now().date()
         return (
             self.status == self.STATUS_ACTIVE
+            and self.value > 0
+            and (self.type != self.TYPE_PERCENTAGE or self.value <= 100)
             and self.start_date <= today <= self.end_date
         )
 
@@ -1452,7 +1845,8 @@ class Promotion(models.Model):
 
         targets = {str(value) for value in self.targets}
         if self.scope == self.SCOPE_CATEGORY and product.category:
-            return str(product.category_id) in targets or product.category.slug in targets
+            return (str(product.category_id) in targets or product.category.slug in targets
+                    or bool(product.subcategory and product.subcategory.slug in targets))
         if self.scope == self.SCOPE_BRAND and product.brand:
             return str(product.brand_id) in targets or product.brand.slug in targets
         if self.scope == self.SCOPE_PRODUCT:

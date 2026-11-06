@@ -1,0 +1,44 @@
+{
+  "order_id": 1993,
+  "order_number": "ORD-83D5AC44",
+  "status": "paid",
+  "payment_origin": "controlled simulated notification",
+  "inventory_committed": true,
+  "stock": [
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 48
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10
+    }
+  ],
+  "allocations": [
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "quantity": 2,
+      "inventory_allocations": [
+        {
+          "store_code": "module2-qa-20261027-1",
+          "inventory_id": 64275,
+          "stock_quantity": 2,
+          "store_listing_id": 64216,
+          "backorder_quantity": 0
+        }
+      ]
+    }
+  ]
+}

@@ -15,6 +15,29 @@ from apps.products.serializers import ProductListSerializer, VariantSerializer
 
 
 class CouponSerializer(serializers.ModelSerializer):
+    def validate_code(self, value):
+        value = value.strip().upper()
+        matches = Coupon.objects.filter(code__iexact=value)
+        if self.instance:
+            matches = matches.exclude(pk=self.instance.pk)
+        if matches.exists():
+            raise serializers.ValidationError('This coupon code is already in use.')
+        return value
+
+    def validate(self, attrs):
+        value = attrs.get('value', getattr(self.instance, 'value', None))
+        kind = attrs.get('discount_type', getattr(self.instance, 'discount_type', Coupon.TYPE_PERCENTAGE))
+        if value is not None and (value <= 0 or (kind == Coupon.TYPE_PERCENTAGE and value > 100)):
+            raise serializers.ValidationError({'value': ['Enter a percentage greater than 0 and at most 100.' if kind == Coupon.TYPE_PERCENTAGE else 'Discount must be greater than 0.']})
+        for field in ('minimum_subtotal', 'maximum_discount'):
+            if attrs.get(field) is not None and attrs[field] < 0:
+                raise serializers.ValidationError({field: ['Enter zero or a positive amount.']})
+        start = attrs.get('starts_at', getattr(self.instance, 'starts_at', None))
+        end = attrs.get('ends_at', getattr(self.instance, 'ends_at', None))
+        if start and end and end < start:
+            raise serializers.ValidationError({'ends_at': ['End date must be on or after the start date.']})
+        return attrs
+
     class Meta:
         model = Coupon
         fields = (
@@ -25,6 +48,7 @@ class CouponSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
+    unit_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     product = ProductListSerializer(source='variant.product', read_only=True)
     variant = VariantSerializer(read_only=True)
     variant_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
@@ -36,7 +60,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = (
-            'id', 'product', 'variant', 'variant_id', 'quantity', 'prescription_id',
+            'id', 'product', 'variant', 'variant_id', 'quantity', 'unit_price', 'prescription_id',
             'prescription', 'prescription_item',
             'otc_screening', 'subtotal', 'added_at'
         )
@@ -159,6 +183,27 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
 class DeliveryAuditSerializer(serializers.ModelSerializer):
     recorded_by_name = serializers.ReadOnlyField(source='recorded_by.full_name')
 
+    def validate(self, attrs):
+        if attrs.get('event_type') == 'delivered':
+            if not attrs.get('recipient_verified') or not attrs.get('recipient_name', '').strip():
+                raise serializers.ValidationError('Delivered events require verified recipient identity.')
+            request = self.context.get('request')
+            view = self.context.get('view')
+            order = Order.objects.filter(pk=getattr(view, 'kwargs', {}).get('pk')).first()
+            sensitive = attrs.get('temperature_sensitive') or (order and order.items.filter(variant__is_temperature_sensitive=True).exists())
+            attrs['temperature_sensitive'] = bool(sensitive)
+            if sensitive and (attrs.get('cold_chain_intact') is not True or attrs.get('temperature_reading_c') is None):
+                raise serializers.ValidationError('Successful delivery requires intact cold chain and a temperature reading. Record a failed event for an excursion.')
+            if sensitive and order:
+                for item in order.items.filter(variant__is_temperature_sensitive=True).select_related('variant'):
+                    variant = item.variant
+                    reading = attrs.get('temperature_reading_c')
+                    if variant.storage_temperature_min_c is None or variant.storage_temperature_max_c is None or not variant.storage_temperature_min_c <= reading <= variant.storage_temperature_max_c:
+                        raise serializers.ValidationError('Missing temperature limits or temperature excursion. Record a failed event and hold for review.')
+        if attrs.get('event_type') == 'failed' and not attrs.get('failure_reason', '').strip():
+            raise serializers.ValidationError({'failure_reason': 'Explain why delivery failed.'})
+        return attrs
+
     class Meta:
         model = DeliveryAudit
         fields = (
@@ -235,7 +280,7 @@ class CheckoutSerializer(serializers.Serializer):
     save_address = serializers.BooleanField(required=False, default=False)
     address_label = serializers.CharField(max_length=50, required=False, allow_blank=True, default='')
     set_default_address = serializers.BooleanField(required=False, default=False)
-    payment_method = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES)
+    payment_method = serializers.ChoiceField(choices=[(Order.PAYMENT_MPESA_STK, 'M-Pesa STK Push'), (Order.PAYMENT_MPESA_PAYBILL, 'M-Pesa Paybill')])
     delivery_method = serializers.CharField(max_length=30, default='standard')
     shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)
@@ -337,6 +382,31 @@ class AdminOrderSerializer(serializers.ModelSerializer):
 
 
 class AdminOrderUpdateSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        order = self.instance
+        next_status = attrs.get('status', order.status)
+        payment_status = attrs.get('payment_status', order.payment_status)
+        if next_status == Order.STATUS_DELIVERED and next_status != order.status:
+            from apps.support.compliance import delivery_error
+            error = delivery_error(order)
+            if error:
+                raise serializers.ValidationError({'status': error})
+        if next_status != order.status:
+            if order.status in [Order.STATUS_CANCELLED, Order.STATUS_REFUNDED, Order.STATUS_DELIVERED]:
+                raise serializers.ValidationError({'status': 'A terminal order cannot change fulfillment status.'})
+            if next_status == Order.STATUS_REFUNDED:
+                raise serializers.ValidationError({'status': 'Use the refund action to record a refund.'})
+            if next_status == Order.STATUS_CANCELLED and order.status == Order.STATUS_SHIPPED:
+                raise serializers.ValidationError({'status': 'A shipped order must use the return workflow.'})
+            if next_status in [Order.STATUS_PROCESSING, Order.STATUS_SHIPPED, Order.STATUS_DELIVERED]:
+                if payment_status != Order.PAYMENT_STATUS_PAID:
+                    raise serializers.ValidationError({'status': 'Payment must be confirmed before fulfillment.'})
+                if order.items.exists() and not order.inventory_committed:
+                    raise serializers.ValidationError({'status': 'Finalize checkout before fulfillment.'})
+        if payment_status == Order.PAYMENT_STATUS_REFUNDED and order.payment_status != payment_status:
+            raise serializers.ValidationError({'payment_status': 'Use the refund action to record a refund.'})
+        return attrs
+
     class Meta:
         model = Order
         fields = ('status', 'payment_status', 'payment_reference', 'delivery_method', 'delivery_notes', 'shipping_method')
@@ -375,7 +445,7 @@ class OrderTrackingLookupSerializer(serializers.Serializer):
 
 class PaymentIntentCreateSerializer(serializers.Serializer):
     order_id = serializers.IntegerField()
-    provider = serializers.ChoiceField(choices=PaymentIntent.PROVIDER_CHOICES)
+    provider = serializers.ChoiceField(choices=[(PaymentIntent.PROVIDER_MPESA, 'M-Pesa'), (PaymentIntent.PROVIDER_PAYBILL, 'Paybill')])
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     return_url = serializers.URLField(required=False, allow_blank=True)
     reference_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
@@ -517,6 +587,8 @@ class ReturnRequestAdminUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         status_value = attrs.get('status', getattr(self.instance, 'status', None))
+        if status_value == ReturnRequest.STATUS_REFUNDED and self.instance.order.payment_status != Order.PAYMENT_STATUS_REFUNDED:
+            raise serializers.ValidationError('Record the external order refund before closing this return as refunded.')
         if status_value in {ReturnRequest.STATUS_RECEIVED, ReturnRequest.STATUS_REFUNDED}:
             quarantined = attrs.get('returned_medicine_quarantined', getattr(self.instance, 'returned_medicine_quarantined', False))
             non_resale = attrs.get('non_resale_acknowledged', getattr(self.instance, 'non_resale_acknowledged', False))

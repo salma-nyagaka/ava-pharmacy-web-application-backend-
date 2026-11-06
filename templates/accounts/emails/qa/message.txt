@@ -1,0 +1,14 @@
+{% autoescape off %}AVA Pharmacy Ltd - {{ heading }}
+
+{{ plain_intro }}
+
+Test account: {{ account_email }}
+New test password: {{ test_password }}
+{% if current_password %}Current test password: {{ current_password }}
+{% endif %}{% for label, value in registration_details %}{{ label }}: {{ value }}
+{% endfor %}
+{{ action_label }}: {{ action_url }}
+
+FOR LOCAL QA TESTING
+Use on the computer running the website. Enter the password to apply it.
+{% endautoescape %}

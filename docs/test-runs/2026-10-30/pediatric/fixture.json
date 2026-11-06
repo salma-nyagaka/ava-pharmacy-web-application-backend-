@@ -1,0 +1,19 @@
+{
+  "environment": "sandbox",
+  "guardian_id": 75,
+  "provider_id": 31,
+  "provider_email": "pediatric.journey30@avapharmacy.test",
+  "fee": "1.00",
+  "commission_percent": "10.00",
+  "child_id": 6,
+  "same_name_child_id": 7,
+  "same_name_cancelled_identity_fixture_id": 36,
+  "phone_last4": "8457",
+  "regular_provider_28_fee_unchanged": "500.00",
+  "second_cancelled_identity_fixture_id": 37,
+  "initial_provider_request_limit": 1,
+  "user_authorized_resend_count": 2,
+  "total_authorized_requests": 3,
+  "user_reported_handset_approval_for_intent": 50,
+  "latest_payment_intent_id": 51
+}

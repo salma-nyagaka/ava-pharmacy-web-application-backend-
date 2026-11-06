@@ -1,0 +1,33 @@
+{
+  "order": "ORD-7B791366",
+  "payment_status": "paid",
+  "attempts": [
+    {
+      "id": 53,
+      "status": "succeeded",
+      "amount": "1.00"
+    },
+    {
+      "id": 52,
+      "status": "failed",
+      "amount": "1.00"
+    },
+    {
+      "id": 51,
+      "status": "cancelled",
+      "amount": "1.00"
+    }
+  ],
+  "successful_attempts": 1,
+  "stock": 3,
+  "return_status": "received",
+  "quarantined": true,
+  "non_resale": true,
+  "customer_refund_denied": 403,
+  "premature_return_refunded_denied": 400,
+  "finance_payment_status": "paid",
+  "support_ticket": 3,
+  "support_status": "in_progress",
+  "customer_support_read": 200,
+  "actual_refund_executed": false
+}

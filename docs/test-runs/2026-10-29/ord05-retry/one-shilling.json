@@ -1,0 +1,13 @@
+{
+  "order_id": 2003,
+  "order_number": "ORD-7FF17F50",
+  "total": "1.00",
+  "product_id": 22367,
+  "variant_id": 23505,
+  "inventory_id": 64279,
+  "shipping_id": 2,
+  "before_stock": 2,
+  "initiation_http_status": 201,
+  "intent_id": 45,
+  "intent_status": "requires_action"
+}

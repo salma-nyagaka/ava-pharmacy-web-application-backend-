@@ -73,11 +73,8 @@ class IsPrescriptionReviewPharmacist(IsPharmacist):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        profile = getattr(request.user, 'pharmacist', None)
-        return bool(
-            profile
-            and profile.has_permission(profile.PERMISSION_PRESCRIPTION_REVIEW)
-        )
+        from apps.prescriptions.access import can_review
+        return can_review(request.user)
 
 
 class IsPharmacistOrAdmin(BasePermission):
@@ -162,3 +159,11 @@ class IsAdminOrInventoryStaff(BasePermission):
             request.user and request.user.is_authenticated
             and request.user.role in [User.ADMIN, User.INVENTORY_STAFF]
         )
+
+
+class IsPrescriptionQueuePharmacist(IsPharmacist):
+    message = 'Prescription queue access has not been granted to this account.'
+
+    def has_permission(self, request, view):
+        from apps.prescriptions.access import can_access_queue
+        return super().has_permission(request, view) and can_access_queue(request.user)

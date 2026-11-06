@@ -1,3 +1,4 @@
+from . import credential_api
 """
 URL patterns for the accounts app.
 
@@ -6,8 +7,19 @@ password change, addresses) and admin-only user management endpoints.
 """
 from django.urls import path
 from . import views
+from .record_stats import AdminRecordStatsView
 
 urlpatterns = [
+    path('auth/confirm-email-change/', views.ConfirmEmailChangeView.as_view(), name='confirm-email-change'),
+    path('admin/users/<int:pk>/documents/', credential_api.PharmacistDocumentsView.as_view(), name='pharmacist-documents'),
+    path('admin/users/<int:pk>/documents/<int:document_pk>/', credential_api.PharmacistDocumentDeleteView.as_view(), name='pharmacist-document-delete'),
+    path('admin/record-stats/', AdminRecordStatsView.as_view(), name='admin-record-stats'),
+    path('compliance/pharmacist-credential-subjects/', credential_api.CredentialSubjectListView.as_view(), name='pharmacist-credential-subjects'),
+    path('compliance/pharmacist-credentials/', credential_api.PharmacistCredentialListView.as_view(), name='pharmacist-credentials'),
+    path('compliance/pharmacist-credentials/me/', credential_api.MyPharmacistCredentialView.as_view(), name='my-pharmacist-credential'),
+    path('compliance/pharmacist-credentials/<int:pk>/', credential_api.PharmacistCredentialDetailView.as_view(), name='pharmacist-credential-detail'),
+    path('compliance/pharmacist-credentials/<int:pk>/verify/', credential_api.PharmacistCredentialVerifyView.as_view(), name='pharmacist-credential-verify'),
+    path('compliance/pharmacist-credentials/<int:pk>/suspend/', credential_api.PharmacistCredentialSuspendView.as_view(), name='pharmacist-credential-suspend'),
     path('auth/register/', views.RegisterView.as_view(), name='register'),
     path('auth/login/', views.LoginView.as_view(), name='login'),
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),

@@ -19,6 +19,7 @@ urlpatterns = [
     # Patient consultations
     path('consultations/', views.ConsultationListCreateView.as_view(), name='consultations'),
     path('consultations/<int:pk>/', views.ConsultationDetailView.as_view(), name='consultation-detail'),
+    path('consultations/<int:pk>/clinical-notes/', views.ConsultationClinicalNotesView.as_view(), name='consultation-clinical-notes'),
     path('consultations/<int:pk>/messages/', views.ConsultationMessageListCreateView.as_view(), name='consultation-messages'),
     path('consultations/messages/<int:pk>/attachment/', views.ConsultationMessageAttachmentView.as_view(), name='consultation-message-attachment'),
     path('consultations/<int:pk>/end/', views.ConsultationEndView.as_view(), name='consultation-end'),

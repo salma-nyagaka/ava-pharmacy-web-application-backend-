@@ -1,0 +1,11 @@
+{
+  "return_id": 1,
+  "return_status": "received",
+  "quarantined": true,
+  "non_resale": true,
+  "stock_after_return": 3,
+  "support_ticket_id": 3,
+  "support_status": "in_progress",
+  "external_refund_executed": false,
+  "reason_pending": "Actual provider refund not implemented by administrative refund-record endpoint"
+}

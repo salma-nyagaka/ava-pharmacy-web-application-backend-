@@ -1,0 +1,21 @@
+{
+  "backup": "/private/tmp/ava-item-specs-20261106T093042Z/database.dump",
+  "unchanged_except_strength_pack_size": {
+    "Product": {
+      "count": 23414,
+      "sha256": "2bbcf6393a5c6bad2c9e0422653129844a9b01f69107ac66518f978884177c7b"
+    },
+    "Variant": {
+      "count": 23414,
+      "sha256": "581e0c7dec86080aaf52e80706bf89ee7feb4e617ae36788c95fff83305cff6f"
+    },
+    "VariantInventory": {
+      "count": 64097,
+      "sha256": "9bda9c2df6c61ceb2e5a0e96b425364f6eb97f0b61b959138f353f0d0b37b2a2"
+    },
+    "StoreVariantListing": {
+      "count": 64097,
+      "sha256": "0f98ff6840183804a24645afbd6b18d5b8c958348aaac8d89907864135817824"
+    }
+  }
+}

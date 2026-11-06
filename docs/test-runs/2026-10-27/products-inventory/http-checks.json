@@ -1,0 +1,62 @@
+[
+  {
+    "endpoint": "admin-brand-detail",
+    "method": "PATCH",
+    "status": 200
+  },
+  {
+    "endpoint": "admin-product-detail",
+    "method": "PATCH",
+    "status": 200
+  },
+  {
+    "endpoint": "admin-category-detail",
+    "method": "PATCH",
+    "status": 200
+  },
+  {
+    "endpoint": "admin-product-variant-detail",
+    "method": "PATCH",
+    "status": 200
+  },
+  {
+    "endpoint": "admin-product-variant-detail",
+    "method": "PATCH",
+    "status": 200
+  },
+  {
+    "endpoint": "products",
+    "method": "GET",
+    "status": 200
+  },
+  {
+    "endpoint": "product-detail-by-id",
+    "method": "GET",
+    "status": 200
+  },
+  {
+    "endpoint": "wishlist",
+    "method": "POST",
+    "status": 201
+  },
+  {
+    "endpoint": "wishlist-item",
+    "method": "DELETE",
+    "status": 404
+  },
+  {
+    "endpoint": "wishlist",
+    "method": "GET",
+    "status": 200
+  },
+  {
+    "endpoint": "wishlist-item-move-to-cart",
+    "method": "POST",
+    "status": 200
+  },
+  {
+    "endpoint": "cart",
+    "method": "GET",
+    "status": 200
+  }
+]

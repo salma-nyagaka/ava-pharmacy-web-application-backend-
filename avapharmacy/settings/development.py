@@ -11,6 +11,19 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# A single storefront render performs several parallel reads and React's
+# development checks may run effects more than once. Keep the general browsing
+# buckets roomy locally; explicitly scoped login, registration, checkout and
+# upload throttles retain the stricter rates declared in base settings.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_RATES': {
+        **REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'],
+        'anon': config('DEV_API_ANON_THROTTLE_RATE', default='10000/hour'),
+        'user': config('DEV_API_USER_THROTTLE_RATE', default='10000/hour'),
+    },
+}
+
 SHOW_SQL_DEBUG = config('SHOW_SQL_DEBUG', default=False, cast=bool)
 
 LOGGING = {
@@ -79,3 +92,9 @@ LOGGING = {
         },
     },
 }
+
+# A separate Redis database lets local web, worker and beat processes share
+# tasks. The in-memory broker cannot deliver between separate processes.
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/14')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/15')
+CELERY_TASK_DEFAULT_QUEUE = config('DEV_CELERY_TASK_QUEUE', default='ava_local_dev')

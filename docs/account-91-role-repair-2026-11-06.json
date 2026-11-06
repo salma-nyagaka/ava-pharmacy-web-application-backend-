@@ -1,0 +1,6 @@
+{
+  "user_id": 91,
+  "previous_role": "paedetrician",
+  "new_role": "pharmacist",
+  "reason": "Invalid role on account with existing pharmacist profile and permissions"
+}

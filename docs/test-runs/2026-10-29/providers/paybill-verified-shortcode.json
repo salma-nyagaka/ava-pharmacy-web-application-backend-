@@ -1,0 +1,7 @@
+{
+  "source": "signed-in avapharmacy-test C2B simulator",
+  "version": "v2",
+  "shortcode": "600980",
+  "accepted": false,
+  "error": "M-Pesa HTTP error 500: {\n                    \"requestId\":\"135b-4679-8ea6-1c3dca88c6a4372140\",\n                    \"errorCode\": \"500.003.1001\",\n                    \"errorMessage\": \"Service is currently unreachable. Please try again later.\"\n                }\n            "
+}

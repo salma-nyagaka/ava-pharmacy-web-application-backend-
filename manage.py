@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 PROJECT_PACKAGE = PROJECT_ROOT / 'avapharmacy'
 
 if str(PROJECT_PACKAGE) not in sys.path:
-    sys.path.insert(0, str(PROJECT_PACKAGE))
+    sys.path.append(str(PROJECT_PACKAGE))
 
 
 def main():

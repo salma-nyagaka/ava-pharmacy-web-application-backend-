@@ -1,0 +1,16 @@
+{
+  "receipt": "UJUI207MTB",
+  "payment_intent_id": 51,
+  "consultation_id": 38,
+  "child_id": 6,
+  "guardian_id": 75,
+  "checks": [
+    "Repeated paid finalization returns the same child consultation",
+    "Guardian and assigned pediatrician both view and message the same booking"
+  ],
+  "clinician_prescription_id": 30,
+  "dispensing_prescription_id": 48,
+  "variant_id": 23512,
+  "prescription_status": "approved",
+  "medicine_payment": "Not requested; no medicine payment or supply claimed"
+}

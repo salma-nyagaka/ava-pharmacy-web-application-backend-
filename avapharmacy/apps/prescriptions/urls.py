@@ -2,9 +2,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('prescriptions/<int:pk>/files/<int:file_pk>/download/<str:filename>', views.PrescriptionFileDownloadView.as_view(), name='prescription-file-download-named'),
+    path('prescriptions/<int:pk>/files/<int:file_pk>/download/', views.PrescriptionFileDownloadView.as_view(), name='prescription-file-download'),
     path('prescriptions/', views.PrescriptionListView.as_view(), name='prescriptions'),
     path('prescriptions/upload/', views.PrescriptionUploadView.as_view(), name='prescription-upload'),
     path('prescriptions/<int:pk>/', views.PrescriptionDetailView.as_view(), name='prescription-detail'),
+    path('prescriptions/<int:pk>/edit/', views.PendingPrescriptionEditView.as_view(), name='prescription-edit'),
     path('prescriptions/<int:pk>/clarification-replies/', views.PrescriptionClarificationReplyView.as_view(), name='prescription-clarification-reply'),
     path('prescriptions/<int:pk>/update/', views.PrescriptionUpdateView.as_view(), name='prescription-update'),
     path('prescriptions/<int:pk>/resubmit/', views.PrescriptionResubmitView.as_view(), name='prescription-resubmit'),

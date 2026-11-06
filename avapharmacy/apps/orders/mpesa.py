@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from http.client import HTTPException
 from datetime import datetime
 from urllib import error, parse, request
 from urllib.parse import urlparse
@@ -31,18 +32,31 @@ class MpesaClient:
         self.consumer_secret = settings.MPESA_CONSUMER_SECRET
         self.shortcode = settings.MPESA_SHORTCODE
         self.passkey = settings.MPESA_PASSKEY
-        self.callback_url = settings.MPESA_CALLBACK_URL
+        self.callback_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '')
+        self.callback_url = self._authenticated_callback_url(settings.MPESA_CALLBACK_URL)
         self.transaction_type = settings.MPESA_TRANSACTION_TYPE
         self.timeout = settings.MPESA_TIMEOUT_SECONDS
         self.paybill_number = str(getattr(settings, 'MPESA_PAYBILL_NUMBER', '') or '').strip()
         self.c2b_shortcode = str(getattr(settings, 'MPESA_C2B_SHORTCODE', '') or '').strip() or self.paybill_number
         self.c2b_validation_url = str(getattr(settings, 'MPESA_C2B_VALIDATION_URL', '') or '').strip()
         self.c2b_confirmation_url = str(getattr(settings, 'MPESA_C2B_CONFIRMATION_URL', '') or '').strip()
+        self.c2b_validation_url = self._authenticated_callback_url(self.c2b_validation_url)
+        self.c2b_confirmation_url = self._authenticated_callback_url(self.c2b_confirmation_url)
+        self.c2b_api_version = str(getattr(settings, 'MPESA_C2B_API_VERSION', 'v2')).strip().lower()
         self.c2b_response_type = str(getattr(settings, 'MPESA_C2B_RESPONSE_TYPE', 'Completed') or 'Completed').strip() or 'Completed'
         self.require_public_callback_urls = bool(getattr(settings, 'MPESA_REQUIRE_PUBLIC_CALLBACK_URLS', True))
 
+    def _authenticated_callback_url(self, url):
+        if not url or not self.callback_secret:
+            return url
+        parts = parse.urlsplit(url)
+        query = dict(parse.parse_qsl(parts.query, keep_blank_values=True))
+        query['token'] = self.callback_secret
+        return parse.urlunsplit(parts._replace(query=parse.urlencode(query)))
+
     def is_configured(self):
         return all([
+            self.callback_secret,
             self.consumer_key,
             self.consumer_secret,
             self.shortcode,
@@ -56,6 +70,7 @@ class MpesaClient:
 
     def is_c2b_configured(self):
         return all([
+            self.callback_secret,
             self.consumer_key,
             self.consumer_secret,
             self.c2b_shortcode,
@@ -114,7 +129,7 @@ class MpesaClient:
                     'Check MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET in .env.'
                 ) from exc
             raise MpesaAPIError(f'Failed to acquire M-Pesa access token: HTTP {exc.code}: {body}') from exc
-        except (error.URLError, KeyError, json.JSONDecodeError) as exc:
+        except (OSError, HTTPException, KeyError, json.JSONDecodeError) as exc:
             raise MpesaAPIError(f'Failed to acquire M-Pesa access token: {exc}') from exc
 
     def _timestamp(self):
@@ -150,7 +165,7 @@ class MpesaClient:
                     'The system will wait before retrying status sync.'
                 ) from exc
             raise MpesaAPIError(f'M-Pesa HTTP error {exc.code}: {body}') from exc
-        except (error.URLError, json.JSONDecodeError) as exc:
+        except (OSError, HTTPException, json.JSONDecodeError) as exc:
             raise MpesaAPIError(f'M-Pesa request failed: {exc}') from exc
 
     def normalize_phone(self, phone):
@@ -165,6 +180,9 @@ class MpesaClient:
 
     def initiate_stk_push(self, payment_intent, phone, account_reference, description, callback_url=None):
         self.validate_stk_configuration()
+        effective_callback_url = self._authenticated_callback_url(callback_url or self.callback_url)
+        if self.require_public_callback_urls:
+            self._validate_callback_url(effective_callback_url, 'CONSULTATION_MPESA_CALLBACK_URL' if callback_url else 'MPESA_CALLBACK_URL')
         normalized_phone = self.normalize_phone(phone)
         timestamp = self._timestamp()
         payload = {
@@ -176,7 +194,7 @@ class MpesaClient:
             'PartyA': normalized_phone,
             'PartyB': self.shortcode,
             'PhoneNumber': normalized_phone,
-            'CallBackURL': callback_url or self.callback_url,
+            'CallBackURL': effective_callback_url,
             'AccountReference': account_reference[:12],
             'TransactionDesc': description[:13],
         }
@@ -200,16 +218,18 @@ class MpesaClient:
 
     def register_c2b_urls(self):
         self.validate_c2b_configuration()
+        if self.c2b_api_version not in {'v1', 'v2'}:
+            raise MpesaConfigurationError('MPESA_C2B_API_VERSION must be v1 or v2.')
         payload = {
             'ShortCode': self.c2b_shortcode,
             'ResponseType': self.c2b_response_type,
             'ConfirmationURL': self.c2b_confirmation_url,
             'ValidationURL': self.c2b_validation_url,
         }
-        response = self._post('/mpesa/c2b/v1/registerurl', payload)
+        response = self._post(f'/mpesa/c2b/{self.c2b_api_version}/registerurl', payload)
         response_code = str(response.get('ResponseCode', ''))
-        if response_code and response_code != '0':
-            raise MpesaAPIError(response.get('ResponseDescription') or 'M-Pesa C2B URL registration failed.')
+        if response_code not in {'0', '00000000'}:
+            raise MpesaAPIError(response.get('ResponseDescription') or 'M-Pesa C2B URL registration was not confirmed.')
         return response
 
 

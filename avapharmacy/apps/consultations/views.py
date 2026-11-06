@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncDate
 from datetime import timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from .models import (
     ChildPatient,
@@ -26,6 +26,7 @@ from .models import (
     Consultation, ConsultationMessage, ConsultationPaymentIntent,
 )
 from .serializers import (
+    PublicClinicianProfileSerializer,
     DoctorProfileSerializer, DoctorProfileListSerializer, DoctorOnboardingSerializer,
     PediatricianProfileSerializer, PediatricianProfileListSerializer, PediatricianOnboardingSerializer,
     ChildPatientSerializer, ChildPatientSummarySerializer,
@@ -174,6 +175,11 @@ def _create_paid_consultation_from_intent(intent):
         patient_email=intent.consultation_payload.get('patient_email', ''),
         patient_phone=intent.consultation_payload.get('patient_phone', ''),
     )
+    # Payments initiated before fixed pricing keep their historical agreement.
+    if intent.consultation_payload.get('_fixed_pricing_version') != 1:
+        Consultation.objects.filter(pk=consultation.pk).update(agreed_total=None, agreed_clinician_share=None)
+        consultation.agreed_total = None
+        consultation.agreed_clinician_share = None
     intent.consultation = consultation
     intent.save(update_fields=['consultation', 'updated_at'])
     return consultation
@@ -278,9 +284,10 @@ def _get_pediatrician_or_404(user):
 
 
 def _get_provider_for_user(user):
-    if getattr(user, 'role', None) == 'pediatrician':
-        return _get_pediatrician_or_404(user)
-    return _get_doctor_or_404(user)
+    if not user.is_active or user.status != 'active':
+        return None
+    provider = _get_pediatrician_or_404(user) if user.role == 'pediatrician' else _get_doctor_or_404(user)
+    return provider if provider and provider.eligible_to_practice else None
 
 
 def _client_ip(request):
@@ -438,10 +445,13 @@ def _doctor_queue_queryset_for_provider(provider):
     return Consultation.objects.filter(assigned | eligible_unassigned)
 
 
+@transaction.atomic
 def _assign_consultation_to_provider_if_open(consultation, provider):
-    if not provider or consultation.clinician_id:
-        return consultation
-    if not _is_consultation_eligible_for_provider(consultation, provider):
+    from rest_framework.exceptions import PermissionDenied
+    consultation = Consultation.objects.select_for_update(of=('self',)).select_related('clinician', 'patient').get(pk=consultation.pk)
+    if not provider or not _is_consultation_eligible_for_provider(consultation, provider):
+        raise PermissionDenied('This consultation is no longer available to this clinician.')
+    if consultation.clinician_id:
         return consultation
     consultation.clinician = provider
     consultation.is_pediatric = provider.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN
@@ -512,11 +522,15 @@ def _broadcast_consultation_event(consultation_id, event_type, payload):
     )
 
 
-def _clinician_net_earning_amount(provider):
-    gross = Decimal(provider.consult_fee or 0)
+def _clinician_net_earning_amount(provider, gross=None, consultation=None):
+    gross = Decimal(provider.consult_fee or 0) if gross is None else Decimal(gross)
+    if consultation is None or consultation.agreed_clinician_share is not None:
+        total = Decimal(consultation.agreed_total) if consultation else Decimal('1500')
+        share = Decimal(consultation.agreed_clinician_share) if consultation else Decimal('1000')
+        return share if gross >= total else Decimal('0.00')
     commission_percent = Decimal(provider.commission or 0)
     ava_share = gross * commission_percent / Decimal('100')
-    net = (gross - ava_share).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+    net = (gross - ava_share).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     return net if net > 0 else Decimal('0.00')
 
 
@@ -529,16 +543,19 @@ def _get_clinician_by_identifier(identifier, provider_type):
 def _provision_doctor_activation_account(doctor, request):
     if doctor.user_id:
         return None
-    serializer = ProvisionDoctorAccountSerializer(
+    is_pediatrician = doctor.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN
+    provider = 'pediatrician' if is_pediatrician else 'doctor'
+    serializer_class = ProvisionPediatricianAccountSerializer if is_pediatrician else ProvisionDoctorAccountSerializer
+    serializer = serializer_class(
         data={},
-        context={'doctor': doctor, 'request': request},
+        context={provider: doctor, 'request': request},
     )
     serializer.is_valid(raise_exception=True)
     _doctor, user, _ = serializer.save()
     log_admin_action(
         request.user,
-        'doctor_account_provisioned',
-        'doctor_profile',
+        f'{provider}_account_provisioned',
+        f'{provider}_profile',
         doctor.id,
         f'Provisioned activation account for {doctor.name}',
         metadata={'user_id': user.id, 'role': user.role},
@@ -558,7 +575,7 @@ class DoctorListView(generics.ListAPIView):
     search_fields = ['name', 'specialty', 'facility']
 
     def get_queryset(self):
-        return ClinicianProfile.objects.doctors().filter(status=ClinicianProfile.STATUS_ACTIVE).select_related('user')
+        return ClinicianProfile.objects.doctors().active().select_related('user')
 
 
 class PediatricianListView(generics.ListAPIView):
@@ -568,17 +585,17 @@ class PediatricianListView(generics.ListAPIView):
     search_fields = ['name', 'specialty', 'facility']
 
     def get_queryset(self):
-        return ClinicianProfile.objects.pediatricians().filter(status=ClinicianProfile.STATUS_ACTIVE).select_related('user')
+        return ClinicianProfile.objects.pediatricians().active().select_related('user')
 
 
 class DoctorDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
-    serializer_class = DoctorProfileSerializer
+    serializer_class = PublicClinicianProfileSerializer
     queryset = ClinicianProfile.objects.doctors().select_related('user').prefetch_related('documents')
 
     def get_object(self):
         clinician = _get_clinician_by_identifier(self.kwargs['pk'], ClinicianProfile.TYPE_DOCTOR)
-        if not clinician:
+        if not clinician or clinician.status != ClinicianProfile.STATUS_ACTIVE or not clinician.user_id or not clinician.user.is_active or clinician.user.status != User.STATUS_ACTIVE:
             from django.http import Http404
             raise Http404
         return clinician
@@ -586,12 +603,12 @@ class DoctorDetailView(generics.RetrieveAPIView):
 
 class PediatricianDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
-    serializer_class = PediatricianProfileSerializer
+    serializer_class = PublicClinicianProfileSerializer
     queryset = ClinicianProfile.objects.pediatricians().select_related('user').prefetch_related('documents')
 
     def get_object(self):
         clinician = _get_clinician_by_identifier(self.kwargs['pk'], ClinicianProfile.TYPE_PEDIATRICIAN)
-        if not clinician:
+        if not clinician or clinician.status != ClinicianProfile.STATUS_ACTIVE or not clinician.user_id or not clinician.user.is_active or clinician.user.status != User.STATUS_ACTIVE:
             from django.http import Http404
             raise Http404
         return clinician
@@ -825,7 +842,9 @@ class PediatricianDashboardView(APIView):
     permission_classes = [IsDoctor]
 
     def get(self, request):
-        pediatrician = _get_pediatrician_or_404(request.user)
+        pediatrician = _get_provider_for_user(request.user)
+        if pediatrician and pediatrician.provider_type != ClinicianProfile.TYPE_PEDIATRICIAN:
+            pediatrician = None
         if not pediatrician:
             return Response({'detail': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -908,7 +927,9 @@ class PediatricianPatientListView(APIView):
     permission_classes = [IsDoctor]
 
     def get(self, request):
-        pediatrician = _get_pediatrician_or_404(request.user)
+        pediatrician = _get_provider_for_user(request.user)
+        if pediatrician and pediatrician.provider_type != ClinicianProfile.TYPE_PEDIATRICIAN:
+            pediatrician = None
         if not pediatrician:
             return Response({'detail': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -945,7 +966,9 @@ class PediatricianPatientDetailView(APIView):
     permission_classes = [IsDoctor]
 
     def get(self, request, child_id):
-        pediatrician = _get_pediatrician_or_404(request.user)
+        pediatrician = _get_provider_for_user(request.user)
+        if pediatrician and pediatrician.provider_type != ClinicianProfile.TYPE_PEDIATRICIAN:
+            pediatrician = None
         if not pediatrician:
             return Response({'detail': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1083,9 +1106,11 @@ class ConsultationPaymentIntentCreateView(APIView):
         open_doctor_queue = bool(stored_consultation_payload.pop('_open_doctor_queue', False))
         if stored_consultation_payload.get('scheduled_at'):
             stored_consultation_payload['scheduled_at'] = stored_consultation_payload['scheduled_at'].isoformat()
-        if stored_consultation_payload.get('weight_kg') is not None:
-            stored_consultation_payload['weight_kg'] = str(stored_consultation_payload['weight_kg'])
+        for field, value in stored_consultation_payload.items():
+            if isinstance(value, Decimal):
+                stored_consultation_payload[field] = str(value)
         stored_consultation_payload.update({
+            '_fixed_pricing_version': 1,
             'doctor': None if open_doctor_queue else (clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None),
             'pediatrician': clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else None,
             'child_patient_id': child_patient.pk if child_patient else stored_consultation_payload.get('child_patient_id'),
@@ -1243,7 +1268,12 @@ class ConsultationMpesaCallbackView(APIView):
 
     @transaction.atomic
     def post(self, request):
+        from apps.orders.views import _trusted_mpesa_callback
+        if not _trusted_mpesa_callback(request):
+            return Response({'detail': 'Invalid M-Pesa callback authentication.'}, status=status.HTTP_403_FORBIDDEN)
         callback = parse_mpesa_callback(request.data)
+        if not callback['checkout_request_id'] or not callback['merchant_request_id'] or not callback['result_code']:
+            return Response({'detail': 'Incomplete M-Pesa callback.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             intent = ConsultationPaymentIntent.objects.select_for_update().get(
                 provider=ConsultationPaymentIntent.PROVIDER_MPESA,
@@ -1253,6 +1283,17 @@ class ConsultationMpesaCallbackView(APIView):
         except ConsultationPaymentIntent.DoesNotExist:
             return Response({'ResultCode': 1, 'ResultDesc': 'Payment intent not found.'})
 
+        if intent.status == ConsultationPaymentIntent.STATUS_SUCCEEDED:
+            return Response({'ResultCode': 0, 'ResultDesc': 'Already confirmed'})
+        if callback['result_code'] == '0':
+            try:
+                amount = Decimal(str(callback['metadata'].get('Amount')))
+            except (InvalidOperation, TypeError, ValueError):
+                amount = None
+            if amount is None or not amount.is_finite() or amount != intent.amount:
+                return Response({'ResultCode': 1, 'ResultDesc': 'Payment amount does not match.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not callback['metadata'].get('MpesaReceiptNumber'):
+                return Response({'detail': 'Payment receipt is missing.'}, status=status.HTTP_400_BAD_REQUEST)
         intent.callback_payload = request.data
         intent.processed_at = timezone.now()
         intent.provider_reference = callback['metadata'].get('MpesaReceiptNumber', intent.provider_reference)
@@ -1314,6 +1355,12 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
+        if request.user.role not in ['doctor', 'pediatrician', 'admin']:
+            return Response({'detail': 'Only the assigned clinician can update clinical status.'}, status=status.HTTP_403_FORBIDDEN)
+        if 'consent_status' in request.data:
+            return Response({'detail': 'Guardian consent must be recorded by the guardian through the consent endpoint.'}, status=status.HTTP_400_BAD_REQUEST)
+        if request.data.get('status') == Consultation.STATUS_COMPLETED:
+            return ConsultationEndView().post(request, instance.pk)
         old_status = instance.status
         provider = _get_provider_for_user(request.user) if request.user.role in ['doctor', 'pediatrician'] else None
         if (
@@ -1361,6 +1408,54 @@ class ConsultationDetailView(generics.RetrieveUpdateAPIView):
 
 # ─── Consultation Messages ────────────────────────────────────────────────────
 
+class ConsultationClinicalNotesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _consultation(self, request, pk):
+        from django.shortcuts import get_object_or_404
+        if not request.user.is_active or request.user.status != 'active':
+            raise Http404
+        consultation = get_object_or_404(
+            Consultation.objects.select_related('clinician').filter(
+                Q(patient=request.user) | Q(clinician__user=request.user, clinician__status='active')
+            ), pk=pk,
+        )
+        if consultation.patient_id != request.user.id and not consultation.clinician.eligible_to_practice:
+            raise Http404
+        return consultation
+
+    def _payload(self, consultation):
+        return {
+            'notes': consultation.clinical_notes,
+            'updated_at': consultation.clinical_notes_updated_at,
+        }
+
+    def get(self, request, pk):
+        consultation = self._consultation(request, pk)
+        _audit_consultation(request, consultation, ConsultationAuditLog.ACTION_VIEW_DETAIL,
+                            metadata={'section': 'clinical_notes'})
+        return Response(self._payload(consultation))
+
+    def put(self, request, pk):
+        consultation = self._consultation(request, pk)
+        if (request.user.role not in ['doctor', 'pediatrician']
+                or not consultation.clinician_id
+                or consultation.clinician.user_id != request.user.id):
+            return Response({'detail': 'Only the assigned clinician can save clinical notes.'}, status=403)
+        notes = request.data.get('notes')
+        allowed = {'complaint', 'history', 'exam', 'diagnosis', 'plan', 'followUp', 'assessment'}
+        if not isinstance(notes, dict) or set(notes) - allowed:
+            raise ValidationError({'notes': 'Provide recognized clinical note fields.'})
+        if any(not isinstance(value, str) or len(value) > 10000 for value in notes.values()):
+            raise ValidationError({'notes': 'Each note must be text of at most 10,000 characters.'})
+        consultation.clinical_notes = {key: value.strip() for key, value in notes.items()}
+        consultation.clinical_notes_updated_at = timezone.now()
+        consultation.save(update_fields=['clinical_notes', 'clinical_notes_updated_at', 'updated_at'])
+        _audit_consultation(request, consultation, ConsultationAuditLog.ACTION_SAVE_CLINICAL_NOTES,
+                            metadata={'section': 'clinical_notes', 'operation': 'save'})
+        return Response(self._payload(consultation))
+
+
 class ConsultationMessageListCreateView(generics.ListCreateAPIView):
     serializer_class = ConsultationMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -1380,7 +1475,8 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
             and user_provider.provider_type == ClinicianProfile.TYPE_DOCTOR
             and _is_consultation_eligible_for_provider(consultation, user_provider)
         )
-        if consultation.patient_id != user.id and not is_provider and not is_eligible_unassigned_doctor and user.role != 'admin':
+        from .access import can_access_chat
+        if not can_access_chat(user, consultation) and not is_eligible_unassigned_doctor:
             return ConsultationMessage.objects.none()
         return ConsultationMessage.objects.filter(consultation_id=self.kwargs['pk']).select_related('sender')
 
@@ -1416,7 +1512,8 @@ class ConsultationMessageListCreateView(generics.ListCreateAPIView):
             consultation = _assign_consultation_to_provider_if_open(consultation, user_provider)
             provider = consultation.provider_profile
             is_doctor = bool(provider and provider.provider_type == ClinicianProfile.TYPE_DOCTOR and provider.user == user)
-        if not (is_doctor or is_pediatrician or is_patient or is_admin):
+        from .access import can_access_chat
+        if not can_access_chat(user, consultation):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You are not a participant in this consultation.')
 
@@ -1489,9 +1586,10 @@ class DoctorConsultationListView(generics.ListAPIView):
 class ConsultationEndView(APIView):
     permission_classes = [IsDoctor]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
-            consultation = Consultation.objects.select_related('clinician', 'patient').get(pk=pk)
+            consultation = Consultation.objects.select_for_update(of=('self',)).select_related('clinician', 'patient').get(pk=pk)
         except Consultation.DoesNotExist:
             return Response({'detail': 'Consultation not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1507,14 +1605,16 @@ class ConsultationEndView(APIView):
         consultation.save(update_fields=['status', 'ended_at', 'updated_at'])
         _audit_consultation(request, consultation, ConsultationAuditLog.ACTION_END)
 
+        paid_intent = ConsultationPaymentIntent.objects.filter(consultation=consultation, status=ConsultationPaymentIntent.STATUS_SUCCEEDED).first()
+        paid_amount = paid_intent.amount if paid_intent else provider.consult_fee
         ClinicianEarning.objects.get_or_create(
             clinician=provider,
             consultation=consultation,
             defaults={
-                'amount': _clinician_net_earning_amount(provider),
+                'amount': _clinician_net_earning_amount(provider, paid_amount, consultation),
                 'description': (
-                    f'Consultation fee for {consultation.reference}. '
-                    f'Ava commission {provider.commission}% of KES {provider.consult_fee}.'
+                    f'Consultation fee for {consultation.reference}. ' +
+                    (f'AVA Pharmacy share KES {consultation.agreed_total - consultation.agreed_clinician_share}; clinician share KES {consultation.agreed_clinician_share}.' if consultation.agreed_total is not None else f'Legacy commission {provider.commission}% of KES {paid_amount}.')
                 ),
             },
         )
@@ -1549,7 +1649,7 @@ class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
         return super().create(request, *args, **kwargs)
 
     def get_serializer_class(self):
-        if self.request.user.role == 'pediatrician':
+        if getattr(self.request.user, 'role', '') == 'pediatrician':
             return PediatricianPrescriptionSerializer
         return DoctorPrescriptionSerializer
 
@@ -1649,6 +1749,23 @@ class ClinicianVariantSearchView(APIView):
         return Response({'results': payload})
 
 
+def _announce_prescription_in_chat(prescription, provider):
+    consultation = prescription.consultation
+    message, created = ConsultationMessage.objects.get_or_create(
+        consultation=consultation,
+        message_type=ConsultationMessage.TYPE_E_PRESCRIPTION,
+        message=f'Prescription {prescription.reference} has been issued. A pharmacist will review it before checkout.',
+        defaults={'sender': provider.user, 'sender_name': provider.name},
+    )
+    if created:
+        Consultation.objects.filter(pk=consultation.pk).update(last_message_at=message.sent_at)
+        payload = ConsultationMessageSerializer(message).data
+        transaction.on_commit(
+            lambda: _broadcast_consultation_event(consultation.pk, 'message.new', payload),
+            robust=True,
+        )
+
+
 class ClinicianPrescriptionSendView(APIView):
     permission_classes = [IsDoctor]
 
@@ -1668,6 +1785,8 @@ class ClinicianPrescriptionSendView(APIView):
         patient = prescription.consultation.patient if prescription.consultation else None
         if not patient:
             return Response({'detail': 'Prescription must be linked to a consultation with a patient.'}, status=status.HTTP_400_BAD_REQUEST)
+        if prescription.consultation.is_pediatric and prescription.consultation.consent_status != 'granted':
+            return Response({'detail': 'Guardian consent is required before issuing a pediatric prescription.'}, status=status.HTTP_400_BAD_REQUEST)
         if not prescription.items:
             return Response({'detail': 'Prescription must contain at least one item.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1762,6 +1881,7 @@ class ClinicianPrescriptionSendView(APIView):
         prescription.status = ClinicianPrescription.STATUS_SENT
         prescription.sent_at = timezone.now()
         prescription.save(update_fields=['digital_signature', 'status', 'sent_at'])
+        _announce_prescription_in_chat(prescription, provider)
         _audit_consultation(
             request,
             prescription.consultation,
@@ -1808,39 +1928,48 @@ class ClinicianPrescriptionPDFView(APIView):
 
         try:  # pragma: no cover - optional dependency in local dev
             from reportlab.lib.pagesizes import A4
-            from reportlab.pdfgen import canvas
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from xml.sax.saxutils import escape
         except ImportError:
             return Response({'detail': 'PDF generation dependency is not installed.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         buffer = BytesIO()
-        pdf = canvas.Canvas(buffer, pagesize=A4)
-        pdf.setTitle(f'{prescription.reference}.pdf')
-        y = 800
-        rows = [
-            'AvaPharma Clinic',
-            f'Prescription: {prescription.reference}',
-            f'Clinician: {provider.name} ({provider.license_number})',
-            f'Patient: {prescription.patient_name}',
-            f'Status: {prescription.get_status_display()}',
-            '',
-        ]
-        if prescription.consultation and prescription.consultation.is_pediatric:
-            rows.insert(4, f'Guardian: {prescription.consultation.guardian_name or prescription.consultation.patient_name}')
-            rows.insert(5, f'Consultation: {prescription.consultation.reference}')
-        for row in rows:
-            pdf.drawString(40, y, row)
-            y -= 22
-        for item in prescription.items:
-            text = f"- {item.get('drug_name') or item.get('name')} | {item.get('dose', '')} | {item.get('frequency', '')} | {item.get('duration', '')}"
-            pdf.drawString(40, y, text[:110])
-            y -= 18
-            if item.get('notes'):
-                pdf.drawString(55, y, f"Notes: {item['notes']}"[:105])
-                y -= 18
-        y -= 8
-        pdf.drawString(40, y, f'Digital signature: {prescription.digital_signature or "Pending"}')
-        pdf.showPage()
-        pdf.save()
+        styles = getSampleStyleSheet()
+        document = SimpleDocTemplate(buffer, pagesize=A4, title=f'{prescription.reference}.pdf',
+                                     leftMargin=40, rightMargin=40, topMargin=40, bottomMargin=40)
+        story = [Paragraph('AvaPharma Clinic', styles['Title'])]
+        def paragraph(label, value):
+            return Paragraph(f'<b>{escape(label)}:</b> {escape(str(value or "Not recorded"))}', styles['BodyText'])
+        for label, value in [
+            ('Prescription', prescription.reference),
+            ('Clinician', f'{provider.name} ({provider.license_number})'),
+            ('Patient', prescription.patient_name),
+            ('Status', prescription.get_status_display()),
+        ]:
+            story.append(paragraph(label, value))
+        if prescription.consultation:
+            story.append(paragraph('Consultation', prescription.consultation.reference))
+            if prescription.consultation.is_pediatric:
+                story.append(paragraph('Guardian', prescription.consultation.guardian_name or prescription.consultation.patient_name))
+        story.append(Spacer(1, 16))
+        for index, item in enumerate(prescription.items, 1):
+            name = item.get('drug_name') or item.get('name') or 'Medicine'
+            story.append(Paragraph(f'{index}. {escape(str(name))}', styles['Heading3']))
+            for label, value in [
+                ('Dose', item.get('dose') or item.get('dosage')),
+                ('Frequency', item.get('frequency')),
+                ('Duration', item.get('duration')),
+                ('Quantity', item.get('quantity')),
+                ('Instructions', item.get('notes')),
+            ]:
+                if value not in (None, ''):
+                    story.append(paragraph(label, value))
+            story.append(Spacer(1, 10))
+        if prescription.notes:
+            story.append(paragraph('Prescription notes', prescription.notes))
+        story.extend([Spacer(1, 12), paragraph('Digital signature', prescription.digital_signature or 'Pending')])
+        document.build(story)
         buffer.seek(0)
 
         response = HttpResponse(buffer.read(), content_type='application/pdf')
@@ -1863,11 +1992,8 @@ class ConsultationMessageAttachmentView(APIView):
             return Response({'detail': 'Attachment not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         consultation = message.consultation
-        provider = consultation.provider_profile
-        is_provider = bool(provider and provider.user_id == request.user.id)
-        is_patient = consultation.patient_id == request.user.id
-        is_admin = request.user.role == 'admin'
-        if not (is_provider or is_patient or is_admin):
+        from .access import can_access_chat
+        if not can_access_chat(request.user, consultation):
             return Response({'detail': 'Attachment not found.'}, status=status.HTTP_404_NOT_FOUND)
         if not message.attachment:
             return Response({'detail': 'Attachment not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -1886,7 +2012,7 @@ class ClinicianEarningsView(generics.ListAPIView):
     permission_classes = [IsDoctor]
 
     def get_serializer_class(self):
-        if self.request.user.role == 'pediatrician':
+        if getattr(self.request.user, 'role', '') == 'pediatrician':
             return PediatricianEarningSerializer
         return DoctorEarningSerializer
 
@@ -1951,6 +2077,7 @@ class AdminDoctorDetailView(generics.RetrieveUpdateAPIView):
 class AdminDoctorActionView(APIView):
     permission_classes = [IsAdminUser]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
             doctor = ClinicianProfile.objects.doctors().get(pk=pk)
@@ -2157,6 +2284,7 @@ class AdminPediatricianDetailView(generics.RetrieveUpdateAPIView):
 class AdminPediatricianActionView(APIView):
     permission_classes = [IsAdminUser]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
             pediatrician = ClinicianProfile.objects.pediatricians().get(pk=pk)
@@ -2164,15 +2292,18 @@ class AdminPediatricianActionView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         action = request.data.get('action')
+        activation_email = None
 
         if action == 'approve':
-            pediatrician.status = ClinicianProfile.STATUS_ACTIVE
+            pediatrician.status = ClinicianProfile.STATUS_APPROVED_PENDING_ACTIVATION
+            pediatrician.is_verified = True
             pediatrician.verified_at = timezone.now()
             pediatrician.status_note = ''
             pediatrician.updated_by = request.user
-            pediatrician.save(update_fields=['status', 'verified_at', 'status_note', 'updated_by', 'updated_at'])
+            pediatrician.save(update_fields=['status', 'is_verified', 'verified_at', 'status_note', 'updated_by', 'updated_at'])
             log_admin_action(request.user, 'pediatrician_approved', 'pediatrician_profile', pediatrician.id,
                              f'Approved {pediatrician.name}')
+            activation_email = _provision_doctor_activation_account(pediatrician, request)
         elif action == 'request_docs':
             note = (request.data.get('note') or '').strip()
             pediatrician.status_note = note
@@ -2204,7 +2335,10 @@ class AdminPediatricianActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        return Response(PediatricianProfileSerializer(pediatrician).data)
+        payload = PediatricianProfileSerializer(pediatrician).data
+        if activation_email:
+            payload['activation_email'] = activation_email
+        return Response(payload)
 
 
 class AdminPediatricianProvisionAccountView(APIView):

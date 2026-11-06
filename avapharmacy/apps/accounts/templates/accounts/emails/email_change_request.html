@@ -1,0 +1,9 @@
+{% extends "emails/base.html" %}
+{% block heading %}Confirm your email change{% endblock %}
+{% block content %}
+<p>Hello {{ first_name }},</p>
+<p>A change of your login email to <strong>{{ new_email }}</strong> was requested.</p>
+<p><a href="{{ confirmation_url }}">Review and approve this change</a></p>
+<p>This link expires in 30 minutes. Only your current email address needs to approve the change.</p>
+<p>If you did not request this, do not approve it. Change your password and contact support.</p>
+{% endblock %}

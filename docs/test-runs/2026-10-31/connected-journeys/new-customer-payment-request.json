@@ -1,0 +1,9 @@
+{
+  "id": 51,
+  "reference": "PAY-6E1803840CC1",
+  "status": "requires_action",
+  "amount": "1.00",
+  "last_error": "",
+  "order_id": null,
+  "http_status": 201
+}

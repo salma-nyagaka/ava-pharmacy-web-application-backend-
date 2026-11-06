@@ -1,0 +1,2366 @@
+{
+  "date": "2026-11-05",
+  "backend_commit": "40ef37e6fd9fda866d06411d6a03936d0bc4b972",
+  "files": [
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/__init__.py",
+      "sha256": "7c7cd956302d231e311aa82c52c8e11a19705dc2452ad5ec87f5a222136daf27"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/admin.py",
+      "sha256": "16b734fc1e770a524f041c0138f8fdbd8937a1a8199b8475b0b8174eec0d1c85"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/bot_protection.py",
+      "sha256": "7fe42850d0bd67dd80aedc9a57a3adb4f0678573de4daa125852d02b61b7742c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/management/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/management/commands/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/management/commands/preview_qa_emails.py",
+      "sha256": "ffad4ebae0163081ea2c3ca7a76fe680a3e5e7d4415b09f4fe48422cd96ab4e8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/management/commands/seed.py",
+      "sha256": "4e523d8d8dfe893e6b2151ecbf1b3a7d7104c02f59f1e66e7803e59022479c01"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/management/commands/seed_consultations_for_clinicians.py",
+      "sha256": "111f11d1f7060176e7f64fe5b3e07ecb9b0690a213805af05670bb5ac2adbb40"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/management/commands/seed_qa_checklist_data.py",
+      "sha256": "d77d585c8db19fca745d94bc4f633f2ed5f5184df1c0dfc75b21cb8d0964f635"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0001_initial.py",
+      "sha256": "2cc79193eca1dc40cdd7dee1c53f46d4d9b596b106e1f1504836ea4e52017fa2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0002_adminauditlog.py",
+      "sha256": "517afd8ad14ecce6cdbfdbadcba60c98227955834c344314910ecc6637125258"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0003_user_unique_non_empty_user_phone.py",
+      "sha256": "6417e027440d7750bb882f61af7505231e973dd31eab310ee9734d0f12006518"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0004_alter_user_role.py",
+      "sha256": "3725bce3fe67fc11312809dd8561a98ea69aa7e081d6f12164079546f1af78fa"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0005_pharmacist_delete_pharmacistprofile.py",
+      "sha256": "e2d6abdd81da881a2770ac24a621f654d3e0298fa8ca40740a8f3e191e39b239"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0006_pharmacistactivationtoken.py",
+      "sha256": "2e403a443f2075fe53750faeed42e463f76a779ebb307c935f9becf44d28faa7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0007_pharmacist_created_at_pharmacist_created_by_and_more.py",
+      "sha256": "bf3ef073d92cfa827d599bb0340d66298bda0025a1bbdc6d3a896d3bff8a03e7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0008_backfill_customer_profiles.py",
+      "sha256": "8f2a89e598143a8219753c769159b89bd12f28e9b297be99ca4272d32c7271ba"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0009_address_accounts_ad_user_id_c8244c_idx_and_more.py",
+      "sha256": "f20b6b7fb629ed7139fa02e78efa20ce94bc06cdbc25e084e596faba7a7f93b6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0010_user_date_of_birth_paymentmethod.py",
+      "sha256": "6364e68f8a0139d17bd7ab9e26f5695787285cd22d775ceb21bb7c3d89fd87b8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0011_address_phone.py",
+      "sha256": "6a91018a13f0476576e8a3faeeba23978025ee749f08495dd97f0dd1bc828d39"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0012_pharmacist_branch_location_pharmacist_license_number_and_more.py",
+      "sha256": "bc314e339d648a6aed3d7352a304014e44c167bfcc5e1c22bc141de257bc8bfd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0013_user_gender_alter_user_status_and_more.py",
+      "sha256": "2c54a5470d94ef421eb3d1303e610e8b2004a4b6ac02e904ac361003602673f5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0014_alter_user_role.py",
+      "sha256": "5b5a1521fb272b5d153b0de5db99d1cd22f9749da06b2288ad532b6a76e8c6d9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0015_botriskevent.py",
+      "sha256": "0170b3cffb4348b2e41f59432d35458f5f328b46625dcf9a0761e0282492e05e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/0016_user_blood_glucose_mmol_l_user_bmi_user_height_cm_and_more.py",
+      "sha256": "014e8e19e4f12ec71a04ac29c1ab54960b3794348717c94db370318084bccc44"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/models.py",
+      "sha256": "0f76b4b4b6a7b7de36434f50920d264cada90099150fdd931ac6966eddea2b7f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/password_validation.py",
+      "sha256": "8a22d2931405d6e8537abca6f2a7238aeeaece29771b596c2901789631a6ff90"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/permissions.py",
+      "sha256": "cee5d3dc485348eb02a49c45f710ca4bd2c2e46d4b84bd1a5da8f7d9a89a7e2c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/qa_emailing.py",
+      "sha256": "f3e657c5725feb9f3a232c6398e8c8cef88be0ac0e9e1a82899fac7600da7b08"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/serializers.py",
+      "sha256": "f434596ba84d30cfea9c80597e3d26ecfb9afd9df314c09d4fa8aba8ea912d16"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/tests/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/tests/test_account_journeys.py",
+      "sha256": "6d5ab09cfbfeb123a081ae46c85eebc180eab807e698a257c0f06cbb8b7a9eee"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/tests/test_account_self_service.py",
+      "sha256": "4a33fcd7f58dc6ebd41e661b37de37d1b7a7773113b50e664a6a72cf98454f0b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/tests/test_qa_emailing.py",
+      "sha256": "63611325001ba5606bcbd31323f569187e460886b6cf2bd8f07e2306142db1d0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/tests/test_throttles.py",
+      "sha256": "5bf5eebf2084e8ab4c944f9ef2bc82c5d12e70f177455154268f1205803885d4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/tokens.py",
+      "sha256": "c6246c857e613007c467b8752de3660e86562bf74653d9a4cb8083300a4336f4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/urls.py",
+      "sha256": "cbe3946f94bbeb8d1fd40a4a05bd38a4dfbf7274486df7b2f41376277621c454"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/utils.py",
+      "sha256": "45e0b4195c54c3e4f2003c98bdf3bb6acc3b3280ac2d2ee78f12a47b37b998d1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py",
+      "sha256": "f28ac9c5838a6affe508252adf47b3fd6e846dec92e0791a82c4891855c973d0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/access.py",
+      "sha256": "738d9867788b6a857289ec7a1ed6ef06ecf35619d3cfeab7db05502f26ec4f45"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/admin.py",
+      "sha256": "132435d882a562268f1e6ed2ab7cdf4e4b94ecd1ab37160bb94f958397aea502"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/consumers.py",
+      "sha256": "96ea2da54b40fe1f62048b65f602da8581853e5ba7e31661c7ff52d9f95f7201"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/management/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/management/commands/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/management/commands/seed_customer_pediatrician_workflow.py",
+      "sha256": "b58a99bd968bc5a1dc2b4a1b1ce5bcc26bce36025207c1d27a005f1692e61b52"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/management/commands/seed_pediatrician_dashboard.py",
+      "sha256": "3bb5f21622346baa60cacaf3031f7f5a054200879055d1729215c5fe37c6f001"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0001_initial.py",
+      "sha256": "b162be40751747d32cbfa0644dee1f1d3496ce768a7e15c34f99664c678ac4c3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0002_doctorprofile_agreed_to_terms_and_more.py",
+      "sha256": "a745828a0dcc3dd8c2b1530fc8d2b01a1d6eb437726be9a50d9357658aba3d12"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0003_doctorprofile_bio_doctorprofile_document_checklist.py",
+      "sha256": "ee58c059474b8ce6cf0b821caf97af09f27353307d175ea3866d05a9dec27a52"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0004_alter_doctorprofile_type_pediatricianprofile_and_more.py",
+      "sha256": "6a5702fa668a7dc5fc040ed16d04dfc0c4d5468c98699806914058b7fe78913a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0005_split_pediatricians_from_doctors.py",
+      "sha256": "340fa8ee11c8f23846d494fe22cc0d9da6a370eb3a90cb7ded6d543d041a912c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0006_remove_doctorearning_pediatrician_and_more.py",
+      "sha256": "dd67d2870778935165f4b5abeab8cf49b99ce36b77ac74caef662c6ad59df2a3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0007_doctorprofile_created_at_doctorprofile_created_by_and_more.py",
+      "sha256": "84d18b0d6584e2dc9435992f05d9f18c6d6440a6ee395a803cfae78e0fe1990d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0008_doctorprofile_address_pediatricianprofile_address.py",
+      "sha256": "bee6c4603f18558fcf34c5bfb6da5a2d998b67eb60e0eeb5577868bc1b58440e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0009_alter_doctorprescription_options_and_more.py",
+      "sha256": "5ee37f3b38497aba7e45e99ed287b360c956ea356bf056998c3736e0e2a3abf7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0010_cliniciandocument_clinicianearning_and_more.py",
+      "sha256": "ad751e298ad0f33251d735a530a933f502f86c19201d3cc53ee3c0debb9a6824"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0011_remove_doctordocument_doctor_and_more.py",
+      "sha256": "4c8ce18201c509a41bcdc0cd15a4f4d1ecd3dbbb45bb89a60492c376e603a480"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0012_consultation_patient_email_and_more.py",
+      "sha256": "708562f3676684a88c5c00c790cc7bf675d2ce2299c912324fa96b05d4a0bed0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0013_clinicianprescription_digital_signature_and_more.py",
+      "sha256": "ed5c3c921107f5a9605c5093f342114b279bab3205e88d0d449bd51840733a45"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0014_alter_clinicianprofile_status_and_more.py",
+      "sha256": "2916a463deffeb5dae98a3e3cf3074ea1cd354facad001c369fe3249fb4afe70"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0015_consultationauditlog.py",
+      "sha256": "7722796524f5d4cee6dc27601c73cdf1fbf499785a84bc2a88a70124217da595"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0016_alter_clinicianprofile_user.py",
+      "sha256": "f1dd6209df252205d5e871fa2cd829914f7bfb713a6f0da5b8f82cbd522f00da"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0017_consultation_requested_specialty.py",
+      "sha256": "b3dc00f4b7e34a92538295967e41950578defd5bf6c073eb2e4ce0f06323d44b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0018_childpatient_and_more.py",
+      "sha256": "e86ce9f12218393d42e042e6b1688ec5875fd7cd08c9a6992f1734b6a5808710"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/0019_childpatient_blood_glucose_mmol_l_childpatient_bmi_and_more.py",
+      "sha256": "989a257421af9a307ae0066e69d9c1bf001391b0ca9deeae5dee70ed8b08172f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/models.py",
+      "sha256": "bfad7b749fd36f6ac0ddbd3128ffb70d72c19dc1f736ee54cf1d5abb23bc3212"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/serializers.py",
+      "sha256": "ba042a20ad91bcf2cb8a523c466b5551791d7611662d600d7990f3377fb66161"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_clinician_merge.py",
+      "sha256": "bc3a0085f77199d88a774ae3996bfab7d6a78185d34cfdd8eb1cd58103d494b0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_payment_acceptance.py",
+      "sha256": "444b94dc3dd268d3b875d820e6b378176d77c49224d1c96b3ebb3aaab6c87e8f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_pediatric_journey.py",
+      "sha256": "23ee7bdc4329dbf75ca80c44bfcfc4c52139ef832b9c143f89fa6ebccb2a1e42"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_prescription_pdf.py",
+      "sha256": "67f4776bf36bd3260e7cfbec0378acd0bcb7aae6c5a8c134eafe0c4f16c2ba17"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_privacy.py",
+      "sha256": "01b446b7de32721e092f9aa1bc482d73450dad3f1d995cb70560ad496ae4dfa4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_queue_claims.py",
+      "sha256": "c2c2bee18d3b20dd923469f84e90350b03b1e0520c693fce3c429e5aff02ed23"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_socket_access.py",
+      "sha256": "f4cf0852b6707e988d5bbd6df0f2e9d094c4277421320772e18ddd4d004dbccb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/tests/test_workflows.py",
+      "sha256": "2f7251b2e068a945865c3dcaa767cc58bae46eefff24847f99ba9137b088cfe8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/urls.py",
+      "sha256": "c5b206d20968c071b86f6600fbc2607274df53b23ced1fed186faac3be4d88d8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/utils.py",
+      "sha256": "b672b340dbb18c672bbc75b16403db0870158184d9271755477fd3813a2c86b3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py",
+      "sha256": "0428f3f34d2da9ecf9a6786a1fdbce264527f205cbb6200ca69fa2fbdf2711fd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/admin.py",
+      "sha256": "9c5e2bbabbd04a366808326a8a7549760cfd44ddfc169cb60aa137fc22dd8246"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0001_initial.py",
+      "sha256": "d18f4861815d2ed44de48ae3365a9b8b0e5f3f38f384a17e8da90b80b8757f85"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0002_labpartner_labtechnicianprofile_labpartnerdocument.py",
+      "sha256": "3111774a4350b72f047f0defd6d550dec823bae51d1429ec2a038cf6d7517b39"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0003_remove_labtechnicianprofile_is_active_and_more.py",
+      "sha256": "13463a9517f3f570bf9ea9a56808d9d847ab59c3ed2c32ec37e6a2033772e688"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0004_labpartner_document_checklist_labpartner_references_and_more.py",
+      "sha256": "022bc3df4af7f8fe783c741716f48e747a4da01e07556a2d2709199f6b5e9994"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0005_labpartner_user.py",
+      "sha256": "3fe1eb081e761ca564a28ee039b46513f55634b7a9f891c4754a1108b822c7dc"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0006_labpartner_created_at_labpartner_created_by_and_more.py",
+      "sha256": "df9c264e45b899dec725588aa12bfefb364380b807d1c777945cd1b52f6003fa"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0007_labauditlog_lab_labaudi_request_e4b0cf_idx_and_more.py",
+      "sha256": "8265de7336f028f15e71c2b834ccb636ea89ee23f0b795f842c95344a48ce92a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0008_labrequest_assigned_partner_and_more.py",
+      "sha256": "019ee3c627f37bb5343d010840fa3afd648cc0490fcc2a1a44126cb10b4e42ef"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0009_facilitylabtest_laboratoryfacility_and_more.py",
+      "sha256": "238c023de5d7eeaf065f12e7e8c70c4ee17a4074a213c91c7e838ebb5e6e4adb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0010_laboratoryfacilitydocument.py",
+      "sha256": "8b4ffb728d4f8267cf18cef8a1939f5f8c9a63a4f5a47fcc6bd2dfc703a92c46"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0011_labrequest_collection_code_expires_at_and_more.py",
+      "sha256": "783aeadc693db6209cc8d121033dd5cb071cc6206eb8df65a6796572d44e8812"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/0012_labrequest_quoted_test_price.py",
+      "sha256": "06c54dc020aed2818721d37927bf291b7ec5b7dd33184803d3cd09b1814943ce"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/models.py",
+      "sha256": "2ba0e4f2796eef02e53ac19de7d94b30625e190c679e6b314f7e0508a4a5a7b0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/serializers.py",
+      "sha256": "da330ff5b79bf2d449cea76b7ba754ca453648b7f46ecf7d99b0458e6ce693d3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/tests/test_concurrency.py",
+      "sha256": "512cd11b7ec9c99fb8127b1bcd9d9efaccdc30a7723f0528eb8389d17e26c65b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/tests/test_module_acceptance.py",
+      "sha256": "cd16af5a09e018839327792b29633b35b4b246a06413d04e6ef0cd052d44e478"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/tests/test_workflow_security.py",
+      "sha256": "cea1420df621514326c35c018a2ad52abbe92c9ad55656f58ac7f43d0d7e7287"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/urls.py",
+      "sha256": "ff042c120434929b7ee182f7cf15fed8080dda5aff77d2e2425f2da51df725d2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py",
+      "sha256": "0933cc83257206b8901af92d9ca9356fcb1097e426a7328e517b81281e70ed54"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/admin.py",
+      "sha256": "c0f588b8c8795bd1619426e5bf496f7344093f52a95f1f4756b6f386f45ac4e8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/emailing.py",
+      "sha256": "1e52f96f2ccb260ed064142c45c498e9e510d01842f024235597b9c228462a71"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/migrations/0001_initial.py",
+      "sha256": "5f9d6dc6ec60c1c8ab5933855221bbbdc0d469fe6921effc470637a80705a1a1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/migrations/0002_notificationpreference_notificationdelivery.py",
+      "sha256": "7fdd8e660efe0849d8d7da29a5348099b54277bc775a0fed0fc454826737d4df"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/migrations/0003_notification_notificatio_recipie_684eac_idx_and_more.py",
+      "sha256": "b02b9ee8c4a82db9e2414f784105f58fb702b60e99a1af2c7cee813199fdb943"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/migrations/0004_alter_notification_type.py",
+      "sha256": "256163d7ad10772899f173b66adba9df09f849c4605664cbfe15b22d7bf0275b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/models.py",
+      "sha256": "4c571860a0c0b27632af81347d0792dfcc3f5448758f974f0664b1da60807fdd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/serializers.py",
+      "sha256": "cecba3cdb88dc5b190c4dbb7b90f8fd95a02daa91e161e7e8afb928102495235"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/tests/test_concurrency.py",
+      "sha256": "c8d2dd279558b32dd6be629fd0499478c82765140a7e8675be315a2767fba3cd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/tests/test_workflow.py",
+      "sha256": "4a3c7f5f7d3621e056dcd6d0d638dd811007213acddf06b9cb2146d13236e71b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/urls.py",
+      "sha256": "ec510be9a679bd9d5c35584e3d489e4ae107f1a8fb6efc234424e0b83da51abc"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/utils.py",
+      "sha256": "91a2a64668d32b267146da49022299d37961422057e4c00daab18be0270cc5dd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py",
+      "sha256": "b4efb5bd6a511ec8d7e3ef26a814f5c482b64df20d7e57ab55a2ea0b0d88e610"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/admin.py",
+      "sha256": "f77b5d612599ff9f732ed0538cc3491c712ee78b8d61e594abbc4b465602fa77"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/apps.py",
+      "sha256": "c86d561671360d6a07c58b0f7d19e747875a4d0ef7dbb90a0e8669d14b3f77b3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/flutterwave.py",
+      "sha256": "d9a3b741162958e8c96b411891d6dbaba52c03645f084b3bc9cca7e6a3115a55"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/integrations.py",
+      "sha256": "5f96b61721339d9b63dc690b6ebbeeb7e600b9dc5483eb1e1b6ff1ad55c26afa"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/management/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/management/commands/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/management/commands/retry_order_pushes.py",
+      "sha256": "ca0ba4900ad63a8c91192208ab0e755ccb28992e433ae4019bebfde39b38bb7c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0001_initial.py",
+      "sha256": "53339fc823c78732f785f93ed6559641864b84fbf7dbcdafab0b85ba2ec0f820"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0002_coupon_orderevent_paymentintent_returnrequest_and_more.py",
+      "sha256": "23bdad07bcd2d8ae7915d9511d724119c14c18cc0f4814a94ed19ba1a9857dd4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0003_shippingmethod_alter_cartitem_unique_together_and_more.py",
+      "sha256": "25d44043dae51ce43882528f0d9a24531abec9445bfed7a2ff447453f231deb4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0004_outboundorderpush.py",
+      "sha256": "dea60b279227840c8e429f05e7bb99492c985becd98272a81368c15735d62a18"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0005_alter_cartitem_unique_together_and_more.py",
+      "sha256": "88a453650d11898a89d0fac546dfea72484ae2c74f7be1ca195e9eb6aa5128d7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0006_order_flutterwave_tx_id_order_flutterwave_tx_ref_and_more.py",
+      "sha256": "a9d9ec4a64f129f5d31e5da4cf0a55352503455359715ac17df8788011f6be67"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0007_orderitem_allocated_backorder_quantity_and_more.py",
+      "sha256": "1662b4ca5165cf36590e0758a0d07d4dc18172bc39e18cc9deda394fd6bf07af"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0008_remove_cartitem_unique_cart_item_product_variant_prescription_and_more.py",
+      "sha256": "1d1b1cd66a118bab9271751b49ca30a0f6458581620ac47be62a4ff233de8e1b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0009_variant_only_cart_and_order_items.py",
+      "sha256": "aad4ba121301b519a4ba60848d7bf94f1bea1fc3fdc0eedbb4e14a04588914da"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0010_cartitem_otc_screening_orderitem_otc_screening_and_more.py",
+      "sha256": "c62e2497a5a1787fcdbf019c1a0a6995db8efa46abb0cebf20a2fb3263eaec3b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0011_order_receipt_emailed_at.py",
+      "sha256": "74b413f72c97ad4b905a99d4c35a612a2d986f028e6bc4fbe7457a75757db5f7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0012_orderitem_inventory_allocations.py",
+      "sha256": "2023bddffdb5c8fe8dec31e2c216b88cf94aff34a63c1808fec0f655e8ec5da2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0013_mpesa_default.py",
+      "sha256": "8e33219346db9bffa213b9e188590b822869e010d39f7ac427c98eb2efaa0d92"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/0014_orderitem_medicine_assessment.py",
+      "sha256": "e9b3afd724f8cc49cac0e4477c259b59d7b9bb3aefb69d1a5f9e1b056fc80d1a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/models.py",
+      "sha256": "8a14d39a08c5e2e2b9813b2689108f73e0881d526e995bdb8cf2b39c0c29f2a7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/mpesa.py",
+      "sha256": "4acb820b573d19a1c28b7eed6f36d45dcedac90e90bc5028c1780815bcf4b5d9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/payment_helpers.py",
+      "sha256": "3b8ca6356534fe39f7b78a3215d30e654717cd8338dcdef73a53b46663e2b86c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/serializers.py",
+      "sha256": "89267bbefb7a76b5d6a96b5902ddbee241fc5bec425802939e9757c2d1f94f14"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/signals.py",
+      "sha256": "7ae78859593d53b3a1b134cedc24520f65bb60a2d741cf5a74cf59297e716c76"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/stock.py",
+      "sha256": "67650c4673b8aa88983f82a8b7c32f7ee8828f9ec08b04e26abe9aeaf2cbd43c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tasks.py",
+      "sha256": "b2b970dceab0275edad146e414ea5f8f6e6ca39a1863050ba45bb9893d8a8d32"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_c2b_registration.py",
+      "sha256": "141d8c3c04778b226af03b09a3e08bfa0bfe2f8be8ba997405a4a2c9c89a2e61"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_checkout_address_consent.py",
+      "sha256": "9c0116bd3efa7fe5d72216e3fe82af6c04734884c44a2892869a4214fd6d508a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_connected_recovery.py",
+      "sha256": "eb9884cb1b053057ebeaa055da1766aba6d48d752c1bd7d5a8ce1d389e7c09e1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_external_workflows.py",
+      "sha256": "06cf1e6150dec3e4994aa6dc78d925ed52e55482de24c24e1916a30791487687"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_module_acceptance.py",
+      "sha256": "8d3be9a53eb27eee07a376f5a588053e8976b6f5381fc59daf813325c9d17a04"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_mpesa_flows.py",
+      "sha256": "615e426f58ac9423f645ad4248942b97ea1eb50d36be87cf398a5e4e5f6f92b1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_mpesa_only.py",
+      "sha256": "3086bebb095f8175961b3f5b322ff9f27c728a57666448cfbbd244bfe5e73a8d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_mpesa_transport.py",
+      "sha256": "d04c01158f8846ec24e914ddc20c6f71c7fae5eae6b45d30e59420bd759b14d3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_multistore_stock.py",
+      "sha256": "98fb1727d1ea0df37a6f702c809a725e2ceaf0b6ae141f96bddb670ce6722a3d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_order_creation.py",
+      "sha256": "086999b29cfdd553c270cfe7cf0c368dc255a89fd1703b433922ba4ef2bf584b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_payment_security.py",
+      "sha256": "b4957a02c22611812566c39bb6ad81435a9f3eba7904c0785d1ae45e5e8cfc98"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/tests/test_tasks.py",
+      "sha256": "b5ac4f7cbfa7629e017c684b2278e82ee6b0790fb9084daa4d5b91607625b09e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/urls.py",
+      "sha256": "5f547dc9b16443e424ed0e20f53dfb917317ecf8d7d20dc674032ac42a04976e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/utils.py",
+      "sha256": "90e3fc0be9479080f9a56a6882b12c960d38a6b4e99d163632031e1b1876972a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py",
+      "sha256": "62c4d3f74d0ecab60f87fc24197113d1bc2205a95f90b4504c516df895f4686d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/admin.py",
+      "sha256": "ba485d4ec8e97d5beaa061849e33ffd9392cc1fa47c4881184c1cbf19f8591ac"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/migrations/0001_initial.py",
+      "sha256": "a016468a1f6cda27f31ba263c5efa21356c33050d0424fffe3d9d5fed51e0a9c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/migrations/0002_payoutrule.py",
+      "sha256": "3824b3d03a8dd7d93675e490d72271af2a92a26ca004ef4d930da33c1eed18dd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/migrations/0003_payout_payouts_pay_recipie_a657d3_idx_and_more.py",
+      "sha256": "bb27fc7ad41c0d4db53489936abb23be808935f9d3f7cb478e92bdbfed1d7802"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/migrations/0004_alter_payout_role_alter_payoutrule_role.py",
+      "sha256": "dc3d417f59351c1d9be2ea673ea07d519c03d057089cfaac746a78c556ea3890"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/migrations/0005_payoutauditlog_payout_approved_at_payout_approved_by_and_more.py",
+      "sha256": "435b921df1303bc3ba65353fede6ab9364b40920ec1900b03e8c53399e773743"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/migrations/0006_alter_payout_amount_and_more.py",
+      "sha256": "29d0afca776015985f79a0ce58932074e264d5d937f6fa8c3d266d7e8909a4f5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/models.py",
+      "sha256": "cbb60f0bf9476327e504eace44a9228a613b241edf5411a947dea2ac8171709c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/serializers.py",
+      "sha256": "5bfa45ca442c7772dcceb7a6fe58375185de94ffb9a88a22c92653f75329fc6e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/tests/test_acceptance.py",
+      "sha256": "abc0e370fc35a360df013659071b761efcf049e4bc0c450b3c120ec623f8837c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/tests/test_concurrency.py",
+      "sha256": "0c9f9c2b43d5eb10b85053e0df05514b10dd8317c15c4fa89e082ab724b12bbe"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/tests/test_workflow.py",
+      "sha256": "44d500859e409f6c1e2cb3dc73a1fe94656f13603f1ebc679b8cf3d57a450812"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/urls.py",
+      "sha256": "f3f06dc61bf696a406f455517263714aa99c1b1f8492c6bc45d8d773da111b7c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py",
+      "sha256": "0486c9f9c24976e57ed2521123f0a78bcd2579372b32078c1877b3edddd17476"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/access.py",
+      "sha256": "5ddef166b97ea35c8801a7109cde6bdafad53e21cc7e2f4890434b0ff374c083"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/admin.py",
+      "sha256": "5709c2f2af0009f865161ec476c128656a5521745d25a024151eb47c1b9c9a05"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/apps.py",
+      "sha256": "009b749cf5d3776e30b7d3c7c7e4c7dd1f6f1e2c7f0c18dc76d4ba1be0a3e8c6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/compliance.py",
+      "sha256": "e746fe60ddd5f2821d133b432a94699f2352f338cb055678ea91466a76ca9cd5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/dispensing.py",
+      "sha256": "6d51f8da288f562141021d1262ac9d1a2809792fa20d4e1971726bcf0314b261"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0001_initial.py",
+      "sha256": "8a4b44cd06c2d68c9af3c5f6937654f5c2f52531c52b6202fdc9198b7a38efe4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0002_prescriptionitem_product.py",
+      "sha256": "c02b25543fb8d6385af7a807a5461731aef1f77bed1323270fa58eee3144a038"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0003_prescription_prescriptio_patient_283c70_idx_and_more.py",
+      "sha256": "027710457f44fa22ed65ef0886bba0f8c168235b4901598845b39507577f77bb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0004_prescription_clarification_message_and_more.py",
+      "sha256": "c7d41f1df157b36b231e4d13a8162c1c009322e760106d644ff637e42b346f5c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0005_prescriptionclarificationmessage.py",
+      "sha256": "74c42a814dd0cf44d373b4ee81dc3ebc3cc3579c5d144c144df06dfd693ac32b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0006_prescriptionreviewdecision.py",
+      "sha256": "72e3de696487f19d66d35279fee8eb65571d4019fb1d980336672a837d19a3ae"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0007_prescriptionitem_variant_and_more.py",
+      "sha256": "323d789d21e5afef40e93d02363f2be914d764ed1b4d3bca7d7aa41bd6768a5b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0008_prescriptionitem_duration_and_more.py",
+      "sha256": "d87fae54b68b7b1ae89b176beb75597ddadd05b903fd45e74710b17e376d296f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0009_prescription_authenticity_evidence_and_more.py",
+      "sha256": "fbb5d0b1494f095617aad3cf71fe8c11fb53286c52b9437ea9d985fa6bd2622b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/0010_prescriptionversion.py",
+      "sha256": "a43939b87a502f1d99086c5753406263984a928df6d98a9d48e498291c490b4f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/models.py",
+      "sha256": "4da9a17f85abddff402274ea2228192d2047a6a4ae54f033e2b70f1830fbd760"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/serializers.py",
+      "sha256": "a698487aa3782b1ab349ce5871aab865b68aec3597dd591819fb8c3e9e1e8848"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/signals.py",
+      "sha256": "ad63ba98469e8033a29d7e69ee6bb1949d1055f4b2c2d1dd7386d03b0be19714"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/tests/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/tests/test_workflow.py",
+      "sha256": "5dacb0a97fe99a8ffe1c7e3f41fcc431f02905f6e4931c5168a15b83585eda50"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/urls.py",
+      "sha256": "f6900411a99bcabe46f0f2b52af332c7f109fe903c3a4979d01b8b111191055b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py",
+      "sha256": "21659a86c82fc43eaf972e8e9625a67cb0c9ba47077bc8c44d288c5b88518084"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/admin.py",
+      "sha256": "2329e6d05a2e8555cfcbacf004978c8ec79c2a14a43fac918310c11ae29c786d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/catalog_curation.py",
+      "sha256": "95b77398736bae56bef0fc890a70bdfebdf93857ad9b590a358c51b5adf5d689"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/compliance.py",
+      "sha256": "cd755f776aca88985452271214950a2a8afeb0b5848f434780894e07bf3ee9a0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/filters.py",
+      "sha256": "7421c8a44084ed8eecd93a8d413d1e72fd601df334f5cef35f01a1fe6eb41e49"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/image_validators.py",
+      "sha256": "979554714516e1b17420724d2d58cbb08e08bd6cbbb9b797b8d4742c97c7e397"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/inventory_sync.py",
+      "sha256": "311283d3aaa784ce79b3789b85e869b7a477253d7fe069cb8b60b6656465160d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/legacy_catalog.py",
+      "sha256": "63c16eb86d2cceb05506a9c8c868a41dfe15105c4abc7b0626631c04dba54291"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/backfill_product_audit_users.py",
+      "sha256": "5c70d0ef909ff77a071a1f7a13cf884a8ce5ca02ca281629ce4e700dd998135b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/curate_legacy_catalog.py",
+      "sha256": "2cbe4c252bbd31af2770a8ab55a41f49d4dab2912969993fdda1b7d0c263d578"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/enrich_product_variants.py",
+      "sha256": "8fa9bdd95b35369a004574e35489100a45e9fdc9396b085d1ef37769932d3b07"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/fetch_catalog_images.py",
+      "sha256": "770eb19a757ebcf5f62b5c628502475776cd65c038612ca8f5b91901bf411023"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/import_legacy_catalog.py",
+      "sha256": "4597da1c189a0f995bc491e7ec4d07845287a29234a5343986610841e848e7a5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/migrate_product_inventory_to_variants.py",
+      "sha256": "a830916d0b188dc49dcbc7a21ff1c98ddc2ae85bae047515e761bc3fe8b46d5c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/normalize_product_families.py",
+      "sha256": "c8c187b759b73645124966e4cae4875aabce3ff7261bcbe364b0992b99514c83"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/rebuild_pharmacy_taxonomy.py",
+      "sha256": "7debf78c8eb845ac3ce00ca30daa682caf3b116e946c765de06d114b47cdceb5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/recover_product_family_variants.py",
+      "sha256": "d7d1d340d24eed64cceeebc180c2c57dcfe94a210125a6173e4c0bdea77487ca"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/recover_uncover_products.py",
+      "sha256": "64868384218728096ca4cd40e4c09309ab14f65c68c90e694148e7d44245d086"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/seed_catalog.py",
+      "sha256": "87392a93df0dcfc47e2958c068a1942c11670dbd191f058c8c23c62a76ca2b28"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/sync_brand_logos.py",
+      "sha256": "8384ea6e9c3dca371c75b44e00d188edf25003bb2d3a7e8c9446cb26b5853bc6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/sync_catalog_images.py",
+      "sha256": "dbccecf35cd28ee2871c6f9edc310a6bb1e77972de4146cb77e5d2ccd32c5bbf"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/management/commands/sync_inventory.py",
+      "sha256": "bb55ed9e4e3be83221fbe3364f77e673e10c4248158d667b020a5d6355369d8a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0001_initial.py",
+      "sha256": "b690fbb3e4a14cfcbfe827a21b987720dc4a36d924b6d6b930a6a19c5590ac65"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0002_banner_promotion.py",
+      "sha256": "73560bb59bc9fbe506c982fe522e22271fcde95db1cdc84fc7628528cf8d1779"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0003_alter_banner_options_alter_promotion_options_and_more.py",
+      "sha256": "5a1ec3f29acdccc039b9de95c4572fe42e65560b9ff5e693957afd3f4ba14072"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0004_cmsblock_productvariant.py",
+      "sha256": "5372f2a5a9443dc1e810c08624e17415553c822aaebbdc3bde1528465dfa051e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0005_product_strength.py",
+      "sha256": "103d643f13d408e7a808d5424713e4b46f2269d20028520f11d151996b202715"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0006_category_unique_name_ci.py",
+      "sha256": "4a426de7009ece8a11f98b25ed0b165c919c108b4d3b4a34a9e4603c4d7ba097"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0007_add_product_category_subcategory.py",
+      "sha256": "bfa7543a1c0e27841a01faff85301e78e5889a36c40fdedf1fcfb0ae01a3c3a4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0008_add_subcategory_to_product.py",
+      "sha256": "e327c6795d63e044f3d76766786bc64773b1e5be5dc3318833fe18a5eb511281"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0009_add_health_concern.py",
+      "sha256": "e64d8a46464c4f9b39dfbb60874eb9e485359c93cb02096a5068f7fb378bb3dd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0010_add_audit_fields.py",
+      "sha256": "102ea61e05ba6e08e518df16e22864477ec593cd234a6096ee21c62550866de9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0011_add_stock_movement.py",
+      "sha256": "1e8b233a2b43d5cc65b7b4f36a5a89e6d8b7d7a1cc918a05afa61b93584ead25"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0012_enforce_brand_logo_required.py",
+      "sha256": "6ee49c3481a1fd70a4f8e59f1bd7c59c192f3f7abe1cca2b33aa0798759261fb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0013_remove_brand_health_concerns.py",
+      "sha256": "f75e7d9711cd995235355bab2078ed3441653133bbd0b7a8b3920c9b1db5e79e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0014_productinventory_and_more.py",
+      "sha256": "fbc5eb71e9f701a875ba69d48226236466074d1be2b99169cbeb2b2637d2953a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0015_alter_productinventory_options_and_more.py",
+      "sha256": "edcf5bead013ccee731a1c7512151c60a4025c98484a1dde3f365df1e53ff542"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0016_productinventory_is_pos_synced_and_more.py",
+      "sha256": "4c85caf25109c61fabe96a202aef0f31d516736c523f4473b782cdd781aa3493"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0017_product_cost_price_product_discount_price.py",
+      "sha256": "3c211e73bb68cf26baf3c66fda0ad75bc753f01deafaabaf7ededf7dbf554fe6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0018_sync_product_category_from_subcategory.py",
+      "sha256": "74464a5753fe97465523468646db56fcb40885c2160ac728102fec4087d48eea"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0019_productcategory_image_required.py",
+      "sha256": "0639658b3cabd255542ed7e9f7b0cc021ed17811aa6656983151f8688b2e08f8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0020_sync_promotion_badges.py",
+      "sha256": "97c9f62de9d63806483649e4eca85e553c3310932aef56477439fb0f187c447a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0021_disable_promotion_stacking.py",
+      "sha256": "dfacf2c5b0f2fcf1123dfb13f848a3396933991dcdd3e9115d4f2168f7711fdf"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0022_remove_category_unique_category_name_ci_and_more.py",
+      "sha256": "fbefb8792418e19e630a7bf1e91535a18b1aa440fd5076f9e873f4632b053043"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0023_add_image_to_health_concern.py",
+      "sha256": "e9fa57933d17c5195ec762c9c9ed58d05e774a04603e8615e220db1925031680"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0024_add_product_badge.py",
+      "sha256": "d7271793a43cf3b43bdd8db895cfea76c4535bfe19ccb38ca22c5d83423a2468"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0025_add_dosage_fields.py",
+      "sha256": "f49aaf6b80e41322d9fddf13a465b7a4509a9bc3da1e5bd8143d76acb9daf818"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0026_increase_subcategory_slug_length.py",
+      "sha256": "ee229fa282e969f25dba5f825bd45b1033002bf715e1045dd5d0e477fc7fccec"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0027_remove_product_products_pr_is_feat_a1ecf6_idx_and_more.py",
+      "sha256": "623ef7fa3072739a8dca9a42519a3509dc30be0b8446f399f74eef6a77b645df"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0028_add_pos_link_fields.py",
+      "sha256": "442fe150083dd66c890a3c411686b4c36854e37891c8014887d5c6f5e0f955f8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0029_productinventory_next_restock_date_and_more.py",
+      "sha256": "8cb2ef8ffadc69d10894f3dbb53ee414fa1d96d8baa6f25a050d7c61fa8e0320"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0030_promotion_image.py",
+      "sha256": "9daf352acf526dfde795d4fff9daf1a0df1d2de153fc3d5cc0b3f9c592c209fd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0031_productvariant_cost_price.py",
+      "sha256": "264b6ad59dd7f8bc93753178f86209b0feff3bfb202a7786517de4fbadf8e0b2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0032_productvariant_medication_fields.py",
+      "sha256": "0e94eb86463c5349040aea1539a6d4887cc1674e43894c68fe97198c94d066d0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0033_productvariant_warnings.py",
+      "sha256": "0a0bf67b4a93920341427253472a6b9bff399fcdccb3440043c8764a6ef4ab26"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0034_variantinventory.py",
+      "sha256": "2d6f2853099f866b73e14463c141f3168a4a45c31f13476596e088b0c5784051"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0035_remove_productinventory_product_and_more.py",
+      "sha256": "9d6239281529922efb8475737c8daede86394c6cb79ca5daca1869a85dea734c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0036_rename_productvariant_variant_and_more.py",
+      "sha256": "2629b8331aff7f2abbea9c43167948adb89b7aeab3296b9909e1d4266ba54364"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0037_variant_first_commerce_models.py",
+      "sha256": "e2e152cbab84f22adf2eeb71e1d8bcd794e54c16f248d261107b555db71370ac"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0038_normalize_product_generic_names.py",
+      "sha256": "3e55c37fa2b670e0ff3b089ac6e25368799aae0c5ef5521285824ee7c115badd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0039_reapply_generic_product_name_normalization.py",
+      "sha256": "b7d43ee74b3799fb37aee8174ec7d872484745c643e3ffff85fba14d60a0caf3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0040_variant_requires_prescription.py",
+      "sha256": "cb9a2f8d0310c4d59f5a8fd20e156bd103a4efbd3560eb39afae62fe421ec536"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0041_variant_health_concerns.py",
+      "sha256": "a5598348dea7a2325f58654af474174865e68a1e3122b8a471b73d48dcb9c3c3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0042_move_product_fields_to_variant.py",
+      "sha256": "236b061695701ac002ae4f7a8470f1d8f569462c995e7e45f255e832871e9cc8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0043_remove_variant_redundant_inventory_columns.py",
+      "sha256": "d5213ca0b55e95652117e1654a1f35872242fddd77f8ca34a8c0c435732db9ba"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0044_align_variant_indexes_after_inventory_cleanup.py",
+      "sha256": "1e1407b73df5d3475f48548b3563d89fd2e21c6905a05e96c489822e91ee840a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0045_remove_variant_legacy_subcategory.py",
+      "sha256": "8511232ce270637600c81c28a5c6c2783769538254ed526dc677a3c09437a39c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0046_delete_legacy_category_models.py",
+      "sha256": "005e504f9fdcfb76918435a69b4ede5ff20554773e4f25007e0967d32fd88246"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0047_split_catalog_subcategories.py",
+      "sha256": "b22e267285360b4f514cb6244a6123341adf52e12ab2e91485629210032d4af9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0048_rename_catalogsubcategory_index.py",
+      "sha256": "f7a692b2d29fc3cc9282fb73e3ef1207ae734376c56fcbed32f6f8cf1670ea97"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0049_rename_catalogsubcategory_table.py",
+      "sha256": "901401ad64c9d10f7297fcee2d5f4d0c790221a46c202c6606d8d132cd8ab921"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0050_rename_subcategory_index.py",
+      "sha256": "8a10af070c30efef8d963c6264de8ddf3a85a4a71fd1258b6520276e7680649b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0051_move_brand_to_product_and_rename_variant_subcategory.py",
+      "sha256": "0d629ecfb9bb2d05c817c8e76dc41b05e76e82c21357550d79096fee74bb00f6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0052_rename_catalogsubcategory_to_subcategory.py",
+      "sha256": "3f648b772539b2d0f9cdac81d507b3bc1282623c38aec6e3516e67fc6f5ffef8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0053_rename_subcategory_constraint.py",
+      "sha256": "cac069b9d05d94114be633c535bbe179d450be317248db45ec725c83ecf83c06"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0054_rename_variant_category_tables.py",
+      "sha256": "7f38d008aa4523cf1bb59348715623a5cc49b097a9d96c149ccce16c7d0a27e5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0055_rename_variant_category_indexes.py",
+      "sha256": "4b54996acd22af1b4669bbad19fc2b9b3dc45377af26f7b6d8b9b2ef3741c00f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0056_remove_variantinventory_unique_variant_inventory_location_and_more.py",
+      "sha256": "3fde0fcaa89fbc7c52feb701d2cb3939f6b66f2cd8762f4306cb73ed2f027c49"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0058_variant_authorized_supplier_and_more.py",
+      "sha256": "507280b1e5c32085700cb69cf951e051a37b8f0e95e8e907ef33b8ac3a4a4f44"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0059_banner_category.py",
+      "sha256": "24aad9076f83e28a00d3132267b7d58b54c2480340137af8d4c40c53981654c4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0060_faq.py",
+      "sha256": "743f552f13d30b7ec187ebc5fa653201a8008067f11732b1553db2cf8dd2c9f4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0061_seed_ava_pharmacy_faqs.py",
+      "sha256": "a77764f70a941aa0e289509c93df05c9010ff0124dab7a1209337fe6ae43f300"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0062_alter_faq_options_and_more.py",
+      "sha256": "d7065a0f24f09f1e38d270b17069b64c525299f3dee07c7a367fae881b5aaa0e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0063_replace_faq_catalog.py",
+      "sha256": "49b0f909ffeffde64c8949b8c328a52d75f14b8132139a4fb63bf9bddc5da3d7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0064_store_variant_listings.py",
+      "sha256": "f26eb9c7ad0c15f23c0ed066652809ee19c5929a6f38d453ce94c6b5db8b845e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0065_store_inventory_variant_integrity.py",
+      "sha256": "d3e988c17d6187c7a21c8d535270bebba647bbc758296ef4ac694ef360020165"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0066_catalog_curation_fields.py",
+      "sha256": "27875ecffdd351a5ac39686d69209d1f47a2e2c3d567925c31c3b47172c3099b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0067_catalog_image_provenance.py",
+      "sha256": "bf2f56854573bc2c53aaffb9efdcbd92c0b7a3d682fe75170aff6024fc091939"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0068_web_image_provenance.py",
+      "sha256": "d8f67cd4982423f83f6bbe9d3715c9018cbcc07ccc091b2956dd229a0c140e93"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/0069_variant_pil_reviewed_at_variant_pil_reviewed_by_and_more.py",
+      "sha256": "1a99e9b404778dd3da734756baf288dc038fd3aefa5096a954b2a821c82833c7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/models.py",
+      "sha256": "f96db71d522618bbe46f8b58b3480d82ea1624bb18f7895ab618e2ecd7ecd7e6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/pos.py",
+      "sha256": "40c5edf23d79b583305d06d3e4d56625f2b0c37b9e434cc31493cf31fb400c4e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/serializers.py",
+      "sha256": "d0ba3052a00a48901944bae774ca27abeae1a94bbf61cbaf590b481423e21225"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/services.py",
+      "sha256": "2ec9533bad8ea6903edd8a133b67016417070592749a984916944f7aec0bef29"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tasks.py",
+      "sha256": "7c92ee2e2da6201ca29015460664363459c935281adb771f3978e99069b2ac3d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_admin_catalog_and_wishlist.py",
+      "sha256": "2f87b9062608b24defbb5777208b143d5ce5a6e0765fc43287e8856ca0c7d69c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_brand_logos.py",
+      "sha256": "1a556a1d2154a1f634c7fde702cc1365d796f71188a5948a19cbbe2b99e3de87"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_catalog_curation.py",
+      "sha256": "fa157e42756bbcaafd9a5f69e08efb0c163d8d2ec63331a615e147a547f1d473"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_catalog_images.py",
+      "sha256": "6fdbea8bd8d0983b76bdb65ecc44931594b1dbc5d72dd80484f1e5409d4b4b37"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_inventory_sync.py",
+      "sha256": "a3a12db507e3b2b1a4e46eb68149b96ab11704049c32bd9d5acb8c65a9e2eec4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_legacy_catalog_import.py",
+      "sha256": "537872b1b3df279d2b003baa5c39c68f10aa8fbf4072ef8addd96eb9a723b9da"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_module_acceptance.py",
+      "sha256": "1711c4883f4ce2204a8d1765bffbab3355d526a345bd0a6471cc9adda5da51ac"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_store_catalog.py",
+      "sha256": "4d446518965f00709d101e9e5fb23322f153fe7ef110a40e3ed866315d7d2294"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/tests/test_store_inventory_integrity.py",
+      "sha256": "e830a95f72ae7ebd46e22c7b7a7f3d235e6a2ccebd6a1046932ea8091c9a42f0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/urls.py",
+      "sha256": "0a577dd4510f80b7e7149fb585e0522aacb3c8179fb8442e35fd75b8c6a57ef6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py",
+      "sha256": "d1dbdcbcd8fd569fce831bdcf858abd2d7e5566a72fd8c3becbbc5005ff051d1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/admin.py",
+      "sha256": "13aa8c2a8226576d923fa4178830b2345cae5ea8079244436a0f8cbb6c453d9e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/apps.py",
+      "sha256": "b85a15e459a6e8513ea6a03eaf021935cba0b13234fcf8a75a529b9d8c34e28d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/checks.py",
+      "sha256": "04cc3bce29b6b1e9756502eaa7fae16e4dc8b0ec112fa1b05e821258aa6976f4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance.py",
+      "sha256": "050767c05a45051940a6eab0f11dd0eb81d7b90fcf869c11f68332bb55bce512"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py",
+      "sha256": "210692210163141105514dcb89bb5f5215825cc01976d15caee24f8f2905e577"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_audit.py",
+      "sha256": "5ed0dafd08149b4382772c8107e8cf8f80c2ed574572df643e3be54e15e3a08e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_models.py",
+      "sha256": "02693db70de4dc1064a94525a25535310183378bbda6f38109d95511ecd3ecab"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_signals.py",
+      "sha256": "10a6d6833bcecc4132f8fe00ae694cd87a8d60c96e2fcbddb7796d707028af08"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/management/commands/backup_pharmacy.py",
+      "sha256": "416765adbd08d5931be7b66f56f06796ffe493aae0d588cb1fa0bc90d00d18c8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/management/commands/check_pharmacy_readiness.py",
+      "sha256": "c7970e608d7cdf89bdfd09f776d212b101b58433ce798eafa0038a3120a4931e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/management/commands/dispatch_recall_notifications.py",
+      "sha256": "fe776de0d8a85e353085bcf41b791b82377640af50688e3b780de06f7c8827a9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0001_initial.py",
+      "sha256": "eca10d82e22be7c519778fe4c4707421393003887b0917a238c46c1148bf4f27"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0002_supportnote_support_sup_ticket__99ebd0_idx_and_more.py",
+      "sha256": "ee6a56da942e36a61327472abd5e4f1ab5e24110b1aeebd260305b67df3645ea"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0003_newslettersubscriber.py",
+      "sha256": "e02cc1ffffeb08c1a3feee86d878203fad6f8f9af26eabcac1f96ae76da6f9c4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0004_sitesettings.py",
+      "sha256": "509a0c759343313af7ca7b741a8e622a644a923eb5d5efadcf09e099209d3505"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0005_sitesettings_complaint_policy_url_and_more.py",
+      "sha256": "1d153290c245124d4fdca35a474dfd1901d60082ffec866472f90212fe31cf20"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0006_supportnote_is_internal.py",
+      "sha256": "14558bbad17e9fe99c45426df7f7b888453ce8575bbd1a1299ad39faf0f03547"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0007_medicinerecall_and_more.py",
+      "sha256": "648fd45b8fefd484c2bd95ea0eec3a601e9b66a93f23751a6632a015f1ae0887"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0008_clinical_retention_guards.py",
+      "sha256": "d63995bf1625e529195b641c8af7b0b88e0abaa9aed15cc688ece4b821d52d0f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0009_alter_medicineassessment_cart_item.py",
+      "sha256": "efcb11ab50ca7fa79e4d24b5a0b9d14893647a0bacc0a5b742fbf072568f0b24"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0010_prescription_version_retention.py",
+      "sha256": "7dccf29650394aa28b55468c7e9520e575fe8f37e621b99336189e619a72c3ea"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0011_supplyallocation_complianceevent.py",
+      "sha256": "c3da36eba618100e7343114caea94fce343a7bef4c7fb35ff848336d2db28848"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0012_supply_audit_retention.py",
+      "sha256": "849cd87f84443fa99baf37a887888da07d38e9342e7b05490061a6113b152f94"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/0013_alter_operationalreview_area.py",
+      "sha256": "e4ebd07a1515f48ffa97b968c3d3ab52e08c44819409eee9bb502e017b346c5a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/models.py",
+      "sha256": "f38d6dc051f181f0bdf52655f76ac9d3e50079a57d74d64a2ffe775bec7c4585"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/recalls.py",
+      "sha256": "cc3955ceab0f19359eabe7146684aceaa87d65e749188b5392d3055ddea40439"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/serializers.py",
+      "sha256": "3de40bfe7b024eebb6b5806e5e3cedd9399c1151d80757c768d7f326ad4d529e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/tests/__init__.py",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/tests/test_acceptance.py",
+      "sha256": "83dc5e2ca9b41886eaad122aee1c68e066cd0a81b5d0c34627c7cb6e57615a43"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/tests/test_compliance_controls.py",
+      "sha256": "8f3e3b495537c9894667d9fb2444de1d709299b438e852c42e6313e46399a5d6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/tests/test_concurrency.py",
+      "sha256": "656229470e9cf7c36210cc095a2c49b23dcac7e97cab12be0f56afd3c11a6229"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/tests/test_newsletter_subscription.py",
+      "sha256": "61e7b085ea2eadaa8ba876f38f40522875406ad2550a9e9eeaf486388232582d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/urls.py",
+      "sha256": "6aa354c432e73a8fd66585bbd6e79820efadde0367730c16a29b77a7fa9bc735"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/utils.py",
+      "sha256": "7ff71e38f51697c6409f0a3b0d6120ebfc0ec3777eb87ab13baace5a634b0a0e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py",
+      "sha256": "dbb97b2c712b8925d294ff7b1b89519b02c84659762f0aa828dc54b22195d3fb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/asgi.py",
+      "sha256": "10651f2a11ac994bbb2b663ea0cf9c09bc140118b2b23ef43e21cdcef10d9ea0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/celery.py",
+      "sha256": "813fd0ea5d9e920417e975944958f61c5340d3654f5d9e2d9cab03338297e129"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/exception_handler.py",
+      "sha256": "19791218ef43e4be1a94d4f89e4a4f08e8e50f48f525f856f80bb70608f374d9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/fields.py",
+      "sha256": "39dec9a2d4ff8ecb140b60fc06a87b346305c30decb4f53ad1d02e84e8cbf7a6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/renderers.py",
+      "sha256": "12e3e31e1b7d6bfe0cf07eba68d08636030551bd0a36e42e83092a85edc52ec0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/routing.py",
+      "sha256": "d8feb12ac20227fb7968e20eceea59f1b0233a53d1978f6b7c94fac0645563eb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/schema.py",
+      "sha256": "99c382a2aa1f45e3f788df7dc5e3eceee7a571b5ee727d03fe6a5887b5df9316"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/security.py",
+      "sha256": "6931e3e5bddd61e441230b4ae19c6971b0e7bc999bca708364d27f59ade95588"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/settings/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/settings/base.py",
+      "sha256": "b27f1d2a69751c527013bb3f14e0fdc51163b054aa428e99072604ff9dc5b94c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/settings/development.py",
+      "sha256": "59a10720fc776f7f04b31770cd72a2d6bf94d7b4522a9ac77db7d8624a790003"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/settings/production.py",
+      "sha256": "1729df35155d39ad5da0e0067323c1377f605a32305029d49bd91266a57b33d9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/test_compliance_fixtures.py",
+      "sha256": "bb8105242db0ef93c85a7bd5e1df8330d39eb7907a3e29128d175573cbb9de7b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/throttles.py",
+      "sha256": "5f2a7a5c4dfdb556b4c9e8786b3046fa4e28d9e689180b28b0a7589ad21f0b28"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/urls.py",
+      "sha256": "807434e4d8ab19a1d4e23f5866c5053f36f413070dccf46d7cff372d42b36aa1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/wsgi.py",
+      "sha256": "b08134e4c61b078bafdfcc8f12dd8c6aea2468937f2f6e5ea1c7d26928cc5b43"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/deploy/scripts/deploy-production-backend.sh",
+      "sha256": "9bc497e096a88036264ced40b7ffc5929ec15f7f95df0b71fbf5c1dc4d3d2e97"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/deploy/scripts/deploy-staging-backend.sh",
+      "sha256": "b43e1411237aa9d8f811ab102914370de5ba8e2a5a67c6a6ae929ca7b5dcad30"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/403.html",
+      "sha256": "c1b1e693912d094ee9976b4cdc7ab0ff60e7e847739ffcd7185f400d6f942b0d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/404.html",
+      "sha256": "1c9072fe05235bf9502b89c71bdc39b63b2f0979b66346770ade57bb7ee1917a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/500.html",
+      "sha256": "e25068e8adbbd12e8ea821245ba157f695c3b48c6f8d0a46d24cfbd3a712b8e7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/customer_activation_success.html",
+      "sha256": "c59f161f471db4bce21c06c263f561bc1f8520aeacecbcd25dca98aa09da9c44"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/customer_activation_success.txt",
+      "sha256": "67a656843890ae583c6a0320f2649f0a2aef491d3f24ed38fce6039eb19516a0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/customer_verification.html",
+      "sha256": "1af10680926bfe3d68a6752edf17ac70ac52af545bc679fa29c7b337ad355801"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/customer_verification.txt",
+      "sha256": "13e918d5eb6f36dac92f939a4e9ac4be4941b65d05e6f8bd50057a16716936af"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/customer_welcome.html",
+      "sha256": "c58685fa37a36f0f50a28f6e9f9bfd2f12d22bf42eee372a099e859b04cb4d68"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/customer_welcome.txt",
+      "sha256": "62cea7a451c4d24d021ebab3e73f577567bb129589f0f319d3d8fc6b4e832ead"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/password_reset.html",
+      "sha256": "b9126bf9fa3a6ebd5e59fef337c03683c6cc14639e6957575599de8b2133eda0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/password_reset.txt",
+      "sha256": "5fcbed03ae5ac91c6c0b84f7b5a0a1d31606951f11f7443ae7755267617cd29d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/pharmacist_activation.html",
+      "sha256": "21b177b4746060903265f5e09b45a7db2f04216dc241fe76b59b320bfa44f5b1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/pharmacist_activation.txt",
+      "sha256": "1a74403599c7066fdde20d3c1d91fcd19a6634dad600055bb922cabe17e4e4ae"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/professional_application_received.html",
+      "sha256": "bce13d2c402a0b292aeffea4e2db18de608ba3ccbcbc7d29107bca4abc40ffd7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/professional_application_received.txt",
+      "sha256": "109c6a5b37bb0e516125b825e96404f6bbb4609eedf7e6cbbc662ffc3b09f023"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/professional_application_status.html",
+      "sha256": "d93c840af62f7f099cac930ff9857acbf3fbce78fffb68de763c818cdb48b0c6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/professional_application_status.txt",
+      "sha256": "45a2487246e9c6d2ed5e4968ea2afdd412d14466922a2a630990ddd389f6a3d1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/qa/account_details.html",
+      "sha256": "a5b67f17a318d480b692bcc82b2fe9776d9eb0b15a850cbcb92d36c52716553b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/qa/activate_doctor.html",
+      "sha256": "8e4245ac9f7561e2fa24f18d64f2a5fd622f6f6025e5ce221df39507337df70a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/qa/base.html",
+      "sha256": "e8c4fe0feacf6e90155a4cb352cac71f9e6fa04078796ea81dbf4bb772305953"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/qa/change_password.html",
+      "sha256": "7e029911d906a0fc4fdbe20afaa9c0635c4f9466eb9fe1be06882f6f8911a7be"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/qa/message.txt",
+      "sha256": "ecaf58d4bf5be37dac660baac13a1de341fb02e859aed3bc107198d5fbf9aaa5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/qa/reset_password.html",
+      "sha256": "f8920053dd868841742be4ee8f33eff820b051420d8c1f20af153576354760c1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/emails/qa/signup.html",
+      "sha256": "ed65a9f9da8d565f120d552451ee32c629e46863e1af6a74d1cb0b797127d899"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/accounts/pharmacist_activate.html",
+      "sha256": "aed9edaa4f1dd65bb0422dfe2babe1dd5120db46e1ea53e0007598930ac4399c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/emails/base.html",
+      "sha256": "c72f323e762d7307fc1ff2d451aaadcf981ab82bb9f8679cb130049c1bdde973"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/emails/base.txt",
+      "sha256": "5544305763cb3c9e2b0af0a4bab4f489864695ea0a9962ba3bc7f626cf9c13cd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/emails/notification.html",
+      "sha256": "100fabdda982f9aff02ffcd3a7868ab6de61a0002f05acef383c8d1050973b9f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/emails/notification.txt",
+      "sha256": "2961dbd407d850205688930bdf41555588aedd54899e976ca5c29392e942e41b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/orders/emails/order_confirmation.html",
+      "sha256": "1497ef3186f0c71d801a657677e4806bed4c4644eca61bfc4b3e22f0a6f9dc4f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/orders/emails/order_confirmation.txt",
+      "sha256": "844c4fcc34c7ee72d35a06b1e90eebf0f99f267fc8512e4bf0918d879d243e9e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/support/emails/newsletter_subscription.html",
+      "sha256": "294cac97d1a0fc82dd59fa8eff9f2d6a5b9efa7ae1d39a7b23659cc076b426fb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/templates/support/emails/newsletter_subscription.txt",
+      "sha256": "ea4169cc34a124271747ebcc03e38223232e03c68fab45fb94b6729629346795"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/App.tsx",
+      "sha256": "9d37120672b6acbaef9e282caafe87728333a05085c31b5220fd32a91e49eef3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/assets/images/remote/index.ts",
+      "sha256": "ebb47bc93ad430eb57edd26ffd8de61e5494a0629ffb309ec4e7e2124b79e07c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/AdminLayout/AdminLayout.tsx",
+      "sha256": "3ebada16c2db2a8031ac0a7b3668bd274d9e7af35db0a1c28094eaf9d89f68ea"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/ConsultationAttachments.tsx",
+      "sha256": "b991cfaf659ab1f2f3c7d14a9b3e52d264b9acb16d1d5fde5d99d93f2f60ffa8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/ContentBlocks/ContentBlocks.tsx",
+      "sha256": "e49961af1d94b956b24668deead160fce605a74ade89aefde8df3c6a722bd5d9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/Dialog/Dialog.tsx",
+      "sha256": "acf79b77027aefba9339c637d616344aa97f00f18c61cf8fb4d862d19ead5ae9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/FavouriteProductCard/FavouriteProductCard.tsx",
+      "sha256": "5fd4eccfeb10f7e20cabf46d2b359ebe66475a54841f1e8c54fac89f5c0d9f9f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/Footer/Footer.tsx",
+      "sha256": "84e1891833ebf0c19793c8669793c21735fdc568365375aa4cdc09df67970183"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/Footer/NewsletterForm.tsx",
+      "sha256": "8a44f6665777d5e9a9ed37340efbdd2c910eae3096ad310ba7daab3070773811"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/Header/Header.tsx",
+      "sha256": "40defb6b5487999e27fb9843720312c399f0dc596f0fb84560549c4ed47bdb01"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/HomeSearch/HomeSearch.tsx",
+      "sha256": "cd02ad38d6c3cfadcf13b364990b83726faa7c5716233a96fa65023a95d1bc26"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/ImageWithFallback/ImageWithFallback.tsx",
+      "sha256": "def22b71463458eff5407a199722ab0f848159f3e34849fd9d5433618176dee0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/Layout/Layout.tsx",
+      "sha256": "ed7835c0abc4648e8156fd32b12d922edbf8e68999ccb81323b59db7a8b24a5e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/LazySection/LazySection.tsx",
+      "sha256": "168b9cbf80c43f0b170a9c1a0a2c69c27047ca07edd12285813503038e8c48cd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/PageHeader/PageHeader.tsx",
+      "sha256": "409fa96414eec2ea6f5f627afdeba77a71e8e81919c3c7367d163649dd7b51a9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/ProfessionalPortalShell/ProfessionalPortalShell.tsx",
+      "sha256": "c0a09123561e98d02a18e10b1e685bf9323b6c7c7e23a4b7eaabe898cc1aa3b6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/PromotionFeatureCard/PromotionFeatureCard.tsx",
+      "sha256": "92bfd45fe9e8fb473b77766da4dcfff33d3ee63882407c7bc7d43e79f47cee64"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/ProtectedRoute/AdminRoute.tsx",
+      "sha256": "11b10a3bdb450b017a07adf143b7aa1db7248ad544f7f294fa0fe404eebe4ef6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/ProtectedRoute/ProtectedRoute.tsx",
+      "sha256": "579f37e48c1d4dfd45f433e59898fe01648d6599d32a25bf5368b70424ddd6e8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/ProtectedRoute/RoleRoute.tsx",
+      "sha256": "069d5d08d1f26e2f0c63c71ee0937d79080d8731fc0d087687336fd780bc3774"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/SearchableMultiSelect/SearchableMultiSelect.tsx",
+      "sha256": "bc70b5076f2e80f9d58f4ebbd57d18345a1b17fd7335cb66859dfc75054e8856"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/SearchableSelect/SearchableSelect.tsx",
+      "sha256": "e91631cba5e0be47e92355cf5e2209acff7b0fbb037076d2ab6a1f236f84b7a2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/Security/TurnstileChallenge.tsx",
+      "sha256": "ac938f33d331d4979363e067b61b1c4168e824c09c6c45c94c434bf5ad642638"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/SupportShortcuts/SupportShortcuts.tsx",
+      "sha256": "8985f6aeaa5c1933d855830da8b61bf31b18bf267878386be0574feece0d16fb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/WelcomeBack/WelcomeBack.tsx",
+      "sha256": "a189a40455ee76ded4eedbddf8a6aacaadd0a47ef1790f93bd6354d7d6c4f960"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/constants/catalog.ts",
+      "sha256": "80930c1d0b1f0ea75def952da834b770b8ecd35704230b7346c59a8ab6dcfd27"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/context/AuthContext.tsx",
+      "sha256": "8586f43d183b1ea0987b7961baaf79d3c4da8c61d5be095f837e46b0d7a911c0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/context/CatalogContext.tsx",
+      "sha256": "42ac36466bd8202a70be33464aa6ccfa1c3c65e611a44690ac5283780b5d3bac"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/context/SiteSettingsContext.tsx",
+      "sha256": "4c48dfcd30fb60f6fab3ed95e2e7c90313fda74a61f747ad87c83a112ab08047"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/adminAudit.ts",
+      "sha256": "d5752faae983d7563be55106a5199049131b126672d117522137bfbd74b75264"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/adminOrders.ts",
+      "sha256": "b8bbdc364b2a8e983ebe9c44a193d06644e1dcc183db96f3503bd8340fb31392"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/adminUsers.ts",
+      "sha256": "18dde9b56f7e117050fa6df01ca5c0455fe7958f2c665fe1c26649716a6991d0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/banners.ts",
+      "sha256": "ccbe6d8ffc87fdaf627b407180e89d7bb5b8f71f3bdc93aed945a980e8fc6867"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/cart.ts",
+      "sha256": "1b5b36880bff81e1c59cc480311c6a19997170772957360e4bd0b3cbf3161bc0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/categories.ts",
+      "sha256": "9abea05d890b538bae723ff26c83bc3fee5d5a72f242359e6b4bb487ce908475"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/categoryCardImages.ts",
+      "sha256": "3ef8b1a804898d37eb64fe859963885ee4694d22eedd49fccea1d02e8773f079"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/favourites.ts",
+      "sha256": "7c1da745a1db816b16712079eed72aac36638d03b703c6f27572870debbc29ba"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/healthConcerns.ts",
+      "sha256": "7aab5f9b46df453371dd1a466fa8d7272eb372bb80433733c19bccd617a969f6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/kenyaLocations.ts",
+      "sha256": "2e7b0be21de503acda838d0db1d0082076c32a43aedab291d1f84152a0db03bf"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/labPartners.ts",
+      "sha256": "7bdabf54940ebe615a49c886babe3faea2fbfe9889e72e683c5d71427326208e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/labs.ts",
+      "sha256": "fa240f27365d419e402e01f31df693fa371e90a3857810cad482174a4f728b16"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/ordersData.ts",
+      "sha256": "00f903bce03c3da60bd0bb342cf6d494ac4e679e427386c104194d7c3ec4d222"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/payoutRules.ts",
+      "sha256": "7c90ec9fb48e20d126e4e373b1741b3d03eb935f40750b53c4e909b9d67d99e6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/payouts.ts",
+      "sha256": "5dfc42d398e9d21bd4e500bd8e012e7bae38b3ceffe66fdfaf099199d33ae2ec"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/prescriptions.ts",
+      "sha256": "e49cf32fd1d2323165d6e577b96713fe706f6ca83f00465bfd14025c4c137e52"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/products.ts",
+      "sha256": "eebec374f0056e30deb4bc5e65c9e60c23cfcf2e55f624bf9b7a2d912f8cfd4e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/promotions.ts",
+      "sha256": "c4293a941018bbbbcb61f461a218b0fd6d3b0c8a6afaecbc48d79cb5bdbb7551"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/support.ts",
+      "sha256": "307ec9633de0dd1b5d9184d632fc4ec3523eb1f2c64743ec7d302d1a1d4a3024"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/data/telemedicine.ts",
+      "sha256": "8aac3a2fb30fc1cd7c8c75b69d012c4dda3218d1a7daa9bd5a3637b9a760c954"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/hooks/useCategories.ts",
+      "sha256": "d85c53d72c7fb0ee4e6547d2ff35a37ba5114e7460d46226c4f46820f6b87bbd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/hooks/useConsultationSocket.ts",
+      "sha256": "6484f43bb334869d47125161353a76491519e54d0a7cfedc5ac7487c19d026d9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/hooks/useInterval.ts",
+      "sha256": "a761f3bc3f90103fd0668d48b28260ef9fde3b3eb839f15b8acd0589491f58b2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/hooks/useOrders.ts",
+      "sha256": "853b89296670582fbad9b3721390603cef19198d8c876d62f84c0274b3652750"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/hooks/useProducts.ts",
+      "sha256": "57f76585760d0a56089353012007acb448bdad710aa2a5d95a660a47cb95bfe9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/hooks/usePromotions.ts",
+      "sha256": "0e3e73a485d3c0e32f9f85f597533d0667a76f9ffe4a8c09868586c43f33fe47"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/hooks/useWorkspaceView.ts",
+      "sha256": "0ef493b99cd4bf8933124fe5d6115af8794b0ca837858b8de487459d56c5e6fe"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/lib/apiClient.ts",
+      "sha256": "950bd808f660d4421d71948cae528d2c8987ee17cca93cea1391e89091f5d20b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/lib/apiFetch.ts",
+      "sha256": "2ed41b5023f5489a1d3c6d84f6c7729848a131d19b62448faa0a1fed375f7623"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/main.tsx",
+      "sha256": "ab664c93a00bfdbabe96a556419c4a4fbc5e7e8ccd5dc1f11f5ef14e9b6d68e8"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/About/AboutPage.tsx",
+      "sha256": "a97b6b8ed07b9bfccb68cec021a42869cdde126792c5eda9a0ee2054a418fc45"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountAddressesPage.tsx",
+      "sha256": "d5b11bf0edae9ba0083bb77c9a4d775612cdd80458c4991465d7d6ee9656a02a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountCompliancePage.tsx",
+      "sha256": "3698db1f5ccaea39381154d0025b00c6df52749722774edb4457ab391dd0b5a9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountConsultationsPage.tsx",
+      "sha256": "e98b1ac8f9a6b94d15c1923e46f290851ddbe7a67afcd3e4ca37acfa58b1d7d2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountEditPage.tsx",
+      "sha256": "a5b76d2e9a65cf2f86535683bfc194a495418057170dfebf11ad200a24d7fb98"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountFavouritesPage.tsx",
+      "sha256": "5f61cb56a9c00e82046802a054cacc61b53b62322cede1f9ed77aef2e30a6b6f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountLabTestsPage.tsx",
+      "sha256": "9b81b22b172d1c36b33d3135a4e444efc8f6e46059e309b8c962a6e19df96388"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountLayout.tsx",
+      "sha256": "8def9abdb79676883f678219eee1c48b3da2e6def75673941dabef8c9710c3df"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountNotificationsPage.tsx",
+      "sha256": "b12917934bf30b3f802675e53f00d49b811b5f6ed85b0d2194f47549154dbe53"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountPage.tsx",
+      "sha256": "4d8bf0d98734822f25a90bf9ac4ec96bca7e135ce86d0a6b0087f954302649f7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountPaymentPage.tsx",
+      "sha256": "c8d6e81d4521754b84c70959c9708f2969b4c567b74720d7a8fcbf0f31e8c9d5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountSettingsPage.tsx",
+      "sha256": "8625022361538db711a3f8da8570624e86964e2bfe2f4fa6266e908d4e8fad29"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/AccountSupportPage.tsx",
+      "sha256": "520d2b11fd4244dc3d954a772616faae08841aaba87e73b9eb227fe8c3174f23"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Account/OrderDetailPage.tsx",
+      "sha256": "d62c921780136107077351b462f48beb415851c4664f749f24481b57b86727f3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/AdminDashboard.tsx",
+      "sha256": "7b99fabe8d02597512712152324e48545dd725e9d1c5b248b670441ffef9bffc"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/BannerManagement.tsx",
+      "sha256": "f1e128abb5fe7aa76d409b14d208bfd84093d508b77ae06d4268995064c21f07"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/BrandManagement.tsx",
+      "sha256": "043a595a149e14351fbce1e0e04c81516f8065563663d2805acbf11832cbe7d1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/CategoryManagement.tsx",
+      "sha256": "6ee4c83d2ac1d214ad03d8781302f3d2722cbf6555488b0752c1bff9f0946bd6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/ComplianceWorkspace.tsx",
+      "sha256": "2914a77322bddb14cb70f84bea44d350c6d6a830b797a3abdf3b077ea6545de6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/DealsManagement.tsx",
+      "sha256": "e9b0610560fdb3b7bd0e5de7f016fadfeda0b84f7a7d724477fe4de5bbe71d72"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/DoctorManagement.tsx",
+      "sha256": "c5e033707ffd214e6624f9bce96ffa25adbbcbbbdef0f9fca8f1ceb2ff8e00d7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/FAQManagement.tsx",
+      "sha256": "83ca609a27af2a22f29ec52dae7adbb2741f2417f8ba7828acb74de6d61fec65"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/HealthConcernManagement.tsx",
+      "sha256": "99d07e9229ca785f21fd70ebafb16e4203706cb7f1326291614f6e724f1c354f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/InventoryManagement.tsx",
+      "sha256": "ccdd7f0a896b940eb2985c6eea2ed0b763b80d2d7866082410223e4e724a30e6"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/Invoices.tsx",
+      "sha256": "f48a78d36de2ef05dc421938a8a4474c5ad2ca888982136456757faaccf3849f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/JourneyChecklistPage.tsx",
+      "sha256": "0768f35b8f8ab9a2638b577c3c5b7806124abc8d828b98b2eecdfd148960ea13"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/LabApprovalQueue.tsx",
+      "sha256": "4673af58d8992a390fe4d96559afe57cb9168b7b51e051da47432cbfa943c37a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/LabPartnerManagement.tsx",
+      "sha256": "c1e675a7a7c8fba481d8eb68b78221f58554fcd59002645b334c4663fd380a57"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/LabRequestManagement.tsx",
+      "sha256": "1cbc8ad4575cdf654c7a2a1d96b47334f7f87645e23a8824a630c5e6d4d3df25"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/LabTestManagement.tsx",
+      "sha256": "388dbe559334aea79573d3ad1f1ababfd1f5606962d2708fdc4c977515934417"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/OrderDetailsLivePage.tsx",
+      "sha256": "8ab5a3b2b0275430482145ac8263304f15afa364a61a0d66ce2898403b6a26f9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/OrderDetailsPage.tsx",
+      "sha256": "c0acac28b985acf4a37429bfed920b73964eef630d99333ea1893ba5509ed926"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/OrderManagement.tsx",
+      "sha256": "bde56eebcf397e6309b2843a52d6a22383f98f89be440cfd6b21558fa7bea8fa"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/OrderManagementLive.tsx",
+      "sha256": "cbe1343ce337a2948e9bb4faae111c340fb3d15484af8a0076a93313e33c6aba"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/PayoutManagement.tsx",
+      "sha256": "0be77500883c1e5722fe392289fbb749141ae5f8dae7e386a78db371d44d6e16"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/PrescriptionManagement.tsx",
+      "sha256": "ecd101b66de6be68d31131b8d865615c40067344a58775659e387e555a6bd0eb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/ProductManagement.tsx",
+      "sha256": "e6823e4fccd0d7355c08cbf06c7550c004373a4c4b8d97fa158e21d86ba1fc1e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/Reports.tsx",
+      "sha256": "ee3b2bd994371ac7c65a0a4942cba8d42ba5ccb9d3cbaac42fa392e6825a763b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/Settings.tsx",
+      "sha256": "cbb95937dea46ace5370b8343567bbe568ebef36decbc6554c1d36f94dbc242f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/SupportManagement.tsx",
+      "sha256": "8303c44aa052a72ce5efb1780effe03164518e5dace76abe2c0998567d2ed7c0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/UserCreatePage.tsx",
+      "sha256": "8fb99bc80c1040f96478e12bbea5fb2167f7eedb5b266a2e5a6b7f268538745c"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/UserDetailsPage.tsx",
+      "sha256": "8fa0d6c76fab2af86e066da1f1a7f3c7541a74cf771b08a163fc7b942c35672e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Admin/UserManagement.tsx",
+      "sha256": "b38cfc645960e9130c1c2805432c692acb7bb48bc58b68a752d8aac717c05225"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Auth/ForgotPasswordPage.tsx",
+      "sha256": "6d8437331dadc6fb1a383e8b8a29797c221ccba690edb0c458425cfe0773aa18"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Auth/LoginPage.tsx",
+      "sha256": "a2de9f0425c4aa384d02a8de0f6b314c55eb2689215524a03adb330b364729f9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Auth/RegisterPage.tsx",
+      "sha256": "e8cbb08231f9ff899769549165ebe76f811172236a32a3d0ad7cdb08cde63450"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Auth/ResetPasswordPage.tsx",
+      "sha256": "f6bc42d4b61dc436368a1b6b062371c53dbfd551dfbe4b43f8a2406231c545f5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Auth/StaffActivatePage.tsx",
+      "sha256": "6f4384850baa8709f01d2b39636d21578fb429af5e677431e5863345af2be6ec"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Auth/VerifyEmailPage.tsx",
+      "sha256": "c0892d2c5fce354eae8182f9f18a50030ec322dd6018cebcb84e1260d888aa74"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Blog/BlogPage.tsx",
+      "sha256": "a0ad08497121fbe8b73f50014231103b7d137570a2cf5c29adbfe136a2de3ad5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Brands/BrandsPage.tsx",
+      "sha256": "b22be164b74c46ea1c024f80accc393eeab6ca7ba1fd78434f3b218f2aa8bf87"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Careers/CareersPage.tsx",
+      "sha256": "2237a363a580ff2f614d4f65a39e114c12959b892fbffb4b71770b0a780837db"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Cart/CartPage.tsx",
+      "sha256": "2bd46ad18c95cb48f34084af1090fcafe71d70f0d705409ecec616eaf93ddbf4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Checkout/CheckoutPage.tsx",
+      "sha256": "dc841de53e8e72c3a30574db28dae23d73125015308e2b551b5544dd51d3cb9a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Conditions/ConditionsPage.tsx",
+      "sha256": "64f00b3c25fd8f9fdd7c091366fe06059e321e7eda6ad35596e901726d960fef"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Consultation/ConsultationPage.tsx",
+      "sha256": "6ea62638e41a3ddfae7ddd3160ed26fcf825eecf694b276c544573f136be7837"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Consultation/DoctorConsultation.tsx",
+      "sha256": "73c6c1dd4e3826fe8e33678b81f47ff2e999d2fd531893f131b00ce7f511edec"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Consultation/PediatricianConsultation.tsx",
+      "sha256": "c89a45e0c1d90320346680f73fb8658ab85b0664d4b7c4cbb9dda5ee4cc42876"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Contact/ContactPage.tsx",
+      "sha256": "ee827141d6fbea6596e3409f5aeb0525bb564dfecb1021e553a8a1df1baf1702"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Doctor/DoctorDashboardPage.tsx",
+      "sha256": "db2b2e04d8623a71a8d08d70476fb9da309bc58a9b596ee6a8e0b84d6100e202"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Doctor/DoctorOnboardingPage.tsx",
+      "sha256": "bfc38267662ea1fbdfd9d3b8b91994ab0150f72599ebbc1fb862057653495898"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/FAQ/FAQPage.tsx",
+      "sha256": "0c1136f14109dd011a3d3ff918311b279c25503110d37ed09121106a0dbdbcf2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/HealthServices/HealthServicesPage.tsx",
+      "sha256": "056b6b9ab2894d8ff208175d7e937336e3b1efbfa57d3083e2893eeb406212d0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Help/HelpPage.tsx",
+      "sha256": "d1303eacbf679a65121a8faa94721709fd255a363e5d3abd4aa880b4fbba7329"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/HomePage/HomePage.tsx",
+      "sha256": "bfbd2be2e9f5dd9ccf76902af91fc24d77c0862e7b0f2217399510a36cedc5eb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Inventory/InventoryOverviewPage.tsx",
+      "sha256": "d9239b1f019b561aa3d1ceca2912385e6d7d55064f8586408524d99f008e4aed"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Inventory/InventoryWorkspace.tsx",
+      "sha256": "00a9c594ebf921140105e28df8a462bafb588d660148b87d5e66b67f643dc2d7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Lab/LabDashboardPage.tsx",
+      "sha256": "f5ab5feaf64a9b8f65e29f6038850576ca057a52319ad1b6aa7e266314d22e6a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Lab/LabServicesPage.tsx",
+      "sha256": "1bd8bd3c81942076a1cdbbf10aad2fc7d0111390c20f25d0228ef6f4b24c763f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/LabTech/LabTechPortal.tsx",
+      "sha256": "d40a90eec5c65a3b1bb186a20433d3f8e70fc1554622e5a5e73a9ec4a94945d9"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Legal/CookiesPage.tsx",
+      "sha256": "c468e8a8b6a9d23912fd75378b712f1dac012ba39beed4c04d86d28292d8f2d1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Legal/PrivacyPage.tsx",
+      "sha256": "cf4cc45c1202a47009a44d8c67c8577be55a499926c79a4c07a01a99a45e3c15"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Legal/TermsPage.tsx",
+      "sha256": "10258490ec7a0814496ae84cd93aef501a6f30b5ed97275348e919e3ebd2bff7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Offers/OffersPage.tsx",
+      "sha256": "76edb050f25fcdd3fe2c3ed7fffd4f56db81be44a3f7606eb3c310bdfd58ec05"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/OrderConfirmation/OrderConfirmationPage.tsx",
+      "sha256": "e617da8a1c1e85cfaa72b8aa2910009268849e187712b9566dca5e6e31edcbd5"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/OrderHistory/OrderHistoryPage.tsx",
+      "sha256": "440626f47c48e78c09e7f8be1e331b644b914d9990495594f0a62dc003ce3649"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/OrderTracking/OrderTrackingPage.tsx",
+      "sha256": "049a163d888a243b56866e39967add050b26e998455e83e6865e0e33c50009ee"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Pediatrician/PediatricianDashboardPage.tsx",
+      "sha256": "c211af71757e3c5f94a92dc0986f6061ce2636e1415fb8101a5a9f71925a6841"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Pediatrician/PediatricianOnboardingPage.tsx",
+      "sha256": "fd268bcaab4563c62793e4372334a298f3674a3a2b0ba4b9f6be9a691292affa"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Pharmacist/PharmacistDashboardPage.tsx",
+      "sha256": "e36bd536c9112990270b650fd90cfad41c7ad1f7e25d08608fe1bb130c70af80"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Pharmacist/PrescriptionReviewPage.tsx",
+      "sha256": "c9643f2a84745af5d8f7fab42484e26f55df0041f6c36bea418e046c828e73b2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/PrescriptionHistory/PrescriptionHistoryPage.tsx",
+      "sha256": "00a5c9d83dd9146a6d5a5e5a03d2402dcbcbee9d8f8ab3afa528063e035921ff"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/PrescriptionUpload/PrescriptionUploadPage.tsx",
+      "sha256": "3a1a53bf5cb86dff324223f75e12782fa1653bee1c7ec4be2f098702d85e00dd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/ProductDetail/ProductDetailPage.tsx",
+      "sha256": "fbb38c8799bf4fa2ac03ee06f2c7503aced88d2844c9aa639317ef7d07be42bd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/ProductListing/ProductListingPage.tsx",
+      "sha256": "96106085579daaf8576c9e541d01f9d4312489e0c7e2c3a5aea1b0303c8d7385"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Professional/ProfessionalRegisterPage.tsx",
+      "sha256": "76831bed61db6d10a1b2211c6b86baaef61729c7c7321669c70c7906e3701433"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Professional/ProfessionalResubmissionPage.tsx",
+      "sha256": "2bfcef42c62d5999593cf2e1775413478bd67934781799fd8bff32d59a086c91"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Returns/ReturnsPage.tsx",
+      "sha256": "a2abf77e600f983187c16873a7925313c8c7051ea1882905231154ba9a44d34f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/StoreLocator/StoreLocatorPage.tsx",
+      "sha256": "1067e952a7ce9bf0f5ff3813d3030056cb6f9ecdf045a6a75518d262fa3e137a"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Wishlist/WishlistPage.tsx",
+      "sha256": "684b7e359e72b70e91706ddc149795cf655431b2ac07b28b8e546aa4277574e3"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/accountService.ts",
+      "sha256": "9d6656942d7916af09552b6b42b9da1cd1fb8f27c5f8eca532ca3bc6f514852f"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/addressService.ts",
+      "sha256": "267ca6755d5e02ffdaa231edf33036e6fec390332904e3b9a70ed77b6343f19b"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/adminDashboardService.ts",
+      "sha256": "1317e8cb8483367d3cda02c656df937f9d66b6269360a8b026bb7dddcd7e32fc"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/adminDoctorService.ts",
+      "sha256": "a90052842cdbceaee55bd9705e5cbb99b40e9907807f67f3631ab135459f8dd0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/adminLabPartnerService.ts",
+      "sha256": "bb19608dca6c25ca3178f1865535087bc2087442c607cd83840bd6c703915694"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/adminOrderService.ts",
+      "sha256": "f7bdecd8878b9d4234036f51380c861f3772e844eaa896d3fcae718bd83b024d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/adminProductService.ts",
+      "sha256": "0b1ebcec3343bd7194e7b822bea7e28895a9af8ac91a8620bd9d6d8dc51d05a1"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/adminUserService.ts",
+      "sha256": "67466a9235afdff7ad4d6529cb8f394168f451b4b1f976266916645c2a138ea2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/botProtectionService.ts",
+      "sha256": "bf1277269fdb4624eee4430f9d59fe0e3a8eeeae60da317780b706c40e61bd79"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/cartService.ts",
+      "sha256": "d15eae34cf6745372e0d31fa8bfca67b4844528f82ccf026d1561f51f1ae4309"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/consultationService.ts",
+      "sha256": "192227ea31522a604427605d412edc56e0faed194aa139fc340f6df263c4f7c2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/faqService.ts",
+      "sha256": "dfabfedcc446764c30af8f9b69bdaefab492ab287962dc4e7af4ea8993bb6867"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/favouritesService.ts",
+      "sha256": "9e71a07ae49dcb406f22e397982c20e7a4e67f5fd8a603028292c7bd1c8603c7"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/inventoryService.ts",
+      "sha256": "c9da1af47cf3d2bc2df0fedcbc39f9cc1cafac51f71ad050cbccbd2b378a14ab"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/labPartnerDashboardService.ts",
+      "sha256": "a12adc3f32200084da549d288e6f97a0b1234d164734149c7f3b98e9f765577e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/labService.ts",
+      "sha256": "ea728e007bda0408ca402360448efb29606d4e79a8b65982e335fb1286859d54"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/mockApi.ts",
+      "sha256": "05e1ed7093f741aeb33b174c37e96671f9715463c756879bb2ec00b7e8ee8f77"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/newsletterService.ts",
+      "sha256": "e2ea906bfe9746b187a11a0f1ed056764ac8c95300e3e7f4af60b9ec26ca6251"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/notificationService.ts",
+      "sha256": "4400ab069285f2fdf59dc8b112af0a2051a999446d1414cca236b7b36c2c6a16"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/orderService.ts",
+      "sha256": "6b1f9136eb2bd5c3545334dcb1a4de0d285ba6ac8d4f37297f24120f2a409acf"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/paymentMethodService.ts",
+      "sha256": "4c5feaad49ce97a55141ec5a459c47f2229640427cacc9f23c6a603bcae3ff28"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/payoutService.ts",
+      "sha256": "64a53a4214410a1df05569c8a2f6e168ad45040204df50ed494c78849562ccfd"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/prescriptionService.ts",
+      "sha256": "6253548f3f40fa07e84e2ff38a7e5978ab5f29fe369d6aae9114cb04ae42c929"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/productService.ts",
+      "sha256": "2670fbc5f676bb39ceb6e8a32f59ba0a616cb4ca794d5c5aef821a609031dfa2"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/professionalRegistrationService.ts",
+      "sha256": "7fbc8f054fcfbe613a6c4c9c2256ff9fb48747566b8cd58fc1ef2e6f4614b85e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/promotionService.ts",
+      "sha256": "8a3be27cf37ecf4f53923cba4947e4015ede4a8780a8f36af2f15aa4cd0ad0e0"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/siteSettingsService.ts",
+      "sha256": "113a4ba18fbd31a6599043afedccaf005e7d90b90c6fa2c86cea4e9bec58ccfb"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/services/supportService.ts",
+      "sha256": "8c3df9c2cfbb9d256646d4d4080dd44e8c0acbb8d0f906446bcdd54c890bc67d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/utils/formatStatus.ts",
+      "sha256": "7555b40825629d0e5b72fc8552d69725ae79d7caae9ef968314f269e8784bb3e"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/utils/imageUploadSpecs.ts",
+      "sha256": "2b4e0fa632f7fee0a541096735b266fe78b80f6f3ced9893ac4dfaad5da4b76d"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/utils/motion.ts",
+      "sha256": "5705023790baccf992196b0b71658bda739f11b1e0a3e4287d8def335befaa03"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/utils/roleNavigation.ts",
+      "sha256": "753a7028574406c8702347fd2824b296460ec44699b96e56235f70a28b02bce4"
+    },
+    {
+      "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/vite-env.d.ts",
+      "sha256": "c2902ca117f5aa645fa35c98fc12aa0e3c624b511824641f895bd65f782d14fe"
+    }
+  ]
+}

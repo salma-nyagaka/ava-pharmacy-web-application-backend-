@@ -85,6 +85,7 @@ class ComplianceEvidence(models.Model):
     TYPE_PPB_AUTHORIZATION = 'ppb_authorization'
     TYPE_QA_AUDIT_REPORT = 'qa_audit_report'
     TYPE_CHOICES = [
+        ('professional_credential', 'Professional registration / licence evidence'),
         (TYPE_ODPC_CERTIFICATE, 'ODPC certificate'),
         (TYPE_DATA_CENTER_PROOF, 'Kenya data-center proof'),
         (TYPE_X509_CERTIFICATE, 'X.509 / SSL certificate'),
@@ -104,6 +105,9 @@ class ComplianceEvidence(models.Model):
         (STATUS_EXPIRED, 'Expired'),
     ]
 
+    verified_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='verified_compliance_evidence')
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_reference = models.TextField(blank=True)
     evidence_type = models.CharField(max_length=40, choices=TYPE_CHOICES)
     title = models.CharField(max_length=200)
     reference_number = models.CharField(max_length=120, blank=True)
@@ -213,6 +217,7 @@ class SupportNote(models.Model):
     )
     author_name = models.CharField(max_length=200)
     message = models.TextField()
+    is_internal = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -223,3 +228,6 @@ class SupportNote(models.Model):
 
     def __str__(self):
         return f"{self.ticket.reference} - {self.author_name}"
+
+
+from .compliance_models import SupplyAllocation, ComplianceEvent, MedicineAssessment, MedicineRecall, RecallAffectedOrder, PrivacyRequest, OperationalReview  # noqa: E402,F401

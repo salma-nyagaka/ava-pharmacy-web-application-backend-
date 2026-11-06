@@ -48,6 +48,18 @@ class Prescription(models.Model):
     )
     patient_name = models.CharField(max_length=200)
     doctor_name = models.CharField(max_length=200, blank=True)
+    prescriber_registration = models.CharField(max_length=120, blank=True)
+    prescriber_verification_reference = models.CharField(max_length=500, blank=True)
+    prescribed_on = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    authenticity_method = models.CharField(max_length=120, blank=True)
+    authenticity_evidence = models.TextField(blank=True)
+    verified_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='verified_prescription_records')
+    verified_at = models.DateTimeField(null=True, blank=True)
+    original_due_on = models.DateField(null=True, blank=True)
+    original_received_at = models.DateTimeField(null=True, blank=True)
+    original_receipt_reference = models.CharField(max_length=500, blank=True)
+    legal_hold = models.BooleanField(default=False)
     pharmacist = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='reviewed_prescriptions'
@@ -82,6 +94,9 @@ class Prescription(models.Model):
         return self.reference
 
     def save(self, *args, **kwargs):
+        if not self.original_due_on:
+            from .compliance import working_day_due
+            self.original_due_on = working_day_due(timezone.localdate(self.submitted_at or timezone.now()))
         if not self.reference:
             self.reference = f"RX-{uuid.uuid4().hex[:6].upper()}"
         super().save(*args, **kwargs)
@@ -237,3 +252,10 @@ class PrescriptionClarificationMessage(models.Model):
 
     def __str__(self):
         return f"{self.prescription.reference} - {self.sender_role}"
+
+
+class PrescriptionVersion(models.Model):
+    prescription = models.ForeignKey(Prescription, on_delete=models.PROTECT, related_name='preserved_versions')
+    snapshot = models.JSONField()
+    reviewed_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)

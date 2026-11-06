@@ -1,0 +1,6 @@
+{
+  "base": "https://b865-41-79-237-222.ngrok-free.app",
+  "target": "loopback payment-only gateway",
+  "request_inspection": false,
+  "flutterwave_url_needs_update": true
+}

@@ -1,0 +1,32 @@
+{
+  "order_id": 1993,
+  "order_number": "ORD-83D5AC44",
+  "payment_intent_id": 40,
+  "notification_http_status": 200,
+  "payment_origin": "SIMULATED local notification; no externally confirmed payment",
+  "amount": "350.00",
+  "payment_status": "paid",
+  "inventory_committed_before_finalize": false,
+  "stock_before_finalize": [
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 50
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10
+    }
+  ]
+}

@@ -1,0 +1,986 @@
+[
+  {
+    "clause": "2.1.1\u20132.1.2",
+    "printed_page": 4,
+    "requirement": "PPB registration, listing and explicit authorization before operation",
+    "status": "Evidence required",
+    "evidence": "Only a synthetic QA audit evidence record exists locally; no PPB authorization evidence loaded.",
+    "next_action": "Provide verified current online-pharmacy license and PPB listing/authorization; do not infer legal status from software."
+  },
+  {
+    "clause": "2.1.3",
+    "printed_page": 4,
+    "requirement": "PPB health safety code on every medicine-sale page",
+    "status": "Gap",
+    "evidence": "SiteSettings health_safety_code is blank; Footer renders pending text. PPB-09.",
+    "next_action": "Populate genuine code, verify it and assert display on every sale route."
+  },
+  {
+    "clause": "2.1.4",
+    "printed_page": 4,
+    "requirement": "Online dispensing, sale and information services are within scope",
+    "status": "Scope",
+    "evidence": "Products, checkout, prescriptions and consultations are present.",
+    "next_action": "Apply the matrix to all relevant channels and aliases."
+  },
+  {
+    "clause": "2.1.5; 2.1.6(i\u2013ii,vi)",
+    "printed_page": "4\u20135",
+    "requirement": "Registered premises, permanent address and accountable licensed superintendent",
+    "status": "Evidence required",
+    "evidence": "Contact/address and superintendent fields exist; superintendent/public registration fields blank.",
+    "next_action": "Verify premises/ownership/superintendent qualifications and retain operational evidence; populate public data."
+  },
+  {
+    "clause": "2.1.6(iii)(a)",
+    "printed_page": 4,
+    "requirement": "Secure encryption and valid licenses",
+    "status": "Partial",
+    "evidence": "Production HTTPS/HSTS configured, but production security check fails with this environment; certificate/hosting unverified.",
+    "next_action": "Evidence deployed TLS, certificate validity and security configuration."
+  },
+  {
+    "clause": "2.1.6(iii)(b)",
+    "printed_page": 4,
+    "requirement": "Customers can verify legitimate registration/health safety code",
+    "status": "Gap",
+    "evidence": "Footer has generic PPB link and empty code; homepage makes registration claim. PPB-09.",
+    "next_action": "Provide actual verification target and genuine identifiers; remove unsupported claims."
+  },
+  {
+    "clause": "2.1.6(iv)",
+    "printed_page": 5,
+    "requirement": "No public POM advertising/promotion",
+    "status": "Gap",
+    "evidence": "Anonymous POM detail receives active promotional discount in probe 04. PPB-03.",
+    "next_action": "Exclude POM/controlled variants across promotions, banners, deals and recommendations server-side."
+  },
+  {
+    "clause": "2.1.6(v)",
+    "printed_page": 5,
+    "requirement": "Healthcare-worker-only pages have access controls",
+    "status": "Implemented control",
+    "evidence": "Role-protected APIs; ownership, inspector read-only and consultation access regressions.",
+    "next_action": "Retain object-level/role tests and verify hosted behavior; not a claim of zero security vulnerabilities."
+  },
+  {
+    "clause": "3 / 1.1\u20131.3",
+    "printed_page": 5,
+    "requirement": "Website forms part of a licensed pharmacy under responsible professional authority",
+    "status": "Evidence required",
+    "evidence": "Software profiles and contact fields cannot prove the registered business/premises relationship.",
+    "next_action": "Provide premises/business authorization and responsible-pharmacist governance evidence."
+  },
+  {
+    "clause": "3 / 1.4(i)",
+    "printed_page": 5,
+    "requirement": "Pharmacist makes medicine supply decision and is available for consultation",
+    "status": "Gap",
+    "evidence": "OTC acknowledgement and patient questionnaire can reach checkout draft without recorded pharmacist decision. PPB-04.",
+    "next_action": "Require attributable professional authorization before medicine supply; verify real consultation staffing."
+  },
+  {
+    "clause": "3 / 1.4(ii)(a)",
+    "printed_page": 5,
+    "requirement": "Pharmacist verifies electronic prescription authenticity",
+    "status": "Gap",
+    "evidence": "Role approval exists, but approval accepts no authenticity evidence or prescriber identifier. Probe 10.",
+    "next_action": "Record authenticity verification, method and prescriber evidence before approval."
+  },
+  {
+    "clause": "3 / 1.4(ii)(b)",
+    "printed_page": 5,
+    "requirement": "Permanent copy of electronic prescriptions",
+    "status": "Gap",
+    "evidence": "Files stored/protected, but recent prescription can be deleted in Django admin. PPB-06.",
+    "next_action": "Preserve original/versioned copies and enforce retention across every deletion path."
+  },
+  {
+    "clause": "3 / 1.4(ii)(c)",
+    "printed_page": 5,
+    "requirement": "Original prescription follow-up within seven working days",
+    "status": "Gap",
+    "evidence": "No original-receipt status, working-day due date, follow-up workflow or overdue control found. PPB-08.",
+    "next_action": "Implement original receipt tracking, due-date calculation, follow-up and accountable exception handling."
+  },
+  {
+    "clause": "3 / 1.4(ii)(d)",
+    "printed_page": 5,
+    "requirement": "Dispense only Kenyan-authorized prescribers prescriptions",
+    "status": "Gap",
+    "evidence": "Uploaded prescriber is free text; expired/unverified active clinician accepted by booking serializer. PPB-07/08.",
+    "next_action": "Verify jurisdiction, registration, current eligibility and prescriber validity at issue/review/supply."
+  },
+  {
+    "clause": "3 / 1.4(ii)(e)",
+    "printed_page": 5,
+    "requirement": "Controlled-medicine and advertising restrictions",
+    "status": "Gap",
+    "evidence": "Controlled classification can disagree with Rx flag; public POM discounts permitted. PPB-02/03.",
+    "next_action": "Unify medicine classification and all advertising/supply guards."
+  },
+  {
+    "clause": "3 / 1.4(iii)(a)",
+    "printed_page": 6,
+    "requirement": "Home page pharmacy health safety registration number",
+    "status": "Gap",
+    "evidence": "Settings/Footer/HomePage; public disclosure completeness audit: health_safety_code.",
+    "next_action": "Provide verified current values, display them clearly and test every applicable page."
+  },
+  {
+    "clause": "3 / 1.4(iii)(b)",
+    "printed_page": 6,
+    "requirement": "Physical and postal addresses",
+    "status": "Gap",
+    "evidence": "Settings/Footer/HomePage; public disclosure completeness audit: postal_address.",
+    "next_action": "Provide verified current values, display them clearly and test every applicable page."
+  },
+  {
+    "clause": "3 / 1.4(iii)(c)",
+    "printed_page": 6,
+    "requirement": "Pharmacy contact telephone",
+    "status": "Partial",
+    "evidence": "Settings/Footer/HomePage; public disclosure completeness audit: support_phone.",
+    "next_action": "Provide verified current values, display them clearly and test every applicable page."
+  },
+  {
+    "clause": "3 / 1.4(iii)(d)",
+    "printed_page": 6,
+    "requirement": "Responsible pharmacist name",
+    "status": "Gap",
+    "evidence": "Settings/Footer/HomePage; public disclosure completeness audit: superintendent_name.",
+    "next_action": "Provide verified current values, display them clearly and test every applicable page."
+  },
+  {
+    "clause": "3 / 1.4(iii)(e)",
+    "printed_page": 6,
+    "requirement": "Pharmacist consultation hours",
+    "status": "Gap",
+    "evidence": "Settings/Footer/HomePage; public disclosure completeness audit: pharmacist_consultation_hours.",
+    "next_action": "Provide verified current values, display them clearly and test every applicable page."
+  },
+  {
+    "clause": "3 / 1.5",
+    "printed_page": 6,
+    "requirement": "Confidential and private patient data collection/use",
+    "status": "Partial",
+    "evidence": "RBAC/protected files exist; incomplete privacy notice and unverified hosting/backups/governance. PPB-12/14.",
+    "next_action": "Complete data protection controls and demonstrate operational compliance."
+  },
+  {
+    "clause": "3 / 1.6(a)",
+    "printed_page": 6,
+    "requirement": "Public new/repeat-prescription counselling policy",
+    "status": "Gap",
+    "evidence": "Help/contact/settings exist; detailed counselling and accurate privacy policies absent; Returns form not wired. PPB-12/16.",
+    "next_action": "Publish a complete accurate policy and implement its workflow; verify displayed hours against staffing."
+  },
+  {
+    "clause": "3 / 1.6(b)",
+    "printed_page": 6,
+    "requirement": "Public OTC counselling policy",
+    "status": "Gap",
+    "evidence": "Help/contact/settings exist; detailed counselling and accurate privacy policies absent; Returns form not wired. PPB-12/16.",
+    "next_action": "Publish a complete accurate policy and implement its workflow; verify displayed hours against staffing."
+  },
+  {
+    "clause": "3 / 1.6(c)",
+    "printed_page": 6,
+    "requirement": "Public medicine delivery procedure",
+    "status": "Partial",
+    "evidence": "Help/contact/settings exist; detailed counselling and accurate privacy policies absent; Returns form not wired. PPB-12/16.",
+    "next_action": "Publish a complete accurate policy and implement its workflow; verify displayed hours against staffing."
+  },
+  {
+    "clause": "3 / 1.6(d)",
+    "printed_page": 6,
+    "requirement": "Public medicine return procedure",
+    "status": "Gap",
+    "evidence": "Help/contact/settings exist; detailed counselling and accurate privacy policies absent; Returns form not wired. PPB-12/16.",
+    "next_action": "Publish a complete accurate policy and implement its workflow; verify displayed hours against staffing."
+  },
+  {
+    "clause": "3 / 1.6(e)",
+    "printed_page": 6,
+    "requirement": "Public complaint procedure",
+    "status": "Partial",
+    "evidence": "Help/contact/settings exist; detailed counselling and accurate privacy policies absent; Returns form not wired. PPB-12/16.",
+    "next_action": "Publish a complete accurate policy and implement its workflow; verify displayed hours against staffing."
+  },
+  {
+    "clause": "3 / 1.6(f)",
+    "printed_page": 6,
+    "requirement": "Patient confidentiality policy",
+    "status": "Gap",
+    "evidence": "Help/contact/settings exist; detailed counselling and accurate privacy policies absent; Returns form not wired. PPB-12/16.",
+    "next_action": "Publish a complete accurate policy and implement its workflow; verify displayed hours against staffing."
+  },
+  {
+    "clause": "3 / 1.6(g)",
+    "printed_page": 6,
+    "requirement": "Public business/service hours",
+    "status": "Partial",
+    "evidence": "Help/contact/settings exist; detailed counselling and accurate privacy policies absent; Returns form not wired. PPB-12/16.",
+    "next_action": "Publish a complete accurate policy and implement its workflow; verify displayed hours against staffing."
+  },
+  {
+    "clause": "3 / 1.7(a)",
+    "printed_page": 6,
+    "requirement": "Notify PPB about internet operation",
+    "status": "Evidence required",
+    "evidence": "Compliance evidence upload capability does not establish notification/submission.",
+    "next_action": "Provide board submission/acknowledgement and change-notification procedure."
+  },
+  {
+    "clause": "3 / 1.7(b)",
+    "printed_page": 6,
+    "requirement": "Notify PPB of internet address",
+    "status": "Evidence required",
+    "evidence": "Compliance evidence upload capability does not establish notification/submission.",
+    "next_action": "Provide board submission/acknowledgement and change-notification procedure."
+  },
+  {
+    "clause": "3 / 1.7(c)",
+    "printed_page": 6,
+    "requirement": "Notify PPB of Rx/OTC/specialty service nature",
+    "status": "Evidence required",
+    "evidence": "Compliance evidence upload capability does not establish notification/submission.",
+    "next_action": "Provide board submission/acknowledgement and change-notification procedure."
+  },
+  {
+    "clause": "3 / 1.7(d)",
+    "printed_page": 6,
+    "requirement": "Notify PPB of different telephone number",
+    "status": "Evidence required",
+    "evidence": "Compliance evidence upload capability does not establish notification/submission.",
+    "next_action": "Provide board submission/acknowledgement and change-notification procedure."
+  },
+  {
+    "clause": "3 / 1.8",
+    "printed_page": 6,
+    "requirement": "Internet operation available for onsite PPB inspection",
+    "status": "Partial",
+    "evidence": "Inspector can read prescription register, orders/audit/return/evidence endpoints where configured; control probe 11.",
+    "next_action": "Provision real user-level read-only inspector access, document intended scope and demonstrate onsite availability."
+  },
+  {
+    "clause": "3 / 1.9",
+    "printed_page": 7,
+    "requirement": "Professional liability is not displaced by disclaimers",
+    "status": "Evidence required",
+    "evidence": "No evidence of professional governance/legal approval of disclaimers.",
+    "next_action": "Have superintendent approve terms/professional accountability and supply practice."
+  },
+  {
+    "clause": "3 / 1.10",
+    "printed_page": 7,
+    "requirement": "Records retained for procedures undertaken",
+    "status": "Partial",
+    "evidence": "Order/prescription/consultation/lab/payout audit records exist; not all safety decisions recorded.",
+    "next_action": "Record clinical/OTC decisions and protect histories from alteration/deletion."
+  },
+  {
+    "clause": "3 / 1.11",
+    "printed_page": 7,
+    "requirement": "Written/electronic pharmacy procedures",
+    "status": "Evidence required",
+    "evidence": "No complete approved SOP suite found in repository/evidence store.",
+    "next_action": "Provide versioned superintendent-approved SOPs, owners and training records."
+  },
+  {
+    "clause": "3 / 1.12",
+    "printed_page": 7,
+    "requirement": "Procedures available to inspectors",
+    "status": "Evidence required",
+    "evidence": "Evidence store exists; no operational SOP documents supplied.",
+    "next_action": "Upload appropriate controlled documents and verify read-only inspector retrieval."
+  },
+  {
+    "clause": "3 / 1.13; 8.4",
+    "printed_page": "7, 11",
+    "requirement": "Retain online records at least five years from specified start dates",
+    "status": "Gap",
+    "evidence": "No age-based retention/deletion guard; recent prescription deletion reproduced. PPB-06.",
+    "next_action": "Implement retention, legal holds, protected append-only audit and compliant deletion for files and databases."
+  },
+  {
+    "clause": "3 / 1.14",
+    "printed_page": 7,
+    "requirement": "Built-in excessive/multiple medicine order alert and restriction",
+    "status": "Partial",
+    "evidence": "BotRiskEvent and quantity/frequency scoring exist; no complete medicine-specific longitudinal professional review. PPB-18.",
+    "next_action": "Validate clinical thresholds, repeated-order aggregation, alerts, holds and professional disposition."
+  },
+  {
+    "clause": "3 / 1.15",
+    "printed_page": 7,
+    "requirement": "No controlled drug internet supply; extra high-risk safeguards",
+    "status": "Gap",
+    "evidence": "Keyword/item checks exist but classification mismatch bypasses cart; no additional narrow-therapeutic-index workflow found. PPB-02.",
+    "next_action": "Fail closed on controlled/uncertain classification and implement governed high-risk rules."
+  },
+  {
+    "clause": "3 / 1.16",
+    "printed_page": 7,
+    "requirement": "Source only authorized Kenyan suppliers",
+    "status": "Gap",
+    "evidence": "Supplier fields/free-text batch supplier exist; no verification gate or current Rx supplier data. PPB-01.",
+    "next_action": "Maintain verified supplier registry and source/batch acceptance controls."
+  },
+  {
+    "clause": "4.1",
+    "printed_page": 7,
+    "requirement": "Online pharmaceutical care quality equivalent to in-person care",
+    "status": "Evidence required",
+    "evidence": "Consultation/pharmacist workflows help but tests cannot establish quality of professional practice.",
+    "next_action": "Clinical governance review, staffing evidence, competency and actual counselling audits."
+  },
+  {
+    "clause": "5.1.1",
+    "printed_page": 7,
+    "requirement": "Only registered and retained PPB medicines sold/dispensed",
+    "status": "Gap",
+    "evidence": "Missing/unknown/suspended regulatory status not a purchase gate; 4,183 Rx/classified-Rx variants lack registration data. PPB-01.",
+    "next_action": "Validate authoritative current registration/retention before listing/supply; populate missing data."
+  },
+  {
+    "clause": "5.1.2",
+    "printed_page": 8,
+    "requirement": "Valid prescription for POM",
+    "status": "Partial",
+    "evidence": "Exact approved prescription, quantity and reuse guards implemented; prescriber/authenticity/original lifecycle incomplete.",
+    "next_action": "Add validity/authenticity fields and enforcement, not only approved status."
+  },
+  {
+    "clause": "5.1.3",
+    "printed_page": 8,
+    "requirement": "OTC patient information and professional rationalization",
+    "status": "Gap",
+    "evidence": "Keyword screening can be missed; patient fields are not a pharmacist decision. PPB-04.",
+    "next_action": "Use authoritative medicine classification, structured screening and attributable clinical decision."
+  },
+  {
+    "clause": "5.1.4",
+    "printed_page": 8,
+    "requirement": "Advice available to all prospective buyers in addition to PIL",
+    "status": "Partial",
+    "evidence": "Contact/support links and OTC checkbox exist; no validated pharmacist counselling flow for every medicine.",
+    "next_action": "Document counselling access, staffing and delivery of applicable information."
+  },
+  {
+    "clause": "5.1.5",
+    "printed_page": 8,
+    "requirement": "Verify intended user/guardian and sufficient condition information",
+    "status": "Partial",
+    "evidence": "Authenticated accounts, pediatric ownership and snapshots implemented; OTC identity based on user assertions.",
+    "next_action": "Professional verification and complete suitable patient/context checks without unnecessary collection."
+  },
+  {
+    "clause": "5.1.6",
+    "printed_page": 8,
+    "requirement": "Assess suitability/safety for indication and intended user",
+    "status": "Gap",
+    "evidence": "No enforceable OTC clinical suitability approval or interaction/red-flag disposition found. PPB-04.",
+    "next_action": "Superintendent-defined clinical assessment and refusal/referral controls with records."
+  },
+  {
+    "clause": "5.1.7",
+    "printed_page": 8,
+    "requirement": "Counselling on safe use/storage/disposal and professional contact",
+    "status": "Partial",
+    "evidence": "Directions/warnings/storage fields and contact links exist; acknowledgement can overstate provided advice.",
+    "next_action": "Provide reviewed product-specific advice and record professional counselling and contact."
+  },
+  {
+    "clause": "5.1.8",
+    "printed_page": 8,
+    "requirement": "Detect excessive/frequent requests and refuse suspected misuse",
+    "status": "Partial",
+    "evidence": "Risk scoring and Rx reuse caps exist; incomplete cross-order clinical controls. PPB-18.",
+    "next_action": "Evidence thresholds, alerts, refusal reasons and longitudinal monitoring."
+  },
+  {
+    "clause": "5.1.9; 6.2",
+    "printed_page": "8\u20139",
+    "requirement": "Face-to-face referral when appropriate",
+    "status": "Gap",
+    "evidence": "No explicit referral decision/status/safety escalation workflow found.",
+    "next_action": "Add recorded referral/escalation outcome and accountable clinical SOP."
+  },
+  {
+    "clause": "5.1.10; 6.3",
+    "printed_page": "8\u20139",
+    "requirement": "Identify professional responsible for supply",
+    "status": "Partial",
+    "evidence": "Rx pharmacist identity recorded; OTC/order supply identity and patient document superintendent number not guaranteed. PPB-04/09.",
+    "next_action": "Associate each supply with responsible professional and include required patient documentation."
+  },
+  {
+    "clause": "5.1.11",
+    "printed_page": 9,
+    "requirement": "Verify prescription authenticity and validity",
+    "status": "Gap",
+    "evidence": "Role approval can occur without verification evidence or prescriber identity. PPB-08.",
+    "next_action": "Implement mandatory authenticity/validity assessment and audit."
+  },
+  {
+    "clause": "6.1.1",
+    "printed_page": 9,
+    "requirement": "Generic advice accurate, current and professional",
+    "status": "Evidence required",
+    "evidence": "CMS/blog/product content exists; no clinical content approval/review-date enforcement.",
+    "next_action": "Clinical editorial approval, authoritative sources, version/date and periodic review."
+  },
+  {
+    "clause": "6.1.2",
+    "printed_page": 9,
+    "requirement": "Product information aligned to marketing authorization/PIL/PPB rules",
+    "status": "Gap",
+    "evidence": "Regulatory/PIL fields optional and empty for Rx inventory; scraped images/descriptions do not verify authorizations. PPB-10.",
+    "next_action": "Require reviewed authoritative medicines information and provenance/versioning."
+  },
+  {
+    "clause": "6.1.3",
+    "printed_page": 9,
+    "requirement": "Relevant contraindications and adverse effects provided",
+    "status": "Gap",
+    "evidence": "All 4,183 Rx/classified-Rx variants have empty contraindication and side-effect fields; detail UI only renders generic warnings/directions. PPB-10.",
+    "next_action": "Populate reviewed content and render complete relevant medicine safety information."
+  },
+  {
+    "clause": "6.1.4",
+    "printed_page": 9,
+    "requirement": "Recommendations patient-specific",
+    "status": "Partial",
+    "evidence": "Patient-linked consultations exist; public promotion/recommendation surfaces do not have clinical personalization gates.",
+    "next_action": "Limit clinical recommendations to assessed patients and keep general retail content within advertising rules."
+  },
+  {
+    "clause": "6.1.5",
+    "printed_page": 9,
+    "requirement": "Advertising follows PPB promotion guidance",
+    "status": "Gap",
+    "evidence": "Public POM active_promotions and discount reproduced. PPB-03.",
+    "next_action": "Implement medicine-class-aware publication/promotions policy and approval audit."
+  },
+  {
+    "clause": "6.1.6",
+    "printed_page": 9,
+    "requirement": "Advice/written information in English or Swahili",
+    "status": "Partial",
+    "evidence": "Observed UI, receipts, prescription output and patient messages support English text.",
+    "next_action": "Clinically validate all generated/copied content; this is not certification of translation quality."
+  },
+  {
+    "clause": "7.1.1",
+    "printed_page": 9,
+    "requirement": "Delivery safeguards medication confidentiality",
+    "status": "Partial",
+    "evidence": "Tracking limited by contact verification; POS/email payloads contain medication/address data and courier process unverified.",
+    "next_action": "Minimize courier data, use discreet packaging, control third-party access/contracts and verify transport."
+  },
+  {
+    "clause": "7.1.2",
+    "printed_page": 10,
+    "requirement": "Secure prompt delivery to intended recipient in usable condition",
+    "status": "Gap",
+    "evidence": "Delivery status accepts recipient_verified=False and missing package data. Probe 07.",
+    "next_action": "Enforce verification, packaging/condition requirements and failure/exception handling."
+  },
+  {
+    "clause": "7.1.3",
+    "printed_page": 10,
+    "requirement": "Cold-chain and vulnerable packaging integrity",
+    "status": "Gap",
+    "evidence": "temperature/cold-chain fields are optional and failed cold chain does not block delivery. PPB-05.",
+    "next_action": "Gate sensitive-item supply/delivery on validated chain and accountable exception workflow."
+  },
+  {
+    "clause": "7.1.4",
+    "printed_page": 10,
+    "requirement": "Packaging/transport preserves quality including heat/light sensitivity",
+    "status": "Partial",
+    "evidence": "Temperature/storage fields exist; no enforced packaging criteria or operational proof.",
+    "next_action": "Validate per-item handling requirements and retain transport evidence."
+  },
+  {
+    "clause": "7.1.5",
+    "printed_page": 10,
+    "requirement": "Request-to-delivery/failed-return verifiable trail",
+    "status": "Partial",
+    "evidence": "OrderEvent/DeliveryAudit/StockMovement record references; batch allocations use mutable row IDs not full immutable lot snapshots.",
+    "next_action": "Require complete delivery/failed-return events and immutable batch/expiry traceability."
+  },
+  {
+    "clause": "7.1.6",
+    "printed_page": 10,
+    "requirement": "No resale of returned medicine and a handling procedure",
+    "status": "Partial",
+    "evidence": "Return API requires quarantine/non-resale; delivered refunds do not restock in acceptance tests. Admin paths can bypass API workflow.",
+    "next_action": "Approved SOP, physical quarantine/disposal evidence and consistent admin enforcement."
+  },
+  {
+    "clause": "7.1.7",
+    "printed_page": 10,
+    "requirement": "Robust reliable medicine recall system",
+    "status": "Gap",
+    "evidence": "Batch/supplier/expiry and order links exist, but no recall case, stop-sale, recipient tracing/notification and closure workflow. PPB-11.",
+    "next_action": "Implement batch recall/quarantine, trace affected orders, notify/acknowledge and drill."
+  },
+  {
+    "clause": "8.1",
+    "printed_page": 10,
+    "requirement": "Consultation/supply records guard against misuse",
+    "status": "Partial",
+    "evidence": "Structured histories, Rx reuse caps and bot events exist; OTC decision/referral and longitudinal controls missing.",
+    "next_action": "Complete safety-decision records and misuse review workflow."
+  },
+  {
+    "clause": "8.2",
+    "printed_page": 10,
+    "requirement": "Verifiable inspectable request-to-delivery audit trail",
+    "status": "Partial",
+    "evidence": "Linked order/prescription/stock/delivery records and inspector reads; incomplete immutable preservation.",
+    "next_action": "Protect all audit rows and retain complete clinical/logistics chain."
+  },
+  {
+    "clause": "8.3.1",
+    "printed_page": 10,
+    "requirement": "Customer name/address supply records",
+    "status": "Implemented control",
+    "evidence": "Order shipping snapshots and customer relationship persist for normal workflows.",
+    "next_action": "Retain immutable snapshots, completeness checks and five-year preservation; close identified clinical workflow gaps."
+  },
+  {
+    "clause": "8.3.2",
+    "printed_page": 10,
+    "requirement": "Medicine quantities requested/supplied",
+    "status": "Implemented control",
+    "evidence": "OrderItem, PrescriptionItem and stock movement quantities are recorded.",
+    "next_action": "Retain immutable snapshots, completeness checks and five-year preservation; close identified clinical workflow gaps."
+  },
+  {
+    "clause": "8.3.3",
+    "printed_page": 10,
+    "requirement": "Consultations/interventions/advice given",
+    "status": "Partial",
+    "evidence": "Chat/notes exist, but structured OTC counselling/intervention is not mandatory.",
+    "next_action": "Retain immutable snapshots, completeness checks and five-year preservation; close identified clinical workflow gaps."
+  },
+  {
+    "clause": "8.3.4",
+    "printed_page": 10,
+    "requirement": "Information supporting the supply decision",
+    "status": "Partial",
+    "evidence": "OTC screening and Rx notes exist; they are not complete enforced professional decisions.",
+    "next_action": "Retain immutable snapshots, completeness checks and five-year preservation; close identified clinical workflow gaps."
+  },
+  {
+    "clause": "8.3.5",
+    "printed_page": 11,
+    "requirement": "Identity of professional responsible for each supply",
+    "status": "Partial",
+    "evidence": "Rx review records actor; OTC order does not require a responsible pharmacist field.",
+    "next_action": "Retain immutable snapshots, completeness checks and five-year preservation; close identified clinical workflow gaps."
+  },
+  {
+    "clause": "9.1",
+    "printed_page": 11,
+    "requirement": "Patient handling complies with Kenya Data Protection Act",
+    "status": "Partial",
+    "evidence": "Access controls and protected downloads implemented; rights, notices, lawful-processing/hosting evidence incomplete.",
+    "next_action": "Full data protection compliance review and operational evidence; code tests alone insufficient."
+  },
+  {
+    "clause": "9.2",
+    "printed_page": 11,
+    "requirement": "Confidentiality/integrity to ISO/IEC 27001 standard",
+    "status": "Evidence required",
+    "evidence": "Evidence upload type exists, not an implemented/evidenced ISMS.",
+    "next_action": "Provide scoped controls/risk assessment, access reviews, incident procedures and assurance; certificate only if claimed."
+  },
+  {
+    "clause": "9.3",
+    "printed_page": 11,
+    "requirement": "All patient data transmissions encrypted",
+    "status": "Partial",
+    "evidence": "Production HTTPS flags and authenticated endpoints; local runtime HTTP and deployed TLS/WSS/SMTP/POS unverified.",
+    "next_action": "Verify all target transport paths including third parties, not just frontend HTTPS."
+  },
+  {
+    "clause": "9.4",
+    "printed_page": 11,
+    "requirement": "Daily secure backups including offsite fire-protected storage",
+    "status": "Evidence required",
+    "evidence": "No actual backup schedule, offsite configuration or restore-test evidence found; log rotation is not backup. PPB-13.",
+    "next_action": "Provide daily encrypted offsite backup, monitoring and successful restore evidence."
+  },
+  {
+    "clause": "9.5",
+    "printed_page": 11,
+    "requirement": "Patient/agent medicine-information requests verifiable",
+    "status": "Partial",
+    "evidence": "Customer ownership and guardian child checks implemented; no general verified-agent delegation flow.",
+    "next_action": "Verify identity and define safe authorized-agent access with auditable scope/expiry."
+  },
+  {
+    "clause": "10.1",
+    "printed_page": 11,
+    "requirement": "Identify actual registered website operator",
+    "status": "Gap",
+    "evidence": "Footer/settings fields available but key identity/licensing disclosures blank; generic registration claim. PPB-09.",
+    "next_action": "Display actual verified operator and premises identity consistently."
+  },
+  {
+    "clause": "10.2.1",
+    "printed_page": 11,
+    "requirement": "Conspicuous health safety code",
+    "status": "Gap",
+    "evidence": "health_safety_code blank; pending placeholder.",
+    "next_action": "Populate and verify genuine code across medicine-sale pages."
+  },
+  {
+    "clause": "10.2.2",
+    "printed_page": 11,
+    "requirement": "Premises address/registration/email/phone",
+    "status": "Gap",
+    "evidence": "Support contacts exist; premises registration blank; physical license evidence absent.",
+    "next_action": "Complete and verify public premise disclosure and actual authorization."
+  },
+  {
+    "clause": "10.2.3",
+    "printed_page": 11,
+    "requirement": "Superintendent name/registration in patient documentation",
+    "status": "Gap",
+    "evidence": "Fields blank; order email context/templates lack superintendent details. PPB-09.",
+    "next_action": "Add verified superintendent identity to relevant patient-supplied documents and test output."
+  },
+  {
+    "clause": "10.2.4",
+    "printed_page": 11,
+    "requirement": "Complaint instructions",
+    "status": "Partial",
+    "evidence": "Help/contact/support ticket workflow exists; no full published escalation/response procedure.",
+    "next_action": "Publish and implement complaint procedure and maintain case records."
+  },
+  {
+    "clause": "10.2.5",
+    "printed_page": 12,
+    "requirement": "Document specifies EV-SSL security indication",
+    "status": "Evidence required",
+    "evidence": "HTTPS code configuration cannot prove EV certificate issuance/deployed chain.",
+    "next_action": "Have deployment/legal compliance owners verify required certificate type and active chain; do not equate HTTPS with EV."
+  },
+  {
+    "clause": "10.3",
+    "printed_page": 12,
+    "requirement": "PPB contact details and hyperlink",
+    "status": "Partial",
+    "evidence": "Footer includes contact fields; defaults follow document .org.ke text while current official PPB uses web.pharmacyboardkenya.org / ppb.go.ke.",
+    "next_action": "Validate current official contacts/links with PPB and publish correct reachable details; retain version context."
+  },
+  {
+    "clause": "11.1",
+    "printed_page": 12,
+    "requirement": "Validated fit-for-purpose software/equipment including dispensing/labels/mobile",
+    "status": "Partial",
+    "evidence": "364 regression tests and frontend build pass; labeling equipment/clinical validation not evidenced.",
+    "next_action": "Complete intended-use validation, traceability and operational/equipment acceptance."
+  },
+  {
+    "clause": "11.2",
+    "printed_page": 12,
+    "requirement": "Manage software/equipment failures and disruptions",
+    "status": "Partial",
+    "evidence": "Provider/POS/delivery error handling/retries exist; full disaster recovery/business continuity plan absent.",
+    "next_action": "Approve continuity runbook and exercise restore/fallback and incident handling."
+  },
+  {
+    "clause": "11.3.1",
+    "printed_page": 12,
+    "requirement": "Current security specifications and protected network transit",
+    "status": "Partial",
+    "evidence": "Production security configuration exists; security deployment check has five errors/one warning with current env.",
+    "next_action": "Resolve release configuration and evidence patching/network/TLS controls."
+  },
+  {
+    "clause": "11.3.2",
+    "printed_page": 12,
+    "requirement": "Regular equipment maintenance/calibration/service",
+    "status": "Evidence required",
+    "evidence": "No equipment inventory/calibration/maintenance records supplied.",
+    "next_action": "Provide equipment register, schedules and completed service/calibration evidence."
+  },
+  {
+    "clause": "11.4.1",
+    "printed_page": 12,
+    "requirement": "Software handles workload",
+    "status": "Evidence required",
+    "evidence": "Functional/concurrency regressions exist; no realistic sustained-load/capacity evidence.",
+    "next_action": "Run representative load/availability tests and monitor deployment capacity."
+  },
+  {
+    "clause": "11.4.2(a)",
+    "printed_page": 13,
+    "requirement": "Controlled medicine order alarms/controls",
+    "status": "Partial",
+    "evidence": "Rx keyword/item guards exist but classified-control bypass persists.",
+    "next_action": "Centralize classification and block/alert every entry path; test both flag mismatches."
+  },
+  {
+    "clause": "11.4.2(b)",
+    "printed_page": 13,
+    "requirement": "Suspicious/excessive/multiple order alerts/controls",
+    "status": "Partial",
+    "evidence": "Risk-event scoring exists; incomplete medicine-specific clinical thresholds/review.",
+    "next_action": "Implement validated monitoring, holds and professional refusal disposition."
+  },
+  {
+    "clause": "11.4.3",
+    "printed_page": 13,
+    "requirement": "Records of decisions and dispensing for all products",
+    "status": "Partial",
+    "evidence": "Transactional histories exist; OTC professional decision and immutable retention missing.",
+    "next_action": "Complete attributable decision/dispense records for all medicine supply."
+  },
+  {
+    "clause": "12.1(a)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Personnel staffing/skills/training",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(b)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Communications between professionals/patients",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(c)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Professional service quality",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(d)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Prescription receipt",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(e)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Prescription dispensing",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(f)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Secure posting/delivery",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(g)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Documentation/records",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(h)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: IT/equipment validation",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(i)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Security/confidentiality",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(j)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Website information",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(k)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Customer feedback",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.1(l)",
+    "printed_page": 13,
+    "requirement": "Regular management audit: Customer complaints",
+    "status": "Evidence required",
+    "evidence": "Test reports/logs and evidence upload exist, but no approved recurring management-audit schedule/sign-off for this area.",
+    "next_action": "Supply scheduled audit, responsible owner, completed report, corrective actions and closure evidence."
+  },
+  {
+    "clause": "12.2",
+    "printed_page": 13,
+    "requirement": "Schedules/reports available to PPB inspectors",
+    "status": "Partial",
+    "evidence": "Read-only evidence store can hold reports; only a synthetic review_due QA record loaded.",
+    "next_action": "Publish appropriate real audit schedule/reports to authorized inspector access and demonstrate retrieval."
+  },
+  {
+    "clause": "13.1",
+    "printed_page": 14,
+    "requirement": "ODPC data-controller registration certificate",
+    "status": "Evidence required",
+    "evidence": "No ODPC certificate record supplied in local evidence store.",
+    "next_action": "Provide authentic applicable current certificate and validity/renewal proof."
+  },
+  {
+    "clause": "13.2(a)",
+    "printed_page": 14,
+    "requirement": "Lawful minimal collection and purpose restriction",
+    "status": "Partial",
+    "evidence": "Role scoping exists; no comprehensive purpose/consent ledger/data minimization approval.",
+    "next_action": "Document lawful bases, processing register, minimization, processors and safeguards."
+  },
+  {
+    "clause": "13.2(b)",
+    "printed_page": 14,
+    "requirement": "Data/server storage meets stipulated location requirements",
+    "status": "Evidence required",
+    "evidence": "Local developer database is not evidence of contracted compliant hosting.",
+    "next_action": "Verify production/backup/processor locations and relevant contracts."
+  },
+  {
+    "clause": "13.2(c)",
+    "printed_page": 14,
+    "requirement": "Protect data at rest and in transit",
+    "status": "Partial",
+    "evidence": "One optional encrypted payout field; health fields are ordinary server-readable fields; infrastructure encryption unverified.",
+    "next_action": "Evidence at-rest encryption/key controls and all transport paths; remove unsupported end-to-end claim."
+  },
+  {
+    "clause": "13.3",
+    "printed_page": 14,
+    "requirement": "Observe data-subject rights",
+    "status": "Partial",
+    "evidence": "Profile correction, own-record reads and deactivation exist; no complete request/export/objection/restriction workflow evidenced.",
+    "next_action": "Publish rights/contact/limits, identity verification, tracking and lawful retention-aware handling."
+  },
+  {
+    "clause": "13.4",
+    "printed_page": 14,
+    "requirement": "Inform subjects and manage rights before/after collection",
+    "status": "Gap",
+    "evidence": "Privacy page is short unsupported encryption/HIPAA/retention claims, not complete Kenya rights/processing notice. PPB-12.",
+    "next_action": "Publish accurate rights, purposes, lawful bases, retention, recipients, transfer and request process."
+  },
+  {
+    "clause": "13.5(a)",
+    "printed_page": 15,
+    "requirement": "Registration: ODPC registration / applicable renewal certificate",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.5(b)",
+    "printed_page": 15,
+    "requirement": "Registration: Ownership/contract for Kenya data center",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.5(c)",
+    "printed_page": 15,
+    "requirement": "Registration: Valid recognized domain X.509 certificate",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.5(d)",
+    "printed_page": 15,
+    "requirement": "Registration: Public website/API access and user-level read-only PPB credentials",
+    "status": "Partial",
+    "evidence": "301 canonical API routes inventoried; inspector read-only control tested; OpenAPI schema has incomplete APIView coverage.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.5(e)",
+    "printed_page": 15,
+    "requirement": "Registration: Third-party contracts/SLAs and responsibilities",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.6(a)",
+    "printed_page": 15,
+    "requirement": "Renewal: ODPC registration / applicable renewal certificate",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.6(b)",
+    "printed_page": 15,
+    "requirement": "Renewal: Ownership/contract for Kenya data center",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.6(c)",
+    "printed_page": 15,
+    "requirement": "Renewal: Valid recognized domain X.509 certificate",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.6(d)",
+    "printed_page": 16,
+    "requirement": "Renewal: Public website/API access and user-level read-only PPB credentials",
+    "status": "Partial",
+    "evidence": "301 canonical API routes inventoried; inspector read-only control tested; OpenAPI schema has incomplete APIView coverage.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "13.6(e)",
+    "printed_page": 16,
+    "requirement": "Renewal: Third-party contracts/SLAs and responsibilities",
+    "status": "Evidence required",
+    "evidence": "Evidence category exists where applicable but no substantive current document supplied locally.",
+    "next_action": "Supply/verify the actual current artifact; for access, provision documented least-privilege credentials and complete tested API documentation."
+  },
+  {
+    "clause": "14",
+    "printed_page": 16,
+    "requirement": "Board suspension/revocation may stop operation",
+    "status": "Evidence required",
+    "evidence": "Individual account suspension exists, but no demonstrated business license revocation/expiry stop-supply procedure.",
+    "next_action": "Provide license monitoring and controlled business suspension/runbook with owner."
+  }
+]

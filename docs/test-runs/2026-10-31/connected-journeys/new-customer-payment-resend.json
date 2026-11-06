@@ -1,0 +1,9 @@
+{
+  "http_status": 201,
+  "cancelled_local_intent": 51,
+  "id": 52,
+  "reference": "PAY-4CA0D5235B7B",
+  "status": "requires_action",
+  "amount": "1.00",
+  "last_error": ""
+}

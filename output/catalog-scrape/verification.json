@@ -1,0 +1,82 @@
+[
+  {
+    "variant_id": 1451,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "426 g",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 2928,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "500 ml",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 22911,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "200 ml",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 23004,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 23013,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "30 flossers",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 23025,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "12.5 ml",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 23028,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "500 ml",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 23085,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 23090,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "",
+    "price_and_stock_unchanged": true
+  },
+  {
+    "variant_id": 23092,
+    "public_detail_status": 200,
+    "description_matches": true,
+    "image_verified": true,
+    "pack_size": "2 toothbrushes",
+    "price_and_stock_unchanged": true
+  }
+]

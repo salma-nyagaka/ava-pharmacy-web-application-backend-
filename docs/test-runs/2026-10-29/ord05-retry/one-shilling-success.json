@@ -1,0 +1,39 @@
+{
+  "environment": "sandbox",
+  "order_id": 2003,
+  "order_number": "ORD-7FF17F50",
+  "intent_id": 45,
+  "result_code": 0,
+  "result_description": "The service request is processed successfully.",
+  "provider_receipt": "UJTI203HXA",
+  "callback_amount": "1.0",
+  "intent_amount": "1.00",
+  "order_total": "1.00",
+  "phone_matched": true,
+  "payment_status": "paid",
+  "order_status": "paid",
+  "inventory_committed": true,
+  "variant_id": 23505,
+  "inventory_row": 64279,
+  "store_id": null,
+  "location": "branch",
+  "quantity": 1,
+  "before_stock": 2,
+  "after_stock": 1,
+  "allocations": [
+    {
+      "store_code": "",
+      "inventory_id": 64279,
+      "stock_quantity": 1,
+      "store_listing_id": null,
+      "backorder_quantity": 0
+    }
+  ],
+  "repeat_finalize_http_status": 200,
+  "repeat_finalize_did_not_deduct_again": true,
+  "receipt_sent_at": "2026-10-29T12:59:56.050581+00:00",
+  "customer_receipt_browser": "one-shilling-paid.png",
+  "receipt_note": "Customer browser receipt verified PAID, KSh 1, correct item and order. Email send timestamp is recorded; external inbox delivery was not independently verified.",
+  "cleanup": "QA product and QA shipping option deactivated. Paid sandbox order, payment and one-unit stock movement retained as evidence. No real medicine supply or refund transfer.",
+  "checkout_request_id_matched": true
+}

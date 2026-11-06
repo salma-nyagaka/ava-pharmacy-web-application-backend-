@@ -1,0 +1,14 @@
+# Reported workflow fixes — 6 November 2026
+
+- Clinician document Download now retrieves a blob and downloads it using an object URL. This avoids browsers ignoring the download attribute on a cross-origin media link. Errors appear in the review modal. All six current clinician document files exist in storage.
+- Removed the remaining unreviewed-classification hold from cart supply checks. Inactive products, controlled-item restrictions and prescription requirements remain protected.
+- Suspended accounts now receive a clear message when the supplied password is correct, including when Django authentication rejects their inactive account. Wrong passwords still receive the generic credential error.
+- Staff explicitly granted prescription queue access can see unassigned prescriptions and their own assignments while professional credential review is pending. Clinical review/approval permissions remain separate. Queue loading failures are displayed instead of silently producing an empty list.
+- Repaired account 91's invalid role `paedetrician` to match its existing pharmacist profile and previously assigned permissions; credential verification remains pending. The live queue now returns HTTP 200 with both saved prescriptions. Cached client roles require signing out and back in. Backup: account-91-role-repair-2026-11-06.json.
+- Prescription upload limits show an accessible alert near the upload controls: five files maximum and 5 MB per file. The same limits are checked for patient resubmission. Backend rejection tests verify neither invalid upload creates a prescription.
+- Professional registration/resubmission service unwraps the standardized success envelope. Pending applications can load and submit additional documents. Application 33's old link is closed correctly: it was approved after the document request and has no outstanding request note.
+- Optional empty lab-partner licence expiry is omitted by the frontend and normalized to null by the backend, rather than parsed as an invalid date.
+- All doctor/pediatrician profile fees are KSh 1,000/KES, with existing commission preserved. Fees cannot vary through onboarding or profile edits. Activation emails show fee, commission and resulting clinician payout. Historic consultation/payment amounts are untouched. Existing fee values were backed up before migration 0020.
+- Password reset uses the registration character rules and shows field-specific errors. Authenticated password-change validation also checks similarity to the current account's attributes. Account settings currently directs users through the email reset flow.
+
+Validation: nine focused backend regression tests; frontend production build; Django system checks; live pharmacist queue access and clinician document storage checks. Tests use isolated records and local test mail. No approval decision or live payment was made.

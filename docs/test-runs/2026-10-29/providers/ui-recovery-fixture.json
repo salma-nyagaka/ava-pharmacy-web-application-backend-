@@ -1,0 +1,21 @@
+{
+  "id": 1999,
+  "order": "ORD-3F3589D1",
+  "payment_reference": "QA-UI-RECOVERY-ONLY-20261029",
+  "provider_payment": false,
+  "purpose": "Isolated browser regression fixture, separate from provider transaction 10580035",
+  "before_stock": [
+    {
+      "id": 64275,
+      "stock_quantity": 50
+    },
+    {
+      "id": 64277,
+      "stock_quantity": 30
+    }
+  ],
+  "browser_finalization_passed": true,
+  "confirmation_path": "/order-confirmation",
+  "screenshot": "ui-recovery-confirmation.png",
+  "provider_charge_created": false
+}

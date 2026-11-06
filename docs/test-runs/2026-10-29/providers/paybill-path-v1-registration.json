@@ -1,0 +1,6 @@
+{
+  "version": "v1",
+  "query_free": true,
+  "accepted": false,
+  "error": "M-Pesa HTTP error 500: {\n                    \"requestId\":\"135b-4679-8ea6-1c3dca88c6a4376711\",\n                    \"errorCode\": \"500.003.1001\",\n                    \"errorMessage\": \"Service is currently unreachable. Please try again later.\"\n                }\n            "
+}

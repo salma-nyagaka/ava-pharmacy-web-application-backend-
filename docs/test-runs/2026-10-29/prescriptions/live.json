@@ -1,0 +1,63 @@
+{
+  "reference": "RX-E1E8ED",
+  "id": 44,
+  "patient_id": 75,
+  "queue_http": 200,
+  "status_after_reply": "pending",
+  "messages": [
+    {
+      "id": 11,
+      "sender": 79,
+      "sender_role": "pharmacist",
+      "sender_name": "Synthetic Setup QA pharmacist",
+      "sender_display": "Synthetic Setup QA pharmacist",
+      "message": "SYNTHETIC QA: please confirm the uploaded scan is the intended test document.",
+      "created_at": "2026-10-29T16:11:56.098167+03:00",
+      "updated_at": "2026-10-29T16:11:56.098173+03:00"
+    },
+    {
+      "id": 12,
+      "sender": 75,
+      "sender_role": "patient",
+      "sender_name": "Synthetic Setup QA customer",
+      "sender_display": "Synthetic Setup QA customer",
+      "message": "Confirmed: this is the synthetic QA test scan; no real patient or dispensing authority.",
+      "created_at": "2026-10-29T16:12:21.292685+03:00",
+      "updated_at": "2026-10-29T16:12:21.292703+03:00"
+    }
+  ],
+  "audit_logs": [
+    {
+      "id": 107,
+      "action": "Clarification response sent by patient",
+      "notes": "Confirmed: this is the synthetic QA test scan; no real patient or dispensing authority.",
+      "performed_by": 75,
+      "performed_by_name": "Synthetic Setup QA customer",
+      "timestamp": "2026-10-29T16:12:24.489217+03:00"
+    },
+    {
+      "id": 106,
+      "action": "Prescription review: request_clarification",
+      "notes": "SYNTHETIC QA: please confirm the uploaded scan is the intended test document.",
+      "performed_by": 79,
+      "performed_by_name": "Synthetic Setup QA pharmacist",
+      "timestamp": "2026-10-29T16:11:59.085708+03:00"
+    },
+    {
+      "id": 105,
+      "action": "Prescription assigned",
+      "notes": "Assigned to Synthetic Setup QA pharmacist",
+      "performed_by": 79,
+      "performed_by_name": "Synthetic Setup QA pharmacist",
+      "timestamp": "2026-10-29T16:11:56.088254+03:00"
+    },
+    {
+      "id": 104,
+      "action": "Prescription submitted by patient",
+      "notes": "RX acceptance 29 October 2026. SYNTHETIC QA ONLY; no clinical authority.",
+      "performed_by": 75,
+      "performed_by_name": "Synthetic Setup QA customer",
+      "timestamp": "2026-10-29T16:10:06.824868+03:00"
+    }
+  ]
+}

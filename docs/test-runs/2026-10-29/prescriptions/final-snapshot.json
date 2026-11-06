@@ -1,0 +1,128 @@
+{
+  "prescription": {
+    "id": 44,
+    "reference": "RX-E1E8ED",
+    "status": "approved",
+    "dispatch": "delivered"
+  },
+  "order": {
+    "id": 2004,
+    "number": "ORD-8D5C9C77",
+    "status": "delivered",
+    "payment_status": "paid",
+    "total": "151.00"
+  },
+  "inventory": {
+    "id": 64280,
+    "variant": 23507,
+    "before": 4,
+    "after": 3,
+    "alternate_stock_unchanged": true,
+    "alternate_rows": []
+  },
+  "payment": [
+    {
+      "id": 46,
+      "provider_reference": "SIMULATED-RX-QA-20261029",
+      "status": "succeeded",
+      "payload": {
+        "qa_only": true,
+        "confirmation": "controlled simulation; no provider transfer"
+      }
+    }
+  ],
+  "dispatch_audit": [
+    {
+      "action": "Dispatch changed from dispatched to delivered",
+      "performed_by_id": 79,
+      "notes": "Order ORD-8D5C9C77: delivered"
+    },
+    {
+      "action": "Dispatch changed from packed to dispatched",
+      "performed_by_id": 79,
+      "notes": "Order ORD-8D5C9C77: shipped"
+    },
+    {
+      "action": "Dispatch changed from queued to packed",
+      "performed_by_id": 79,
+      "notes": "Order ORD-8D5C9C77: processing"
+    },
+    {
+      "action": "Dispatch changed from not_started to queued",
+      "performed_by_id": null,
+      "notes": "Order ORD-8D5C9C77: paid"
+    }
+  ],
+  "notifications": [
+    {
+      "id": 435,
+      "title": "Prescription RX-E1E8ED dispensing update",
+      "data": {
+        "url": "/account/prescriptions?prescription=44",
+        "reference": "RX-E1E8ED",
+        "dispatch_status": "delivered",
+        "prescription_id": 44
+      }
+    },
+    {
+      "id": 433,
+      "title": "Prescription RX-E1E8ED dispensing update",
+      "data": {
+        "url": "/account/prescriptions?prescription=44",
+        "reference": "RX-E1E8ED",
+        "dispatch_status": "dispatched",
+        "prescription_id": 44
+      }
+    },
+    {
+      "id": 431,
+      "title": "Prescription RX-E1E8ED dispensing update",
+      "data": {
+        "url": "/account/prescriptions?prescription=44",
+        "reference": "RX-E1E8ED",
+        "dispatch_status": "packed",
+        "prescription_id": 44
+      }
+    },
+    {
+      "id": 428,
+      "title": "Prescription RX-E1E8ED dispensing update",
+      "data": {
+        "url": "/account/prescriptions?prescription=44",
+        "reference": "RX-E1E8ED",
+        "dispatch_status": "queued",
+        "prescription_id": 44
+      }
+    },
+    {
+      "id": 421,
+      "title": "Prescription RX-E1E8ED updated",
+      "data": {
+        "url": "/account/prescriptions?prescription=44",
+        "status": "Approved",
+        "reference": "RX-E1E8ED",
+        "prescription_id": 44
+      }
+    },
+    {
+      "id": 419,
+      "title": "Prescription RX-E1E8ED updated",
+      "data": {
+        "url": "/account/prescriptions?prescription=44",
+        "status": "Pending",
+        "reference": "RX-E1E8ED",
+        "prescription_id": 44
+      }
+    },
+    {
+      "id": 418,
+      "title": "Prescription RX-E1E8ED updated",
+      "data": {
+        "url": "/account/prescriptions?prescription=44",
+        "status": "Clarification Required",
+        "reference": "RX-E1E8ED",
+        "prescription_id": 44
+      }
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "final_stock": [
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 50,
+      "low_stock_threshold": 5
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-1",
+      "stock_quantity": 20,
+      "low_stock_threshold": 5
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-A",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 30,
+      "low_stock_threshold": 5
+    },
+    {
+      "variant__sku": "MODULE2-QA-20261027-B",
+      "store_listing__store__code": "module2-qa-20261027-2",
+      "stock_quantity": 10,
+      "low_stock_threshold": 5
+    }
+  ],
+  "manual_movements": [
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-A",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-1",
+      "quantity_change": 1,
+      "reason": "Admin inventory update",
+      "created_by__email": "module2.admin@avapharmacy.test"
+    },
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-A",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-1",
+      "quantity_change": -1,
+      "reason": "Admin inventory update",
+      "created_by__email": "module2.admin@avapharmacy.test"
+    },
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-B",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-2",
+      "quantity_change": 10,
+      "reason": "Admin inventory update",
+      "created_by__email": "module2.inventory@avapharmacy.test"
+    },
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-A",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-2",
+      "quantity_change": 30,
+      "reason": "Admin inventory update",
+      "created_by__email": "module2.inventory@avapharmacy.test"
+    },
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-B",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-1",
+      "quantity_change": 20,
+      "reason": "Admin inventory update",
+      "created_by__email": "module2.inventory@avapharmacy.test"
+    },
+    {
+      "variant_inventory__variant__sku": "MODULE2-QA-20261027-A",
+      "variant_inventory__store_listing__store__code": "module2-qa-20261027-1",
+      "quantity_change": 50,
+      "reason": "Admin inventory update",
+      "created_by__email": "module2.inventory@avapharmacy.test"
+    }
+  ],
+  "orders": [
+    {
+      "order_number": "ORD-0B167328",
+      "status": "draft",
+      "payment_status": "failed",
+      "inventory_committed": false
+    },
+    {
+      "order_number": "ORD-B8DA328B",
+      "status": "delivered",
+      "payment_status": "paid",
+      "inventory_committed": false
+    },
+    {
+      "order_number": "ORD-68AA360B",
+      "status": "cancelled",
+      "payment_status": "pending",
+      "inventory_committed": false
+    }
+  ],
+  "payment_intents": [
+    {
+      "status": "cancelled",
+      "last_error": "No response from user."
+    }
+  ],
+  "cleanup": {
+    "product_id": 22366,
+    "product_active": false,
+    "customer_cart_cleared": true,
+    "temporary_content_disabled": true
+  }
+}

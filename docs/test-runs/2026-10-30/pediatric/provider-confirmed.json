@@ -1,0 +1,21 @@
+{
+  "environment": "sandbox",
+  "receipt": "UJUI207MTB",
+  "intent_id": 51,
+  "status": "succeeded",
+  "amount": "1.00",
+  "genuine_callback_result": "0",
+  "callback_receipt_matches": true,
+  "callback_amount_matches": true,
+  "request_ids_match": true,
+  "phone_matches_approved_last4": true,
+  "consultation_id": 38,
+  "consultation_reference": "CONS-8AF578",
+  "guardian_id": 75,
+  "child_id": 6,
+  "clinician_id": 31,
+  "consent_status": "granted",
+  "consultation_status": "waiting",
+  "earning_count": 0,
+  "processed_at": "2026-10-30T11:10:58.555907+00:00"
+}

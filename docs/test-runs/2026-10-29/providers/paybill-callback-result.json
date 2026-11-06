@@ -1,0 +1,6 @@
+{
+  "received": false,
+  "wait_seconds": 90,
+  "intent_id": 47,
+  "intent_status": "requires_action"
+}

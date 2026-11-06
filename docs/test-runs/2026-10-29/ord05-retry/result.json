@@ -1,0 +1,31 @@
+{
+  "order_id": 2001,
+  "order_number": "ORD-819DBAE3",
+  "amount": "350.00",
+  "intent_id": 43,
+  "provider_result": {
+    "ResultCode": 1037,
+    "ResultDesc": "No response from user.",
+    "CheckoutRequestID": "ws_CO_291020261543021708374149",
+    "MerchantRequestID": "8e77-4dec-98af-2e0707a6447d335758"
+  },
+  "payment_status": "failed",
+  "intent_status": "failed",
+  "inventory_committed": false,
+  "stock": [
+    {
+      "id": 64275,
+      "stock_quantity": 50
+    },
+    {
+      "id": 64277,
+      "stock_quantity": 30
+    }
+  ],
+  "unpaid_finalize_status": 400,
+  "receipt_emailed": false,
+  "conclusion": "Provider failure callback received. Successful STK payment remains unverified; ORD-05 stays unchecked.",
+  "removed_synthetic_cart_items": 1,
+  "removed_synthetic_addresses": 1,
+  "cleanup": "Both synthetic orders cancelled; failed provider payment evidence retained; cart/address fixtures removed; product restored inactive; stock unchanged."
+}

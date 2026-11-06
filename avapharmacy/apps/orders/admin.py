@@ -35,6 +35,15 @@ class OrderEventInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if db_field.name == 'payment_method':
+            kwargs['choices'] = [(Order.PAYMENT_MPESA_STK, 'M-Pesa STK Push'), (Order.PAYMENT_MPESA_PAYBILL, 'M-Pesa Paybill')]
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = super().get_readonly_fields(request, obj)
+        return (*fields, 'payment_method') if obj else fields
+
     list_display = (
         'order_number', 'customer', 'status', 'payment_method',
         'payment_status', 'total', 'created_at'
@@ -50,6 +59,10 @@ class CouponAdmin(admin.ModelAdmin):
     list_display = ('code', 'discount_type', 'value', 'minimum_subtotal', 'is_active')
     list_filter = ('discount_type', 'is_active')
     search_fields = ('code', 'description')
+
+    def has_add_permission(self, request):
+        from django.conf import settings
+        return bool(getattr(settings, 'CHECKOUT_COUPONS_ENABLED', False)) and super().has_add_permission(request)
 
 
 @admin.register(ShippingMethod)

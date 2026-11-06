@@ -35,7 +35,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'apps.accounts',
-    'apps.products',
+    'apps.products.apps.ProductsConfig',
     'apps.orders',
     'apps.prescriptions.apps.PrescriptionsConfig',
     'apps.consultations',
@@ -144,12 +144,14 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'avapharmacy.schema.PharmacyAutoSchema',
     'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
+        'avapharmacy.throttles.PublicReadRateThrottle',
+        'avapharmacy.throttles.AnonWriteRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
+        'public_read': config('API_PUBLIC_READ_THROTTLE_RATE', default='3000/hour'),
         'anon': '120/hour',
         'user': '2000/hour',
         'login': '5/min',
@@ -192,6 +194,8 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Full-featured pharmacy backend API: e-commerce, prescriptions, telemedicine, lab, support, real-time notifications.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    # Keep each exact enum inline; avoid cross-domain status/choice name collisions.
+    'POSTPROCESSING_HOOKS': [],
     'COMPONENT_SPLIT_REQUEST': True,
 }
 
@@ -206,6 +210,7 @@ FREE_SHIPPING_THRESHOLD = 3000
 SHIPPING_FEE = 300
 PAYMENT_WEBHOOK_SECRET = config('PAYMENT_WEBHOOK_SECRET', default='')
 BOT_CHALLENGE_PROVIDER = config('BOT_CHALLENGE_PROVIDER', default='turnstile')
+HCAPTCHA_SECRET_KEY = config('HCAPTCHA_SECRET_KEY', default='')
 TURNSTILE_SECRET_KEY = config('TURNSTILE_SECRET_KEY', default='')
 BOT_CHALLENGE_REQUIRED = config('BOT_CHALLENGE_REQUIRED', default=False, cast=bool)
 CHECKOUT_RISK_CHALLENGE_THRESHOLD = config('CHECKOUT_RISK_CHALLENGE_THRESHOLD', default=40, cast=int)
@@ -234,8 +239,8 @@ EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='rtchxnlghxfbvjku')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='salmanyagaka@gmail.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='info@avapharmacy.co.ke')
 ADMIN_EMAIL = config('ADMIN_EMAIL', default='info@avapharmacy.co.ke')
 PRESCRIPTION_UPLOAD_ALERT_EMAIL = config('PRESCRIPTION_UPLOAD_ALERT_EMAIL', default='info@avapharmacy.co.ke')
 
@@ -299,11 +304,13 @@ MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
 MPESA_SHORTCODE = config('MPESA_SHORTCODE', default='')
 MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
 MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='')
+CONSULTATION_MPESA_CALLBACK_URL = config('CONSULTATION_MPESA_CALLBACK_URL', default='')
 MPESA_TRANSACTION_TYPE = config('MPESA_TRANSACTION_TYPE', default='CustomerPayBillOnline')
 MPESA_TIMEOUT_SECONDS = config('MPESA_TIMEOUT_SECONDS', default=30, cast=int)
 MPESA_STK_PUSH_AMOUNT_OVERRIDE = config('MPESA_STK_PUSH_AMOUNT_OVERRIDE', default='', cast=str)
 MPESA_PAYBILL_NUMBER = config('MPESA_PAYBILL_NUMBER', default='')
 MPESA_C2B_SHORTCODE = config('MPESA_C2B_SHORTCODE', default=MPESA_PAYBILL_NUMBER)
+MPESA_C2B_API_VERSION = config('MPESA_C2B_API_VERSION', default='v2')
 MPESA_C2B_RESPONSE_TYPE = config('MPESA_C2B_RESPONSE_TYPE', default='Completed')
 MPESA_C2B_URLS_REGISTERED = config('MPESA_C2B_URLS_REGISTERED', default=False, cast=bool)
 MPESA_REQUIRE_PUBLIC_CALLBACK_URLS = config('MPESA_REQUIRE_PUBLIC_CALLBACK_URLS', default=True, cast=bool)
@@ -358,6 +365,10 @@ CHANNEL_LAYERS = {
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='memory://')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='cache+memory://')
 CELERY_BEAT_SCHEDULE = {
+    'warm-admin-catalog-summary': {
+        'task': 'apps.products.tasks.warm_admin_catalog_summary',
+        'schedule': 60,
+    },
     'inventory-sync-fallback-every-15-minutes': {
         'task': 'apps.products.tasks.sync_inventory_task',
         'schedule': 15 * 60,
@@ -398,3 +409,27 @@ LOGGING = {
         },
     },
 }
+
+# Include ?token=<secret> in all registered M-Pesa callback URLs.
+MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
+
+# Optional HTTPS origin for payment-only callback gateways (local QA tunnels).
+PAYMENT_PUBLIC_CALLBACK_BASE_URL = config('PAYMENT_PUBLIC_CALLBACK_BASE_URL', default='')
+
+# Review triage thresholds with the superintendent before production use.
+MEDICINE_REVIEW_ORDERS_30D = config('MEDICINE_REVIEW_ORDERS_30D', default=3, cast=int)
+MEDICINE_REVIEW_UNITS_30D = config('MEDICINE_REVIEW_UNITS_30D', default=30, cast=int)
+KENYA_PUBLIC_HOLIDAYS = [day.strip() for day in config('KENYA_PUBLIC_HOLIDAYS', default='').split(',') if day.strip()]
+
+# Admin catalog reads are shared across web/Celery processes. Redis is optional;
+# the file backend also shares invalidations across local workers.
+ADMIN_CATALOG_CACHE_TTL = config('ADMIN_CATALOG_CACHE_TTL', default=60, cast=int)
+ADMIN_CACHE_URL = config('ADMIN_CACHE_URL', default='')
+CACHES = {'default': {
+    'BACKEND': 'django.core.cache.backends.redis.RedisCache' if ADMIN_CACHE_URL else 'django.core.cache.backends.filebased.FileBasedCache',
+    'LOCATION': ADMIN_CACHE_URL or str(BASE_DIR / 'tmp' / 'admin-read-cache'),
+    'TIMEOUT': ADMIN_CATALOG_CACHE_TTL,
+}}
+
+# Checkout coupons are paused; automatic product deals remain available.
+CHECKOUT_COUPONS_ENABLED = False

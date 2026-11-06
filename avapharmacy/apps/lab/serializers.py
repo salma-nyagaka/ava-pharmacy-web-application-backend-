@@ -1,7 +1,10 @@
 from rest_framework import serializers
+from django.urls import reverse
+from django.utils import timezone
 from .models import (
     LabPartner, LabPartnerDocument, LabTechnicianProfile, LabTechDocument,
-    LabTest, LabRequest, LabAuditLog, LabResult
+    LabTest, LaboratoryFacility, FacilityLabTest, LaboratoryFacilityDocument,
+    LabRequest, LabAuditLog, LabResult
 )
 
 
@@ -25,17 +28,33 @@ def _validate_unique_lab_phone(phone, instance=None, partner=False):
 
 
 class LabPartnerDocumentSerializer(serializers.ModelSerializer):
+    download_url = serializers.SerializerMethodField()
+
+    def get_download_url(self, obj):
+        path = reverse('lab-partner-document-download', kwargs={'pk': obj.pk})
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
+
     class Meta:
         model = LabPartnerDocument
-        fields = ('id', 'name', 'file', 'uploaded_at')
+        fields = ('id', 'name', 'download_url', 'uploaded_at')
         read_only_fields = ('id', 'uploaded_at')
 
 
 class LabTechDocumentSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
+    def get_file(self, obj):
+        if not obj.file:
+            return None
+        path = reverse('lab-tech-document-download', args=[obj.pk])
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
+
     class Meta:
         model = LabTechDocument
         fields = ('id', 'name', 'file', 'status', 'uploaded_at')
-        read_only_fields = ('id', 'uploaded_at')
+        read_only_fields = fields
 
 
 class LabTechnicianProfileSerializer(serializers.ModelSerializer):
@@ -88,19 +107,40 @@ class LabPartnerSerializer(serializers.ModelSerializer):
 
 
 class LabPartnerCreateSerializer(serializers.ModelSerializer):
+    documents = serializers.ListField(
+        child=serializers.FileField(), min_length=1, write_only=True,
+        error_messages={'min_length': 'Upload at least one legal or compliance document.'},
+    )
+    document_names = serializers.ListField(
+        child=serializers.CharField(), required=False, write_only=True,
+    )
+
     class Meta:
         model = LabPartner
         fields = (
             'name', 'email', 'phone', 'location', 'contact_name',
             'accreditation', 'license_number', 'license_expiry', 'id_number',
             'county', 'address', 'years_in_operation', 'references', 'document_checklist',
-            'payout_method', 'payout_account', 'notes'
+            'payout_method', 'payout_account', 'notes', 'documents', 'document_names'
         )
+
+    def create(self, validated_data):
+        documents = validated_data.pop('documents', [])
+        document_names = validated_data.pop('document_names', [])
+        partner = LabPartner.objects.create(**validated_data)
+        for index, document in enumerate(documents):
+            LabPartnerDocument.objects.create(
+                partner=partner,
+                name=document_names[index] if index < len(document_names) else document.name,
+                file=document,
+            )
+        return partner
 
 
 class LabPartnerRegistrationSerializer(serializers.ModelSerializer):
     documents = serializers.ListField(
-        child=serializers.FileField(), required=False, write_only=True
+        child=serializers.FileField(), min_length=1, write_only=True,
+        error_messages={'min_length': 'Upload at least one legal or compliance document.'},
     )
     document_names = serializers.ListField(
         child=serializers.CharField(), required=False, write_only=True
@@ -163,8 +203,7 @@ class LabPartnerUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = LabPartner
         fields = (
-            'status', 'status_note', 'rejection_note', 'notes',
-            'verified_at', 'payout_method', 'payout_account'
+            'notes', 'payout_method', 'payout_account'
         )
 
 
@@ -266,6 +305,177 @@ class LabTestSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'reference', 'created_at')
 
 
+class FacilityLabTestSerializer(serializers.ModelSerializer):
+    test_name = serializers.ReadOnlyField(source='test.name')
+    sample_type = serializers.ReadOnlyField(source='test.sample_type')
+
+    class Meta:
+        model = FacilityLabTest
+        fields = (
+            'id', 'test', 'test_name', 'sample_type', 'price', 'turnaround',
+            'home_collection_available', 'is_active',
+        )
+        read_only_fields = ('id',)
+
+
+class LaboratoryFacilityDocumentSerializer(serializers.ModelSerializer):
+    download_url = serializers.SerializerMethodField()
+
+    def get_download_url(self, obj):
+        path = reverse('lab-facility-document-download', kwargs={'pk': obj.pk})
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
+
+    class Meta:
+        model = LaboratoryFacilityDocument
+        fields = ('id', 'name', 'status', 'download_url', 'uploaded_at')
+        read_only_fields = fields
+
+
+class LaboratoryFacilityDocumentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LaboratoryFacilityDocument
+        fields = ('name', 'file')
+        extra_kwargs = {'file': {'write_only': True}}
+
+
+class LaboratoryFacilitySerializer(serializers.ModelSerializer):
+    partner_name = serializers.ReadOnlyField(source='partner.name')
+    offerings = FacilityLabTestSerializer(many=True, read_only=True)
+    test_ids = serializers.PrimaryKeyRelatedField(
+        source='selected_tests',
+        queryset=LabTest.objects.filter(is_active=True),
+        many=True,
+        write_only=True,
+        required=False,
+    )
+    technician_ids = serializers.PrimaryKeyRelatedField(
+        source='selected_technicians',
+        queryset=LabTechnicianProfile.objects.all(),
+        many=True,
+        write_only=True,
+        required=False,
+    )
+    test_offerings = serializers.ListField(
+        child=serializers.DictField(),
+        write_only=True,
+        required=False,
+    )
+    technicians = LabTechnicianProfileSerializer(many=True, read_only=True)
+    documents = LaboratoryFacilityDocumentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LaboratoryFacility
+        fields = (
+            'id', 'reference', 'partner', 'partner_name', 'name', 'email',
+            'phone', 'county', 'address', 'accreditation', 'license_number',
+            'license_expiry', 'supported_counties', 'operating_hours',
+            'home_collection_enabled', 'physical_result_pickup_enabled',
+            'pickup_instructions', 'status', 'status_note', 'is_active',
+            'technicians', 'technician_ids', 'offerings', 'test_ids', 'test_offerings', 'documents',
+            'submitted_at', 'updated_at', 'verified_at', 'verified_by',
+        )
+        read_only_fields = (
+            'id', 'reference', 'partner', 'status', 'status_note',
+            'submitted_at', 'updated_at', 'verified_at', 'verified_by',
+        )
+
+    def validate(self, attrs):
+        partner = getattr(self.instance, 'partner', None) or self.context.get('partner')
+        if self.instance is None and ('test_ids' in self.initial_data or 'test_offerings' in self.initial_data):
+            raise serializers.ValidationError({
+                'test_offerings': 'Submit the laboratory for approval first. The test catalogue is available after Ava verifies the facility.'
+            })
+        if (
+            'technician_ids' in self.initial_data
+            and (self.instance is None or self.instance.status != LaboratoryFacility.STATUS_VERIFIED)
+        ):
+            raise serializers.ValidationError({
+                'technician_ids': 'Technicians can be assigned only after Ava verifies this laboratory.'
+            })
+        if self.instance and self.instance.status != LaboratoryFacility.STATUS_VERIFIED and (
+            'test_ids' in self.initial_data or 'test_offerings' in self.initial_data
+        ):
+            raise serializers.ValidationError({
+                'test_offerings': 'The test catalogue can be changed only after Ava verifies this laboratory.'
+            })
+        technicians = attrs.get('selected_technicians', [])
+        if partner and any(technician.partner_id != partner.id for technician in technicians):
+            raise serializers.ValidationError({
+                'technician_ids': 'Every technician must belong to this lab partner.'
+            })
+        tests = attrs.get('selected_tests')
+        if tests is not None and not tests:
+            raise serializers.ValidationError({
+                'test_ids': 'Select at least one test when updating the test catalogue.'
+            })
+        offering_data = attrs.get('test_offerings', [])
+        if offering_data and tests is None:
+            raise serializers.ValidationError({'test_offerings': 'Include test_ids when updating offerings.'})
+        selected_ids = {test.id for test in (tests or [])}
+        for offering in offering_data:
+            try:
+                test_id = int(offering.get('test'))
+                from decimal import Decimal, InvalidOperation
+                price = Decimal(str(offering.get('price')))
+            except (TypeError, ValueError, InvalidOperation):
+                raise serializers.ValidationError({'test_offerings': 'Each offering needs a valid test and price.'})
+            if selected_ids and test_id not in selected_ids:
+                raise serializers.ValidationError({'test_offerings': 'Offering tests must also appear in test_ids.'})
+            if not price.is_finite() or price <= 0 or not str(offering.get('turnaround', '')).strip():
+                raise serializers.ValidationError({'test_offerings': 'Each offering needs a positive price and turnaround.'})
+        county = attrs.get('county', getattr(self.instance, 'county', ''))
+        supported = list(attrs.get(
+            'supported_counties',
+            getattr(self.instance, 'supported_counties', []),
+        ))
+        if county and county not in supported:
+            attrs['supported_counties'] = [county, *supported]
+        return attrs
+
+    @staticmethod
+    def _sync_offerings(facility, tests, offering_data=None):
+        selected_ids = {test.id for test in tests}
+        overrides = {int(item['test']): item for item in (offering_data or [])}
+        facility.offerings.exclude(test_id__in=selected_ids).delete()
+        for test in tests:
+            override = overrides.get(test.id, {})
+            FacilityLabTest.objects.update_or_create(
+                facility=facility,
+                test=test,
+                defaults={
+                    'price': override.get('price', test.price),
+                    'turnaround': override.get('turnaround', test.turnaround),
+                    'home_collection_available': override.get(
+                        'home_collection_available',
+                        facility.home_collection_enabled,
+                    ),
+                    'is_active': True,
+                },
+            )
+
+    def create(self, validated_data):
+        tests = validated_data.pop('selected_tests', [])
+        technicians = validated_data.pop('selected_technicians', [])
+        offering_data = validated_data.pop('test_offerings', [])
+        facility = super().create(validated_data)
+        facility.technicians.set(technicians)
+        if tests:
+            self._sync_offerings(facility, tests, offering_data)
+        return facility
+
+    def update(self, instance, validated_data):
+        tests = validated_data.pop('selected_tests', None)
+        technicians = validated_data.pop('selected_technicians', None)
+        offering_data = validated_data.pop('test_offerings', None)
+        facility = super().update(instance, validated_data)
+        if technicians is not None:
+            facility.technicians.set(technicians)
+        if tests is not None:
+            self._sync_offerings(facility, tests, offering_data)
+        return facility
+
+
 class LabAuditLogSerializer(serializers.ModelSerializer):
     performed_by_name = serializers.ReadOnlyField(source='performed_by.full_name')
 
@@ -277,45 +487,214 @@ class LabAuditLogSerializer(serializers.ModelSerializer):
 
 class LabResultSerializer(serializers.ModelSerializer):
     reviewed_by_name = serializers.ReadOnlyField(source='reviewed_by.full_name')
+    download_url = serializers.SerializerMethodField()
+
+    def get_download_url(self, obj):
+        if not obj.file:
+            return None
+        path = reverse('lab-result-download', kwargs={'pk': obj.pk})
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
 
     class Meta:
         model = LabResult
-        fields = ('id', 'reference', 'summary', 'file', 'filename', 'flags', 'is_abnormal', 'recommendation', 'reviewed_by', 'reviewed_by_name', 'uploaded_at')
+        fields = (
+            'id', 'reference', 'summary', 'download_url', 'filename', 'flags',
+            'is_abnormal', 'recommendation', 'reviewed_by',
+            'reviewed_by_name', 'uploaded_at',
+        )
         read_only_fields = ('id', 'reference', 'uploaded_at')
 
 
 class LabRequestSerializer(serializers.ModelSerializer):
     test_name = serializers.ReadOnlyField(source='test.name')
     test_category = serializers.ReadOnlyField(source='test.category')
+    test_price = serializers.SerializerMethodField()
+
+    def get_test_price(self, obj):
+        return obj.quoted_test_price if obj.quoted_test_price is not None else (obj.test.price if obj.test else None)
+    test_turnaround = serializers.ReadOnlyField(source='test.turnaround')
+    test_sample_type = serializers.ReadOnlyField(source='test.sample_type')
     audit_logs = LabAuditLogSerializer(many=True, read_only=True)
-    result = LabResultSerializer(read_only=True)
+    result = serializers.SerializerMethodField()
+    partner_name = serializers.ReadOnlyField(source='assigned_partner.name')
+    laboratory_name = serializers.ReadOnlyField(source='laboratory.name')
+    laboratory_reference = serializers.ReadOnlyField(source='laboratory.reference')
+    pharmacist_name = serializers.ReadOnlyField(source='assigned_pharmacist.full_name')
     technician_name = serializers.ReadOnlyField(source='assigned_technician.full_name')
+    collection_verified_by_name = serializers.ReadOnlyField(source='collection_verified_by.full_name')
+    collection_verification_required = serializers.SerializerMethodField()
+    collection_code_active = serializers.SerializerMethodField()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.role == 'lab_technician' and instance.assigned_technician_id != request.user.pk:
+            for field in ('patient_phone', 'patient_email', 'collection_address', 'collection_instructions', 'ordering_doctor', 'notes'):
+                data[field] = ''
+            data.update(patient=None, patient_name='Unassigned patient', audit_logs=[], result=None)
+        return data
+
+    def get_result(self, obj):
+        request = self.context.get('request')
+        if not request or request.user.role == 'pharmacist':
+            return None
+        if request.user.role == 'lab_technician' and obj.assigned_technician_id != request.user.pk:
+            return None
+        try:
+            result = obj.result
+        except LabResult.DoesNotExist:
+            return None
+        return LabResultSerializer(result, context=self.context).data
+
+    def get_collection_verification_required(self, obj):
+        return obj.channel == LabRequest.CHANNEL_COLLECTION and obj.collection_verified_at is None
+
+    def get_collection_code_active(self, obj):
+        return bool(
+            obj.collection_verification_code_hash
+            and obj.collection_code_expires_at
+            and obj.collection_code_expires_at > timezone.now()
+            and obj.collection_verified_at is None
+        )
 
     class Meta:
         model = LabRequest
         fields = (
             'id', 'reference', 'test', 'test_name', 'test_category',
+            'test_price', 'test_turnaround', 'test_sample_type',
             'patient', 'patient_name', 'patient_phone', 'patient_email',
             'status', 'payment_status', 'priority', 'channel',
-            'ordering_doctor', 'notes', 'assigned_technician', 'technician_name',
+            'result_delivery_method', 'collection_address',
+            'collection_instructions', 'result_pickup_location',
+            'collection_verification_required', 'collection_code_active',
+            'collection_code_requested_at', 'collection_code_expires_at',
+            'collection_verification_attempts', 'collection_verified_at',
+            'collection_verified_by', 'collection_verified_by_name',
+            'ordering_doctor', 'notes',
+            'assigned_partner', 'partner_name',
+            'laboratory', 'laboratory_name', 'laboratory_reference',
+            'assigned_pharmacist', 'pharmacist_name',
+            'assigned_technician', 'technician_name',
             'scheduled_at', 'requested_at', 'updated_at', 'audit_logs', 'result'
         )
-        read_only_fields = ('id', 'reference', 'requested_at', 'updated_at')
+        read_only_fields = (
+            'id', 'reference', 'requested_at', 'updated_at',
+            'collection_code_requested_at', 'collection_code_expires_at',
+            'collection_verification_attempts', 'collection_verified_at',
+            'collection_verified_by',
+        )
 
 
 class LabRequestCreateSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        validated_data['quoted_test_price'] = validated_data['test'].price
+        return super().create(validated_data)
+
+    def validate_test(self, test):
+        if not test.is_active or not test.facility_offerings.filter(is_active=True, facility__status='verified', facility__is_active=True, facility__partner__status='verified', facility__partner__user__is_active=True, facility__partner__user__status='active').exists():
+            raise serializers.ValidationError('This test has no approved, active laboratory offering.')
+        return test
+
     class Meta:
         model = LabRequest
         fields = (
             'test', 'patient_name', 'patient_phone', 'patient_email',
-            'priority', 'channel', 'ordering_doctor', 'notes', 'scheduled_at'
+            'priority', 'channel', 'result_delivery_method',
+            'collection_address', 'collection_instructions',
+            'result_pickup_location', 'ordering_doctor', 'notes', 'scheduled_at'
         )
+
+    def validate(self, attrs):
+        channel = attrs.get('channel', LabRequest.CHANNEL_COLLECTION)
+        result_delivery = attrs.get(
+            'result_delivery_method',
+            LabRequest.RESULT_DIGITAL,
+        )
+        if channel == LabRequest.CHANNEL_COLLECTION and not attrs.get('collection_address', '').strip():
+            raise serializers.ValidationError({
+                'collection_address': 'A collection address is required for home sample collection.'
+            })
+        if (
+            result_delivery == LabRequest.RESULT_PHYSICAL_PICKUP
+            and not attrs.get('result_pickup_location', '').strip()
+        ):
+            raise serializers.ValidationError({
+                'result_pickup_location': 'Choose a pickup location for physical results.'
+            })
+        return attrs
 
 
 class LabRequestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = LabRequest
-        fields = ('status', 'payment_status', 'priority', 'assigned_technician', 'notes')
+        fields = (
+            'status', 'payment_status', 'priority', 'assigned_partner', 'laboratory',
+            'assigned_pharmacist', 'assigned_technician', 'scheduled_at',
+            'collection_address', 'collection_instructions',
+            'result_pickup_location', 'notes',
+        )
+
+    def validate(self, attrs):
+        from apps.accounts.models import User
+
+        if set(attrs) == {'status'} and attrs['status'] == LabRequest.STATUS_CANCELLED:
+            return attrs
+
+        partner = attrs.get('assigned_partner', getattr(self.instance, 'assigned_partner', None))
+        laboratory = attrs.get('laboratory', getattr(self.instance, 'laboratory', None))
+        technician = attrs.get('assigned_technician', getattr(self.instance, 'assigned_technician', None))
+        pharmacist = attrs.get('assigned_pharmacist', getattr(self.instance, 'assigned_pharmacist', None))
+
+        if 'laboratory' in attrs:
+            if laboratory:
+                attrs['assigned_partner'] = laboratory.partner
+                partner = laboratory.partner
+            elif 'assigned_partner' not in attrs:
+                attrs['assigned_partner'] = None
+                partner = None
+
+        if partner and (partner.status != LabPartner.STATUS_VERIFIED or not partner.user_id or not partner.user.is_active or partner.user.status != 'active'):
+            raise serializers.ValidationError({'assigned_partner': 'Only verified lab partners can receive requests.'})
+
+        if laboratory:
+            if laboratory.status != LaboratoryFacility.STATUS_VERIFIED or not laboratory.is_active:
+                raise serializers.ValidationError({'laboratory': 'Only verified, active laboratories can receive requests.'})
+            if partner and laboratory.partner_id != partner.id:
+                raise serializers.ValidationError({'laboratory': 'The laboratory does not belong to the assigned partner.'})
+            offering = laboratory.offerings.filter(test=self.instance.test, is_active=True).first()
+            if not offering:
+                raise serializers.ValidationError({'laboratory': 'This laboratory does not offer the requested test.'})
+            if self.instance.channel == LabRequest.CHANNEL_COLLECTION and (
+                not laboratory.home_collection_enabled or not offering.home_collection_available
+            ):
+                raise serializers.ValidationError({'laboratory': 'This laboratory does not support home collection for the requested test.'})
+            if (
+                self.instance.result_delivery_method == LabRequest.RESULT_PHYSICAL_PICKUP
+                and not laboratory.physical_result_pickup_enabled
+            ):
+                raise serializers.ValidationError({'laboratory': 'This laboratory does not support physical result pickup.'})
+
+        if technician:
+            try:
+                profile = technician.lab_tech_profile
+            except LabTechnicianProfile.DoesNotExist:
+                raise serializers.ValidationError({'assigned_technician': 'The selected user is not a lab technician.'})
+            if profile.status != LabTechnicianProfile.STATUS_ACTIVE or not technician.is_active or technician.status != 'active':
+                raise serializers.ValidationError({'assigned_technician': 'The selected technician is not active.'})
+            if partner and profile.partner_id != partner.id:
+                raise serializers.ValidationError({
+                    'assigned_technician': 'The selected technician does not belong to the assigned lab partner.'
+                })
+            if laboratory and not laboratory.technicians.filter(pk=profile.pk).exists():
+                raise serializers.ValidationError({
+                    'assigned_technician': 'The selected technician is not assigned to this laboratory.'
+                })
+
+        if pharmacist and pharmacist.role not in (User.PHARMACIST, User.ADMIN):
+            raise serializers.ValidationError({'assigned_pharmacist': 'The coordinator must be a pharmacist or administrator.'})
+
+        return attrs
 
 
 class LabResultCreateSerializer(serializers.ModelSerializer):

@@ -1,6 +1,7 @@
 from decimal import Decimal
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.products.models import Product, Variant, VariantInventory
 
@@ -90,9 +91,14 @@ VARIANT_ENRICHMENTS = {
 
 
 class Command(BaseCommand):
-    help = 'Add sensible extra sellable variants under existing product families.'
+    help = 'DEMO ONLY: add synthetic variants under the old seeded product families.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--confirm-demo-catalog', action='store_true')
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or not options['confirm_demo_catalog']:
+            raise CommandError('Synthetic variant enrichment is disabled for the real catalog.')
         created = 0
         updated = 0
         skipped_products = []

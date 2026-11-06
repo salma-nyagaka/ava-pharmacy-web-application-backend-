@@ -1,0 +1,24 @@
+{
+  "backup": "/private/tmp/ava-health-concerns-20261105T182256Z/database.dump",
+  "unchanged_catalog_stock": {
+    "Product": {
+      "count": 23411,
+      "sha256": "caa8e104dad3148df651ff0a9594f1128d5344549cd79ea28f1ff22ae264e78d"
+    },
+    "Variant": {
+      "count": 23411,
+      "sha256": "b5508cfe9066238e82b4aa643985b54e5e1d48abdde96d9097b58d228e2b9548"
+    },
+    "VariantInventory": {
+      "count": 64094,
+      "sha256": "0ec959350ff87548cc308fc5d256e552cd04452d19eac5c0bcb79c1bdbd6b960"
+    },
+    "StoreVariantListing": {
+      "count": 64094,
+      "sha256": "129ed8cdc1cdf23cb8e40e4bffb8c255026402baefecf95f11c852121b69f47f"
+    }
+  },
+  "health_concerns": 44,
+  "active_health_concerns": 44,
+  "links": 18183
+}

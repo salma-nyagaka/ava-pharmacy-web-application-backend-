@@ -1,0 +1,173 @@
+{
+  "walk_in": {
+    "id": 2,
+    "reference": "LAB-217755",
+    "test_price": 150.0,
+    "laboratory_name": "SYNTHETIC Lab QA30 Facility",
+    "status": "completed",
+    "payment_status": "pending",
+    "channel": "walk_in"
+  },
+  "cancellation_fixture": {
+    "id": 3,
+    "reference": "LAB-C7A5D5"
+  },
+  "home": {
+    "id": 1,
+    "reference": "LAB-395DA4",
+    "status": "completed",
+    "payment_status": "pending",
+    "laboratory_name": "SYNTHETIC Lab QA30 Facility",
+    "test_price": 150.0,
+    "collection_verified_at": "2026-10-30T14:59:30.066728+03:00",
+    "audit_logs": [
+      {
+        "id": 10,
+        "action": "Status updated to 'Completed'",
+        "performed_by": 83,
+        "performed_by_name": "Synthetic Setup QA lab-technician",
+        "timestamp": "2026-10-30T15:00:10.193912+03:00"
+      },
+      {
+        "id": 9,
+        "action": "Result uploaded",
+        "performed_by": 83,
+        "performed_by_name": "Synthetic Setup QA lab-technician",
+        "timestamp": "2026-10-30T14:59:56.340715+03:00"
+      },
+      {
+        "id": 8,
+        "action": "Status updated to 'Processing'",
+        "performed_by": 83,
+        "performed_by_name": "Synthetic Setup QA lab-technician",
+        "timestamp": "2026-10-30T14:59:34.721322+03:00"
+      },
+      {
+        "id": 7,
+        "action": "Home collection verified with patient code by Synthetic Setup QA lab-technician",
+        "performed_by": 83,
+        "performed_by_name": "Synthetic Setup QA lab-technician",
+        "timestamp": "2026-10-30T14:59:30.068303+03:00"
+      },
+      {
+        "id": 6,
+        "action": "Patient generated a home-collection verification code",
+        "performed_by": 75,
+        "performed_by_name": "Synthetic Setup QA customer",
+        "timestamp": "2026-10-30T14:58:39.843378+03:00"
+      },
+      {
+        "id": 5,
+        "action": "Technician assigned: Synthetic Setup QA lab-technician",
+        "performed_by": 77,
+        "performed_by_name": "Synthetic Setup QA admin",
+        "timestamp": "2026-10-30T14:51:42.134700+03:00"
+      },
+      {
+        "id": 4,
+        "action": "Pharmacist coordinator assigned: Synthetic Setup QA pharmacist",
+        "performed_by": 77,
+        "performed_by_name": "Synthetic Setup QA admin",
+        "timestamp": "2026-10-30T14:51:42.134379+03:00"
+      },
+      {
+        "id": 3,
+        "action": "Facility assigned: SYNTHETIC Lab QA30 Facility",
+        "performed_by": 77,
+        "performed_by_name": "Synthetic Setup QA admin",
+        "timestamp": "2026-10-30T14:51:42.134018+03:00"
+      },
+      {
+        "id": 2,
+        "action": "Laboratory assigned: SYNTHETIC QA Setup28 Laboratory",
+        "performed_by": 77,
+        "performed_by_name": "Synthetic Setup QA admin",
+        "timestamp": "2026-10-30T14:51:42.133542+03:00"
+      },
+      {
+        "id": 1,
+        "action": "Lab request created",
+        "performed_by": 75,
+        "performed_by_name": "Synthetic Setup QA customer",
+        "timestamp": "2026-10-30T14:51:32.450887+03:00"
+      }
+    ],
+    "result_id": 1
+  },
+  "download_sha256": "12875f77f7733fa82de66e5b9e464e932943523d78590248c26ea736e2a9fae1",
+  "result_notifications": [
+    {
+      "id": 517,
+      "title": "Lab Result Ready",
+      "data": {
+        "url": "/account/lab-tests",
+        "reference": "LAB-217755"
+      }
+    },
+    {
+      "id": 513,
+      "title": "Lab Result Ready",
+      "data": {
+        "url": "/lab/requests/1",
+        "reference": "LAB-395DA4"
+      }
+    }
+  ],
+  "cancellation": {
+    "id": 3,
+    "reference": "LAB-C7A5D5",
+    "test": 8,
+    "test_name": "SYNTHETIC Lab QA30 Training Test",
+    "test_category": "blood",
+    "test_price": 150.0,
+    "test_turnaround": "QA 1 hour",
+    "test_sample_type": "Synthetic QA sample",
+    "patient": 75,
+    "patient_name": "SYNTHETIC Lab QA30 Patient",
+    "patient_phone": "0700000000",
+    "patient_email": "",
+    "status": "cancelled",
+    "payment_status": "pending",
+    "priority": "routine",
+    "channel": "walk_in",
+    "result_delivery_method": "digital",
+    "collection_address": "",
+    "collection_instructions": "",
+    "result_pickup_location": "",
+    "collection_verification_required": false,
+    "collection_code_active": false,
+    "collection_code_requested_at": null,
+    "collection_code_expires_at": null,
+    "collection_verification_attempts": 0,
+    "collection_verified_at": null,
+    "collection_verified_by": null,
+    "ordering_doctor": "",
+    "notes": "SYNTHETIC QA only. No clinical service.",
+    "assigned_partner": null,
+    "laboratory": null,
+    "assigned_pharmacist": null,
+    "assigned_technician": null,
+    "scheduled_at": "2026-11-03T11:00:00+03:00",
+    "requested_at": "2026-10-30T15:00:58.234925+03:00",
+    "updated_at": "2026-10-30T15:01:36.643717+03:00",
+    "audit_logs": [
+      {
+        "id": 22,
+        "action": "Status updated to 'Cancelled'",
+        "performed_by": 75,
+        "performed_by_name": "Synthetic Setup QA customer",
+        "timestamp": "2026-10-30T15:01:36.644264+03:00"
+      },
+      {
+        "id": 20,
+        "action": "Lab request created",
+        "performed_by": 75,
+        "performed_by_name": "Synthetic Setup QA customer",
+        "timestamp": "2026-10-30T15:00:58.236178+03:00"
+      }
+    ],
+    "result": null
+  },
+  "browser_download_matches": true,
+  "cleanup": "Synthetic test 8 hidden from public catalog; historical requests/results retained. Shared QA staff and partner left intact."
+}

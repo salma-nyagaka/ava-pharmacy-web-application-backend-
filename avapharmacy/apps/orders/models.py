@@ -42,23 +42,29 @@ class Coupon(models.Model):
     def is_available(self, user=None):
         from django.utils import timezone
 
+        if not getattr(settings, 'CHECKOUT_COUPONS_ENABLED', False):
+            return False
         now = timezone.now()
+        if self.value <= 0 or (self.discount_type == self.TYPE_PERCENTAGE and self.value > 100):
+            return False
         if not self.is_active:
             return False
         if self.starts_at and self.starts_at > now:
             return False
         if self.ends_at and self.ends_at < now:
             return False
-        if self.usage_limit is not None and self.orders.exclude(status=Order.STATUS_CANCELLED).count() >= self.usage_limit:
+        if self.usage_limit is not None and self.orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_DRAFT]).count() >= self.usage_limit:
             return False
         if user and self.per_user_limit:
-            user_uses = self.orders.filter(customer=user).exclude(status=Order.STATUS_CANCELLED).count()
+            user_uses = self.orders.filter(customer=user).exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_DRAFT]).count()
             if user_uses >= self.per_user_limit:
                 return False
         return True
 
     def calculate_discount(self, subtotal):
         subtotal = Decimal(subtotal)
+        if self.value <= 0 or (self.discount_type == self.TYPE_PERCENTAGE and self.value > 100):
+            return Decimal('0.00')
         if subtotal <= 0 or subtotal < self.minimum_subtotal:
             return Decimal('0.00')
 
@@ -107,7 +113,9 @@ class Cart(models.Model):
     def discount_total(self):
         if not self.coupon or not self.coupon.is_available(self.user):
             return Decimal('0.00')
-        return self.coupon.calculate_discount(self.total)
+        from apps.products.compliance import prescription_required
+        eligible = sum((item.subtotal for item in self.items.select_related('variant') if not prescription_required(item.variant)), Decimal('0.00'))
+        return self.coupon.calculate_discount(eligible)
 
     @property
     def shipping_fee(self):
@@ -164,8 +172,16 @@ class CartItem(models.Model):
         return f"{label} x {self.quantity}"
 
     @property
+    def unit_price(self):
+        from apps.products.services import calculate_variant_pricing
+        subtotal = getattr(self, '_pricing_subtotal', None)
+        if subtotal is None:
+            subtotal = sum(row.variant.price * row.quantity for row in self.cart.items.select_related('variant'))
+        return calculate_variant_pricing(self.variant, qualifying_subtotal=subtotal)['final_price']
+
+    @property
     def subtotal(self):
-        return self.variant.effective_price * self.quantity
+        return self.unit_price * self.quantity
 
     @property
     def inventory_object(self):
@@ -269,7 +285,7 @@ class Order(models.Model):
     )
     coupon = models.ForeignKey(Coupon, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_COD)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default=PAYMENT_MPESA_STK)
     payment_status = models.CharField(
         max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING
     )
@@ -341,6 +357,7 @@ class OrderItem(models.Model):
     allocated_branch_quantity = models.PositiveIntegerField(default=0)
     allocated_warehouse_quantity = models.PositiveIntegerField(default=0)
     allocated_backorder_quantity = models.PositiveIntegerField(default=0)
+    inventory_allocations = models.JSONField(default=list, blank=True)
     prescription_reference = models.CharField(max_length=20, blank=True, null=True)
     prescription = models.ForeignKey(
         'prescriptions.Prescription',
@@ -356,6 +373,7 @@ class OrderItem(models.Model):
         blank=True,
         related_name='order_items',
     )
+    medicine_assessment = models.OneToOneField('support.MedicineAssessment', on_delete=models.PROTECT, null=True, blank=True, related_name='order_item')
     otc_screening = models.JSONField(default=dict, blank=True)
     discount_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 

@@ -1,0 +1,32 @@
+[
+  {
+    "scenario": "wrong_amount",
+    "request": {
+      "ShortCode": "600980",
+      "CommandID": "CustomerPayBillOnline",
+      "Amount": 1,
+      "Msisdn": "254708374149",
+      "BillRefNumber": "AVA-ORD-874A0705"
+    },
+    "response": {
+      "OriginatorCoversationID": "135b-4679-8ea6-1c3dca88c6a4373682",
+      "ResponseCode": "0",
+      "ResponseDescription": "Accept the service request successfully."
+    }
+  },
+  {
+    "scenario": "unmatched_reference",
+    "request": {
+      "ShortCode": "600980",
+      "CommandID": "CustomerPayBillOnline",
+      "Amount": 1,
+      "Msisdn": "254708374149",
+      "BillRefNumber": "QA-NOMATCH-A9D827"
+    },
+    "response": {
+      "OriginatorCoversationID": "8e77-4dec-98af-2e0707a6447d379809",
+      "ResponseCode": "0",
+      "ResponseDescription": "Accept the service request successfully."
+    }
+  }
+]

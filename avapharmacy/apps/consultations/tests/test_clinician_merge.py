@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -51,13 +52,14 @@ class ClinicianMergeCompatibilityTests(TestCase):
         clinician = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_DOCTOR,
             legacy_doctor_id=77,
+            user=User.objects.create_user(email='legacy-active-doctor@example.test', role='doctor'),
             name='Dr Legacy',
             specialty='Family Medicine',
             email='legacy-doctor@example.com',
             phone='0712000001',
             license_number='KMD-77000',
             status=ClinicianProfile.STATUS_ACTIVE,
-        )
+        **clinician_fixture(exclude=('provider_type', 'legacy_doctor_id', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
 
         response = self.client.get(reverse('doctor-detail', args=[77]))
 
@@ -69,13 +71,14 @@ class ClinicianMergeCompatibilityTests(TestCase):
         clinician = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_PEDIATRICIAN,
             legacy_pediatrician_id=88,
+            user=User.objects.create_user(email='legacy-active-ped@example.test', role='pediatrician'),
             name='Dr Legacy Child',
             specialty='Pediatrics',
             email='legacy-ped@example.com',
             phone='0712000002',
             license_number='KMD-88000',
             status=ClinicianProfile.STATUS_ACTIVE,
-        )
+        **clinician_fixture(exclude=('provider_type', 'legacy_pediatrician_id', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
 
         response = self.client.get(reverse('pediatrician-detail', args=[88]))
 
@@ -87,13 +90,14 @@ class ClinicianMergeCompatibilityTests(TestCase):
         clinician = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_DOCTOR,
             legacy_doctor_id=101,
+            user=User.objects.create_user(email='legacy-bookable-doctor@example.test', role='doctor'),
             name='Dr Consultation',
             specialty='Internal Medicine',
             email='consultation-doctor@example.com',
             phone='0712000003',
             license_number='KMD-10100',
             status=ClinicianProfile.STATUS_ACTIVE,
-        )
+        **clinician_fixture(exclude=('provider_type', 'legacy_doctor_id', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
         self.client.force_authenticate(self.patient)
         intent = ConsultationPaymentIntent.objects.create(
             initiated_by=self.patient,
@@ -138,7 +142,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
             phone='0712000004',
             license_number='KMD-10200',
             status=ClinicianProfile.STATUS_PENDING,
-        )
+        **clinician_fixture(exclude=('provider_type', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
         pediatrician = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_PEDIATRICIAN,
             name='Admin Pediatrician',
@@ -147,7 +151,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
             phone='0712000005',
             license_number='KMD-10300',
             status=ClinicianProfile.STATUS_PENDING,
-        )
+        **clinician_fixture(exclude=('provider_type', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
         self.client.force_authenticate(self.admin)
 
         doctor_response = self.client.get(reverse('admin-doctor-detail', args=[doctor.id]))
@@ -175,7 +179,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
             phone='0712000006',
             license_number='KMD-10400',
             status=ClinicianProfile.STATUS_ACTIVE,
-        )
+        **clinician_fixture(exclude=('user', 'provider_type', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
         pediatrician = ClinicianProfile.objects.create(
             user=clinician_user,
             provider_type=ClinicianProfile.TYPE_PEDIATRICIAN,
@@ -185,7 +189,7 @@ class ClinicianMergeCompatibilityTests(TestCase):
             phone='0712000007',
             license_number='KMD-10500',
             status=ClinicianProfile.STATUS_ACTIVE,
-        )
+        **clinician_fixture(exclude=('user', 'provider_type', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
 
         self.assertEqual(clinician_user.clinician_profiles.count(), 2)
         self.assertEqual(

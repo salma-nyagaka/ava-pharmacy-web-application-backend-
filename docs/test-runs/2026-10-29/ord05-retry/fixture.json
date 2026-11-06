@@ -1,0 +1,16 @@
+{
+  "original_product_active": false,
+  "before_stock": [
+    {
+      "id": 64275,
+      "stock_quantity": 50
+    },
+    {
+      "id": 64277,
+      "stock_quantity": 30
+    }
+  ],
+  "order_id": 2000,
+  "order_number": "ORD-3BEDA40D",
+  "total": "350.00"
+}

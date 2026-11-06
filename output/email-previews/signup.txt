@@ -1,0 +1,16 @@
+AVA Pharmacy Ltd - Create your account
+
+Register with these details, then verify your email.
+
+Test account: customer.qa@example.test
+New test password: ExampleTestPass123!
+Name: Browser QA
+Phone: +254700000000
+Delivery address: Sample QA address
+City / county: Nairobi
+
+Create account: http://localhost:3000/register
+
+FOR LOCAL QA TESTING
+Use on the computer running the website. Enter the password to apply it.
+

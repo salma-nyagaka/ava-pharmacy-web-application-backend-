@@ -15,7 +15,8 @@ pip install -r requirements.txt
 
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
-python manage.py check --deploy
+python manage.py check --deploy --fail-level ERROR
+python manage.py check_pharmacy_readiness
 
 sudo /usr/sbin/apache2ctl configtest
 sudo /bin/systemctl reload apache2

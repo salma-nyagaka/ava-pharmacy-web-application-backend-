@@ -1,0 +1,361 @@
+{
+  "scraped_at_utc": "2026-11-01T19:20:37.684687+00:00",
+  "mode": "read_only_candidates",
+  "catalog_changes": 0,
+  "description_or_dosage_copied": false,
+  "summary": {
+    "failed": 8,
+    "no_product_metadata": 1,
+    "scraped_candidate": 10,
+    "skipped": 3
+  },
+  "results": [
+    {
+      "variant_id": 1451,
+      "sku": "LEGACY-V-87EB8809EDC532D2C9FC09A3",
+      "catalog_name": "AUNT JACKIE'S CURLS & COILS DON'T SHRINK FLAXSEED ELONGATING CURLING GEL 426G",
+      "source_page": "https://ultrapanama.com/product/aunt-jackies-dont-shrink-flaxseed-elongating-curling-gel-426g/",
+      "status": "scraped_candidate",
+      "final_source_page": "https://ultrapanama.com/product/aunt-jackies-dont-shrink-flaxseed-elongating-curling-gel-426g/",
+      "page_title": "AUNT JACKIE'S DON'T SHRINK FLAXSEED ELONGATING CURLING GEL 426g - Ultra Panama",
+      "image_url": "https://media.ultrapanama.com/wp-content/uploads/2024/11/AUNT-JACKIES-DONT-SHRINK-FLAXSEED-ELONGATING-CURLING-GEL-426g-scaled-1-1024x1024.jpg",
+      "structured_products": [
+        {
+          "name": "AUNT JACKIE'S DON'T SHRINK FLAXSEED ELONGATING CURLING GEL 426g - Ultra Panama",
+          "sku": "34285692155",
+          "image": [
+            {
+              "@type": "ImageObject",
+              "url": "https://media.ultrapanama.com/wp-content/uploads/2024/11/AUNT-JACKIES-DONT-SHRINK-FLAXSEED-ELONGATING-CURLING-GEL-426g-scaled-1.jpg",
+              "height": "2560",
+              "width": "2560"
+            }
+          ],
+          "description": "Aunt Jackie's Don't Shrink Flaxseed Elongating Curling Gel es un gel dise\u00f1ado para estirar y definir rizos naturales. Contiene ingredientes como las semillas de linaza y la glicerina, que hidratan y fortalecen el cabello, y promueven la definici\u00f3n de los rizos. Es ideal para cabello rizado o texturizado, y proporciona longitud y definici\u00f3n sin sacrificar la forma y la textura natural del cabello."
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 2928,
+      "sku": "LEGACY-V-0A5CC4B63A7A12377F8D520E",
+      "catalog_name": "BETADINE SURGICAL SCRUB 500Ml",
+      "source_page": "https://www.truemeds.in/medicine/betadine-75-scrub-500-ml-tm-scub1-000003",
+      "status": "scraped_candidate",
+      "final_source_page": "https://www.truemeds.in/medicine/betadine-75-scrub-500-ml-tm-scub1-000003",
+      "page_title": "Betadine 7.5 % Scrub 500 ML | Order Betadine 7.5 % Scrub 500 ML Online at Truemeds",
+      "image_url": "https://assets.truemeds.in/Images/ProductImage/TM-SCUB1-000003/betadine-surgical-scrub-500ml_betadine-surgical-scrub-500ml--TM-SCUB1-000003_1.jpeg",
+      "structured_products": [
+        {
+          "name": "Betadine Surgical Scrub 500Ml",
+          "sku": "TM-SCUB1-000003",
+          "brand": "BETADINE",
+          "image": "https://assets.truemeds.in/Images/ProductImage/TM-SCUB1-000003/betadine-surgical-scrub-500ml_betadine-surgical-scrub-500ml--TM-SCUB1-000003_1.jpeg",
+          "description": "Buy Betadine 7.5 % Scrub 500 ML online at Truemeds used to treat infection in wounds and cuts. Betadine 7.5 % Scrub 500 ML composition, side-effects, price & expert advise."
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 22865,
+      "sku": "LEGACY-V-B8F2DEFD2A1B9A00F9A09962",
+      "catalog_name": "WEBBER NATURALS COENZYME Q10 200MG 60S",
+      "source_page": "https://halohealthcare.com/products/webber-naturals-coenzyme-q10-200mg-60-softgels",
+      "status": "failed",
+      "reason": "429 Client Error: Too Many Requests for url: https://halohealthcare.com/products/webber-naturals-coenzyme-q10-200mg-60-softgels"
+    },
+    {
+      "variant_id": 22911,
+      "sku": "LEGACY-V-9C3418110F99A64FAA806243",
+      "catalog_name": "WELLA SHOCKWAVES HAIR MOUSSE VOLUME 5 200ML",
+      "source_page": "https://head2toes.ae/product/wella-shockwaves-volume-mousse-200ml/",
+      "status": "scraped_candidate",
+      "final_source_page": "https://head2toes.ae/product/wella-shockwaves-volume-mousse-200ml/",
+      "page_title": "Wella Hair Mousse 200ml Shockwaves Volume 5 Hold",
+      "image_url": "https://head2toes.ae/wp-content/uploads/2021/09/3614226250438.jpg",
+      "structured_products": [
+        {
+          "name": "Wella Hair Mousse 200ml Shockwaves Volume 5 Hold",
+          "sku": "3614226250438",
+          "mpn": "3614226250438",
+          "image": {
+            "@type": "ImageObject",
+            "url": "https://head2toes.ae/wp-content/uploads/2021/09/3614226250438.jpg",
+            "width": 1000,
+            "height": 1000
+          },
+          "description": "Wella Hair Mousse Shockwaves Volume Hold, Strong Shaping Foam gives your hair an extremely strong hold. Protects the hairstyle from moisture."
+        },
+        {
+          "name": "Wella Hair Mousse 200ml Shockwaves Volume 5 Hold",
+          "sku": "3614226250438",
+          "image": "https://head2toes.ae/wp-content/uploads/2021/09/3614226250438.jpg",
+          "description": "Maintains the hairdo.\r\n \tDoes not stick and does not dry the hair."
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 22914,
+      "sku": "LEGACY-V-FD4B8D624A6CB2A9561EFA38",
+      "catalog_name": "WELLA SILVIKRIN CLASSIC HAIR SPRAY NATURAL HOLD 250ML",
+      "source_page": "https://shopxonline.lk/products/wella-silvikrin-natural-hold-hair-spray-250ml",
+      "status": "failed",
+      "reason": "429 Client Error: Too Many Requests for url: https://shopxonline.lk/products/wella-silvikrin-natural-hold-hair-spray-250ml"
+    },
+    {
+      "variant_id": 22915,
+      "sku": "LEGACY-V-05546D7A8ECE3DA8FC03D5EE",
+      "catalog_name": "WELLA SILVIKRIN CLASSIC HAIRSPRAY FLEXIBLE HOLD 250ML",
+      "source_page": "https://www.tjbeautyproducts.co.uk/products/wella-professionals-silvikrin-classic-natural-hold-hairspray-250ml",
+      "status": "failed",
+      "reason": "429 Client Error: Too Many Requests for url: https://www.tjbeautyproducts.co.uk/products/wella-professionals-silvikrin-classic-natural-hold-hairspray-250ml"
+    },
+    {
+      "variant_id": 22922,
+      "sku": "LEGACY-V-5B54839F3530D9B46F22B727",
+      "catalog_name": "WELLA SWAVES ULT STRONG POWER HOLD HAIRSPRAY 250ML",
+      "source_page": "https://groceries.morrisons.com/products/wella-shockwaves-ultra-strong-power-hold-hairspray-250ml/100684139",
+      "status": "failed",
+      "reason": "403 Client Error: Forbidden for url: https://groceries.morrisons.com/products/wella-shockwaves-ultra-strong-power-hold-hairspray-250ml/100684139"
+    },
+    {
+      "variant_id": 22959,
+      "sku": "LEGACY-V-25DF7EFFFCE5D47F8A4948E6",
+      "catalog_name": "WET BRUSH SQUIRT PURPLE",
+      "source_page": "https://friser.pl/Wet-Brush/mini-squirt-szczotka-do-wlosow-purple-fioletowa",
+      "status": "failed",
+      "reason": "429 Client Error: Too Many Requests for url: https://friser.pl/Wet-Brush/mini-squirt-szczotka-do-wlosow-purple-fioletowa"
+    },
+    {
+      "variant_id": 23003,
+      "sku": "LEGACY-V-CD061B21DC221AFC00F277A6",
+      "catalog_name": "WISDOM ACTIVE WHITENING CHARCOAL INFUSED DENTAL FLOSS 50M",
+      "source_page": "https://www.lazada.com.ph/products/wisdom-active-whitening-50m-charcoal-infused-dental-floss-i2541022376.html",
+      "status": "no_product_metadata",
+      "final_source_page": "https://www.lazada.com.ph/products/wisdom-active-whitening-50m-charcoal-infused-dental-floss-i2541022376.html",
+      "page_title": "",
+      "image_url": "",
+      "structured_products": [],
+      "review_required": true,
+      "reason": "No usable structured product metadata; no bypass attempted"
+    },
+    {
+      "variant_id": 23004,
+      "sku": "LEGACY-V-99121D6E82837D196FD086F5",
+      "catalog_name": "WISDOM ACTIVE WHITENING CHARCOAL TOOTHBRUSH MEDIUM",
+      "source_page": "https://www.hampdensupply.com/42462-hs-wisdom-active-whitening-charcoal-toothbrush",
+      "status": "scraped_candidate",
+      "final_source_page": "https://www.hampdensupply.com/42462-hs-wisdom-active-whitening-charcoal-toothbrush",
+      "page_title": "Hampden Supply Ltd",
+      "image_url": "https://www.hampdensupply.com/image/cache/data/branding/2-hampdens-logo-600x315.png",
+      "structured_products": [
+        {
+          "name": "Wisdom Active Whitening Charcoal Toothbrush Medium",
+          "sku": "",
+          "mpn": "",
+          "brand": {
+            "@type": "Thing",
+            "name": "Wisdom"
+          },
+          "image": "https://www.hampdensupply.com/image/cache/catalog/products/42462-231x868.jpg",
+          "description": "Wisdom Active Whitening Charcoal, Toothbrush"
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 23013,
+      "sku": "LEGACY-V-2D92963CFEA5C7E3D5CEB30F",
+      "catalog_name": "WISDOM CLEAN BETWEEN EASY NSLIDE FLOSSERS 30*S",
+      "source_page": "https://shop.pharmaplus.co.ke/products/wisdom-clean-between-easyslide-y-shaped-flossers-30-s",
+      "status": "scraped_candidate",
+      "final_source_page": "https://shop.pharmaplus.co.ke/products/wisdom-clean-between-easyslide-y-shaped-flossers-30-s",
+      "page_title": "Wisdom clean between  easyslide y shaped flossers 30`s | Pharmaplus",
+      "image_url": "https://shop.pharmaplus.co.ke/logo.webp",
+      "structured_products": [
+        {
+          "name": "Wisdom clean between  easyslide y shaped flossers 30`s",
+          "sku": "WISDOM-CLEAN-BETWEEN-EASYSLIDE-Y-SHAPED-FLOSSERS-30-S-W0444",
+          "brand": {
+            "@type": "Brand",
+            "name": "Wisdom"
+          },
+          "image": "https://images.pharmaplus.co.ke/images/700_x_700/W0444.webp",
+          "description": "Wisdom clean between easy slide flossers (y-shaped, 30's) are designed for effortless flossing, featuring a silk-like tape that slides smoothly between teeth. They incorporate a tension control system, ensuring the floss remains taut for effective plaque removal while being gentle on gums"
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 23024,
+      "sku": "LEGACY-V-80B25674DAADCC646FECE260",
+      "catalog_name": "WISDOM ENAMEL PROTECT-SENSITIVE TOOTHBRUSH",
+      "source_page": "https://jdssupercare.com/products/wisdom-enamel-protect-toothbrush",
+      "status": "failed",
+      "reason": "429 Client Error: Too Many Requests for url: https://jdssupercare.com/products/wisdom-enamel-protect-toothbrush"
+    },
+    {
+      "variant_id": 23025,
+      "sku": "LEGACY-V-3AF3EF0D7282EF14A88E6A01",
+      "catalog_name": "WISDOM FRESH BREATH SPRAY 12.5ML",
+      "source_page": "https://www.weldricks.co.uk/products/wisdom-fresh-breath-spray-125ml",
+      "status": "scraped_candidate",
+      "final_source_page": "https://www.weldricks.co.uk/products/wisdom-fresh-breath-spray-125ml",
+      "page_title": "\u00a31.09 - Wisdom Fresh Breath Spray 12.5ml",
+      "image_url": "https://d2i5j94z9qxt5a.cloudfront.net/eyJidWNrZXQiOiJ3ZWxkcmlja3MtY2RuIiwia2V5IjoicHJvZHVjdHMvMzYwNy9SendUaDUyTnFNZmdEazFiTkRTcnBiT1VPNFRpRkROdjVpaThhNW9oLnBuZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6MTIwMCwiaGVpZ2h0Ijo2MzAsImZpdCI6ImNvbnRhaW4iLCJiYWNrZ3JvdW5kIjp7InIiOjI1NSwiZyI6MjU1LCJiIjoyNTUsImFscGhhIjoxfX0sImZsYXR0ZW4iOnsiYmFja2dyb3VuZCI6IiNmZmZmZmYifSwicmVtb3ZlQWxwaGEiOnRydWV9fQ==",
+      "structured_products": [
+        {
+          "name": "Wisdom Fresh Effect Breath Spray 12.5ml",
+          "sku": "3224946",
+          "gtin": "5028763006478",
+          "brand": {
+            "@type": "Brand",
+            "name": "Wisdom",
+            "url": "https://www.weldricks.co.uk/brands/wisdom"
+          },
+          "image": "https://d2i5j94z9qxt5a.cloudfront.net/eyJidWNrZXQiOiJ3ZWxkcmlja3MtY2RuIiwia2V5IjoicHJvZHVjdHMvMzYwNy9SendUaDUyTnFNZmdEazFiTkRTcnBiT1VPNFRpRkROdjVpaThhNW9oLnBuZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6MTIwMCwiaGVpZ2h0Ijo2MzAsImZpdCI6ImNvbnRhaW4iLCJiYWNrZ3JvdW5kIjp7InIiOjI1NSwiZyI6MjU1LCJiIjoyNTUsImFscGhhIjoxfX0sImZsYXR0ZW4iOnsiYmFja2dyb3VuZCI6IiNmZmZmZmYifSwicmVtb3ZlQWxwaGEiOnRydWV9fQ==",
+          "description": "Wisdom Fresh Effect Breath Spray 12.5ml is an oral hygiene solution available from Weldricks Pharmacy. This compact spray is designed to provide instant minty freshness and assist in maintaining breath confidence throughout the day. It offers a convenient way to manage oral freshness while on the go, ensuring a clean feeling mouth anytime without the need for brushing or rinsing.\n\n- Contains 12.5ml of breath freshening liquid.\n- Formulated with Cetylpyridinium Chloride and Sodium Saccharin.\n- Features a refreshing mint aroma for instant freshness.\n- Includes Glycerin and PEG 40 Hydrogenated Castor Oil.\n- Cruelty-free formulation that is not tested on animals.\n- Compact size suitable for carrying in pockets or bags.\n\nUsage and Safety:\nSpray directly into the mouth at close range for immediate effect. Avoid contact with eyes. If contact occurs, rinse thoroughly with water. This product contains alcohol and is not intended for use by children under the age of 3 years. Store in a cool, dry place away from direct sunlight to maintain product integrity."
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 23026,
+      "sku": "LEGACY-V-863A105EB7B25D131D841902",
+      "catalog_name": "WISDOM FRESH EFFECT ANTIBACTERIAL MOUTHWASH MILD MINT 300ML",
+      "source_page": "https://garnetpharmacy.co.ke/product/wisdom-mouthwash-fresh-effect-alcohol-free-mild-mint-300ml/",
+      "status": "failed",
+      "reason": "HTTPSConnectionPool(host='garnetpharmacy.co.ke', port=443): Read timed out. (read timeout=8)"
+    },
+    {
+      "variant_id": 23028,
+      "sku": "LEGACY-V-C5A875858FDBA116E85CECF7",
+      "catalog_name": "WISDOM FRESH EFFECT FRESHMINT MOUTHWASH 500ML",
+      "source_page": "https://henryandhunter.co.uk/product/wisdom-fresh-effect-freshmint-mouthwash-500ml/",
+      "status": "scraped_candidate",
+      "final_source_page": "https://henryandhunter.co.uk/product/wisdom-fresh-effect-freshmint-mouthwash-500ml/",
+      "page_title": "",
+      "image_url": "",
+      "structured_products": [
+        {
+          "name": "Wisdom Fresh Effect Freshmint Mouthwash 500ml",
+          "sku": 4393,
+          "brand": [
+            {
+              "@type": "Brand",
+              "name": "Wisdom"
+            }
+          ],
+          "image": "https://henryandhunter.co.uk/wp-content/uploads/2023/01/fresh.jpg",
+          "description": "Experience a revitalizing clean with Wisdom Fresh Effect Freshmint Mouthwash in a generous 500ml bottle. Designed to enhance your oral hygiene routine, this mouthwash effectively targets bad breath and plaque, ensuring a healthier mouth. The refreshing freshmint flavour delivers a burst of coolness, leaving your mouth feeling fresh and invigorated. Incorporate this mouthwash into your daily regimen for a confident smile and improved oral health.\r\n\r\nKey Features:\r\n\r\nInvigorating Freshmint Flavour: Enjoy a refreshing taste that combats bad breath for long-lasting freshness.\r\n\r\nPlaque Control: Formulated to help reduce plaque and maintain healthy gums and teeth.\r\n\r\nGenerous 500ml Size: Ideal for daily use, providing ample mouthwash to keep your breath fresh.\r\n\r\nUser-Friendly: Easy to use\u2014simply rinse and feel the difference in your oral health."
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 23077,
+      "sku": "LEGACY-V-8FDA8B42231C7341214CB44C",
+      "catalog_name": "WISDOM SMOKERS EXTRA FRESHMINT TOOTHPASTE 50ML",
+      "source_page": "https://www.poundland.co.uk/products/wisdom-smokers-fluoride-toothpaste-extra-fresh-mint-50ml",
+      "status": "failed",
+      "reason": "429 Client Error: Too Many Requests for url: https://www.poundland.co.uk/products/wisdom-smokers-fluoride-toothpaste-extra-fresh-mint-50ml"
+    },
+    {
+      "variant_id": 23081,
+      "sku": "LEGACY-V-CE2B33E97FD5CFE3C5A4A110",
+      "catalog_name": "WISDOM STEP BY STEP TOOTHPASTE 0-3YRS 75ML",
+      "source_page": "https://www.dentalsky.com/wisdom-step-by-step-cavity-and-enamel-defence-toothpaste-0-3-years-75ml.html",
+      "status": "skipped",
+      "reason": "robots.txt disallows this path"
+    },
+    {
+      "variant_id": 23082,
+      "sku": "LEGACY-V-9F57A5A85A3AB158E144E863",
+      "catalog_name": "WISDOM STEP BY STEP TOOTHPASTE 4+",
+      "source_page": "https://www.dentalsky.com/wisdom-step-by-step-4-toothpaste-75ml.html",
+      "status": "skipped",
+      "reason": "robots.txt disallows this path"
+    },
+    {
+      "variant_id": 23084,
+      "sku": "LEGACY-V-890592923955A2A565A317C2",
+      "catalog_name": "WISDOM STEP BY STEP TOOTHPASTE 4+. 75ML",
+      "source_page": "https://www.dentalsky.com/wisdom-step-by-step-4-toothpaste-75ml.html",
+      "status": "skipped",
+      "reason": "robots.txt disallows this path"
+    },
+    {
+      "variant_id": 23085,
+      "sku": "LEGACY-V-2F75D45D7E61647B2F1C2C96",
+      "catalog_name": "WISDOM TONGUE CLEANER FRESH EFFECT",
+      "source_page": "https://britishchemist.co.uk/product/wisdom-fresh-effect-tongue-cleaner/",
+      "status": "scraped_candidate",
+      "final_source_page": "https://britishchemist.co.uk/product/wisdom-fresh-effect-tongue-cleaner/",
+      "page_title": "WISDOM FRESH EFFECT TONGUE CLEANER | British Chemist",
+      "image_url": "https://britishchemist.co.uk/wp-content/uploads/2024/04/1-467.jpg",
+      "structured_products": [
+        {
+          "name": "WISDOM FRESH EFFECT TONGUE CLEANER",
+          "brand": {
+            "@type": "Brand",
+            "name": "British Chemist"
+          },
+          "image": "https://britishchemist.co.uk/wp-content/uploads/2024/04/1-467.jpg",
+          "description": "These items are centrally stocked and delivery times are up to 7 days to reduce carbon emissions and help keep our planet green."
+        },
+        {
+          "name": "WISDOM FRESH EFFECT TONGUE CLEANER",
+          "sku": "H42537-1",
+          "image": "https://britishchemist.co.uk/wp-content/uploads/2024/04/1-467.jpg",
+          "description": "These items are centrally stocked and delivery times are up to 7 days to reduce carbon emissions and help keep our planet green."
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 23090,
+      "sku": "LEGACY-V-45DC0BDDB216F688F0542509",
+      "catalog_name": "WISDOM TRAVEL TOOTHBRUSH MEDIUM",
+      "source_page": "https://wisdom-toothbrushes.com/shop/manual-toothbrushes/travel-toothbrush/",
+      "status": "scraped_candidate",
+      "final_source_page": "https://wisdom-toothbrushes.com/shop/manual-toothbrushes/travel-toothbrush/",
+      "page_title": "Travel Toothbrush Medium - Wisdom Toothbrushes",
+      "image_url": "https://wisdom-toothbrushes.com/content/uploads/2024/09/5028763001992_T1.jpg",
+      "structured_products": [
+        {
+          "name": "Travel Toothbrush Medium",
+          "sku": "1192MSH",
+          "image": "https://wisdom-toothbrushes.com/content/uploads/2024/09/5028763001992_T1.jpg",
+          "description": "The compact, pack away design of Wisdom travel makes it the ideal brush to use when travelling as it packs neatly away into its own case after use."
+        }
+      ],
+      "review_required": true
+    },
+    {
+      "variant_id": 23092,
+      "sku": "LEGACY-V-16165E8A7B01E5868207F276",
+      "catalog_name": "WISDOM XTRA CLEAN TWIN PACK MEDIUM TOOTHBRUSH",
+      "source_page": "https://www.dmrckenya.co.ke/product/wisdom-toothbrush-xtra-clean-twin-pack-medium/",
+      "status": "scraped_candidate",
+      "final_source_page": "https://www.dmrckenya.co.ke/product/wisdom-toothbrush-xtra-clean-twin-pack-medium/",
+      "page_title": "Wisdom Toothbrush Xtra Clean - Twin pack Medium",
+      "image_url": "https://www.dmrckenya.co.ke/wp-content/uploads/2024/07/045a66e7-ae3d-496c-9f0d-7926e3232003.jpg",
+      "structured_products": [
+        {
+          "name": "Wisdom Toothbrush Xtra Clean - Twin pack Medium ",
+          "image": [
+            {
+              "@type": "ImageObject",
+              "url": "https://www.dmrckenya.co.ke/wp-content/uploads/2024/07/045a66e7-ae3d-496c-9f0d-7926e3232003.jpg",
+              "height": "519",
+              "width": "780"
+            }
+          ],
+          "description": "Order for Wisdom Toothbrush Xtra Clean - Twin pack Medium and get it Delivered to you Today. We do fast delivery and accept order via WhatsApp (+254) 743-034-468"
+        }
+      ],
+      "review_required": true
+    }
+  ]
+}

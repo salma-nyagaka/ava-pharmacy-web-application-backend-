@@ -27,6 +27,8 @@ def _resolve_order_item_image(item):
 
 
 def _build_order_email_context(order, *, heading, intro, preheader, primary_cta_label):
+    from apps.support.models import SiteSettings
+    pharmacy = SiteSettings.get_solo()
     frontend_base = frontend_base_url()
     account_order_path = f'/account/orders/{order.id}'
     placed_at = order.placed_at or order.created_at
@@ -44,6 +46,7 @@ def _build_order_email_context(order, *, heading, intro, preheader, primary_cta_
         })
 
     return {
+        'pharmacy': pharmacy,
         'first_name': order.shipping_first_name or 'Customer',
         'customer_full_name': f'{order.shipping_first_name} {order.shipping_last_name}'.strip(),
         'order': order,
@@ -104,7 +107,7 @@ def send_order_status_email(*, order, subject, heading, intro):
         preheader=subject,
         primary_cta_label='View Order',
     )
-    send_rendered_email(
+    return send_rendered_email(
         subject=subject,
         recipient_list=[order.shipping_email],
         text_template='orders/emails/order_confirmation.txt',
@@ -189,7 +192,7 @@ def queue_order_confirmation_email(order):
     transaction.on_commit(_send)
 
 
-def queue_order_status_email(order, *, subject, heading, intro):
+def queue_order_status_email(order, *, subject, heading, intro, notification=None):
     order_id = order.id
 
     def _send():
@@ -204,12 +207,23 @@ def queue_order_status_email(order, *, subject, heading, intro):
                 )
                 .get(pk=order_id)
             )
-            send_order_status_email(
-                order=order_with_items,
-                subject=subject,
-                heading=heading,
-                intro=intro,
-            )
+            from apps.notifications.utils import record_delivery, mark_delivery_sent, mark_delivery_failed
+            delivery = record_delivery(notification, order_with_items.customer, 'email', order_with_items.shipping_email, subject=subject, message=intro, provider='django_email') if notification and order_with_items.customer else None
+            try:
+                sent = send_order_status_email(
+                    order=order_with_items,
+                    subject=subject,
+                    heading=heading,
+                    intro=intro,
+                )
+                if sent == 0:
+                    raise RuntimeError('The email backend did not accept the order update.')
+                if delivery:
+                    mark_delivery_sent(delivery)
+            except Exception as exc:
+                if delivery:
+                    mark_delivery_failed(delivery, exc)
+                raise
         except Exception:
             logger.exception('Failed to send order status email for order %s', order_id)
 

@@ -1,0 +1,13 @@
+{
+  "provider_query_received": true,
+  "response": {
+    "ResponseCode": "0",
+    "ResponseDescription": "The service request has been accepted successfully",
+    "MerchantRequestID": "8f38-49f8-9be4-b87d691148b42538940",
+    "CheckoutRequestID": "ws_CO_281020261825481708374149",
+    "ResultCode": "4999",
+    "ResultDesc": "The transaction is still under processing"
+  },
+  "old_intent_status": "cancelled",
+  "note": "Read-only query of the earlier cancelled synthetic attempt; no order/payment state changed."
+}

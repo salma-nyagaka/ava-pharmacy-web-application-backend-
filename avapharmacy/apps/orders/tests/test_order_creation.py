@@ -1,5 +1,8 @@
+from avapharmacy.test_compliance_fixtures import inventory_fixture
+from avapharmacy.test_compliance_fixtures import delivery_fixture
+from avapharmacy.test_compliance_fixtures import catalogue_fixture, prescription_fixture
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from django.core import mail
@@ -36,7 +39,6 @@ class OrderCreationFlowTests(TestCase):
         self.product = Product.objects.create(
             sku='ORDER-001',
             name='Order Test Product',
-            price=Decimal('700.00'),
             is_active=True,
         )
         self.variant = self.product.variants.create(
@@ -44,14 +46,14 @@ class OrderCreationFlowTests(TestCase):
             name='Tablets',
             price=Decimal('700.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=self.variant,
             location=Product.STOCK_BRANCH,
             defaults={
                 'stock_quantity': 20,
                 'low_stock_threshold': 3,
-            },
+            **inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
         self.variant.save()
 
@@ -75,6 +77,15 @@ class OrderCreationFlowTests(TestCase):
         defaults.update(overrides)
         return Order.objects.create(**defaults)
 
+    def _confirm_test_order(self, order):
+        # Synthetic trusted payment fixture, never a customer manual-payment API.
+        order.payment_status = Order.PAYMENT_STATUS_PAID
+        order.status = Order.STATUS_PAID
+        order.save(update_fields=['payment_status', 'status'])
+        response = self.client.post(reverse('checkout-finalize', args=[order.pk]), {}, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        order.refresh_from_db()
+
     def test_customer_can_create_order_and_admin_can_view_it(self):
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)
@@ -91,7 +102,7 @@ class OrderCreationFlowTests(TestCase):
                     'street': 'Moi Avenue',
                     'city': 'Nairobi',
                     'county': 'Nairobi',
-                    'payment_method': Order.PAYMENT_COD,
+                    'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                     'delivery_method': 'standard',
                 },
                 format='json',
@@ -99,8 +110,9 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(order_response.status_code, 201)
 
         order = Order.objects.get(customer=self.customer)
-        self.assertEqual(order.status, Order.STATUS_PENDING)
-        self.assertEqual(order.payment_method, Order.PAYMENT_COD)
+        self._confirm_test_order(order)
+        self.assertEqual(order.status, Order.STATUS_PAID)
+        self.assertEqual(order.payment_method, Order.PAYMENT_MPESA_PAYBILL)
         self.assertEqual(order.total, Decimal('1400.00') + order.shipping_fee)
         self.assertTrue(order.inventory_committed)
         self.assertEqual(order.items.count(), 1)
@@ -176,18 +188,18 @@ class OrderCreationFlowTests(TestCase):
             batch_number='EARLY-2026',
             stock_quantity=3,
             low_stock_threshold=1,
-            expiry_date=date(2026, 8, 30),
+            expiry_date=date.today() + timedelta(days=30),
             shelf_location='A1',
-        )
+        **inventory_fixture(exclude=('variant', 'location', 'batch_number', 'stock_quantity', 'low_stock_threshold', 'expiry_date', 'shelf_location')))
         later_batch = VariantInventory.objects.create(
             variant=self.variant,
             location=Product.STOCK_BRANCH,
             batch_number='LATE-2027',
             stock_quantity=5,
             low_stock_threshold=1,
-            expiry_date=date(2027, 12, 31),
+            expiry_date=date.today() + timedelta(days=365),
             shelf_location='A2',
-        )
+        **inventory_fixture(exclude=('variant', 'location', 'batch_number', 'stock_quantity', 'low_stock_threshold', 'expiry_date', 'shelf_location')))
 
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)
@@ -203,13 +215,14 @@ class OrderCreationFlowTests(TestCase):
                 'street': 'Moi Avenue',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_COD,
+                'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                 'delivery_method': 'standard',
             },
             format='json',
         )
 
         self.assertEqual(response.status_code, 201)
+        self._confirm_test_order(Order.objects.get(customer=self.customer))
         early_batch.refresh_from_db()
         later_batch.refresh_from_db()
         self.assertEqual(early_batch.stock_quantity, 0)
@@ -225,17 +238,20 @@ class OrderCreationFlowTests(TestCase):
         ])
 
     def test_prescription_cart_item_uses_foreign_keys_and_order_snapshot_preserves_them(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
+            variant=self.variant,
             name=self.product.name,
             quantity=2,
         )
@@ -269,7 +285,7 @@ class OrderCreationFlowTests(TestCase):
                 'street': 'Moi Avenue',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_COD,
+                'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                 'delivery_method': 'standard',
             },
             format='json',
@@ -284,7 +300,9 @@ class OrderCreationFlowTests(TestCase):
         prescription.refresh_from_db()
         self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_QUEUED)
 
+        self._confirm_test_order(order)
         self.client.force_authenticate(self.admin)
+        delivery_fixture(order, self.admin)
         for next_status, expected_dispatch in [
             (Order.STATUS_PROCESSING, Prescription.DISPATCH_PACKED),
             (Order.STATUS_SHIPPED, Prescription.DISPATCH_DISPATCHED),
@@ -301,14 +319,16 @@ class OrderCreationFlowTests(TestCase):
 
     @patch('apps.accounts.bot_protection.verify_turnstile_token', return_value=(False, 'missing_challenge_token'))
     def test_high_risk_checkout_requires_security_challenge_before_draft_creation(self, mock_verify_turnstile):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -338,7 +358,7 @@ class OrderCreationFlowTests(TestCase):
                 'street': 'Moi Avenue',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_COD,
+                'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                 'delivery_method': 'standard',
             },
             format='json',
@@ -356,14 +376,16 @@ class OrderCreationFlowTests(TestCase):
         self.assertIn('missing_challenge_token', event.reasons)
 
     def test_checkout_finalize_removes_approved_prescription_from_awaiting_checkout_bucket(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -393,7 +415,7 @@ class OrderCreationFlowTests(TestCase):
                 'street': 'Moi Avenue',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_COD,
+                'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                 'delivery_method': 'standard',
             },
             format='json',
@@ -403,6 +425,8 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(prescription.dispatch_status, Prescription.DISPATCH_NOT_STARTED)
 
         order = Order.objects.get(customer=self.customer)
+        order.payment_status = Order.PAYMENT_STATUS_PAID
+        order.save(update_fields=['payment_status'])
         finalize_response = self.client.post(reverse('checkout-finalize', args=[order.id]))
         self.assertEqual(finalize_response.status_code, 200, finalize_response.content)
 
@@ -417,14 +441,16 @@ class OrderCreationFlowTests(TestCase):
         )
 
     def test_paid_order_removes_matching_prescription_items_from_cart(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -454,7 +480,7 @@ class OrderCreationFlowTests(TestCase):
                 'street': 'Moi Avenue',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_CARD,
+                'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                 'delivery_method': 'standard',
             },
             format='json',
@@ -463,24 +489,25 @@ class OrderCreationFlowTests(TestCase):
         self.assertTrue(CartItem.objects.filter(cart=cart, prescription_item=prescription_item).exists())
 
         order = Order.objects.get(customer=self.customer)
-        payment_response = self.client.post(
-            reverse('payment-intents'),
-            {'order_id': order.id, 'provider': PaymentIntent.PROVIDER_MANUAL},
-            format='json',
-        )
-        self.assertEqual(payment_response.status_code, 201, payment_response.content)
+        # Payment confirmation is a trusted provider action, never a customer manual charge.
+        from apps.orders.views import _mark_order_paid
+        intent = PaymentIntent.objects.create(order=order, provider=PaymentIntent.PROVIDER_PAYBILL,
+                                             amount=order.total, status=PaymentIntent.STATUS_SUCCEEDED)
+        _mark_order_paid(order, intent, 'Synthetic provider confirmation.', 'Payment confirmed.')
 
         self.assertFalse(CartItem.objects.filter(cart=cart, prescription_item=prescription_item).exists())
 
     def test_checkout_draft_can_scope_to_one_prescription(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -499,11 +526,11 @@ class OrderCreationFlowTests(TestCase):
             name='Other Tablets',
             price=Decimal('500.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=other_variant,
             location=Product.STOCK_BRANCH,
-            defaults={'stock_quantity': 20, 'low_stock_threshold': 3},
+            defaults={'stock_quantity': 20, 'low_stock_threshold': 3,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.customer)
@@ -528,7 +555,7 @@ class OrderCreationFlowTests(TestCase):
                 'street': 'Moi Avenue',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_CARD,
+                'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                 'delivery_method': 'standard',
                 'prescription_reference': prescription.reference,
             },
@@ -556,7 +583,7 @@ class OrderCreationFlowTests(TestCase):
                 'street': 'Moi Avenue',
                 'city': 'Nairobi',
                 'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_COD,
+                'payment_method': Order.PAYMENT_MPESA_PAYBILL,
                 'delivery_method': 'standard',
             },
             format='json',
@@ -565,6 +592,7 @@ class OrderCreationFlowTests(TestCase):
         order = Order.objects.get(customer=self.customer)
         self.assertEqual(Notification.objects.filter(recipient=self.customer, type='order_status').count(), 1)
 
+        self._confirm_test_order(order)
         self.client.force_authenticate(self.admin)
         update_response = self.client.patch(
             reverse('admin-order-detail', args=[order.id]),
@@ -572,47 +600,15 @@ class OrderCreationFlowTests(TestCase):
             format='json',
         )
         self.assertEqual(update_response.status_code, 200)
-        self.assertEqual(Notification.objects.filter(recipient=self.customer, type='order_status').count(), 2)
+        self.assertEqual(Notification.objects.filter(recipient=self.customer, type='order_status').count(), 3)
 
-    def test_cod_checkout_finalize_succeeds_without_paid_status_or_payment_intent(self):
+    def test_cod_checkout_is_rejected(self):
         self.client.force_authenticate(self.customer)
-        cart = Cart.objects.create(user=self.customer)
-        CartItem.objects.create(cart=cart, variant=self.variant, quantity=1)
-
-        draft_response = self.client.post(
-            reverse('checkout-draft'),
-            {
-                'first_name': 'Buyer',
-                'last_name': 'Customer',
-                'email': 'buyer@example.com',
-                'phone': '0727808457',
-                'street': 'Moi Avenue',
-                'city': 'Nairobi',
-                'county': 'Nairobi',
-                'payment_method': Order.PAYMENT_COD,
-                'delivery_method': 'standard',
-            },
-            format='json',
-        )
-        self.assertEqual(draft_response.status_code, 201)
-
-        order = Order.objects.get(customer=self.customer)
-        self.assertEqual(order.status, Order.STATUS_DRAFT)
-        self.assertEqual(order.payment_status, Order.PAYMENT_STATUS_PENDING)
-        self.assertFalse(order.payment_intents.exists())
-
-        with self.captureOnCommitCallbacks(execute=True):
-            finalize_response = self.client.post(reverse('checkout-finalize', args=[order.id]))
-        self.assertEqual(finalize_response.status_code, 200)
-
-        order.refresh_from_db()
-        self.assertEqual(order.status, Order.STATUS_PENDING)
-        self.assertEqual(order.payment_status, Order.PAYMENT_STATUS_PENDING)
-        self.assertTrue(order.inventory_committed)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ['buyer@example.com'])
-        self.assertIn(order.order_number, mail.outbox[0].subject)
-        self.assertIn('Order Test Product', mail.outbox[0].alternatives[0][0])
+        response = self.client.post(reverse('checkout-draft'), dict(first_name='Buyer', last_name='Customer',
+            email=self.customer.email, phone='0700001234', street='QA', city='Nairobi', county='Nairobi',
+            payment_method=Order.PAYMENT_COD), format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Order.objects.filter(customer=self.customer).exists())
 
     def test_customer_must_select_variant_for_variant_managed_product(self):
         self.client.force_authenticate(self.customer)
@@ -634,14 +630,14 @@ class OrderCreationFlowTests(TestCase):
             name='Syrup',
             price=Decimal('900.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=second_variant,
             location=Product.STOCK_BRANCH,
             defaults={
                 'stock_quantity': 5,
                 'low_stock_threshold': 2,
-            },
+            **inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.customer)
@@ -664,7 +660,7 @@ class OrderCreationFlowTests(TestCase):
         self.assertEqual(cart_item.variant_id, second_variant.id)
         self.assertEqual(cart_item.quantity, 2)
 
-    def test_cart_merge_ignores_missing_variant_for_variant_managed_product(self):
+    def test_cart_merge_rejects_missing_variant_for_variant_managed_product(self):
         self.client.force_authenticate(self.customer)
         response = self.client.post(
             reverse('cart-merge'),
@@ -679,5 +675,5 @@ class OrderCreationFlowTests(TestCase):
             format='json',
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertFalse(CartItem.objects.filter(cart__user=self.customer).exists())

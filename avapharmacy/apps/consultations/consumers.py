@@ -21,6 +21,10 @@ class ConsultationConsumer(AsyncJsonWebsocketConsumer):  # pragma: no cover - we
             await self.close(code=4401)
             return
         self.user = user
+        self.consultation_id = consultation_id
+        if not await self._has_access():
+            await self.close(code=4403)
+            return
         self.group_name = f'consultation_{consultation_id}'
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
@@ -30,6 +34,9 @@ class ConsultationConsumer(AsyncJsonWebsocketConsumer):  # pragma: no cover - we
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive_json(self, content, **kwargs):
+        if not await self._has_access():
+            await self.close(code=4403)
+            return
         event_type = content.get('type')
         if event_type == 'typing.indicator':
             await self.channel_layer.group_send(
@@ -46,10 +53,22 @@ class ConsultationConsumer(AsyncJsonWebsocketConsumer):  # pragma: no cover - we
             )
 
     async def consultation_event(self, event):
+        if not await self._has_access():
+            await self.close(code=4403)
+            return
         await self.send_json({
             'type': event['event_type'],
             'payload': event['payload'],
         })
+
+    @database_sync_to_async
+    def _has_access(self):
+        from apps.accounts.models import User
+        from .models import Consultation
+        from .access import can_access_chat
+        user = User.objects.filter(pk=self.user.pk).first()
+        consultation = Consultation.objects.select_related('clinician').filter(pk=self.consultation_id).first()
+        return bool(consultation and can_access_chat(user, consultation))
 
     @database_sync_to_async
     def _authenticate(self):
@@ -60,5 +79,9 @@ class ConsultationConsumer(AsyncJsonWebsocketConsumer):  # pragma: no cover - we
         if not token:
             return AnonymousUser()
         authenticator = JWTAuthentication()
-        validated = authenticator.get_validated_token(token)
-        return authenticator.get_user(validated)
+        from rest_framework.exceptions import APIException
+        try:
+            validated = authenticator.get_validated_token(token)
+            return authenticator.get_user(validated)
+        except APIException:
+            return AnonymousUser()

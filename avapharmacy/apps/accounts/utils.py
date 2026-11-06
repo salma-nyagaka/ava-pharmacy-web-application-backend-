@@ -258,6 +258,14 @@ def send_pharmacist_activation_email(*, user, raw_token, request=None, invited_b
         'account_role_lower': role_name.lower(),
     }
 
+    if user.role in {User.DOCTOR, User.PEDIATRICIAN}:
+        from decimal import Decimal
+        profile = user.clinician_profiles.first()
+        if profile:
+            context['consultation_fee'] = Decimal('1500.00')
+            context['platform_fee'] = Decimal('500.00')
+            context['clinician_payout'] = Decimal('1000.00')
+
     subject = f'Activate your AVA Pharmacy {role_name.lower()} account'
     send_rendered_email(
         subject=subject,
@@ -275,7 +283,7 @@ def send_customer_welcome_email(*, user):
     context = {
         'first_name': user.first_name or 'there',
         'login_url': getattr(settings, 'FRONTEND_LOGIN_URL', f'{frontend_base}/login'),
-        'shop_url': getattr(settings, 'FRONTEND_SHOP_URL', f'{frontend_base}/products'),
+        'shop_url': f'{frontend_base}/',
         'support_email': getattr(settings, 'ADMIN_EMAIL', 'admin@avapharmacy.com'),
     }
     send_rendered_email(

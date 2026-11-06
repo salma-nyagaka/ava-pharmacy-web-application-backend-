@@ -12,7 +12,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
 
 
@@ -1807,9 +1807,21 @@ LOREMFLICKR_QUERIES = {
 
 
 class Command(BaseCommand):
-    help = 'Wipe and re-seed catalog: Category, HealthConcern, Brand, Product'
+    help = 'DEMO ONLY: wipe and re-seed the catalog with synthetic development data.'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--confirm-demo-catalog',
+            action='store_true',
+            help='Required acknowledgement that this destroys the real catalog and inserts demo data.',
+        )
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or not options['confirm_demo_catalog']:
+            raise CommandError(
+                'Demo catalog seeding is disabled. Use import_legacy_catalog for real data. '
+                'In a DEBUG environment only, pass --confirm-demo-catalog to run this destructive demo command.'
+            )
         self.stdout.write(self.style.WARNING('Wiping existing catalog data...'))
         self._wipe()
         self.stdout.write('Seeding health concerns...')

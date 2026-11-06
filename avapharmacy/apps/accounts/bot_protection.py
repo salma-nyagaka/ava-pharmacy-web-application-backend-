@@ -79,7 +79,10 @@ def log_bot_event(
 
 
 def verify_turnstile_token(request, token):
-    secret = getattr(settings, 'TURNSTILE_SECRET_KEY', '')
+    provider = getattr(settings, 'BOT_CHALLENGE_PROVIDER', 'turnstile')
+    if provider not in ('turnstile', 'hcaptcha'):
+        return False, 'unsupported_challenge_provider'
+    secret = getattr(settings, 'HCAPTCHA_SECRET_KEY' if provider == 'hcaptcha' else 'TURNSTILE_SECRET_KEY', '')
     required = bool(getattr(settings, 'BOT_CHALLENGE_REQUIRED', False))
     if not secret:
         return (not required), 'challenge_not_configured'
@@ -92,7 +95,7 @@ def verify_turnstile_token(request, token):
         'remoteip': get_client_ip(request) or '',
     }).encode()
     verify_request = urllib.request.Request(
-        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+        'https://api.hcaptcha.com/siteverify' if provider == 'hcaptcha' else 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
         data=payload,
         headers={'Content-Type': 'application/x-www-form-urlencoded'},
         method='POST',
@@ -128,7 +131,9 @@ def enforce_public_bot_controls(
         )
         raise ValidationError({'detail': 'Request could not be processed.'})
 
-    require_challenge = challenge_required or bool(getattr(settings, 'BOT_CHALLENGE_REQUIRED', False))
+    require_challenge = challenge_required or bool(getattr(settings, 'BOT_CHALLENGE_REQUIRED', False)) or bool(
+        getattr(settings, 'HCAPTCHA_SECRET_KEY' if getattr(settings, 'BOT_CHALLENGE_PROVIDER', 'turnstile') == 'hcaptcha' else 'TURNSTILE_SECRET_KEY', '')
+    )
     if require_challenge:
         ok, reason = verify_turnstile_token(request, get_challenge_token(request))
         if not ok:
@@ -247,6 +252,9 @@ def score_checkout_risk(request, items, checkout_phone=''):
 
     recent_checkout_count = _recent_events(
         event_type=BotRiskEvent.EVENT_CHECKOUT,
+        # Denied requests must not escalate their own subsequent retries.
+        # Request throttling still limits repeated blocked submissions.
+        decision=BotRiskEvent.DECISION_ALLOW,
         user=user,
         since=now - timedelta(minutes=30),
     )
@@ -295,10 +303,11 @@ def enforce_checkout_risk(request, items, *, checkout_phone=''):
     hard_stop_reasons = {
         'account_not_active',
         'disposable_email_domain',
-        'many_registrations_from_ip',
         'rapid_checkout_attempts',
         'recent_payment_failures',
     }
+    # A shared network does not establish a problem with this account.
+    # Keep its risk score, but resolve it through the challenge below.
     has_hard_stop_reason = bool(hard_stop_reasons.intersection(reasons))
 
     if score >= review_threshold and has_hard_stop_reason:

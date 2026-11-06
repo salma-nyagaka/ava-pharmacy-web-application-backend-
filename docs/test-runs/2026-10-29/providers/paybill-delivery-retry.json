@@ -1,0 +1,7 @@
+{
+  "order_id": 2005,
+  "intent_id": 47,
+  "query_free": false,
+  "source": "Safaricom sandbox only",
+  "error": "M-Pesa HTTP error 500: {\n                    \"requestId\":\"135b-4679-8ea6-1c3dca88c6a4377025\",\n                    \"errorCode\": \"500.003.1001\",\n                    \"errorMessage\": \"Service is currently unreachable. Please try again later.\"\n                }\n            "
+}

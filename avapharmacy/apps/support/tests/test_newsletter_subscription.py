@@ -15,6 +15,8 @@ from apps.support.models import NewsletterSubscriber, SiteSettings
 
 class NewsletterSubscriptionTests(TestCase):
     def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
         self.client = APIClient()
 
     def test_public_user_can_subscribe_and_receive_confirmation_email(self):
