@@ -1,3 +1,5 @@
+from avapharmacy.test_compliance_fixtures import inventory_fixture
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from decimal import Decimal
 
 from django.test import TestCase
@@ -29,7 +31,7 @@ class MultiStoreOrderStockTests(TestCase):
             sku='MULTISTORE-VARIANT',
             name='Multi-store Variant',
             price=Decimal('500.00'),
-        )
+        **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'price')))
         first_store = Store.objects.create(code='first-store', name='First Store')
         second_store = Store.objects.create(code='second-store', name='Second Store')
         first_listing = StoreVariantListing.objects.create(
@@ -46,12 +48,12 @@ class MultiStoreOrderStockTests(TestCase):
             variant=self.variant,
             store_listing=first_listing,
             stock_quantity=2,
-        )
+        **inventory_fixture(exclude=('variant', 'store_listing', 'stock_quantity')))
         self.second_inventory = VariantInventory.objects.create(
             variant=self.variant,
             store_listing=second_listing,
             stock_quantity=5,
-        )
+        **inventory_fixture(exclude=('variant', 'store_listing', 'stock_quantity')))
         self.order = Order.objects.create(
             customer=self.customer,
             status=Order.STATUS_PENDING,

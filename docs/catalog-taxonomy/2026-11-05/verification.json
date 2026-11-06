@@ -1,0 +1,64 @@
+{
+  "backup": "/private/tmp/ava-catalog-taxonomy-20261105T161959Z/database.dump",
+  "products": 23411,
+  "items_assigned": 23411,
+  "active_categories": 23,
+  "inactive_categories": 9,
+  "subcategories": 148,
+  "missing_category": 0,
+  "missing_subcategory": 0,
+  "parent_mismatches": 0,
+  "stock_units": 10342456,
+  "before": {
+    "products_product": {
+      "count": 23411,
+      "sha256": "8edd11adb70806bd2d9479d235c8a0cb5bd637f2be377ef9b1d12a4e04437de5"
+    },
+    "products_variant": {
+      "count": 23411,
+      "sha256": "86ea981b16d9021c03f9ee4087d60bec0ff16a8250fb1ef43ca8c15870b12f24"
+    },
+    "products_variantinventory": {
+      "count": 64094,
+      "sha256": "0cf66c5c9bddf26150034812dd088f4f6ae082b67214197b153bfd07cebeafae"
+    },
+    "products_storevariantlisting": {
+      "count": 64094,
+      "sha256": "4da87d5f5e11ab0b1d816cfd077977dba37c85437b1b4d32270b8e2cfee11874"
+    },
+    "orders_orderitem": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prescriptions_prescriptionitem": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "after": {
+    "products_product": {
+      "count": 23411,
+      "sha256": "8edd11adb70806bd2d9479d235c8a0cb5bd637f2be377ef9b1d12a4e04437de5"
+    },
+    "products_variant": {
+      "count": 23411,
+      "sha256": "86ea981b16d9021c03f9ee4087d60bec0ff16a8250fb1ef43ca8c15870b12f24"
+    },
+    "products_variantinventory": {
+      "count": 64094,
+      "sha256": "0cf66c5c9bddf26150034812dd088f4f6ae082b67214197b153bfd07cebeafae"
+    },
+    "products_storevariantlisting": {
+      "count": 64094,
+      "sha256": "4da87d5f5e11ab0b1d816cfd077977dba37c85437b1b4d32270b8e2cfee11874"
+    },
+    "orders_orderitem": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "prescriptions_prescriptionitem": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

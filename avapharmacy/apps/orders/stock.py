@@ -1,3 +1,4 @@
+from apps.products.compliance import supply_error, prescription_required, is_medicine, medicine_inventory_rows
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -84,6 +85,10 @@ def _allocation_row(inventory, *, stock_quantity=0, backorder_quantity=0):
     store_listing = inventory.store_listing if inventory.store_listing_id else None
     return {
         'inventory_id': inventory.pk,
+        'batch_number': inventory.batch_number,
+        'expiry_date': str(inventory.expiry_date or ''),
+        'supplier_name': inventory.supplier,
+        'variant_sku': inventory.variant.sku,
         'store_listing_id': inventory.store_listing_id,
         'store_code': store_listing.store.code if store_listing else '',
         'stock_quantity': stock_quantity,
@@ -92,9 +97,12 @@ def _allocation_row(inventory, *, stock_quantity=0, backorder_quantity=0):
 
 
 def _consume_variant_inventory(variant, quantity, *, reference=''):
+    error = supply_error(variant)
+    if error:
+        raise ValueError(error)
     remaining = quantity
     allocation = InventoryAllocation()
-    inventories = _lock_variant_inventories(variant)
+    inventories = medicine_inventory_rows(variant, _lock_variant_inventories(variant))
 
     for inventory in _sale_inventory_rows(inventories):
         if remaining <= 0:
@@ -125,7 +133,7 @@ def _consume_variant_inventory(variant, quantity, *, reference=''):
                 reference=reference,
             )
 
-    if remaining > 0:
+    if remaining > 0 and not is_medicine(variant):
         for location in (Product.STOCK_BRANCH, Product.STOCK_WAREHOUSE):
             inventory = next((item for item in inventories if item.location == location), None)
             if inventory is None or remaining <= 0 or not inventory.allow_backorder:
@@ -296,12 +304,16 @@ def commit_order_inventory(order):
     from apps.prescriptions.dispensing import dispensing_error
     from apps.prescriptions.models import PrescriptionItem
     for item in order.items.select_related('variant'):
+        from apps.support.compliance import assessment_error
+        error = assessment_error(item)
+        if error:
+            raise ValueError(error)
         if item.prescription_item_id:
             authorization = PrescriptionItem.objects.select_for_update(of=('self',)).select_related('prescription', 'product').get(pk=item.prescription_item_id)
             error = dispensing_error(authorization, item.variant, item.quantity, exclude_order=order)
             if error:
                 raise ValueError(error)
-        elif item.variant and item.variant.requires_prescription:
+        elif item.variant and prescription_required(item.variant):
             raise ValueError('Prescription authorization is missing from this order item.')
         if not item.variant_id:
             raise ValueError(f'Order item {item.product_name} is missing a variant. Product-level inventory is disabled.')
@@ -314,6 +326,8 @@ def commit_order_inventory(order):
         item.allocated_branch_quantity = allocation.branch_quantity
         item.allocated_warehouse_quantity = allocation.warehouse_quantity
         item.allocated_backorder_quantity = allocation.backorder_quantity
+        from apps.support.models import SupplyAllocation
+        SupplyAllocation.objects.create(order_item=item, event='commit', allocation_snapshot=allocation.inventory_rows)
         item.inventory_allocations = allocation.inventory_rows
         item.save(update_fields=[
             'allocated_branch_quantity',
@@ -344,6 +358,8 @@ def release_order_inventory(order):
             backorder_quantity=item.allocated_backorder_quantity,
             reference=order.order_number,
         )
+        from apps.support.models import SupplyAllocation
+        SupplyAllocation.objects.create(order_item=item, event='release', allocation_snapshot=item.inventory_allocations)
         item.allocated_branch_quantity = 0
         item.allocated_warehouse_quantity = 0
         item.allocated_backorder_quantity = 0

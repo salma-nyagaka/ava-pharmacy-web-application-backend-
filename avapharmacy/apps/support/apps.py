@@ -6,4 +6,4 @@ class SupportConfig(AppConfig):
     name = 'apps.support'
 
     def ready(self):
-        from . import checks  # noqa: F401
+        from . import checks, compliance_signals  # noqa: F401

@@ -1,3 +1,5 @@
+from apps.accounts.permissions import IsPrescriptionQueuePharmacist
+from .compliance import EVIDENCE_FIELDS, working_day_due
 import json
 
 from django.core import signing
@@ -49,10 +51,8 @@ CONTROLLED_SUBSTANCE_KEYWORDS = {
 
 class CanReviewPrescriptionsOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return (
-            (IsPharmacistOrAdmin().has_permission(request, view) and request.user.role == User.ADMIN)
-            or IsPrescriptionReviewPharmacist().has_permission(request, view)
-        )
+        from .access import can_review
+        return can_review(request.user)
 
 
 class PrescriptionUploadRateThrottle(UserRateThrottle):
@@ -270,6 +270,9 @@ class PrescriptionDetailView(generics.RetrieveAPIView):
         user = self.request.user
         if CanReviewPrescriptionsOrAdmin().has_permission(self.request, self):
             return _prescription_queryset()
+        from .access import can_access_queue
+        if can_access_queue(user):
+            return _prescription_queryset().filter(models.Q(pharmacist=user) | models.Q(pharmacist__isnull=True))
         return _prescription_queryset().filter(patient=user)
 
 
@@ -335,7 +338,7 @@ class PrescriptionAuditView(APIView):
 
 class CanReadPrescriptionRegister(CanReviewPrescriptionsOrAdmin):
     def has_permission(self, request, view):
-        return super().has_permission(request, view) or (
+        return (request.method in permissions.SAFE_METHODS and IsPharmacistOrAdmin().has_permission(request, view) and request.user.role == User.ADMIN) or super().has_permission(request, view) or (
             IsPharmacistAdminOrPPBInspector().has_permission(request, view)
             and request.user.role == User.PPB_INSPECTOR
         )
@@ -508,7 +511,7 @@ class PrescriptionItemAddToCartView(APIView):
 
 class PharmacistPrescriptionQueueView(generics.ListAPIView):
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsPrescriptionReviewPharmacist]
+    permission_classes = [IsPrescriptionQueuePharmacist]
 
     def get_queryset(self):
         queryset = _prescription_queryset().filter(
@@ -564,6 +567,13 @@ class PharmacistPrescriptionReviewView(APIView):
         notes = data.get('notes', '').strip()
         items_data = data.get('items')
         previous_status = prescription.status
+        if action == 'approve':
+            for field in EVIDENCE_FIELDS:
+                if field in data:
+                    setattr(prescription, field, data[field])
+            prescription.verified_by = request.user
+            prescription.verified_at = timezone.now()
+            prescription.original_due_on = prescription.original_due_on or working_day_due(timezone.localdate(prescription.submitted_at))
 
         prescription.pharmacist = request.user
         prescription.pharmacist_notes = notes
@@ -595,7 +605,7 @@ class PharmacistPrescriptionReviewView(APIView):
             _create_clarification_message(prescription, sender=request.user, message=notes)
 
         prescription.save(update_fields=[
-            'pharmacist', 'pharmacist_notes', 'status', 'clarification_message', 'updated_at',
+            'pharmacist', 'pharmacist_notes', 'status', 'clarification_message', 'updated_at', *EVIDENCE_FIELDS, 'verified_by', 'verified_at', 'original_due_on',
         ])
         PrescriptionReviewDecision.objects.create(
             prescription=prescription,

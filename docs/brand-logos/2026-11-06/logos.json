@@ -1,0 +1,369 @@
+[
+  {
+    "brand": "Quest",
+    "source": "https://www.questvitamins.com/",
+    "image_url": "https://www.questvitamins.com/cdn/shop/files/qt_q_95_1.webp?v=1769672630&width=800",
+    "brand_id": 990,
+    "sha256": "36a3a01de0001bb4d26d84e83b44b547147772f6355886941c54a809ec1791f0",
+    "result": "imported"
+  },
+  {
+    "brand": "Zyrtec",
+    "source": "https://www.zyrtec.com/",
+    "image_url": "https://images.ctfassets.net/th7up0brotb1/GyBQcJyAhrzMVRtrUgEQB/3b9a493013835d851722e77ca3d3e0e6/Zyrtec-Logo-200.png?w=200",
+    "brand_id": 1229,
+    "sha256": "3d267ec4ac3607cf72408f6c630959b91a9e17d5eb425b2f57444ad4bce790d6",
+    "result": "imported"
+  },
+  {
+    "brand": "Mucinex",
+    "source": "https://www.reckitt.com/brands/",
+    "image_url": "https://eu-images.contentstack.com/v3/assets/blt93c8bc7a598af9f0/blt19cee218dfb0804f/6968ee0f074e2d5c6312e204/mucinex.jpeg?width=223&height=150&format=jpg&quality=90",
+    "brand_id": 857,
+    "sha256": "e950f97441c04908dfead5564a7d250328fc15d8e27ccdf8ec11552241eba424",
+    "result": "imported"
+  },
+  {
+    "brand": "Dettol",
+    "source": "https://www.reckitt.com/brands/",
+    "image_url": "https://eu-images.contentstack.com/v3/assets/blt93c8bc7a598af9f0/blt11e2842da2338504/69662745d53632bc224da864/a0b2caab0523e145bae97f5ee089aef02f327a85.png?width=460&height=309&format=png&quality=90",
+    "brand_id": 531,
+    "sha256": "4c0a7ce007f3f39b75314f7a38a5e08ef66a4813d6a305ffab45568bc35572b0",
+    "result": "imported"
+  },
+  {
+    "brand": "Nature's Way",
+    "source": "https://naturesway.com/",
+    "image_url": "https://naturesway.com/cdn/shop/files/New_logo_512x512_5957d901-bb86-49dd-badd-1a59ccf77fad.png?v=9176868554212822025",
+    "brand_id": 870,
+    "sha256": "a7bfd0f23354b9ffa5b4a3b03cb76b4344e1428e51b4f091b944e6974e5b0d7e",
+    "result": "imported"
+  },
+  {
+    "brand": "Zaroza",
+    "source": "https://zaroza.com/",
+    "image_url": "https://cdn.myikas.com/images/theme-images/5291d871-483d-44f2-aa46-bb27725a22db/image_3840.webp",
+    "brand_id": 1203,
+    "sha256": "5476365091767db6fba1efd7117128e70211dc805ed69e47b4ff21926277dd04",
+    "result": "imported"
+  },
+  {
+    "brand": "Nature's Truth",
+    "source": "https://naturestruth.com/pages/our-quality",
+    "image_url": "https://naturestruth.com/cdn/shop/files/NT_Logo_Banner_4C_CMYK_300x@2x.png?v=1717162644",
+    "brand_id": 869,
+    "sha256": "dac1398187f26499f4c3f6565c48424b42f724204c77bcd04ec0df6996525834",
+    "result": "imported"
+  },
+  {
+    "brand": "Chupa Chups",
+    "source": "https://perfettivanmelleus.com/our-brands/",
+    "image_url": "https://perfettivanmelleus.com/wp-content/uploads/2017/05/logo_chupa_chups.png",
+    "brand_id": 434,
+    "sha256": "6281976174868934b38eedc61446daee2f255fbd7bb177138364d9e50db32913",
+    "result": "imported"
+  },
+  {
+    "brand": "Mentos",
+    "source": "https://perfettivanmelleus.com/our-brands/",
+    "image_url": "https://perfettivanmelleus.com/wp-content/uploads/2017/06/logo_mentos1.png",
+    "brand_id": 827,
+    "sha256": "6dd5af091ba21fb619bded0123c5cbc4d9719d23c5461b9a8e218ad04c52dc11",
+    "result": "imported"
+  },
+  {
+    "brand": "Swanson",
+    "source": "https://www.swansonvitamins.com/",
+    "image_url": "https://www.swansonvitamins.com/cdn/shop/files/SVG-Swanson-Vitamins-horiz-2c-cream-logo-ada.svg?v=1777495067&width=750",
+    "brand_id": 1079,
+    "sha256": "984f37a578a4d16bac9b512bb22c1f3cbcbd394a38762d23ed73ee87073d2a3b",
+    "result": "imported"
+  },
+  {
+    "brand": "Hawi",
+    "source": "https://naturestouch.co.ke/",
+    "image_url": "https://naturestouch.co.ke/cdn/shop/files/HAWI-colour_upclose.png?v=1698742963&width=600",
+    "brand_id": 689,
+    "sha256": "efe89cb6ed365a91c39911aef40834f784bb2044164033c704656794e6041e3c",
+    "result": "imported"
+  },
+  {
+    "brand": "Brut",
+    "source": "https://www.brut-for-men.com/",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/630849d0f6fb6d37c788508b/0ee5d554-0def-45c9-8d67-6ddf12bd04bb/New+BRUT+Logo+2019.png?format=1500w",
+    "brand_id": 378,
+    "sha256": "9452dedb40b92d7c3125f5047c2f4c245922b28343df5fa6055b7ae508695b9a",
+    "result": "imported"
+  },
+  {
+    "brand": "HealthAid",
+    "source": "https://www.healthaid.co.uk/",
+    "image_url": "https://www.healthaid.co.uk/cdn/shop/files/healthaid-logo-459x161.png?v=1681746304&width=200",
+    "brand_id": 692,
+    "sha256": "8286ee1d48b810d6c83f40ee9d73f4276f4c68722abf7d392224a37fb5a13475",
+    "result": "imported"
+  },
+  {
+    "brand": "Beauty Formulas",
+    "source": "https://www.beautyformulas.co.uk/",
+    "image_url": "https://www.beautyformulas.co.uk/wp-content/themes/beautyformulas/images/beauty-formulas-logo.svg",
+    "brand_id": 349,
+    "sha256": "bde07451a7ca5f58965d2476818f74974adb6ce23dbe3ac0dd85dfdee91d08ce",
+    "result": "imported"
+  },
+  {
+    "brand": "Twistshake",
+    "source": "https://twistshake.cl/",
+    "image_url": "https://twistshake.cl/cdn/shop/files/logo_1.png?v=1614823541&width=600",
+    "brand_id": 1141,
+    "sha256": "365d668225ba0ae1dd99f18974a2f561fd19837209058f6d5251f34bb5008347",
+    "result": "imported"
+  },
+  {
+    "brand": "Skins",
+    "source": "https://www.skinssexualhealth.co.uk/",
+    "image_url": "https://www.skinssexualhealth.co.uk/cdn/shop/files/skins_logo_header.webp?v=1751202838",
+    "brand_id": 1057,
+    "sha256": "1cc563b7a7eedf2fc60e885fc9e9b35702d909b7ea3b14760b17fcb4aad7b1f9",
+    "result": "imported"
+  },
+  {
+    "brand": "Swiss Energy",
+    "source": "https://swissenergy-vitamins.com/",
+    "image_url": "https://swissenergy-vitamins.com/wp-content/uploads/2025/07/logo-red.svg",
+    "brand_id": 1080,
+    "sha256": "527be7c789af1ba1e3d68a9a85c302ec0cbc2ad7ff7900a834e965764e2084e0",
+    "result": "imported"
+  },
+  {
+    "brand": "Crescina",
+    "source": "https://www.labosuisse.com/prodotto/crescina-isole-follicolari-e-anti-caduta-donna/",
+    "image_url": "https://assets.labosuisse.com/wp-content/uploads/2024/03/08152559/crescina_logo_pagina-brand_trasp.png",
+    "brand_id": 488,
+    "sha256": "7bfb2af23804f298d1a4dda431fb866e9561377f77381abab323a947384e4aea",
+    "result": "imported"
+  },
+  {
+    "brand": "Aqua Oleum",
+    "source": "https://aqua-oleum.co.uk/",
+    "image_url": "https://aqua-oleum.co.uk/wp-content/uploads/2022/07/Aqua-Oleum-2022.svg",
+    "result": "no unique matching brand"
+  },
+  {
+    "brand": "Medinox",
+    "source": "https://www.medinox.co.za/",
+    "image_url": "https://www.medinox.co.za/wp-content/uploads/2024/01/Medinox-Small-Logo.png",
+    "brand_id": 816,
+    "sha256": "354012246f45371308070e01d7e18de19a7e6dde4d627eba5a167c1c8d15d01a",
+    "result": "imported"
+  },
+  {
+    "brand": "Bio-Oil",
+    "source": "https://www.bio-oil.com/rw/en/products/SCO/information",
+    "image_url": "https://www.bio-oil.com/assets/svg/logo/Bio-Oil_logo-43c18bb07a97429b8524f1fb2e9ab47a7ca439e5ae8921fe8e67f92912812430.svg",
+    "brand_id": 365,
+    "sha256": "91560daa33ffd698f925769f8674476b79ac19052ebaf5768c12ca9675b40076",
+    "result": "imported"
+  },
+  {
+    "brand": "Nascita",
+    "source": "https://www.doguskozmetik.com/tr/markalar/nascita",
+    "image_url": "https://www.doguskozmetik.com/storage/media/oIn1Sz3oGKLTztLjG6ZIxrEFZf0MzzSDL5xoQgHx.png",
+    "brand_id": 863,
+    "sha256": "f5b7b266a50211b1718ff6dd36b3bc906910a0a7cb3beb3f889c90945a14a3ae",
+    "result": "imported"
+  },
+  {
+    "brand": "Natural Lamu",
+    "source": "https://www.natural-lamu.com/",
+    "image_url": "https://www.natural-lamu.com/cdn/shop/files/Logo_square_25_MPixels_3d41219b-5156-4d30-b6be-778656b65985_189x189.png?v=1725696586",
+    "brand_id": 867,
+    "sha256": "948e62085361dad121602a383056cdc20777f60ae21b8031ea35779231fbeb02",
+    "result": "imported"
+  },
+  {
+    "brand": "Studex",
+    "source": "https://www.studex.eu/ear-piercing/questions-answers/",
+    "image_url": "https://www.studex.eu/wp-content/uploads/2026/01/studex-50yrs-mobile.png",
+    "brand_id": 1069,
+    "sha256": "607f2f09551e7428d202f5d9d449d95754badc8d90ee1a0c273b903046d5ad28",
+    "result": "imported"
+  },
+  {
+    "brand": "Mack's",
+    "source": "https://www.macksearplugs.com/",
+    "image_url": "https://www.macksearplugs.com/wp-content/uploads/2015/10/logo.png",
+    "brand_id": 806,
+    "sha256": "9d2e3d674ec169bab9c714298f0fd25ecf2070ec3a1d5e2b817096f9fc7220d0",
+    "result": "imported"
+  },
+  {
+    "brand": "Suresign",
+    "source": "https://www.suresign.com/self-tests",
+    "image_url": "https://www.suresign.com/hubfs/SureSign%20Logo.svg",
+    "result": "rejected",
+    "reason": "SVG contains active or external content"
+  },
+  {
+    "brand": "Mandevu",
+    "source": "https://themandevu.com/",
+    "image_url": "https://themandevu.com/cdn/shop/files/Mandevu-logo.png?v=1713883787&width=600",
+    "brand_id": 810,
+    "sha256": "d35b7f36f5d3b4c3a76d356775809e01bd58a29618a205f9102e78759cb44ef6",
+    "result": "imported"
+  },
+  {
+    "brand": "Aidplast",
+    "source": "https://www.aidplast.com/",
+    "image_url": "https://www.aidplast.com/wp-content/uploads/2025/10/aidplast-logo.png",
+    "brand_id": 270,
+    "sha256": "d633f693cd07d1e38cb03bf528255c1c3badb52058dd2fcc00adb1083d676cec",
+    "result": "imported"
+  },
+  {
+    "brand": "Japlo",
+    "source": "https://www.japlobaby.com.my/index.php?path=62&route=product%2Fcategory",
+    "image_url": "https://www.japlobaby.com.my/image/catalog/Logos/Japlo-logo_110x90-01.png",
+    "brand_id": 735,
+    "sha256": "242eb11d9015d68d78e373712921a3448746338c455ea7fb30a60a1203f86911",
+    "result": "imported"
+  },
+  {
+    "brand": "Nature's Bounty",
+    "source": "https://naturesbounty.com/pages/our-products",
+    "image_url": "https://naturesbounty.com/cdn/shop/files/NB-logo.svg?v=1713987522",
+    "brand_id": 868,
+    "sha256": "ed46be01ed9ad963088deb18391360d536c509a96062d388ea045d9a26bc2540",
+    "result": "imported"
+  },
+  {
+    "brand": "St. Ives",
+    "source": "https://www.stives.com/",
+    "image_url": "https://www.stives.com/cdn/shop/files/St._Ives_Logo_Transparent.png?v=1785334886&width=1445",
+    "brand_id": 1066,
+    "sha256": "7fb0a2bbf053b3343539c7facc5fd1845edac6cc6e00e0009799d4961e5bb903",
+    "result": "imported"
+  },
+  {
+    "brand": "SKIN1004",
+    "source": "https://www.skin1004.com/pages/our-ingredients",
+    "image_url": "https://www.skin1004.com/cdn/shop/files/SKIN1004_LOGO_300PX_30c77c72-0035-4b50-ba2c-f2c7a36a0d9d.png?v=1738771518&width=600",
+    "brand_id": 807,
+    "sha256": "ba3c4455035dbe4d3f61373d8044554f5f71a5239e94b487dcb0e4fdd5dad968",
+    "result": "imported"
+  },
+  {
+    "brand": "Ythera",
+    "source": "https://ytherake.com/",
+    "image_url": "https://ytherake.com/cdn/shop/t/6/assets/green-y.png?v=32388538541580278351749396776",
+    "brand_id": 1202,
+    "sha256": "b673ab8d92aee0ee3d602168f39c0b90bb3bed7a857fd2fabce1ee74f3757f2f",
+    "result": "imported"
+  },
+  {
+    "brand": "Bennetts",
+    "source": "https://www.bennettsbaby.com/",
+    "image_url": "https://www.bennettsbaby.com/bennetts-logo.png",
+    "brand_id": 356,
+    "sha256": "7c2708298f94f2a46eeb2231c7b77ede002b2272bcca7d498fae1d86be170f11",
+    "result": "imported"
+  },
+  {
+    "brand": "Sunshine Nutrition",
+    "source": "https://sunshinenutrition.us/",
+    "image_url": "https://sunshinenutrition.us/wp-content/uploads/2020/12/sunshine-nutrition-logo-1527769004.png",
+    "brand_id": 1076,
+    "sha256": "3fbeef83642c07930bb205341398d6757099a9fa5b0fe6b2c00e4a56a5803b74",
+    "result": "imported"
+  },
+  {
+    "brand": "Accu-Chek",
+    "source": "https://www.accu-chek.com/",
+    "image_url": "https://www.accu-chek.com/themes/custom/unified/logo.svg",
+    "brand_id": 1232,
+    "sha256": "c8785c4da985573432fee47931d85eda43685b7523594a09a4712a027b986dcf",
+    "result": "imported"
+  },
+  {
+    "brand": "Abena",
+    "source": "https://www.abena.com/",
+    "image_url": "https://www.abena.com/-/media/Project/B2B/B2B-Shared-Site/Graphics/Logos/logo.svg?rev=3d22bbba849a4b50a343be72a2f39b54",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Advil",
+    "source": "https://www.advil.com/",
+    "image_url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/bp-advil-v2/en_US/global/logo/image003-res-v3.png?auto=format",
+    "brand_id": 1243,
+    "sha256": "8ffb852b23e6271274d4dcddf300091acb57ddaa9412c1fe975b0b91f540f684",
+    "result": "imported"
+  },
+  {
+    "brand": "Bioderma",
+    "source": "https://www.bioderma.co.uk/",
+    "image_url": "https://www.bioderma.co.uk/etc.clientlibs/bioderma-v2/components/organisms/footer/v1/footer/clientlib-footer/resources/bioderma_logo_footer_1600_1x.webp",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Dove",
+    "source": "https://www.dove.com/us/en/home.html",
+    "image_url": "https://assets.unileversolutions.com/v1/132779978.png",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Garnier",
+    "source": "https://www.garnierusa.com/",
+    "image_url": "https://www.garnierusa.com/-/media/project/loreal/brand-sites/garnier/usa/us/mega-menu/2026/garnier-logo.png?rev=3bdf6d76e044496496710813345c86a9",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Cetaphil",
+    "source": "https://www.cetaphil.com/us/",
+    "image_url": "https://www.cetaphil.com/on/demandware.static/-/Library-Sites-RefArchSharedLibrary/default/dw14371c1b/images/Cetaphil_Logo_285.png",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Pampers",
+    "source": "https://www.pampers.com/en-us",
+    "image_url": "https://images.ctfassets.net/pfeg73t23esw/7kSccXJcqkQ9i65rLfoiwN/41259ca8e5eda76d4aa1b07cd43662cd/Pampers_Logo_Revamp.svg?w=3840&q=75",
+    "brand_id": 935,
+    "sha256": "df3e2a722fa1c262459a84f0d16c169729f0a0786194bc8981ff471653a70354",
+    "result": "imported"
+  },
+  {
+    "brand": "Listerine",
+    "source": "https://www.listerine.com/",
+    "image_url": "https://images.ctfassets.net/z7cr8rgccizj/711lgyHHpMEa7YiQ12doMj/3256d9a9ce0c6abf9d255cab64275c42/listerine-logo.svg",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Dettol",
+    "source": "https://www.dettol.co.uk/",
+    "image_url": "https://eu-images.contentstack.com/v3/assets/blt0ed015f9da377bfd/blt62f35a0648ac4cde/6a5b2df0633211dd10734c59/Dettol_new_logo.svg",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Durex",
+    "source": "https://www.durex.co.uk/",
+    "image_url": "https://eu-images.contentstack.com/v3/assets/bltcc0d7f2f3b1240c5/bltd6c300e222c4e39c/68c82818896e3d6767c5ad63/Durex-Lozenge-Logo-Primary.svg",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Olay",
+    "source": "https://www.olay.com/",
+    "image_url": "https://www.olay.com/cdn/shop/files/olay-logo.webp?v=1779268456&width=194",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Oral-B",
+    "source": "https://oralb.com/",
+    "image_url": "https://cdn11.bigcommerce.com/s-2idmiil7bp/images/stencil/original/content/eureka/homepage/oralb-logo-d.png",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Nicorette",
+    "source": "https://www.nicorette.co.uk/",
+    "image_url": "https://images.ctfassets.net/gx4uyacaj0xz/7hlSfyALlroI3UGeGgbY6A/850e627bbc90bee811c13e5c4fcdc23e/Logo_footer.svg",
+    "result": "existing logo preserved"
+  }
+]

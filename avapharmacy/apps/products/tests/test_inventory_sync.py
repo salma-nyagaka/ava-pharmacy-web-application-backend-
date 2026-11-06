@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 import hashlib
 import hmac
 import json
@@ -42,7 +43,7 @@ class InventorySyncTests(TestCase):
             name='Tablets',
             price='500.00',
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'pos_product_id', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=self.variant,
             location=Product.STOCK_BRANCH,

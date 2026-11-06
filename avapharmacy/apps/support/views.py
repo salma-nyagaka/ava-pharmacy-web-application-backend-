@@ -1,3 +1,4 @@
+from .compliance_audit import LockedUpdateMixin
 from django.db import transaction
 from django.http import FileResponse
 from rest_framework.exceptions import PermissionDenied
@@ -117,13 +118,13 @@ class ComplianceEvidenceListCreateView(generics.ListCreateAPIView):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
 
-class ComplianceEvidenceDetailView(generics.RetrieveUpdateAPIView):
+class ComplianceEvidenceDetailView(LockedUpdateMixin, generics.RetrieveUpdateAPIView):
     permission_classes = [ActiveEvidenceAccess]
     serializer_class = ComplianceEvidenceSerializer
     queryset = ComplianceEvidence.objects.all().select_related('created_by', 'updated_by')
 
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        serializer.save(updated_by=self.request.user, verified_by=None, verified_at=None, verification_reference='')
 
 
 class SupportTicketListCreateView(generics.ListCreateAPIView):

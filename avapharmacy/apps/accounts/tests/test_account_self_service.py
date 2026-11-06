@@ -1,3 +1,5 @@
+from avapharmacy.test_compliance_fixtures import credential_fixture
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 import re
 from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch
@@ -413,7 +415,7 @@ class ProfessionalRegistrationTests(TestCase):
             license_number='KMPDC-RESUBMIT-001',
             specialty='General Medicine',
             status=ClinicianProfile.STATUS_PENDING,
-        )
+        **clinician_fixture(exclude=('provider_type', 'name', 'email', 'phone', 'license_number', 'specialty', 'status')))
 
         response = self.client.post(
             reverse('admin-doctor-action', args=[profile.id]),
@@ -443,7 +445,7 @@ class ProfessionalRegistrationTests(TestCase):
             specialty='Dermatology',
             status=ClinicianProfile.STATUS_PENDING,
             status_note='Upload current CV and license.',
-        )
+        **clinician_fixture(exclude=('provider_type', 'name', 'email', 'phone', 'license_number', 'specialty', 'status', 'status_note')))
         from apps.consultations.views import _professional_resubmission_token
 
         token = _professional_resubmission_token(profile)
@@ -740,7 +742,7 @@ class AdminPharmacistAccountTests(TestCase):
                 role=User.PHARMACIST,
             ),
             license_number='PPB-DUP-001',
-        )
+        **credential_fixture(license_number='PPB-DUP-001', exclude=('user', 'license_number')))
         response = self.client.post(
             reverse('admin-users'),
             {

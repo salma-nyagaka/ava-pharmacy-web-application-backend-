@@ -5,17 +5,20 @@ from .models import Prescription, PrescriptionFile, PrescriptionItem, Prescripti
 class PrescriptionFileInline(admin.TabularInline):
     model = PrescriptionFile
     extra = 0
+    can_delete = False
 
 
 class PrescriptionItemInline(admin.TabularInline):
     model = PrescriptionItem
     extra = 0
+    can_delete = False
     autocomplete_fields = ('product',)
 
 
 class PrescriptionAuditLogInline(admin.TabularInline):
     model = PrescriptionAuditLog
     extra = 0
+    can_delete = False
     readonly_fields = ('action', 'performed_by', 'timestamp')
 
 
@@ -24,7 +27,10 @@ class PrescriptionAdmin(admin.ModelAdmin):
     list_display = ('reference', 'patient_name', 'status', 'dispatch_status', 'submitted_at')
     list_filter = ('status', 'dispatch_status')
     search_fields = ('reference', 'patient_name', 'doctor_name')
-    readonly_fields = ('reference', 'submitted_at', 'updated_at')
+    readonly_fields = ('reference', 'submitted_at', 'updated_at', 'status', 'verified_by', 'verified_at', 'original_due_on')
+
+    def has_delete_permission(self, request, obj=None):
+        return False
     inlines = [PrescriptionFileInline, PrescriptionItemInline, PrescriptionAuditLogInline]
 
 

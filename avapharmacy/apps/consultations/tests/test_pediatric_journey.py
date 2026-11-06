@@ -1,3 +1,5 @@
+from avapharmacy.test_compliance_fixtures import inventory_fixture
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -39,8 +41,8 @@ class PediatricJourneyTests(TestCase):
             self.assertEqual(self.client.get(reverse('consultation-detail', args=[consultation.pk])).status_code, 200)
             self.assertEqual(self.client.post(reverse('consultation-messages', args=[consultation.pk]), {'message': 'SYNTHETIC QA chat'}, format='json').status_code, 201)
         product = Product.objects.create(name='SYNTHETIC pediatric training item', sku='PED-JOURNEY-QA', slug='ped-journey-qa', is_active=True)
-        variant = Variant.objects.create(product=product, name='QA exact pack', sku='PED-JOURNEY-QA-EXACT', price=1, requires_prescription=True, is_active=True)
-        VariantInventory.objects.create(variant=variant, location=Product.STOCK_BRANCH, stock_quantity=4)
+        variant = Variant.objects.create(product=product, name='QA exact pack', sku='PED-JOURNEY-QA-EXACT', price=1, requires_prescription=True, is_active=True,**catalogue_fixture(medicine=True, exclude=('product', 'name', 'sku', 'price', 'requires_prescription', 'is_active')))
+        VariantInventory.objects.create(variant=variant, location=Product.STOCK_BRANCH, stock_quantity=4,**inventory_fixture(exclude=('variant', 'location', 'stock_quantity')))
         prescription = self.client.post(reverse('pediatrician-prescriptions'), {'consultation': consultation.pk, 'patient_name': self.child.full_name, 'items': [{'variant_id': variant.pk, 'dose': 'SYNTHETIC QA only', 'quantity': 1}], 'notes': 'No real clinical instructions.'}, format='json')
         self.assertEqual(prescription.status_code, 201, prescription.content)
         prescription_id = prescription.data['id']

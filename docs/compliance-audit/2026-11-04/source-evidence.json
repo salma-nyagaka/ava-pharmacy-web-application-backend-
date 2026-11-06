@@ -1,0 +1,126 @@
+{
+  "cart_entry": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py",
+    "line": 1194
+  },
+  "checkout_validation": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py",
+    "line": 305
+  },
+  "otc_selector": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py",
+    "line": 410
+  },
+  "otc_check": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py",
+    "line": 426
+  },
+  "delivery_api": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py",
+    "line": 3435
+  },
+  "order_transition": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/serializers.py",
+    "line": 340
+  },
+  "delivery_serializer": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/serializers.py",
+    "line": 160
+  },
+  "clinical_retention": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/admin.py",
+    "line": 23
+  },
+  "rx_approval": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py",
+    "line": 547
+  },
+  "rx_decision_record": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/models.py",
+    "line": 164
+  },
+  "rx_authorization": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/dispensing.py",
+    "line": 5
+  },
+  "clinician_validation": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/serializers.py",
+    "line": 532
+  },
+  "clinician_eligibility": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py",
+    "line": 281
+  },
+  "rx_promotion": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/services.py",
+    "line": 74
+  },
+  "public_product_api": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py",
+    "line": 292
+  },
+  "catalogue_fields": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/models.py",
+    "line": 1051
+  },
+  "stock_traceability": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/stock.py",
+    "line": 83
+  },
+  "risk_scoring": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/bot_protection.py",
+    "line": 213
+  },
+  "disclosure_fields": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/models.py",
+    "line": 5
+  },
+  "compliance_evidence": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/models.py",
+    "line": 78
+  },
+  "production_checks": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/checks.py",
+    "line": 44
+  },
+  "production_https": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/settings/production.py",
+    "line": 19
+  },
+  "encryption_fallback": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/fields.py",
+    "line": 10
+  },
+  "account_delete": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py",
+    "line": 486
+  },
+  "inspector_register": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py",
+    "line": 336
+  },
+  "root_routes": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/urls.py",
+    "line": 29
+  },
+  "privacy_notice": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Legal/PrivacyPage.tsx",
+    "line": 3
+  },
+  "home_registration_claim": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/HomePage/HomePage.tsx",
+    "line": 1034
+  },
+  "footer_disclosures": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/components/Footer/Footer.tsx",
+    "line": 140
+  },
+  "return_ui": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/Returns/ReturnsPage.tsx",
+    "line": 20
+  },
+  "otc_ui": {
+    "path": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-frontend/src/pages/ProductDetail/ProductDetailPage.tsx",
+    "line": 322
+  }
+}

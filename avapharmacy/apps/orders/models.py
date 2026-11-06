@@ -42,7 +42,11 @@ class Coupon(models.Model):
     def is_available(self, user=None):
         from django.utils import timezone
 
+        if not getattr(settings, 'CHECKOUT_COUPONS_ENABLED', False):
+            return False
         now = timezone.now()
+        if self.value <= 0 or (self.discount_type == self.TYPE_PERCENTAGE and self.value > 100):
+            return False
         if not self.is_active:
             return False
         if self.starts_at and self.starts_at > now:
@@ -59,6 +63,8 @@ class Coupon(models.Model):
 
     def calculate_discount(self, subtotal):
         subtotal = Decimal(subtotal)
+        if self.value <= 0 or (self.discount_type == self.TYPE_PERCENTAGE and self.value > 100):
+            return Decimal('0.00')
         if subtotal <= 0 or subtotal < self.minimum_subtotal:
             return Decimal('0.00')
 
@@ -107,7 +113,9 @@ class Cart(models.Model):
     def discount_total(self):
         if not self.coupon or not self.coupon.is_available(self.user):
             return Decimal('0.00')
-        return self.coupon.calculate_discount(self.total)
+        from apps.products.compliance import prescription_required
+        eligible = sum((item.subtotal for item in self.items.select_related('variant') if not prescription_required(item.variant)), Decimal('0.00'))
+        return self.coupon.calculate_discount(eligible)
 
     @property
     def shipping_fee(self):
@@ -365,6 +373,7 @@ class OrderItem(models.Model):
         blank=True,
         related_name='order_items',
     )
+    medicine_assessment = models.OneToOneField('support.MedicineAssessment', on_delete=models.PROTECT, null=True, blank=True, related_name='order_item')
     otc_screening = models.JSONField(default=dict, blank=True)
     discount_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 

@@ -53,3 +53,9 @@ celerybeat-schedule
 .DS_Store
 .idea/
 .vscode/
+
+# Shared local admin response cache (runtime data)
+/tmp/admin-read-cache/
+
+# Private local database recovery copies
+/.local-backups/

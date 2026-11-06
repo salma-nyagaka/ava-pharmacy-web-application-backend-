@@ -1,0 +1,126 @@
+[
+  {
+    "finding": "PPB-01",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "cart": 201,
+      "draft": 201,
+      "ppb_registration_blank": true,
+      "regulatory_not_approved": true,
+      "business_authorization_gate": false
+    }
+  },
+  {
+    "finding": "PPB-02",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "controlled_classification": true,
+      "requires_prescription": false,
+      "cart": 201
+    }
+  },
+  {
+    "finding": "PPB-01",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "regulatory_status": "suspended",
+      "cart": 201
+    }
+  },
+  {
+    "finding": "PPB-03",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "anonymous_detail": 200,
+      "requires_prescription": true,
+      "discount_total": "70.0000",
+      "promotion_id": 1
+    }
+  },
+  {
+    "finding": "PPB-04",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "classified_otc": true,
+      "neutral_catalog_name": true,
+      "screening_absent": true,
+      "cart": 201
+    }
+  },
+  {
+    "finding": "PPB-04",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "patient_supplied_screening": true,
+      "pharmacist_decision": false,
+      "draft": 201
+    }
+  },
+  {
+    "finding": "PPB-05",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "delivery_audit": 201,
+      "recipient_verified": false,
+      "cold_chain_intact": false,
+      "delivered_transition": 200
+    }
+  },
+  {
+    "finding": "PPB-06",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "age_of_record": "created during test",
+      "django_admin_delete_permitted": true,
+      "prescription_retained": false
+    }
+  },
+  {
+    "finding": "PPB-07",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "expired_license": true,
+      "is_verified": false,
+      "booking_payload_accepted": true
+    }
+  },
+  {
+    "finding": "PPB-08",
+    "result": "AUDIT_GAP",
+    "observed": {
+      "approval": 200,
+      "prescriber_identity_blank": true,
+      "authenticity_evidence_required": false,
+      "original_due_date_required": false
+    }
+  },
+  {
+    "finding": "CONTROL-04",
+    "result": "CONTROL_PASS",
+    "observed": {
+      "inspector_prescription_read": 200,
+      "inspector_write": 403
+    }
+  },
+  {
+    "finding": "CONTROL-01",
+    "result": "CONTROL_PASS",
+    "observed": {
+      "unrelated_prescription_read": 404
+    }
+  },
+  {
+    "finding": "CONTROL-02",
+    "result": "CONTROL_PASS",
+    "observed": {
+      "unsigned_callback": 403
+    }
+  },
+  {
+    "finding": "CONTROL-03",
+    "result": "CONTROL_PASS",
+    "observed": {
+      "unpaid_finalization": 400
+    }
+  }
+]

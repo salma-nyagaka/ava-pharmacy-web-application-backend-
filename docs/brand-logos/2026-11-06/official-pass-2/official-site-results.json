@@ -1,0 +1,1028 @@
+[
+  {
+    "brand": "Holland & Barrett",
+    "source": "https://www.hollandandbarrett.com/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.hollandandbarrett.com/"
+  },
+  {
+    "brand": "Dr Teal's",
+    "source": "https://www.drteals.com/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.drteals.com/"
+  },
+  {
+    "brand": "Lulu Life",
+    "source": "https://lulu-life.ch/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://lulu-life.ch/cdn/shop/files/cropped-logo_150x.jpg?v=1641399710",
+        "alt": "Lulu Life",
+        "path": "/private/tmp/ava-official-logos-pass2/ec43e317752825a7cb9b.source"
+      }
+    ],
+    "title": "Lulu Life - Online-Shop f\u00fcr Sheabutter und K\u00f6rperpflege aus St.Gallen"
+  },
+  {
+    "brand": "Clean & Clear",
+    "source": "https://www.cleanandclear.com/",
+    "candidates": [],
+    "title": "Clean & Clear\u00ae | Acne Treatment & Skincare"
+  },
+  {
+    "brand": "Uncover",
+    "source": "https://uncoverskincare.com/ke/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://ke.uncoverskincare.com/cdn/shop/files/Artboard_14.png?crop=center&height=151&v=1754580056&width=400",
+        "alt": "Uncover Skincare",
+        "path": "/private/tmp/ava-official-logos-pass2/bc8df425664dcc44e4a5.source"
+      },
+      {
+        "score": 45,
+        "url": "https://ke.uncoverskincare.com/cdn/shop/files/Artboard_14.png?crop=center&height=117&v=1754580056&width=310",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/c3f4b9f8c18f2378e6d8.source"
+      },
+      {
+        "score": 30,
+        "url": "https://ke.uncoverskincare.com/cdn/shop/files/white_logo.png?crop=center&height=151&v=1754516018&width=400",
+        "alt": "Uncover Skincare",
+        "path": "/private/tmp/ava-official-logos-pass2/6b02710ea37a8fa1a2f2.source"
+      }
+    ],
+    "title": "K-Beauty Skincare For Melanin-Rich Skin\n    \n    \n    \n      \u2013 Uncover Skincare"
+  },
+  {
+    "brand": "ACM",
+    "source": "https://labo-acm.com/",
+    "candidates": [
+      {
+        "score": 15,
+        "url": "https://labo-acm.com/cdn/shop/files/ACM-LOGO-BLACK.png?crop=center&height=95&v=1736933161&width=200",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/afca96a4209f39fa8656.source"
+      },
+      {
+        "score": 15,
+        "url": "https://labo-acm.com/cdn/shop/files/ACM-LOGO-BLACK.png?crop=center&height=76&v=1736933161&width=160",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/7ff54de7406c7e7b543d.source"
+      },
+      {
+        "score": 0,
+        "url": "https://labo-acm.com/cdn/shop/files/ACM-LOGO-WHITE.png?crop=center&height=95&v=1736933215&width=200",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/44701156b7546305357d.source"
+      },
+      {
+        "score": 0,
+        "url": "https://labo-acm.com/cdn/shop/files/ACM-LOGO-WHITE.png?crop=center&height=76&v=1736933215&width=160",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/9a9ccd2beceb66eea3c3.source"
+      }
+    ],
+    "title": "Laboratoire ACM - Laboratoire dermatologique"
+  },
+  {
+    "brand": "OPI",
+    "source": "https://www.opi.com/",
+    "candidates": [
+      {
+        "score": 35,
+        "url": "https://www.opi.com/#inline-logo",
+        "local": "/private/tmp/ava-official-logos-pass2/opi-inline-0.svg",
+        "alt": " ['SiteHeader_siteHeader__logo__tSKK4'] ",
+        "path": "/private/tmp/ava-official-logos-pass2/d2ac37635a54e01be6aa.source"
+      }
+    ],
+    "title": "OPI Nail Polish, Nail Care & Nail Art | OPI\u00ae"
+  },
+  {
+    "brand": "Jungle Formula",
+    "source": "https://www.jungleformula.co.uk/",
+    "candidates": [],
+    "title": "Jungle Formula INSECTS OFF! ADVENTURE ON!"
+  },
+  {
+    "brand": "Rhino Rescue",
+    "source": "https://rhinorescuestore.com/",
+    "candidates": [],
+    "title": "First Aid Kit - Best IFAK Trauma & Medical Kit | RhinoRescue"
+  },
+  {
+    "brand": "Suresign",
+    "source": "https://www.suresign.com/",
+    "candidates": [
+      {
+        "score": 55,
+        "url": "https://www.suresign.com/hubfs/SureSign%20Logo.svg",
+        "alt": "SureSign Logo",
+        "path": "/private/tmp/ava-official-logos-pass2/188ca57aa26778293acf.source"
+      },
+      {
+        "score": 55,
+        "url": "https://www.suresign.com/hs-fs/hubfs/SureSign%20logo%202.png?width=200&height=58&name=SureSign%20logo%202.png",
+        "alt": "SureSign logo 2",
+        "path": "/private/tmp/ava-official-logos-pass2/5ffc195533478f8ceab1.source"
+      },
+      {
+        "score": 40,
+        "url": "https://www.suresign.com/hs-fs/hubfs/our-partners-logo-14.webp?width=133&height=100&name=our-partners-logo-14.webp",
+        "alt": "our-partners-logo-14",
+        "path": "/private/tmp/ava-official-logos-pass2/76f6d87ff637ae1a86b2.source"
+      },
+      {
+        "score": 40,
+        "url": "https://www.suresign.com/hs-fs/hubfs/our-partners-logo-11.webp?width=133&height=100&name=our-partners-logo-11.webp",
+        "alt": "our-partners-logo-11",
+        "path": "/private/tmp/ava-official-logos-pass2/d563df3d1b12304e7635.source"
+      }
+    ],
+    "title": "Suresign | Home Test Kit Range | Self-Test Kits"
+  },
+  {
+    "brand": "Saraya",
+    "source": "https://saraya.world/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://saraya.world/images/sarayahqlogo_w.svg",
+        "alt": "SARAYA",
+        "path": "/private/tmp/ava-official-logos-pass2/297e6ff6bd2265ce3782.source"
+      },
+      {
+        "score": 45,
+        "url": "https://saraya.world/images/sarayahqlogo.svg",
+        "alt": "SARAYA",
+        "path": "/private/tmp/ava-official-logos-pass2/aa38dc9a0b8eee0083a1.source"
+      }
+    ],
+    "title": "SARAYA - Home"
+  },
+  {
+    "brand": "Deep Heat",
+    "source": "https://www.deepheat.com/",
+    "candidates": [],
+    "title": ""
+  },
+  {
+    "brand": "Rennie",
+    "source": "https://www.rennie.co.uk/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.rennie.co.uk/"
+  },
+  {
+    "brand": "Leukomed",
+    "source": "https://www.leukoplast.co.uk/",
+    "candidates": [
+      {
+        "score": 33,
+        "url": "https://assets.www.essity.com/leukoplast/2.0.167-release.7/img/leukoplast/leukoplast-logo.svg",
+        "alt": "Leukoplast logo",
+        "path": "/private/tmp/ava-official-logos-pass2/5da5714f2c2a698a133f.source"
+      },
+      {
+        "score": 2,
+        "url": "https://tena-images.essity.com/images-c5/110/172110/optimized-AzurePNG2K/essity-logo.png?w=200&h=1000&imPolicy=dynamic",
+        "alt": "Essity logotype",
+        "path": "/private/tmp/ava-official-logos-pass2/1afe01026303b16f0e22.source"
+      }
+    ],
+    "title": "Wound care in best hands | Leukoplast"
+  },
+  {
+    "brand": "Eco Style",
+    "source": "https://ecostyle.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://ecostyle.com/cdn/shop/files/logo_ecostyle.svg?v=1775235084&width=300",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/2de03ef6c7e3f43b3b0f.source"
+      },
+      {
+        "score": 30,
+        "url": "https://ecostyle.com/cdn/shop/files/logo_ecostyle.png?v=1772556940&width=300",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/687348ced18384625c1a.source"
+      }
+    ],
+    "title": "Eco Style"
+  },
+  {
+    "brand": "Advancis",
+    "source": "https://www.advancispharma.com/",
+    "candidates": [
+      {
+        "score": 40,
+        "url": "https://advancispharma.com/wp-content/themes/advancis/src/img/logo_phrased.png",
+        "alt": "logo",
+        "path": "/private/tmp/ava-official-logos-pass2/18e9a1a01e1b5b3c5516.source"
+      }
+    ],
+    "title": "Homepage - Advancis"
+  },
+  {
+    "brand": "Cottons",
+    "source": "https://www.cottons.com.au/",
+    "candidates": [],
+    "error": "406 Client Error: Not Acceptable for url: https://www.cottons.com.au/"
+  },
+  {
+    "brand": "Oilatum",
+    "source": "https://www.oilatum.co.uk/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.oilatum.co.uk/media/3ksalw51/oilatum-logo_1200x1200.png",
+        "alt": "Oilatum",
+        "path": "/private/tmp/ava-official-logos-pass2/46ae331450b07d936c5e.source"
+      }
+    ],
+    "title": "Home"
+  },
+  {
+    "brand": "BU.KE\u2019",
+    "source": "https://bu-ke.co.ke/",
+    "candidates": [],
+    "title": "Redefined Hair and skin care - BUKE Official"
+  },
+  {
+    "brand": "Anusol",
+    "source": "https://www.anusol.co.uk/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.anusol.co.uk/wp-content/uploads/sites/2/2021/11/anusol_logo.png",
+        "alt": "Anusol",
+        "path": "/private/tmp/ava-official-logos-pass2/e3c49793170b1b3c271e.source"
+      },
+      {
+        "score": 30,
+        "url": "https://www.anusol.co.uk/wp-content/uploads/sites/2/2021/11/logo-footer.png",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/d4e219526a6b220b88e1.source"
+      },
+      {
+        "score": 30,
+        "url": "https://www.anusol.co.uk/wp-content/uploads/sites/2/2021/11/boots-logo.svg",
+        "alt": "Boots",
+        "path": "/private/tmp/ava-official-logos-pass2/5835873807f36821dbdd.source"
+      },
+      {
+        "score": 30,
+        "url": "https://www.anusol.co.uk/wp-content/uploads/sites/2/2021/11/Asda_logo.svg",
+        "alt": "Asda",
+        "path": "/private/tmp/ava-official-logos-pass2/d0b2eda565e22d37b23a.source"
+      }
+    ],
+    "title": "Anusol"
+  },
+  {
+    "brand": "Sudocrem",
+    "source": "https://www.sudocrem.co.uk/",
+    "candidates": [
+      {
+        "score": 30,
+        "url": "https://www.sudocrem.co.uk/globalassets/sudocrem-uk/logos/sudocrem-logo.svg",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/9465256b9f1dd3279183.source"
+      }
+    ],
+    "title": "Sudocrem\u00ae UK"
+  },
+  {
+    "brand": "Savlon",
+    "source": "https://www.savlon.co.uk/",
+    "candidates": [
+      {
+        "score": 15,
+        "url": "https://05.cdn.stada.com/media/k2hnoei5/high-res-new-logo.webp",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/60ff6f227f81205c8238.source"
+      },
+      {
+        "score": 15,
+        "url": "https://05.cdn.stada.com/media/kddb2w4a/tr_stada-group-logo_header_no-shadow.webp",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/2e6fd6bc430663976e4d.source"
+      }
+    ],
+    "title": "Savlon Antiseptic Cream | Official Website | Savlon"
+  },
+  {
+    "brand": "Mizani",
+    "source": "https://www.mizani.com/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.mizani.com/"
+  },
+  {
+    "brand": "Neubria",
+    "source": "https://neubria.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://neubria.com/cdn/shop/files/Mask_group.png?v=1720566754&width=600",
+        "alt": "Neubria",
+        "path": "/private/tmp/ava-official-logos-pass2/e696517461e5f8da1251.source"
+      },
+      {
+        "score": 30,
+        "url": "https://neubria.com/cdn/shop/files/image_2_f9d37783-2623-4e61-9378-ec45178f86f6.png?v=1720561273",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/ecb414c3c700bdc4f3ad.source"
+      },
+      {
+        "score": 30,
+        "url": "https://neubria.com/cdn/shop/files/image_3_2dca187c-5397-41af-923b-2be439fec1c7.png?v=1720561299",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/ec995ec7e7636adfb163.source"
+      },
+      {
+        "score": 30,
+        "url": "https://neubria.com/cdn/shop/files/image_4_75c560e9-9f41-4688-adfc-4ea86395c44d.png?v=1720561316",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/fc80372448dc3a6ef0a9.source"
+      }
+    ],
+    "title": "Natural Vitamins and Supplements for Mind and Body\n \u2013 Neubria"
+  },
+  {
+    "brand": "Biofreeze",
+    "source": "https://biofreeze.com/",
+    "candidates": [
+      {
+        "score": 55,
+        "url": "https://biofreeze.com/static/7fed86f968340fdd0b895a4799f531bf/55163/blt72502230d3466020.png",
+        "alt": "Biofreeze Logo",
+        "path": "/private/tmp/ava-official-logos-pass2/66a4bea09938c809933b.source"
+      },
+      {
+        "score": 55,
+        "url": "https://biofreeze.com/static/7fed86f968340fdd0b895a4799f531bf/5ee1c/blt72502230d3466020.png",
+        "alt": "Biofreeze Logo",
+        "path": "/private/tmp/ava-official-logos-pass2/e9f283f6af7c804b1774.source"
+      }
+    ],
+    "title": "Cooling relief for aches and pains  | Biofreeze US"
+  },
+  {
+    "brand": "BetterYou",
+    "source": "https://betteryou.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://betteryou.com/cdn/shop/files/Frame.svg?v=1766641969&width=140",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/57f08a9de1a89744818c.source"
+      },
+      {
+        "score": 45,
+        "url": "https://betteryou.com/cdn/shop/files/Frame.svg?v=1766641969&width=120",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/820d7c30b31692c753e2.source"
+      },
+      {
+        "score": 30,
+        "url": "https://betteryou.com/cdn/shop/files/BetterYou_Logo.svg?height=30&v=1770283067",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/053214bb6ad2608b1b97.source"
+      }
+    ],
+    "title": "BetterYou | Experts in smart nutritional supplementation"
+  },
+  {
+    "brand": "Imodium",
+    "source": "https://www.imodium.com/",
+    "candidates": [],
+    "title": "IMODIUM\u00ae for Diarrhea Relief"
+  },
+  {
+    "brand": "Voltaren",
+    "source": "https://www.voltarengel.com/",
+    "candidates": [
+      {
+        "score": 40,
+        "url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/voltaren-gel/en_US/header/voltaren-new-logo.png?auto=format",
+        "alt": "Voltaren logo,  Arthritis Pain",
+        "path": "/private/tmp/ava-official-logos-pass2/2be92fc358167bd20d21.source"
+      },
+      {
+        "score": 30,
+        "url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/voltaren-gel/en_US/generic-assets/Titan_Product-BlueCap-Final_NonNewlogo.png?auto=format",
+        "alt": "Voltaren Arthritis Gel Product and Packaging",
+        "path": "/private/tmp/ava-official-logos-pass2/a791f00648a2577a0690.source"
+      },
+      {
+        "score": 30,
+        "url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/voltaren-gel/en_US/2025-update/product_coupon_double.png?auto=format",
+        "alt": "Voltaren Arthritis Pain Relieving Gel Package",
+        "path": "/private/tmp/ava-official-logos-pass2/c1f8652ed1e8d9ef7629.source"
+      }
+    ],
+    "title": "Voltaren Arthritis Pain Relief Gel | Voltaren"
+  },
+  {
+    "brand": "Bach Rescue",
+    "source": "https://www.rescueremedy.com/en-gb/",
+    "candidates": [
+      {
+        "score": 35,
+        "url": "https://www.nelsons.com/pages/rescue#inline-logo",
+        "local": "/private/tmp/ava-official-logos-pass2/bachrescue-inline-15.svg",
+        "alt": " ['header__logo__back-icon'] ",
+        "path": "/private/tmp/ava-official-logos-pass2/e40ea2e2f745396877da.source"
+      },
+      {
+        "score": 33,
+        "url": "https://www.nelsons.com/cdn/shop/files/Royal_Warrant_-_Logo_png.png?v=1761914016&width=151",
+        "alt": "Royal warrant logo",
+        "path": "/private/tmp/ava-official-logos-pass2/cd86de5d461274f10a6b.source"
+      },
+      {
+        "score": 33,
+        "url": "https://www.nelsons.com/cdn/shop/files/Royal_Warrant_-_Logo_png.png?v=1761914016&width=226",
+        "alt": "Royal warrant logo",
+        "path": "/private/tmp/ava-official-logos-pass2/9c6f855376733a3ba08d.source"
+      }
+    ],
+    "title": "Bach RESCUE Remedy | Nelsons"
+  },
+  {
+    "brand": "Corsodyl",
+    "source": "https://www.corsodyl.co.uk/",
+    "candidates": [
+      {
+        "score": 10,
+        "url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/parodontax-v3/en_GB/update-26/corsoryl-logo.png?auto=format",
+        "alt": "parodontax logo",
+        "path": "/private/tmp/ava-official-logos-pass2/ffcec775765ec44bef9b.source"
+      },
+      {
+        "score": 10,
+        "url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/otrivin-v3/en_IE/header/haleon-logo-colour-pos-svg.png?auto=format",
+        "alt": "Haleon logo",
+        "path": "/private/tmp/ava-official-logos-pass2/386e77d71eee156b86f7.source"
+      }
+    ],
+    "title": "Treat Bleeding Gums With Corsodyl | Corsodyl"
+  },
+  {
+    "brand": "Geratherm",
+    "source": "https://www.geratherm.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.geratherm.com/fileadmin/Images_Downloads/geratherm-logo.svg",
+        "alt": "Geratherm",
+        "path": "/private/tmp/ava-official-logos-pass2/0be3479c55ebf3e5f3e9.source"
+      },
+      {
+        "score": 40,
+        "url": "https://www.geratherm.com/fileadmin/Images_Downloads/_processed_/e/2/csm_12-01-2026_Website_News_Marlene_Geratherm_c3337477d7.png",
+        "alt": "Biathlete with rifle. Geratherm logo clearly visible on the rear stock of the rifle.",
+        "path": "/private/tmp/ava-official-logos-pass2/06b29646e56af29387a8.source"
+      }
+    ],
+    "title": "Innovative medical technology from Germany | Geratherm  Medical AG"
+  },
+  {
+    "brand": "Power Health",
+    "source": "https://www.powerhealth.co.uk/",
+    "candidates": [
+      {
+        "score": 30,
+        "url": "https://www.powerhealth.co.uk/cdn/shop/files/Power_Health_Logo_Full_Colour.png?crop=center&height=160&v=1715525348&width=400",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/0a073cace302797dd441.source"
+      },
+      {
+        "score": 23,
+        "url": "https://www.powerhealth.co.uk/cdn/shop/files/Power_Health_Logo_White_ef85819a-f3be-4208-b587-faccca54c8e8.png?v=1715525366",
+        "alt": "Power Health",
+        "path": "/private/tmp/ava-official-logos-pass2/ad66eb9adb33541074db.source"
+      }
+    ],
+    "title": "Power Health"
+  },
+  {
+    "brand": "Doppelherz",
+    "source": "https://www.doppelherz.com/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.doppelherz.com/"
+  },
+  {
+    "brand": "Alka-Seltzer",
+    "source": "https://www.alkaseltzer.com/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.alkaseltzer.com/"
+  },
+  {
+    "brand": "Compeed",
+    "source": "https://www.compeed.co.uk/",
+    "candidates": [
+      {
+        "score": 55,
+        "url": "https://www.compeed.co.uk/_ipx/q_60/https://www.compeed.co.uk/storage/assets/logo.svg",
+        "alt": "Compeed Logo",
+        "path": "/private/tmp/ava-official-logos-pass2/c49f6cb09c604c577dc4.source"
+      }
+    ],
+    "title": "Compeed\u00ae: expert skin care for Blisters, Cold Sores, Corns, Bunions"
+  },
+  {
+    "brand": "Chapstick",
+    "source": "https://www.chapstick.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://www.chapstick.com/cdn/shop/files/Chapstick_Logo.png?v=1784565713&width=180",
+        "alt": "Chapstick SBC",
+        "path": "/private/tmp/ava-official-logos-pass2/843b9601a2bef0e14864.source"
+      },
+      {
+        "score": 53,
+        "url": "https://www.chapstick.com/cdn/shop/files/Chapstick_Logo.png?v=1784565713&width=160",
+        "alt": "Chapstick SBC",
+        "path": "/private/tmp/ava-official-logos-pass2/d4d4c6a21c8f7091b710.source"
+      }
+    ],
+    "title": "Skincare Products for Lips | ChapStick"
+  },
+  {
+    "brand": "Nyquil",
+    "source": "https://vicks.com/en-us/shop-products/nyquil",
+    "candidates": [],
+    "title": "NyQuil Cough, Cold & Flu Medicine for Nighttime Symptom Relief | Vicks"
+  },
+  {
+    "brand": "Beechams",
+    "source": "https://www.beechams.co.uk/",
+    "candidates": [],
+    "title": "Haleon - Service not currently available or no longer active"
+  },
+  {
+    "brand": "Olbas",
+    "source": "https://www.olbas.co.uk/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.olbas.co.uk/images/logo.png",
+        "alt": "Olbas",
+        "path": "/private/tmp/ava-official-logos-pass2/4f341f0f7ff3da968411.source"
+      }
+    ],
+    "title": "Olbas"
+  },
+  {
+    "brand": "MuscleTech",
+    "source": "https://www.muscletech.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://www.muscletech.com/cdn/shop/files/muscletech-logo-blk-checkout.png?v=1695820629&width=250",
+        "alt": "MuscleTech",
+        "path": "/private/tmp/ava-official-logos-pass2/af9e2e55ee2f801afd3c.source"
+      },
+      {
+        "score": 40,
+        "url": "https://www.muscletech.com/cdn/shop/files/muscletech-logo-blk-checkout_280x_282fa074-130b-41af-aa78-587e735743a8.png?v=1737752823&width=250",
+        "alt": "muscletech-logo-blk-checkout_280x.png",
+        "path": "/private/tmp/ava-official-logos-pass2/f3973e0b9eab4404743c.source"
+      }
+    ],
+    "title": "MuscleTech"
+  },
+  {
+    "brand": "Applied Nutrition",
+    "source": "https://appliednutrition.uk/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://appliednutrition.uk/cdn/shop/files/AN_Applied_Logo_June_2025.jpg?v=1753276798&width=500",
+        "alt": "Applied Nutrition plc",
+        "path": "/private/tmp/ava-official-logos-pass2/cbbf5ac5f6b0ecd0345c.source"
+      }
+    ],
+    "title": "Applied Nutrition | Premium Sports Supplements & Performance Nutrition\n \u2013 Applied Nutrition plc"
+  },
+  {
+    "brand": "Daktarin",
+    "source": "https://www.daktarin.co.uk/",
+    "candidates": [],
+    "error": "HTTPSConnectionPool(host='www.daktarin.co.uk', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLCertVerificationError(1, \"[SSL: CERT"
+  },
+  {
+    "brand": "Dark & Lovely",
+    "source": "https://www.darkandlovely.africa/",
+    "candidates": [],
+    "error": "HTTPSConnectionPool(host='www.darkandlovely.africa', port=443): Max retries exceeded with url: / (Caused by NameResolutionError(\"HTTPSConnection(host="
+  },
+  {
+    "brand": "Similac",
+    "source": "https://www.similac.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://www.similac.com/content/dam/an/similac/global/header/similac-logo.png",
+        "alt": "similac",
+        "path": "/private/tmp/ava-official-logos-pass2/64edb81a9b8fc4ede01f.source"
+      },
+      {
+        "score": 40,
+        "url": "https://www.similac.com//content/dam/an/similac/us/logo/1-color-white.png",
+        "alt": "abbott-logo",
+        "path": "/private/tmp/ava-official-logos-pass2/18ed740fc7df2fdcfd7b.source"
+      },
+      {
+        "score": 30,
+        "url": "https://www.similac.com/content/dam/an/similac/global/header/abbott-logo.png",
+        "alt": "Abbott",
+        "path": "/private/tmp/ava-official-logos-pass2/89f488a4de47326c4289.source"
+      }
+    ],
+    "title": "Products, Infant Formula & Toddler Drinks | Similac\u00ae"
+  },
+  {
+    "brand": "Betadine",
+    "source": "https://www.betadine.com/",
+    "candidates": [
+      {
+        "score": 30,
+        "url": "https://betadine.com/wp-content/uploads/2019/05/betadine-consumer-logo_footer.svg",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/39712fd3e6b290e4a92f.source"
+      }
+    ],
+    "title": "Betadine (Povidone-iodine) | Betadine"
+  },
+  {
+    "brand": "Trace Minerals",
+    "source": "https://www.traceminerals.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://www.traceminerals.com/cdn/shop/files/Logo_1_713bcd3e.png?v=1778180084&width=280",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/66e0e8f628bced382cd0.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.traceminerals.com/cdn/shop/files/iherb-logo_03909838-1529-41ff-93d8-093118ea47f4.png?v=1762200285&width=386",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/588929d682e4e7731878.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.traceminerals.com/cdn/shop/files/vitamin-shoppe-logo_59955a6e-c226-49a7-9cdc-367ca1beceaa.png?v=1730811369&width=310",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/ff01860f9f67ea3800ae.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.traceminerals.com/cdn/shop/files/WMT-Spark-SparkYellow-RGB_1.png?v=1749761580&width=133",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/92d97f78d265b5e6e7e9.source"
+      }
+    ],
+    "title": "Trace Minerals | Vitamins, Minerals, Supplements & More"
+  },
+  {
+    "brand": "Femfresh",
+    "source": "https://www.femfresh.co.uk/",
+    "candidates": [],
+    "error": "HTTPSConnectionPool(host='www.femfresh.co.uk', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLError(1, '[SSL: TLSV1_UNRECOGNIZED_N"
+  },
+  {
+    "brand": "Aquafresh",
+    "source": "https://www.aquafresh.com/",
+    "candidates": [
+      {
+        "score": 40,
+        "url": "https://i-cf65.ch-static.com/content/dam/cf-consumer-healthcare/aquafresh-redesign/zh_us/Aquafresh-US-Logo.png?auto=format",
+        "alt": "Aquafresh Logo",
+        "path": "/private/tmp/ava-official-logos-pass2/1d6421bd0ccc32d5c0c6.source"
+      }
+    ],
+    "title": "Aquafresh Toothpastes and Oral Care Products"
+  },
+  {
+    "brand": "Skyn",
+    "source": "https://skyn.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://skyn.com/wp-content/uploads/2023/05/skynlogo.png",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/49571ce0ea51df0c0d82.source"
+      },
+      {
+        "score": 53,
+        "url": "https://skyn.com/wp-content/uploads/2023/05/skynlogo-black.png",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/7fe5cac012cd299d6334.source"
+      }
+    ],
+    "title": "SKYN - The journey to pleasure is endless"
+  },
+  {
+    "brand": "Steroplast",
+    "source": "https://www.steroplast.co.uk/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.steroplast.co.uk/"
+  },
+  {
+    "brand": "Deep Freeze",
+    "source": "https://www.deepfreeze.co.uk/",
+    "candidates": [
+      {
+        "score": 25,
+        "url": "https://www.mentholatum.co.uk/sites/mentholatum/images/header-logo-x2.jpg",
+        "alt": "Mentholatum Logo",
+        "path": "/private/tmp/ava-official-logos-pass2/d7ee68753babfdff9893.source"
+      }
+    ],
+    "title": "Mentholatum - Specialists in family healthcare for over 130 years"
+  },
+  {
+    "brand": "Clear Essence",
+    "source": "https://www.clearessence.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.clearessence.com/images/template/Clearessence-Logo-Black.png",
+        "alt": "Clear Essence",
+        "path": "/private/tmp/ava-official-logos-pass2/beb7a639fe59a0fb448d.source"
+      }
+    ],
+    "title": "Clear Essence\u00ae Skincare for Melanin Skin"
+  },
+  {
+    "brand": "Jergens",
+    "source": "https://www.jergens.com/en-us/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://images.ctfassets.net/3u5g31tazvm1/WQfPzmM7re33eGXmlea4H/7ca0b46504e067354486db036f361264/jergens-logo-navigation.svg",
+        "alt": "Kao Family of Brands USA",
+        "path": "/private/tmp/ava-official-logos-pass2/0864a14a6a83ffad4bab.source"
+      },
+      {
+        "score": 32,
+        "url": "https://images.ctfassets.net/3u5g31tazvm1/40fDE9UKLOIbZsrteIQStH/76d853004b1908d0022b7fc50a90a63d/jergens-logo-footer.svg",
+        "alt": "jergens-logo-footer",
+        "path": "/private/tmp/ava-official-logos-pass2/99a734c039d3906517ba.source"
+      }
+    ],
+    "title": "Natural Glow, Body Butters, Moisturizers & More | Jergens"
+  },
+  {
+    "brand": "Nytol",
+    "source": "https://www.nytol.co.uk/",
+    "candidates": [],
+    "title": "Nytol - The UK's Favourite Sleep Aid Brand - Nytol"
+  },
+  {
+    "brand": "Pantene",
+    "source": "https://pantene.com/en-us/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://pantene.com/cdn/shop/files/Pantene_Black.svg?v=1785846041&width=320",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/655e3ced2d8a548bec53.source"
+      }
+    ],
+    "title": "Pantene"
+  },
+  {
+    "brand": "Starbalm",
+    "source": "https://starbalm.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://starbalm.com/wp-content/uploads/2026/07/STARBALM-Logo.svg",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/21e4dd7ece53fd16a6d1.source"
+      },
+      {
+        "score": 15,
+        "url": "https://starbalm.com/wp-content/uploads/2026/07/STARBALM-Logo-White.svg",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/f2c59964c10ebf52f4a7.source"
+      }
+    ],
+    "title": "STARBALM\u00ae | Producten tegen spierpijn en sportblessures."
+  },
+  {
+    "brand": "Native",
+    "source": "https://www.nativecos.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.nativecos.com/cdn/shop/files/native-logo-black.png?v=1793747123&width=320",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/8662a803b9fb90a51daa.source"
+      }
+    ],
+    "title": "Native Deodorant | Clean. Simple. Effective."
+  },
+  {
+    "brand": "Jakemans",
+    "source": "https://jakemans.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.jakemans.com/images/logo.png",
+        "alt": "Jakemans",
+        "path": "/private/tmp/ava-official-logos-pass2/458c37631da2e2bbf385.source"
+      },
+      {
+        "score": 40,
+        "url": "https://www.jakemans.com/images/logo_textonly.png",
+        "alt": "Jakemans logo",
+        "path": "/private/tmp/ava-official-logos-pass2/299f8f19add8cb2f525b.source"
+      },
+      {
+        "score": 2,
+        "url": "https://www.jakemans.com/images/tiktok_circle.png",
+        "alt": "tiktok logo",
+        "path": "/private/tmp/ava-official-logos-pass2/efc01a2cf43896d826d4.source"
+      },
+      {
+        "score": 2,
+        "url": "https://www.jakemans.com/images/laneshealth.jpg",
+        "alt": "Lanes Health Logo",
+        "path": "/private/tmp/ava-official-logos-pass2/f506e4affcc5375d7407.source"
+      }
+    ],
+    "title": "Jakemans"
+  },
+  {
+    "brand": "Canderel",
+    "source": "https://www.canderel.co.uk/",
+    "candidates": [
+      {
+        "score": 63,
+        "url": "https://www.canderel.co.uk/wp-content/uploads/2018/04/canderel-logo.png",
+        "alt": "Canderel logo",
+        "path": "/private/tmp/ava-official-logos-pass2/18f64caf9a127eb0fede.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.canderel.co.uk/wp-content/uploads/2019/02/1-tesco.jpg",
+        "alt": "Tesco",
+        "path": "/private/tmp/ava-official-logos-pass2/1dd0e8a2d284d256d013.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.canderel.co.uk/wp-content/uploads/2019/02/sains-bigger.jpg",
+        "alt": "Sainsbury\u2019s",
+        "path": "/private/tmp/ava-official-logos-pass2/1629fa8bf863e1d1638f.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.canderel.co.uk/wp-content/uploads/2019/02/3-asda-1.jpg",
+        "alt": "ASDA",
+        "path": "/private/tmp/ava-official-logos-pass2/475f5aa9d7ba5cca0757.source"
+      }
+    ],
+    "title": "Sweet Taste of Canderel\u00ae - Low Calorie Sugar Alternatives"
+  },
+  {
+    "brand": "Band-Aid",
+    "source": "https://www.band-aid.com/",
+    "candidates": [
+      {
+        "score": 35,
+        "url": "https://www.band-aid.com/#inline-logo",
+        "local": "/private/tmp/ava-official-logos-pass2/bandaid-inline-0.svg",
+        "alt": " ['max-w-[var(--components-navigation-secondary-sister-brand-logo-dimensions-max-width)]', 'max-h-[var(--components-navigation-secondary-sister-brand-logo-dimensions-max-height)]', 'self-stretch', 'flex', 'flex-column', 'items-center', 'justify-center', 'gap-[var(--spacing-10)]'] ",
+        "path": "/private/tmp/ava-official-logos-pass2/013918813a58b86f4fbe.source"
+      }
+    ],
+    "title": "BAND-AID\u00ae Brand Adhesive Bandages & First Aid Supplies | BAND-AID\u00ae"
+  },
+  {
+    "brand": "Buscopan",
+    "source": "https://www.buscopan.com/",
+    "candidates": [
+      {
+        "score": 8,
+        "url": "https://www.buscopan.com/dam-v2/jcr:7ccc3e7e-f4be-4455-98fd-ee843cef79b5/Group%20657325220.c2c3b8b0737e06190e657401cda25c21.svg",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/443bd04530a857987b88.source"
+      }
+    ],
+    "title": "Choose Your Country - Buscopan/No-Spa"
+  },
+  {
+    "brand": "Actikid",
+    "source": "https://actikid.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://actikid.com/cdn/shop/files/ezgif.com-gif-maker_150x.png?v=1614935628",
+        "alt": "ActiKid",
+        "path": "/private/tmp/ava-official-logos-pass2/3e7bd54a698c07eb4e47.source"
+      }
+    ],
+    "title": "ActiKid | ActiKid"
+  },
+  {
+    "brand": "Dramamine",
+    "source": "https://www.dramamine.com/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://www.dramamine.com/sites/dramamine/themes/custom/dramamine_theme/images/dramamine-logo.png",
+        "alt": "Dramamine home",
+        "path": "/private/tmp/ava-official-logos-pass2/7166e68768d2030d90c8.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.dramamine.com/sites/dramamine/themes/custom/dramamine_theme/images/newsletter-popup/logo.svg",
+        "alt": "Dramamine",
+        "path": "/private/tmp/ava-official-logos-pass2/0a66382222614b47fcd1.source"
+      }
+    ],
+    "title": "Dramamine\u00ae Motion Sickness Medicine | Nausea Relief & Prevention"
+  },
+  {
+    "brand": "Bepanthen",
+    "source": "https://www.bepanthen.co.uk/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.bepanthen.co.uk/"
+  },
+  {
+    "brand": "Lakanto",
+    "source": "https://www.lakanto.com/",
+    "candidates": [
+      {
+        "score": 53,
+        "url": "https://www.lakanto.com/cdn/shop/files/Lakanto_Logos-06.png?v=1724946049&width=600",
+        "alt": "Lakanto USA",
+        "path": "/private/tmp/ava-official-logos-pass2/5e5b1b648b3950689c28.source"
+      },
+      {
+        "score": 53,
+        "url": "https://www.lakanto.com/cdn/shop/files/lk_mobile_logo.png?v=1725989818&width=600",
+        "alt": "Lakanto USA",
+        "path": "/private/tmp/ava-official-logos-pass2/e2e637e39b69f42c4425.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.lakanto.com/cdn/shop/files/Kroger.png?v=1782159681&width=400",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/6e0540a59f8d8702c942.source"
+      },
+      {
+        "score": 38,
+        "url": "https://www.lakanto.com/cdn/shop/files/Target.png?v=1724979004&width=400",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/2742add81ea5a1e009ca.source"
+      }
+    ],
+    "title": "Natural Monk Fruit Sweetener: Best Sugar Substitute | Lakanto\n \u2013 Lakanto USA"
+  },
+  {
+    "brand": "Aleve",
+    "source": "https://www.aleve.com/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.aleve.com/"
+  },
+  {
+    "brand": "Canesten",
+    "source": "https://www.canesten.co.uk/",
+    "candidates": [],
+    "error": "403 Client Error: Forbidden for url: https://www.canesten.co.uk/"
+  },
+  {
+    "brand": "Hedrin",
+    "source": "https://www.hedrin.co.uk/",
+    "candidates": [
+      {
+        "score": 45,
+        "url": "https://05.cdn.stada.com/media/hyzic2ko/hedrin_logo.png?format=webp",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/a1deccf1abcd0becc8d0.source"
+      },
+      {
+        "score": 15,
+        "url": "https://05.cdn.stada.com/media/0pyliotb/tr_stada-group-logo_header_no-shadow.png?format=webp",
+        "alt": "",
+        "path": "/private/tmp/ava-official-logos-pass2/9291fc00b50c360f41d6.source"
+      }
+    ],
+    "title": "Hedrin Effective Head Lice Treatment | Hedrin | Hedrin"
+  },
+  {
+    "brand": "Fybogel",
+    "source": "https://www.fybogel.co.uk/",
+    "candidates": [],
+    "error": "HTTPSConnectionPool(host='www.fybogel.co.uk', port=443): Max retries exceeded with url: / (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.fy"
+  }
+]

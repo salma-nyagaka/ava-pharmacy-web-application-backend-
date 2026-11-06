@@ -6,7 +6,7 @@ wishlist, banners, CMS blocks, promotions) and admin endpoints for CRUD
 operations on all catalog entities and inventory management.
 """
 from django.urls import path
-from . import views
+from . import views, stock_records_api
 
 
 def _admin_crud_patterns(route, list_view, detail_view, list_name, detail_name):
@@ -17,6 +17,9 @@ def _admin_crud_patterns(route, list_view, detail_view, list_name, detail_name):
 
 
 urlpatterns = [
+    path('admin/stock-records/', stock_records_api.AllStockRecordsView.as_view(), name='all-stock-records'),
+    path('admin/products/<int:pk>/stock-records/', stock_records_api.ProductStockRecordsView.as_view(), name='product-stock-records'),
+    path('admin/products/<int:pk>/stock-records/<int:stock_pk>/', stock_records_api.ProductStockRecordDetailView.as_view(), name='product-stock-record-detail'),
     path('catalog/summary/', views.CatalogSummaryView.as_view(), name='catalog-summary'),
     path('categories/', views.CategoryListView.as_view(), name='categories'),
     path('product-categories/', views.CategoryListView.as_view(), name='product-categories'),
@@ -85,6 +88,9 @@ urlpatterns = [
         'store-listings',
         'store-listing',
     ),
+    path('admin/catalog/stats/', views.AdminCatalogStatsView.as_view(), name='admin-catalog-stats'),
+    path('admin/product-stock-items/<int:pk>/', views.AdminFlatItemCreateView.as_view(), name='admin-flat-item-detail'),
+    path('admin/product-stock-items/', views.AdminFlatItemCreateView.as_view(), name='admin-flat-item-create'),
     path('admin/products/', views.AdminProductListCreateView.as_view(), name='admin-products'),
     path('admin/products/meta/', views.AdminProductFormMetaView.as_view(), name='admin-product-form-meta'),
     path('admin/products/pos-options/', views.AdminPosProductOptionListView.as_view(), name='admin-pos-product-options'),
@@ -93,6 +99,7 @@ urlpatterns = [
     path('admin/products/<int:product_pk>/images/<int:pk>/', views.AdminProductImageDetailView.as_view(), name='admin-product-image-detail'),
     path('admin/products/<int:product_pk>/variants/', views.AdminProductVariantListCreateView.as_view(), name='admin-product-variants'),
     path('admin/products/<int:product_pk>/variants/<int:pk>/', views.AdminProductVariantDetailView.as_view(), name='admin-product-variant-detail'),
+    path('admin/stock-history/', views.AdminStockHistoryView.as_view(), name='admin-stock-history'),
     path('admin/inventory/', views.AdminInventoryListView.as_view(), name='admin-inventory'),
     path('admin/inventory/variant-pos-refresh/', views.AdminInventoryVariantPosRefreshView.as_view(), name='admin-inventory-variant-pos-refresh'),
     path('admin/inventory/pos-sync/', views.AdminInventoryPosSyncView.as_view(), name='admin-inventory-pos-sync'),

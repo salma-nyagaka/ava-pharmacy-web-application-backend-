@@ -1,3 +1,7 @@
+from avapharmacy.test_compliance_fixtures import credential_fixture
+from avapharmacy.test_compliance_fixtures import inventory_fixture
+from avapharmacy.test_compliance_fixtures import prescription_payload
+from avapharmacy.test_compliance_fixtures import catalogue_fixture, prescription_fixture
 import json
 from datetime import timedelta
 
@@ -39,7 +43,7 @@ class PrescriptionWorkflowTests(TestCase):
         Pharmacist.objects.create(
             user=self.pharmacist,
             permissions=[Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
-        )
+        **credential_fixture(exclude=('user', 'permissions')))
         self.product = Product.objects.create(
             sku='RX-APPROVED-001',
             name='Approved Medication',
@@ -54,11 +58,11 @@ class PrescriptionWorkflowTests(TestCase):
             price='1200.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=self.variant,
             location=Product.STOCK_BRANCH,
-            defaults={'stock_quantity': 10, 'low_stock_threshold': 2},
+            defaults={'stock_quantity': 10, 'low_stock_threshold': 2,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
     def test_upload_queue_assign_and_approve_prescription(self):
@@ -89,7 +93,7 @@ class PrescriptionWorkflowTests(TestCase):
         review_response = self.client.post(
             reverse('pharmacist-prescription-review', args=[prescription.id]),
             {
-                'action': 'approve',
+                'action': 'approve', **prescription_payload(),
                 'notes': 'Verified and approved',
                 'items': [{
                     'name': 'Amoxicillin',
@@ -150,7 +154,7 @@ class PrescriptionWorkflowTests(TestCase):
         review_response = self.client.post(
             reverse('pharmacist-prescription-review', args=[prescription.id]),
             {
-                'action': 'approve',
+                'action': 'approve', **prescription_payload(),
                 'notes': 'Verified',
                 'items': [{
                     'name': 'Tramadol',
@@ -174,13 +178,13 @@ class PrescriptionWorkflowTests(TestCase):
             doctor_name='Dr Older',
             pharmacist=self.pharmacist,
             status=Prescription.STATUS_PENDING,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'doctor_name', 'pharmacist', 'status')))
         newer_unassigned = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             doctor_name='Dr Newer',
             status=Prescription.STATUS_PENDING,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'doctor_name', 'status')))
         now = timezone.now()
         Prescription.objects.filter(pk=older_assigned.pk).update(
             submitted_at=now - timedelta(days=1),
@@ -204,7 +208,7 @@ class PrescriptionWorkflowTests(TestCase):
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         item = prescription.items.create(
             name='Approved Medication',
             product=self.product,
@@ -267,23 +271,23 @@ class PrescriptionWorkflowTests(TestCase):
             price='900.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=out_of_stock_variant,
             location=Product.STOCK_BRANCH,
-            defaults={'stock_quantity': 0, 'low_stock_threshold': 2},
+            defaults={'stock_quantity': 0, 'low_stock_threshold': 2,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_PENDING,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
 
         self.client.force_authenticate(self.pharmacist)
         review_response = self.client.post(
             reverse('pharmacist-prescription-review', args=[prescription.id]),
             {
-                'action': 'approve',
+                'action': 'approve', **prescription_payload(),
                 'notes': 'Approved but stock has run out',
                 'items': [{
                     'name': 'Out Of Stock Medication',
@@ -319,12 +323,12 @@ class PrescriptionWorkflowTests(TestCase):
         Pharmacist.objects.create(
             user=restricted,
             permissions=[Pharmacist.PERMISSION_DISPENSE_ORDERS],
-        )
+        **credential_fixture(exclude=('user', 'permissions')))
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_PENDING,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
 
         self.client.force_authenticate(restricted)
         queue_response = self.client.get(reverse('pharmacist-prescriptions'))
@@ -353,13 +357,13 @@ class PrescriptionWorkflowTests(TestCase):
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_PENDING,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
 
         self.client.force_authenticate(self.pharmacist)
         response = self.client.post(
             reverse('pharmacist-prescription-review', args=[prescription.id]),
             {
-                'action': 'approve',
+                'action': 'approve', **prescription_payload(),
                 'notes': 'Cannot approve unmapped product',
                 'items': [{
                     'name': 'Unmapped medication',
@@ -382,7 +386,7 @@ class PrescriptionWorkflowTests(TestCase):
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_CLARIFICATION,
             clarification_message='Please upload a clearer image.',
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status', 'clarification_message')))
         self.client.force_authenticate(self.customer)
 
         response = self.client.patch(
@@ -404,7 +408,7 @@ class PrescriptionWorkflowTests(TestCase):
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_PENDING,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
 
         self.client.force_authenticate(self.pharmacist)
         review_response = self.client.post(
@@ -440,7 +444,7 @@ class PrescriptionWorkflowTests(TestCase):
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_PENDING,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         PrescriptionFile.objects.create(
             prescription=prescription,
             file='prescriptions/999/missing-scan.png',
@@ -470,7 +474,7 @@ class PrescriptionWorkflowTests(TestCase):
 
     def test_unrelated_customer_cannot_read_reply_resubmit_or_add(self):
         other = User.objects.create_user(email='rx-other@example.com', password='testpass123', role=User.CUSTOMER)
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED)
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED,**prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         item = prescription.items.create(name='QA', product=self.product, variant=self.variant, quantity=1)
         self.client.force_authenticate(other)
         self.assertEqual(self.client.get(reverse('prescription-detail', args=[prescription.id])).status_code, 404)
@@ -479,7 +483,7 @@ class PrescriptionWorkflowTests(TestCase):
         self.assertEqual(self.client.post(reverse('prescription-item-add-to-cart', args=[prescription.id, item.id]), {'quantity': 1}).status_code, 404)
 
     def test_pending_rejected_and_excess_quantity_cannot_enter_cart(self):
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA')
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA',**prescription_fixture(exclude=('patient', 'patient_name')))
         item = prescription.items.create(name='QA', product=self.product, variant=self.variant, quantity=2)
         self.client.force_authenticate(self.customer)
         url = reverse('prescription-item-add-to-cart', args=[prescription.id, item.id])
@@ -496,8 +500,8 @@ class PrescriptionWorkflowTests(TestCase):
 
     def test_restricted_pharmacist_cannot_use_alternate_prescription_routes(self):
         restricted = User.objects.create_user(email='rx-no-review@example.com', password='testpass123', role=User.PHARMACIST)
-        Pharmacist.objects.create(user=restricted, permissions=[Pharmacist.PERMISSION_DISPENSE_ORDERS])
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA')
+        Pharmacist.objects.create(user=restricted, permissions=[Pharmacist.PERMISSION_DISPENSE_ORDERS],**credential_fixture(exclude=('user', 'permissions')))
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA',**prescription_fixture(exclude=('patient', 'patient_name')))
         self.client.force_authenticate(restricted)
         self.assertEqual(self.client.get(reverse('admin-prescriptions')).status_code, 403)
         for method, name, payload in [
@@ -510,7 +514,7 @@ class PrescriptionWorkflowTests(TestCase):
                 self.assertIn(response.status_code, (403, 404), response.data)
 
     def test_rejection_reason_and_dispatch_history_are_visible_to_owner(self):
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA')
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA',**prescription_fixture(exclude=('patient', 'patient_name')))
         self.client.force_authenticate(self.pharmacist)
         response = self.client.post(reverse('pharmacist-prescription-review', args=[prescription.id]),
             {'action': 'reject', 'notes': 'Synthetic scan is unreadable.'}, format='json')
@@ -538,7 +542,7 @@ class PrescriptionWorkflowTests(TestCase):
     def test_private_download_grants_and_legacy_media_are_protected(self):
         from unittest.mock import patch
         from django.core import signing
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA')
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA',**prescription_fixture(exclude=('patient', 'patient_name')))
         upload = PrescriptionFile.objects.create(prescription=prescription,
             file=SimpleUploadedFile('private.pdf', b'%PDF-1.4 synthetic QA', content_type='application/pdf'), filename='private.pdf')
         self.addCleanup(upload.file.delete, save=False)
@@ -567,9 +571,9 @@ class PrescriptionWorkflowTests(TestCase):
     def test_variant_substitution_and_unpaid_order_reservation_are_rejected(self):
         from apps.orders.views import _prescription_cart_error
         from apps.prescriptions.dispensing import dispensing_error
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED)
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED,**prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         item = prescription.items.create(name='QA', product=self.product, variant=self.variant, quantity=2)
-        substitute = Variant.objects.create(product=self.product, sku='RX-SUBSTITUTE', name='Other strength', price='1200', is_active=True, requires_prescription=True)
+        substitute = Variant.objects.create(product=self.product, sku='RX-SUBSTITUTE', name='Other strength', price='1200', is_active=True, requires_prescription=True,**catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'is_active', 'requires_prescription')))
         self.assertIn('variant', _prescription_cart_error(self.customer, self.product, prescription.reference, 1,
             prescription=prescription, prescription_item=item, variant=substitute))
         order = Order.objects.create(customer=self.customer, status=Order.STATUS_PENDING, payment_method=Order.PAYMENT_MPESA_PAYBILL,
@@ -583,22 +587,22 @@ class PrescriptionWorkflowTests(TestCase):
         self.assertIsNone(dispensing_error(item, self.variant, 2))
 
     def test_invalid_approval_rolls_back_replacement_and_preserves_instructions(self):
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA')
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA',**prescription_fixture(exclude=('patient', 'patient_name')))
         original = prescription.items.create(name='Original QA', product=self.product, variant=self.variant, quantity=1)
         self.client.force_authenticate(self.pharmacist)
         response = self.client.post(reverse('pharmacist-prescription-review', args=[prescription.pk]),
-            {'action': 'approve', 'items': [{'name': 'Unmapped QA', 'quantity': 1}]}, format='json')
+            {'action': 'approve', **prescription_payload(), 'items': [{'name': 'Unmapped QA', 'quantity': 1}]}, format='json')
         self.assertEqual(response.status_code, 400)
         self.assertTrue(prescription.items.filter(pk=original.pk).exists())
         response = self.client.post(reverse('pharmacist-prescription-review', args=[prescription.pk]),
-            {'action': 'approve', 'items': [{'name': 'QA', 'variant_id': self.variant.pk, 'quantity': 1,
+            {'action': 'approve', **prescription_payload(), 'items': [{'name': 'QA', 'variant_id': self.variant.pk, 'quantity': 1,
                 'dose': 'QA dose', 'frequency': 'QA frequency', 'duration': 'QA duration', 'quantity_measurement': 'packs'}]}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(prescription.items.get().duration, 'QA duration')
         self.assertEqual(prescription.items.get().quantity_measurement, 'packs')
 
     def test_dispatch_requires_approval_and_ordered_transitions_and_notifies_once(self):
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA')
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA',**prescription_fixture(exclude=('patient', 'patient_name')))
         prescription.items.create(name='QA', product=self.product, variant=self.variant, quantity=1)
         self.client.force_authenticate(self.pharmacist)
         url = reverse('prescription-update', args=[prescription.pk])
@@ -615,7 +619,7 @@ class PrescriptionWorkflowTests(TestCase):
     def test_approved_checkout_paid_finalization_and_reuse_limits(self):
         from unittest.mock import patch
         from apps.orders.models import Cart
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED)
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED,**prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         item = prescription.items.create(name='QA', product=self.product, variant=self.variant, quantity=1)
         self.client.force_authenticate(self.customer)
         self.assertEqual(self.client.post(reverse('prescription-item-add-to-cart', args=[prescription.pk, item.pk]), {'quantity': 1}, format='json').status_code, 201)
@@ -652,7 +656,7 @@ class PrescriptionWorkflowTests(TestCase):
     def test_checkout_revalidates_rejected_prescription_and_variant_substitution(self):
         from apps.orders.views import validate_cart_items
         from apps.orders.models import Cart
-        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED)
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Synthetic QA', status=Prescription.STATUS_APPROVED,**prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         item = prescription.items.create(name='QA', product=self.product, variant=self.variant, quantity=1)
         cart = Cart.objects.create(user=self.customer)
         line = cart.items.create(variant=self.variant, quantity=1, prescription=prescription, prescription_item=item,
@@ -662,7 +666,7 @@ class PrescriptionWorkflowTests(TestCase):
         self.assertTrue(validate_cart_items([line]))
         prescription.status = Prescription.STATUS_APPROVED
         prescription.save()
-        substitute = Variant.objects.create(product=self.product, sku='RX-CHECKOUT-SUB', name='Different pack', price=1200, requires_prescription=True)
-        VariantInventory.objects.create(variant=substitute, location=Product.STOCK_BRANCH, stock_quantity=5)
+        substitute = Variant.objects.create(product=self.product, sku='RX-CHECKOUT-SUB', name='Different pack', price=1200, requires_prescription=True,**catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription')))
+        VariantInventory.objects.create(variant=substitute, location=Product.STOCK_BRANCH, stock_quantity=5,**inventory_fixture(exclude=('variant', 'location', 'stock_quantity')))
         line.variant = substitute
         self.assertTrue(any('variant' in error for error in validate_cart_items([line])))

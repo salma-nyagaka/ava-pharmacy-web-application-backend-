@@ -5,6 +5,7 @@ Provides public catalog endpoints (categories, brands, products, reviews,
 wishlist, banners, CMS blocks, promotions) and admin-only endpoints for full
 CRUD on all catalog entities, inventory adjustment, and CMS management.
 """
+from decimal import Decimal
 from django.conf import settings
 from django.http import Http404
 from django.db import models
@@ -35,6 +36,7 @@ from .models import Banner, Brand, Category, CMSBlock, FAQ, HealthConcern, Produ
 from .pos import refresh_pos_inventory_for_products, refresh_pos_inventory_for_variants
 from .serializers import (
     AdminProductSerializer,
+    AdminProductTableSerializer,
     BannerSerializer,
     BrandSerializer,
     CMSBlockSerializer,
@@ -58,6 +60,7 @@ from .serializers import (
     SubcategorySerializer,
     WishlistSerializer,
 )
+from .admin_cache import CachedAdminListMixin
 from .services import get_active_promotions_queryset
 
 
@@ -215,6 +218,15 @@ class PromotionContextMixin:
         context = super().get_serializer_context()
         context['active_promotions'] = list(get_active_promotions_queryset())
         return context
+
+
+class AdminOrderingFilter(OrderingFilter):
+    """Stable page boundaries when multiple rows share a sort value."""
+    def get_ordering(self, request, queryset, view):
+        ordering = list(super().get_ordering(request, queryset, view) or [])
+        if not any(field.lstrip('-') in {'pk', 'id'} for field in ordering):
+            ordering.append('-pk' if '-created_at' in ordering else 'pk')
+        return ordering
 
 
 class ProductListPagination(PageNumberPagination):
@@ -448,6 +460,7 @@ class ProductDetailView(PromotionContextMixin, generics.RetrieveAPIView):
 
 
 class AdminCategoryListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = CatalogCategorySerializer
     queryset = Category.objects.prefetch_related(
@@ -487,6 +500,7 @@ class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminSubCategoryListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = SubcategorySerializer
     search_fields = ['name', 'slug', 'category__name']
@@ -511,9 +525,10 @@ class AdminSubCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminBrandListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = BrandSerializer
-    queryset = Brand.objects.all()
+    queryset = Brand.objects.annotate(product_count=Count('products', distinct=True))
     filterset_fields = ['is_active']
     search_fields = ['name', 'slug']
 
@@ -582,19 +597,23 @@ class AdminStoreVariantListingDetailView(generics.RetrieveUpdateDestroyAPIView):
     )
 
 
-class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIView):
+class AdminProductListCreateView(CachedAdminListMixin, PromotionContextMixin, generics.ListCreateAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = AdminProductSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, AdminOrderingFilter]
     filterset_class = ProductFilter
     search_fields = ['name', 'variants__sku']
-    ordering_fields = ['created_at', 'price', 'name']
-    ordering = ['-created_at']
+    pagination_class = ProductListPagination
+    ordering_fields = ['created_at', 'price', 'name', 'brand__name', 'is_active', 'catalog_subcategory', 'catalog_requires_rx', 'total_stock_quantity']
+    ordering = ['-created_at', '-pk']
+
+    def get_serializer_class(self):
+        return AdminProductTableSerializer if self.request.method == 'GET' else AdminProductSerializer
 
     def get_queryset(self):
-        return annotate_product_variant_catalog(
+        queryset = annotate_product_variant_catalog(
             annotate_product_reviews(
-                Product.objects.all().prefetch_related(
+                Product.objects.select_related('brand', 'created_by', 'updated_by').prefetch_related(
                     Prefetch(
                         'variants',
                         queryset=Variant.objects.select_related('product__brand', 'category', 'subcategory').prefetch_related(_inventory_prefetch(), 'health_concerns').order_by('sort_order', 'name', 'pk'),
@@ -602,6 +621,15 @@ class AdminProductListCreateView(PromotionContextMixin, generics.ListCreateAPIVi
                 )
             )
         )
+
+        ordering = self.request.query_params.get('ordering', '').lstrip('-')
+        if ordering == 'total_stock_quantity':
+            queryset = annotate_product_inventory(queryset)
+        elif ordering == 'catalog_subcategory':
+            queryset = queryset.annotate(catalog_subcategory=models.Min('variants__subcategory__name'))
+        elif ordering == 'catalog_requires_rx':
+            queryset = queryset.annotate(catalog_requires_rx=Exists(Variant.objects.filter(product_id=OuterRef('pk'), requires_prescription=True)))
+        return queryset
 
     def perform_create(self, serializer):
         product = serializer.save(created_by=self.request.user, updated_by=self.request.user)
@@ -637,6 +665,11 @@ class AdminPosProductOptionListView(APIView):
         seen = set()
 
         variants = Variant.objects.exclude(pos_product_id='').select_related('product').order_by('product__name', 'name')
+        product_id = request.query_params.get('product_id')
+        if product_id:
+            if not product_id.isdecimal():
+                return Response({'detail': 'A valid product ID is required.'}, status=400)
+            variants = variants.filter(product_id=product_id)
         for variant in variants:
             pos_product_id = (variant.pos_product_id or '').strip()
             if not pos_product_id or pos_product_id in seen:
@@ -649,21 +682,6 @@ class AdminPosProductOptionListView(APIView):
                 'variant_name': variant.name,
                 'sku': variant.sku,
                 'source': 'variant',
-            })
-
-        products = Product.objects.exclude(pos_product_id='').order_by('name')
-        for product in products:
-            pos_product_id = (product.pos_product_id or '').strip()
-            if not pos_product_id or pos_product_id in seen:
-                continue
-            seen.add(pos_product_id)
-            options.append({
-                'pos_product_id': pos_product_id,
-                'label': product.name,
-                'product_name': product.name,
-                'variant_name': '',
-                'sku': product.get_display_sku(),
-                'source': 'product',
             })
 
         return Response(options)
@@ -892,7 +910,8 @@ class BannerListView(generics.ListAPIView):
         placement = self.request.query_params.get('placement')
         if placement:
             queryset = queryset.filter(placement=placement)
-        return queryset
+        from .compliance import public_advertisement_allowed
+        return queryset.exclude(pk__in=[row.pk for row in queryset if not public_advertisement_allowed(row.link)])
 
 
 class CMSBlockListView(generics.ListAPIView):
@@ -904,7 +923,8 @@ class CMSBlockListView(generics.ListAPIView):
         placement = self.request.query_params.get('placement')
         if placement:
             queryset = queryset.filter(placement=placement)
-        return queryset
+        from .compliance import public_advertisement_allowed
+        return queryset.exclude(pk__in=[row.pk for row in queryset if not public_advertisement_allowed(row.cta_url)])
 
 
 class FAQListView(generics.ListAPIView):
@@ -923,7 +943,7 @@ class FAQListView(generics.ListAPIView):
 class AdminBannerListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = BannerSerializer
-    queryset = Banner.objects.all()
+    queryset = Banner.objects.order_by('-created_at', '-pk')
 
     def perform_create(self, serializer):
         banner = serializer.save()
@@ -957,14 +977,24 @@ class PromotionListView(generics.ListAPIView):
     serializer_class = PromotionSerializer
 
     def get_queryset(self):
-        return get_active_promotions_queryset()
+        from .compliance import promotional_product
+        qs = get_active_promotions_queryset()
+        excluded = []
+        for promotion in qs:
+            if promotion.scope == Promotion.SCOPE_PRODUCT:
+                targets = {str(value) for value in promotion.targets}
+                products = Product.objects.filter(Q(slug__in=targets) | Q(sku__in=targets) | Q(variants__sku__in=targets) | Q(pk__in=[int(v) for v in targets if v.isdecimal()])).distinct()
+                if any(not promotional_product(product) for product in products):
+                    excluded.append(promotion.pk)
+        return qs.exclude(pk__in=excluded)
 
 
 class AdminPromotionListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminUser]
     serializer_class = PromotionSerializer
     filterset_fields = ['status', 'scope', 'type', 'is_stackable']
-    queryset = Promotion.objects.all()
+    queryset = Promotion.objects.order_by('-created_at', '-pk')
 
     def perform_create(self, serializer):
         promotion = serializer.save()
@@ -994,6 +1024,7 @@ class AdminPromotionDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AdminHealthConcernListCreateView(generics.ListCreateAPIView):
+    pagination_class = None
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = HealthConcernSerializer
     queryset = HealthConcern.objects.all()
@@ -1054,6 +1085,8 @@ class AdminProductVariantListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         product = generics.get_object_or_404(Product, pk=self.kwargs['product_pk'])
+        if product.variants.exists():
+            raise drf_serializers.ValidationError({'product': 'This item already has a sellable SKU. Create a separate product item for another SKU.'})
         variant = serializer.save(product=product)
         log_admin_action(
             self.request.user,
@@ -1110,7 +1143,7 @@ class AdminCMSBlockDetailView(generics.RetrieveUpdateDestroyAPIView):
 class AdminFAQListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = FAQSerializer
-    queryset = FAQ.objects.all()
+    queryset = FAQ.objects.order_by('-created_at', '-pk')
     filterset_fields = ['category', 'is_published']
     search_fields = ['category', 'question', 'answer']
     ordering_fields = ['category', 'sort_order', 'question', 'created_at', 'updated_at']
@@ -1153,15 +1186,15 @@ class AdminFAQDetailView(generics.RetrieveUpdateDestroyAPIView):
             message=f'Deleted FAQ {question}',
         )
 
-class AdminInventoryListView(generics.ListAPIView):
+class AdminInventoryListView(CachedAdminListMixin, generics.ListAPIView):
     permission_classes = [IsAdminOrInventoryStaff]
     serializer_class = AdminInventoryItemSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, AdminOrderingFilter]
     filterset_class = VariantInventoryFilter
     search_fields = ['name', 'sku', 'product__name', 'product__brand__name']
     pagination_class = ProductListPagination
-    ordering_fields = ['updated_at', 'name', 'stock_quantity', 'branch_stock_quantity', 'warehouse_stock_quantity', 'price']
-    ordering = ['name', 'pk']
+    ordering_fields = ['created_at', 'updated_at', 'name', 'stock_quantity', 'branch_stock_quantity', 'warehouse_stock_quantity', 'price']
+    ordering = ['-created_at', '-pk']
 
     def get_queryset(self):
         queryset = annotate_variant_inventory(annotate_variant_reviews(
@@ -1834,3 +1867,106 @@ class AdminInventoryDeductView(APIView):
         if not order.inventory_committed:
             return Response({'detail': 'Finalize the order through checkout to validate payment and commit stock.'}, status=409)
         return Response({'order_id': order.pk, 'deducted': [], 'message': 'Stock was already committed by checkout; no additional deduction performed.'})
+
+
+class AdminCatalogStatsView(APIView):
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def get(self, request):
+        from .admin_summary import admin_catalog_summary
+        return Response(admin_catalog_summary())
+
+
+class AdminStockHistoryView(generics.ListAPIView):
+    """Paginated history for Products & Stock, scoped by exact family/variant."""
+    permission_classes = [IsAdminOrInventoryStaff]
+    serializer_class = StockMovementSerializer
+    pagination_class = ProductListPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, AdminOrderingFilter]
+    filterset_fields = ['variant_inventory', 'movement_type', 'source', 'variant_inventory__variant', 'variant_inventory__variant__product']
+    search_fields = ['reference', 'reason', 'variant_inventory__variant__sku', 'variant_inventory__variant__product__name']
+    ordering = ['-created_at', '-pk']
+
+    def get_queryset(self):
+        qs = StockMovement.objects.select_related('created_by', 'variant_inventory__variant__product', 'variant_inventory__store_listing__store')
+        product_id = self.request.query_params.get('product_id')
+        if product_id:
+            if not product_id.isdecimal():
+                raise drf_serializers.ValidationError({'product_id': 'A valid product ID is required.'})
+            qs = qs.filter(variant_inventory__variant__product_id=product_id)
+        return qs
+
+
+class AdminFlatItemCreateView(APIView):
+    """Create one product/SKU and its opening stock as one atomic operation."""
+    permission_classes = [IsAdminOrInventoryStaff]
+
+    def post(self, request):
+        import json
+        from django.db import transaction
+        item = request.data.get('item')
+        if isinstance(item, str):
+            try:
+                item = json.loads(item)
+            except (TypeError, ValueError):
+                raise drf_serializers.ValidationError({'item': 'Provide valid item details.'})
+        if not isinstance(item, dict):
+            raise drf_serializers.ValidationError({'item': 'Exact SKU, price and stock details are required.'})
+        price = drf_serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0')).run_validation(item.get('price'))
+        quantity = drf_serializers.IntegerField(min_value=0).run_validation(item.get('stock_quantity', 0))
+        threshold = drf_serializers.IntegerField(min_value=0).run_validation(item.get('low_stock_threshold', 5))
+        store = None
+        if item.get('store_id'):
+            store = drf_serializers.PrimaryKeyRelatedField(queryset=Store.objects.filter(is_active=True)).run_validation(item['store_id'])
+        if quantity and not store:
+            raise drf_serializers.ValidationError({'store_id': 'Select the store that owns the opening stock.'})
+        catalog = request.data.copy()
+        del catalog['item']
+        serializer = AdminProductSerializer(data=catalog, context={'request': request, 'active_promotions': []})
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            product = serializer.save(created_by=request.user, updated_by=request.user)
+            variant = product.variants.first()
+            payload = {key: item[key] for key in ['sku','barcode','pos_product_id','strength','pack_size','directions','warnings','dosage_instructions'] if key in item and item[key] != ''}
+            payload.update(name=str(item.get('name') or product.name)[:120], price=price, is_active=product.is_active)
+            exact = AdminVariantSerializer(variant, data=payload, partial=variant is not None, context={'request': request, 'product': product})
+            exact.is_valid(raise_exception=True)
+            variant = exact.save(product=product)
+            inventory = {'stock_quantity': quantity, 'low_stock_threshold': threshold, 'batch_number': item.get('batch_number', '')}
+            if item.get('expiry_date'):
+                inventory['expiry_date'] = item['expiry_date']
+            if store:
+                listing = StoreVariantListing.objects.create(store=store, variant=variant, price=price, is_active=True)
+                inventory['store_listing_id'] = listing.pk
+            stock = AdminVariantSerializer(variant, data={'branch_inventory': inventory}, partial=True, context={'request': request, 'product': product})
+            stock.is_valid(raise_exception=True)
+            stock.save()
+            log_admin_action(request.user, action='product_item_created', entity_type='product', entity_id=product.pk, message=f'Created exact item {variant.sku} with opening stock', metadata={'variant_id':variant.pk,'quantity':quantity,'store_id':store.pk if store else None})
+        product = Product.objects.get(pk=product.pk)
+        return Response(AdminProductSerializer(product, context={'request':request, 'active_promotions':[]}).data, status=201)
+
+    def patch(self, request, pk):
+        from django.db import transaction
+        import json
+        item = request.data.get('item', {})
+        if isinstance(item, str):
+            try: item=json.loads(item)
+            except (ValueError, TypeError): raise drf_serializers.ValidationError({'item':'Invalid item details.'})
+        if not isinstance(item,dict): raise drf_serializers.ValidationError({'item':'Provide an object.'})
+        if 'price' in item:
+            item['price'] = drf_serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0')).run_validation(item['price'])
+        allowed={'price','sku','barcode','pos_product_id','strength','pack_size'}
+        if set(item)-allowed: raise drf_serializers.ValidationError({'item':'Use stock adjustments for store/batch quantity changes.'})
+        catalog=request.data.copy()
+        if 'item' in catalog: del catalog['item']
+        with transaction.atomic():
+            product=generics.get_object_or_404(Product.objects.select_for_update(),pk=pk)
+            serializer=AdminProductSerializer(product,data=catalog,partial=True,context={'request':request,'active_promotions':[]})
+            serializer.is_valid(raise_exception=True)
+            serializer.save(updated_by=request.user)
+            variant=generics.get_object_or_404(Variant,product=product)
+            exact=AdminVariantSerializer(variant,data=item,partial=True,context={'request':request,'product':product})
+            exact.is_valid(raise_exception=True);exact.save()
+            log_admin_action(request.user, action='product_item_updated', entity_type='product',entity_id=product.pk,message=f'Updated exact item {variant.sku}')
+        product.refresh_from_db()
+        return Response(AdminProductSerializer(product,context={'request':request,'active_promotions':[]}).data)

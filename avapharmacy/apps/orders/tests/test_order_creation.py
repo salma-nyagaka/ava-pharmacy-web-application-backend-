@@ -1,3 +1,6 @@
+from avapharmacy.test_compliance_fixtures import inventory_fixture
+from avapharmacy.test_compliance_fixtures import delivery_fixture
+from avapharmacy.test_compliance_fixtures import catalogue_fixture, prescription_fixture
 from decimal import Decimal
 from datetime import date, timedelta
 from unittest.mock import patch
@@ -36,7 +39,6 @@ class OrderCreationFlowTests(TestCase):
         self.product = Product.objects.create(
             sku='ORDER-001',
             name='Order Test Product',
-            price=Decimal('700.00'),
             is_active=True,
         )
         self.variant = self.product.variants.create(
@@ -44,14 +46,14 @@ class OrderCreationFlowTests(TestCase):
             name='Tablets',
             price=Decimal('700.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=self.variant,
             location=Product.STOCK_BRANCH,
             defaults={
                 'stock_quantity': 20,
                 'low_stock_threshold': 3,
-            },
+            **inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
         self.variant.save()
 
@@ -188,7 +190,7 @@ class OrderCreationFlowTests(TestCase):
             low_stock_threshold=1,
             expiry_date=date.today() + timedelta(days=30),
             shelf_location='A1',
-        )
+        **inventory_fixture(exclude=('variant', 'location', 'batch_number', 'stock_quantity', 'low_stock_threshold', 'expiry_date', 'shelf_location')))
         later_batch = VariantInventory.objects.create(
             variant=self.variant,
             location=Product.STOCK_BRANCH,
@@ -197,7 +199,7 @@ class OrderCreationFlowTests(TestCase):
             low_stock_threshold=1,
             expiry_date=date.today() + timedelta(days=365),
             shelf_location='A2',
-        )
+        **inventory_fixture(exclude=('variant', 'location', 'batch_number', 'stock_quantity', 'low_stock_threshold', 'expiry_date', 'shelf_location')))
 
         self.client.force_authenticate(self.customer)
         cart = Cart.objects.create(user=self.customer)
@@ -236,14 +238,16 @@ class OrderCreationFlowTests(TestCase):
         ])
 
     def test_prescription_cart_item_uses_foreign_keys_and_order_snapshot_preserves_them(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -298,6 +302,7 @@ class OrderCreationFlowTests(TestCase):
 
         self._confirm_test_order(order)
         self.client.force_authenticate(self.admin)
+        delivery_fixture(order, self.admin)
         for next_status, expected_dispatch in [
             (Order.STATUS_PROCESSING, Prescription.DISPATCH_PACKED),
             (Order.STATUS_SHIPPED, Prescription.DISPATCH_DISPATCHED),
@@ -314,14 +319,16 @@ class OrderCreationFlowTests(TestCase):
 
     @patch('apps.accounts.bot_protection.verify_turnstile_token', return_value=(False, 'missing_challenge_token'))
     def test_high_risk_checkout_requires_security_challenge_before_draft_creation(self, mock_verify_turnstile):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -369,14 +376,16 @@ class OrderCreationFlowTests(TestCase):
         self.assertIn('missing_challenge_token', event.reasons)
 
     def test_checkout_finalize_removes_approved_prescription_from_awaiting_checkout_bucket(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -432,14 +441,16 @@ class OrderCreationFlowTests(TestCase):
         )
 
     def test_paid_order_removes_matching_prescription_items_from_cart(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -487,14 +498,16 @@ class OrderCreationFlowTests(TestCase):
         self.assertFalse(CartItem.objects.filter(cart=cart, prescription_item=prescription_item).exists())
 
     def test_checkout_draft_can_scope_to_one_prescription(self):
+        for field, value in catalogue_fixture(medicine=True).items():
+            setattr(self.variant, field, value)
         self.variant.requires_prescription = True
-        self.variant.save(update_fields=['requires_prescription'])
+        self.variant.save()
 
         prescription = Prescription.objects.create(
             patient=self.customer,
             patient_name=self.customer.full_name,
             status=Prescription.STATUS_APPROVED,
-        )
+        **prescription_fixture(exclude=('patient', 'patient_name', 'status')))
         prescription_item = PrescriptionItem.objects.create(
             prescription=prescription,
             product=self.product,
@@ -513,11 +526,11 @@ class OrderCreationFlowTests(TestCase):
             name='Other Tablets',
             price=Decimal('500.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=other_variant,
             location=Product.STOCK_BRANCH,
-            defaults={'stock_quantity': 20, 'low_stock_threshold': 3},
+            defaults={'stock_quantity': 20, 'low_stock_threshold': 3,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.customer)
@@ -617,14 +630,14 @@ class OrderCreationFlowTests(TestCase):
             name='Syrup',
             price=Decimal('900.00'),
             is_active=True,
-        )
+        **catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=second_variant,
             location=Product.STOCK_BRANCH,
             defaults={
                 'stock_quantity': 5,
                 'low_stock_threshold': 2,
-            },
+            **inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.customer)

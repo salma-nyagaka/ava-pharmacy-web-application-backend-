@@ -175,6 +175,11 @@ def _create_paid_consultation_from_intent(intent):
         patient_email=intent.consultation_payload.get('patient_email', ''),
         patient_phone=intent.consultation_payload.get('patient_phone', ''),
     )
+    # Payments initiated before fixed pricing keep their historical agreement.
+    if intent.consultation_payload.get('_fixed_pricing_version') != 1:
+        Consultation.objects.filter(pk=consultation.pk).update(agreed_total=None, agreed_clinician_share=None)
+        consultation.agreed_total = None
+        consultation.agreed_clinician_share = None
     intent.consultation = consultation
     intent.save(update_fields=['consultation', 'updated_at'])
     return consultation
@@ -282,7 +287,7 @@ def _get_provider_for_user(user):
     if not user.is_active or user.status != 'active':
         return None
     provider = _get_pediatrician_or_404(user) if user.role == 'pediatrician' else _get_doctor_or_404(user)
-    return provider if provider and provider.status == ClinicianProfile.STATUS_ACTIVE else None
+    return provider if provider and provider.eligible_to_practice else None
 
 
 def _client_ip(request):
@@ -517,8 +522,12 @@ def _broadcast_consultation_event(consultation_id, event_type, payload):
     )
 
 
-def _clinician_net_earning_amount(provider, gross=None):
+def _clinician_net_earning_amount(provider, gross=None, consultation=None):
     gross = Decimal(provider.consult_fee or 0) if gross is None else Decimal(gross)
+    if consultation is None or consultation.agreed_clinician_share is not None:
+        total = Decimal(consultation.agreed_total) if consultation else Decimal('1500')
+        share = Decimal(consultation.agreed_clinician_share) if consultation else Decimal('1000')
+        return share if gross >= total else Decimal('0.00')
     commission_percent = Decimal(provider.commission or 0)
     ava_share = gross * commission_percent / Decimal('100')
     net = (gross - ava_share).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -566,7 +575,7 @@ class DoctorListView(generics.ListAPIView):
     search_fields = ['name', 'specialty', 'facility']
 
     def get_queryset(self):
-        return ClinicianProfile.objects.doctors().filter(status=ClinicianProfile.STATUS_ACTIVE, user__is_active=True, user__status=User.STATUS_ACTIVE).select_related('user')
+        return ClinicianProfile.objects.doctors().active().select_related('user')
 
 
 class PediatricianListView(generics.ListAPIView):
@@ -576,7 +585,7 @@ class PediatricianListView(generics.ListAPIView):
     search_fields = ['name', 'specialty', 'facility']
 
     def get_queryset(self):
-        return ClinicianProfile.objects.pediatricians().filter(status=ClinicianProfile.STATUS_ACTIVE, user__is_active=True, user__status=User.STATUS_ACTIVE).select_related('user')
+        return ClinicianProfile.objects.pediatricians().active().select_related('user')
 
 
 class DoctorDetailView(generics.RetrieveAPIView):
@@ -1101,6 +1110,7 @@ class ConsultationPaymentIntentCreateView(APIView):
             if isinstance(value, Decimal):
                 stored_consultation_payload[field] = str(value)
         stored_consultation_payload.update({
+            '_fixed_pricing_version': 1,
             'doctor': None if open_doctor_queue else (clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_DOCTOR else None),
             'pediatrician': clinician.pk if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else None,
             'child_patient_id': child_patient.pk if child_patient else stored_consultation_payload.get('child_patient_id'),
@@ -1553,10 +1563,10 @@ class ConsultationEndView(APIView):
             clinician=provider,
             consultation=consultation,
             defaults={
-                'amount': _clinician_net_earning_amount(provider, paid_amount),
+                'amount': _clinician_net_earning_amount(provider, paid_amount, consultation),
                 'description': (
-                    f'Consultation fee for {consultation.reference}. '
-                    f'Ava commission {provider.commission}% of KES {paid_amount}.'
+                    f'Consultation fee for {consultation.reference}. ' +
+                    (f'AVA Pharmacy share KES {consultation.agreed_total - consultation.agreed_clinician_share}; clinician share KES {consultation.agreed_clinician_share}.' if consultation.agreed_total is not None else f'Legacy commission {provider.commission}% of KES {paid_amount}.')
                 ),
             },
         )
@@ -1591,7 +1601,7 @@ class ClinicianPrescriptionListCreateView(generics.ListCreateAPIView):
         return super().create(request, *args, **kwargs)
 
     def get_serializer_class(self):
-        if self.request.user.role == 'pediatrician':
+        if getattr(self.request.user, 'role', '') == 'pediatrician':
             return PediatricianPrescriptionSerializer
         return DoctorPrescriptionSerializer
 
@@ -1936,7 +1946,7 @@ class ClinicianEarningsView(generics.ListAPIView):
     permission_classes = [IsDoctor]
 
     def get_serializer_class(self):
-        if self.request.user.role == 'pediatrician':
+        if getattr(self.request.user, 'role', '') == 'pediatrician':
             return PediatricianEarningSerializer
         return DoctorEarningSerializer
 

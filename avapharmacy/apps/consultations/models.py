@@ -75,7 +75,7 @@ class BaseClinicianProfile(models.Model):
     status_note = models.TextField(blank=True)
     rejection_note = models.TextField(blank=True)
     commission = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
-    consult_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
+    consult_fee = models.DecimalField(max_digits=10, decimal_places=2, default=1500.00)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
     verified_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
@@ -98,6 +98,14 @@ class BaseClinicianProfile(models.Model):
         raise NotImplementedError
 
     @property
+    def eligible_to_practice(self):
+        from django.utils import timezone
+        return bool(self.status == self.STATUS_ACTIVE and self.is_verified and self.license_number.strip()
+                    and self.license_board.strip() and self.license_country.strip().lower() in {'kenya', 'ke', 'ken'}
+                    and self.license_expiry and self.license_expiry >= timezone.localdate()
+                    and self.user_id and self.user.is_active and self.user.status == 'active')
+
+    @property
     def role_label(self):
         return self.provider_type.replace('_', ' ')
 
@@ -110,7 +118,8 @@ class ClinicianQuerySet(models.QuerySet):
         return self.filter(provider_type=ClinicianProfile.TYPE_PEDIATRICIAN)
 
     def active(self):
-        return self.filter(status=ClinicianProfile.STATUS_ACTIVE)
+        from django.utils import timezone
+        return self.filter(status=ClinicianProfile.STATUS_ACTIVE, is_verified=True, license_expiry__gte=timezone.localdate(), license_country__iregex=r'^(kenya|ke|ken)$', user__is_active=True, user__status='active').exclude(license_number='').exclude(license_board='')
 
 
 class ClinicianProfile(BaseClinicianProfile):
@@ -153,6 +162,10 @@ class ClinicianProfile(BaseClinicianProfile):
         return f"{self.name} ({self.provider_type})"
 
     def save(self, *args, **kwargs):
+        self.consult_fee = 1500
+        self.currency = 'KES'
+        if kwargs.get('update_fields') is not None:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'consult_fee', 'currency'}
         if not self.reference:
             prefix = 'DOC' if self.provider_type == self.TYPE_DOCTOR else 'PED'
             self.reference = f"{prefix}-{uuid.uuid4().hex[:6].upper()}"
@@ -265,6 +278,9 @@ class Consultation(models.Model):
         (PRIORITY_PRIORITY, 'Priority'),
     ]
 
+    agreed_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    agreed_clinician_share = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
     reference = models.CharField(max_length=20, unique=True, blank=True)
     clinician = models.ForeignKey(
         'ClinicianProfile',
@@ -347,6 +363,9 @@ class Consultation(models.Model):
         return provider.specialty if provider else ''
 
     def save(self, *args, **kwargs):
+        if self._state.adding:
+            self.agreed_total = 1500
+            self.agreed_clinician_share = 1000
         if not self.reference:
             self.reference = f"CONS-{uuid.uuid4().hex[:6].upper()}"
         if self.clinician_id:

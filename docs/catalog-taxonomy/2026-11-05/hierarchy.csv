@@ -1,0 +1,149 @@
+category_id,category__name,id,name,item_count
+81,Aromatherapy & Home Fragrance,74,Candles,45
+81,Aromatherapy & Home Fragrance,75,Diffusers & Accessories,27
+81,Aromatherapy & Home Fragrance,76,Essential Oils & Blends,117
+76,Baby & Maternity,77,"Baby Bath, Skin & Sun Care",237
+76,Baby & Maternity,78,Baby Safety & Accessories,30
+76,Baby & Maternity,79,"Bottles, Teats & Feeding",100
+76,Baby & Maternity,80,Breastfeeding & Maternity Care,110
+76,Baby & Maternity,81,Infant & Toddler Formula,86
+76,Baby & Maternity,82,Nappies & Baby Wipes,124
+76,Baby & Maternity,83,Other Baby & Maternity Products,229
+76,Baby & Maternity,84,"Soothers, Teethers & Toys",41
+78,Bath & Body,85,Bath Accessories,13
+78,Bath & Body,86,Bath Salts & Bath Bombs,1
+78,Bath & Body,87,Body Moisturisers & Oils,483
+78,Bath & Body,88,Body Scrubs & Exfoliators,39
+78,Bath & Body,89,Hand & Body Cleansing,375
+78,Bath & Body,90,Hand & Foot Care,101
+78,Bath & Body,91,Insect Repellents & Bite Care,83
+80,Ear Piercing & Jewellery,161,Earrings & Studs,37
+80,Ear Piercing & Jewellery,162,Piercing Aftercare,3
+80,Ear Piercing & Jewellery,163,Piercing Instruments & Accessories,6
+87,First Aid & Medical Supplies,102,"Antiseptics, Disinfectants & Sanitisers",162
+87,First Aid & Medical Supplies,103,"Catheters, Bags & Clinical Supplies",33
+87,First Aid & Medical Supplies,104,"Cotton, Swabs & Wound Cleaning",32
+87,First Aid & Medical Supplies,105,"Dressings, Bandages & Medical Tape",338
+87,First Aid & Medical Supplies,106,First Aid Kits,24
+87,First Aid & Medical Supplies,107,"Gloves, Masks & Protective Wear",108
+87,First Aid & Medical Supplies,108,"Needles, Syringes & IV Supplies",84
+87,First Aid & Medical Supplies,109,Other Clinical Supplies,222
+105,Food & Drinks,110,Confectionery & Chewing Gum,170
+105,Food & Drinks,111,"Honey, Sweeteners & Pantry Foods",89
+105,Food & Drinks,112,Water & Drinks,17
+106,Fragrance & Deodorants,113,Body & Fragrance Mists,347
+106,Fragrance & Deodorants,114,Deodorants & Antiperspirants,411
+106,Fragrance & Deodorants,115,Perfumes & Colognes,110
+82,Hair Care,122,Beard Care,16
+82,Hair Care,123,Conditioners & Hair Masks,73
+82,Hair Care,124,Hair & Scalp Treatments,95
+82,Hair Care,125,Hair Colour & Relaxers,33
+82,Hair Care,126,Hair Tools & Accessories,272
+82,Hair Care,127,Shampoos,158
+82,Hair Care,128,Styling & Other Hair Care,286
+86,Makeup & Nails,129,Eye & Brow Makeup,105
+86,Makeup & Nails,130,Face Makeup,187
+86,Makeup & Nails,131,Lip Colour,128
+86,Makeup & Nails,132,Makeup Tools & Accessories,26
+86,Makeup & Nails,133,Manicure & Pedicure Tools,132
+86,Makeup & Nails,134,Nail Colour & Treatments,62
+86,Makeup & Nails,135,Other Makeup,132
+85,Medical Devices & Home Health,92,Blood Glucose Monitoring,47
+85,Medical Devices & Home Health,93,Blood Pressure Monitoring,42
+85,Medical Devices & Home Health,94,Hearing Aids & Accessories,4
+85,Medical Devices & Home Health,95,"Heat, Cold, Massage & TENS",80
+85,Medical Devices & Home Health,96,Other Home & Diagnostic Tests,44
+85,Medical Devices & Home Health,97,Other Home Health Devices,64
+85,Medical Devices & Home Health,98,Pregnancy & Ovulation Tests,59
+85,Medical Devices & Home Health,99,Respiratory Devices & Accessories,48
+85,Medical Devices & Home Health,100,Thermometers & Oximeters,78
+85,Medical Devices & Home Health,101,Weighing & Fitness Monitors,9
+91,Oral Care,148,Denture Care,25
+91,Oral Care,149,Electric Toothbrushes & Heads,116
+91,Oral Care,150,Floss & Interdental Cleaning,97
+91,Oral Care,151,Manual Toothbrushes,138
+91,Oral Care,152,Mouthwash & Gum Care,89
+91,Oral Care,153,Other Oral Care,201
+91,Oral Care,154,Toothpaste,143
+101,Orthopaedic Supports & Mobility,211,Ankle & Foot Supports,203
+101,Orthopaedic Supports & Mobility,212,"Arm, Elbow & Shoulder Supports",115
+101,Orthopaedic Supports & Mobility,213,"Back, Waist & Abdominal Supports",68
+101,Orthopaedic Supports & Mobility,214,Compression Stockings & Hosiery,93
+101,Orthopaedic Supports & Mobility,215,Knee & Leg Supports,154
+101,Orthopaedic Supports & Mobility,216,Mobility Aids & Daily Living,76
+101,Orthopaedic Supports & Mobility,217,Neck Supports & Pillows,23
+101,Orthopaedic Supports & Mobility,218,Other Orthopaedic Supports,124
+101,Orthopaedic Supports & Mobility,219,Sports Tapes & Tubular Supports,56
+101,Orthopaedic Supports & Mobility,220,"Wrist, Hand & Finger Supports",105
+96,Period & Continence Care,155,Adult Continence Care,128
+96,Period & Continence Care,156,Menstrual Cups,18
+96,Period & Continence Care,157,Other Period & Continence Products,32
+96,Period & Continence Care,158,Panty Liners,18
+96,Period & Continence Care,159,Sanitary Pads,97
+96,Period & Continence Care,160,Tampons,61
+94,Personal Care & Grooming,116,Earplugs & Sleep Accessories,26
+94,Personal Care & Grooming,117,Hair Removal & Waxing,6
+94,Personal Care & Grooming,118,Other Personal Care,1097
+94,Personal Care & Grooming,119,Shaving & Trimming,217
+94,Personal Care & Grooming,120,Travel & Grooming Accessories,83
+94,Personal Care & Grooming,121,"Wipes, Tissues & Cotton Accessories",49
+103,Pet & Veterinary Care,221,Veterinary Products,21
+79,Pharmacy & Medicines,136,Ear Treatments,17
+79,Pharmacy & Medicines,137,Eye Treatments,219
+79,Pharmacy & Medicines,138,"Eye, Ear & Nasal Combinations",18
+79,Pharmacy & Medicines,139,Inhalers & Respiratory Treatments,61
+79,Pharmacy & Medicines,140,Injections & Infusions,308
+79,Pharmacy & Medicines,141,Lozenges & Throat Care,64
+79,Pharmacy & Medicines,142,Nasal Treatments,92
+79,Pharmacy & Medicines,143,Oral Liquids & Powders,488
+79,Pharmacy & Medicines,144,Other Pharmacy Items,1180
+79,Pharmacy & Medicines,145,Suppositories & Pessaries,69
+79,Pharmacy & Medicines,146,Tablets & Capsules,2338
+79,Pharmacy & Medicines,147,Topical Treatments,498
+97,Pharmacy Services,164,Ear Piercing Services,3
+97,Pharmacy Services,165,Health Screening Services,5
+97,Pharmacy Services,166,Nutrition Consultations,5
+97,Pharmacy Services,167,Other Pharmacy Services,10
+97,Pharmacy Services,168,Wound Care Services,1
+107,Sexual Wellness,169,Condoms,95
+107,Sexual Wellness,170,Intimate Accessories,27
+107,Sexual Wellness,171,Intimate Hygiene,61
+107,Sexual Wellness,172,Intimate Lubricants,35
+98,Skin Care,173,Cleansers & Makeup Removers,465
+98,Skin Care,174,Eye Care,58
+98,Skin Care,175,Face Masks,125
+98,Skin Care,176,Facial Scrubs & Exfoliators,91
+98,Skin Care,177,Lip Care,333
+98,Skin Care,178,Moisturisers & Other Skin Care,1568
+98,Skin Care,179,Serums & Targeted Treatments,265
+98,Skin Care,180,Sun Protection & After-sun,511
+98,Skin Care,181,Targeted Skin Care,82
+98,Skin Care,182,Toners & Facial Mists,78
+99,Smoking & Vaping,183,Nicotine Replacement Products,31
+99,Smoking & Vaping,184,"Vape Coils, Pods & Accessories",61
+99,Smoking & Vaping,185,Vape Devices & Kits,80
+99,Smoking & Vaping,186,Vape Liquids,412
+77,Sports Nutrition,187,Creatine & Amino Acids,112
+77,Sports Nutrition,188,"Energy, Hydration & Pre-workout",82
+77,Sports Nutrition,189,Other Sports Supplements,122
+77,Sports Nutrition,190,Protein & Energy Snacks,93
+77,Sports Nutrition,191,Protein Powders & Mass Gainers,170
+77,Sports Nutrition,192,Sports Bottles & Accessories,38
+95,Store Supplies & Accessories,193,Other Store Accessories,80
+95,Store Supplies & Accessories,194,Packaging & Dispensing Supplies,5
+95,Store Supplies & Accessories,195,Reusable Bottles & Drinkware,147
+95,Store Supplies & Accessories,196,Unspecified Catalog Entries,6
+100,Vitamins & Supplements,197,Antioxidants & Specialty Nutrients,40
+100,Vitamins & Supplements,198,Children's Supplements,103
+100,Vitamins & Supplements,199,"Collagen, Hair, Skin & Nails",111
+100,Vitamins & Supplements,200,Herbal & Botanical Supplements,138
+100,Vitamins & Supplements,201,Joint & Bone Supplements,43
+100,Vitamins & Supplements,202,Maternity Supplements,26
+100,Vitamins & Supplements,203,Minerals,196
+100,Vitamins & Supplements,204,Multivitamins,124
+100,Vitamins & Supplements,205,Omega Oils & Essential Fatty Acids,174
+100,Vitamins & Supplements,206,Other Nutritional Supplements,1048
+100,Vitamins & Supplements,207,Probiotics & Digestive Support,51
+100,Vitamins & Supplements,208,Sleep & Relaxation Supplements,59
+100,Vitamins & Supplements,209,Vitamins,386
+100,Vitamins & Supplements,210,Weight & Fitness Supplements,10

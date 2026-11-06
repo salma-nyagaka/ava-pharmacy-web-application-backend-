@@ -39,6 +39,10 @@ class CustomerAdmin(admin.ModelAdmin):
 class PharmacistAdmin(admin.ModelAdmin):
     list_display = ('user', 'permissions', 'created_at', 'updated_at')
 
+    readonly_fields = ('credential_status', 'credential_verified_at', 'credential_verified_by', 'credential_verification_reference', 'credential_is_current')
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 @admin.register(PharmacistActivationToken)
 class PharmacistActivationTokenAdmin(admin.ModelAdmin):

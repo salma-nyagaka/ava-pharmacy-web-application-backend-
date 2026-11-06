@@ -1,4 +1,5 @@
 """Account acceptance journeys using real JWT login and an isolated test database."""
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 import re
 from datetime import timedelta
 from urllib.parse import parse_qs, urlparse
@@ -377,7 +378,7 @@ class AccountJourneyTests(TestCase):
                 profile = ClinicianProfile.objects.create(
                     provider_type=provider, name=f'QA Retry {provider}', email=email,
                     status=ClinicianProfile.STATUS_PENDING,
-                )
+                **clinician_fixture(exclude=('provider_type', 'name', 'email', 'status')))
                 url = reverse(f'admin-{provider}-action', args=[profile.pk])
                 with patch('apps.accounts.serializers.send_pharmacist_activation_email', side_effect=RuntimeError('Synthetic SMTP failure')):
                     response = self.client.post(url, {'action': 'approve'}, format='json')

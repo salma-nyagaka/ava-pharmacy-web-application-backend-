@@ -1,0 +1,33 @@
+{
+  "full_regression": {
+    "tests": 405,
+    "passed": true,
+    "log": "full-regression.log"
+  },
+  "final_safety_retest": {
+    "tests": 43,
+    "passed": true,
+    "log": "final-safety-tests.log"
+  },
+  "frontend_build_passed": true,
+  "system_check_passed": true,
+  "pending_model_migrations": false,
+  "local_additive_migrations_applied": true,
+  "openapi_validation_errors": 0,
+  "openapi_warnings": 1415,
+  "openapi_unique_warnings": 836,
+  "production_security_errors": 6,
+  "production_security_warnings": 1,
+  "production_deployed": false,
+  "operational_compliance_verified": false,
+  "genuine_evidence_fabricated": false,
+  "real_financial_transactions_executed": 0,
+  "real_patient_messages_executed": 0,
+  "discarded_run_note": "An overlapping disposable-database run was invalidated. Acceptance full-regression.log is the subsequent isolated sequential run.",
+  "distinct_tests_covered": 407,
+  "final_catalogue_compatibility": {
+    "tests": 85,
+    "passed": true,
+    "log": "catalogue-compatibility.log"
+  }
+}

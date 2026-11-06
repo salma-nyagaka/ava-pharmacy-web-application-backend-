@@ -1,0 +1,47 @@
+{
+  "backup": "/private/tmp/ava-brand-linking-20261105T155458Z/database.dump",
+  "before": {
+    "products_product": {
+      "count": 23411,
+      "sha256": "51ba9eefbc83e48abe58f0727b2abdd57b91d6759e588b180620396ce031e9f8"
+    },
+    "products_variant": {
+      "count": 23411,
+      "sha256": "5d7844a04e64dc065e50ec274edd3b98d8cc03203916e1085483ea95d85e1985"
+    },
+    "products_variantinventory": {
+      "count": 64094,
+      "sha256": "0cf66c5c9bddf26150034812dd088f4f6ae082b67214197b153bfd07cebeafae"
+    },
+    "products_storevariantlisting": {
+      "count": 64094,
+      "sha256": "4da87d5f5e11ab0b1d816cfd077977dba37c85437b1b4d32270b8e2cfee11874"
+    }
+  },
+  "after": {
+    "products_product": {
+      "count": 23411,
+      "sha256": "51ba9eefbc83e48abe58f0727b2abdd57b91d6759e588b180620396ce031e9f8"
+    },
+    "products_variant": {
+      "count": 23411,
+      "sha256": "5d7844a04e64dc065e50ec274edd3b98d8cc03203916e1085483ea95d85e1985"
+    },
+    "products_variantinventory": {
+      "count": 64094,
+      "sha256": "0cf66c5c9bddf26150034812dd088f4f6ae082b67214197b153bfd07cebeafae"
+    },
+    "products_storevariantlisting": {
+      "count": 64094,
+      "sha256": "4da87d5f5e11ab0b1d816cfd077977dba37c85437b1b4d32270b8e2cfee11874"
+    }
+  },
+  "existing_assignments_preserved": 12554,
+  "brands_before": 1138,
+  "brands_after": 1471,
+  "products": 23411,
+  "branded_products": 13956,
+  "unbranded_products": 9455,
+  "assigned": 1402,
+  "new_brands": 333
+}

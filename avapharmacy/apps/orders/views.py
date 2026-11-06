@@ -1,3 +1,4 @@
+from apps.products.compliance import supply_error, prescription_required, is_medicine
 from django.conf import settings
 from django.db import transaction
 from django.db import models
@@ -303,6 +304,16 @@ def _serialize_tracking_order(order, *, include_details=True):
 
 
 def _product_availability_error(product, requested_quantity, *, allow_pos_refresh=False):
+    if isinstance(product, Variant):
+        error = supply_error(product)
+        if error:
+            return error
+        if is_medicine(product):
+            from apps.products.compliance import medicine_inventory_rows
+            rows = medicine_inventory_rows(product, list(product.inventories.all()))
+            usable = sum(row.stock_quantity for row in rows if row.effective_status not in {'damaged', 'expired'})
+            if usable < requested_quantity:
+                return 'Verified, unexpired medicine batches with supplier and lot traceability are required before purchase.'
     if not product.is_active or (isinstance(product, Variant) and not product.product.is_active):
         return f'{product.name} is no longer active.'
     if isinstance(product, Product) and product.uses_variant_inventory:
@@ -408,19 +419,7 @@ def _as_payload_dict(value):
 
 
 def _variant_requires_otc_screening(variant):
-    if not variant or variant.requires_prescription:
-        return False
-    category_names = [
-        getattr(getattr(variant, 'category', None), 'name', ''),
-        getattr(getattr(variant, 'subcategory', None), 'name', ''),
-        getattr(variant.product, 'name', ''),
-        getattr(variant, 'name', ''),
-    ]
-    haystack = ' '.join(str(value or '').lower() for value in category_names)
-    medicine_terms = {'medicine', 'medicines', 'pain', 'cough', 'cold', 'flu', 'allergy', 'antacid', 'antibiotic'}
-    if any(term in haystack for term in medicine_terms):
-        return True
-    return bool(variant.dosage_instructions or variant.directions or variant.warnings)
+    return bool(variant and variant.prescription_classification == 'otc')
 
 
 def _otc_screening_error(variant, screening):
@@ -436,6 +435,9 @@ def _otc_screening_error(variant, screening):
             f'{variant.product.name} requires OTC pharmacist-screening details before checkout: '
             f'{", ".join(missing)}.'
         )
+    for key in OTC_SCREENING_REQUIRED_FIELDS - {'counseling_acknowledged'}:
+        if not isinstance(payload.get(key), str) or not payload[key].strip() or len(payload[key]) > 3000:
+            return f'OTC screening field {key} must contain clear text of at most 3000 characters.'
     if payload.get('counseling_acknowledged') is not True:
         return f'{variant.product.name} requires confirmation that medicine counseling information was provided.'
     return None
@@ -445,10 +447,14 @@ def validate_cart_items(items):
     errors = []
     for item in items:
         inventory_object = _cart_inventory_object(item)
+        from apps.support.compliance import assessment_error, medicine_frequency_risk
+        assessment = assessment_error(item) or medicine_frequency_risk(item)
+        if assessment:
+            errors.append(assessment)
         error = _product_availability_error(inventory_object, item.quantity, allow_pos_refresh=True)
         if error:
             errors.append(error)
-        if item.variant and (item.variant.requires_prescription or item.prescription_id or item.prescription_item_id):
+        if item.variant and (prescription_required(item.variant) or item.prescription_id or item.prescription_item_id):
             prescription_error = _prescription_cart_error(
                 getattr(item.cart, 'user', None),
                 item.product,
@@ -503,7 +509,7 @@ def build_order_totals(cart, shipping_method=None, items=None):
         subtotal = sum(item.subtotal for item in items)
         discount_total = Decimal('0.00')
         if cart.coupon and cart.coupon.is_available(cart.user):
-            discount_total = cart.coupon.calculate_discount(subtotal)
+            discount_total = cart.coupon.calculate_discount(sum((row.subtotal for row in items if not prescription_required(row.variant)), Decimal('0.00')))
     discounted_subtotal = subtotal - discount_total
     if shipping_method:
         shipping_fee = shipping_method.calculate_fee(discounted_subtotal)
@@ -528,22 +534,18 @@ def resolve_mpesa_stk_amount(order_total):
 
 
 def snapshot_cart_to_order(order, cart_items):
+    from apps.support.compliance import matching_assessment
     order.items.all().delete()
     for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                variant=item.variant,
-            product_name=item.product.name,
-            product_sku=item.product.get_display_sku(),
-            quantity=item.quantity,
-            variant_name=item.variant.name if item.variant else '',
-            variant_sku=item.variant.sku if item.variant else '',
-            unit_price=item.unit_price,
-                prescription_reference=item.prescription_reference,
-                prescription=item.prescription,
-                prescription_item=item.prescription_item,
-                otc_screening=item.otc_screening or {},
-            )
+        assessment = matching_assessment(item) if item.variant.prescription_classification == 'otc' else None
+        OrderItem.objects.create(
+            order=order, variant=item.variant, product_name=item.product.name,
+            product_sku=item.product.get_display_sku(), quantity=item.quantity,
+            variant_name=item.variant.name, variant_sku=item.variant.sku,
+            unit_price=item.unit_price, prescription_reference=item.prescription_reference,
+            prescription=item.prescription, prescription_item=item.prescription_item,
+            otc_screening=item.otc_screening or {}, medicine_assessment=assessment,
+        )
     _sync_prescription_dispatch_for_order(order)
 
 
@@ -1288,7 +1290,7 @@ class CartItemCreateView(generics.CreateAPIView):
 
         existing_item = CartItem.objects.filter(**existing_item_filters).first()
         requested_total = quantity + (existing_item.quantity if existing_item else 0)
-        if variant and (variant.requires_prescription or prescription or prescription_item):
+        if variant and (prescription_required(variant) or prescription or prescription_item):
             prescription_error = _prescription_cart_error(
                 request.user,
                 product,
@@ -1350,7 +1352,7 @@ class CartItemUpdateView(APIView):
         except (TypeError, ValueError):
             return Response({'quantity': 'Invalid quantity.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if item.variant and (item.variant.requires_prescription or item.prescription_id or item.prescription_item_id):
+        if item.variant and (prescription_required(item.variant) or item.prescription_id or item.prescription_item_id):
             prescription_error = _prescription_cart_error(
                 request.user,
                 item.product,
@@ -1406,6 +1408,8 @@ class CartApplyCouponView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        if not getattr(settings, 'CHECKOUT_COUPONS_ENABLED', False):
+            return Response({'detail': 'Coupon codes are currently unavailable.'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CouponApplySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1417,8 +1421,12 @@ class CartApplyCouponView(APIView):
 
         if not coupon.is_available(request.user):
             return Response({'detail': 'Coupon is not available.'}, status=status.HTTP_400_BAD_REQUEST)
-        if cart.total < coupon.minimum_subtotal:
-            return Response({'detail': 'Cart does not meet coupon minimum subtotal.'}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.products.compliance import prescription_required
+        eligible_subtotal = sum((item.subtotal for item in cart.items.select_related('variant') if not prescription_required(item.variant)), Decimal('0.00'))
+        if eligible_subtotal <= 0:
+            return Response({'detail': 'This coupon does not apply to the items in your cart.'}, status=status.HTTP_400_BAD_REQUEST)
+        if eligible_subtotal < coupon.minimum_subtotal:
+            return Response({'detail': 'Eligible items do not meet the coupon minimum spend.'}, status=status.HTTP_400_BAD_REQUEST)
 
         cart.coupon = coupon
         cart.save(update_fields=['coupon', 'updated_at'])
@@ -1487,7 +1495,7 @@ class CheckoutDraftView(APIView):
             order = Order.objects.create(
                 customer=request.user,
                 coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
-                coupon_code=cart.coupon.code if cart.coupon else '',
+                coupon_code=cart.coupon.code if cart.coupon and cart.coupon.is_available(request.user) else '',
                 payment_method=data['payment_method'],
                 payment_status=Order.PAYMENT_STATUS_PENDING,
                 delivery_method=data.get('delivery_method', 'standard'),
@@ -2634,8 +2642,8 @@ class ReturnRequestListCreateView(generics.ListCreateAPIView):
         except Order.DoesNotExist as exc:
             raise serializers.ValidationError({'order_id': 'Order not found.'}) from exc
 
-        if order.status in [Order.STATUS_DRAFT, Order.STATUS_CANCELLED, Order.STATUS_REFUNDED]:
-            raise serializers.ValidationError({'order_id': 'This order is not eligible for a new return request.'})
+        if order.status != Order.STATUS_DELIVERED:
+            raise serializers.ValidationError({'order_id': 'Only delivered orders are eligible for a return request.'})
         requested_amount = serializer.validated_data.get('requested_refund_amount', Decimal('0'))
         if requested_amount < 0 or requested_amount > order.total:
             raise serializers.ValidationError({'requested_refund_amount': 'Amount must be between zero and the order total.'})
@@ -3488,7 +3496,7 @@ class CartMergeView(APIView):
                 variant = product.get_representative_variant()
             if variant is None:
                 return Response({'detail': f'Select an available variant for {product.name}.'}, status=400)
-            if variant.requires_prescription:
+            if prescription_required(variant):
                 return Response({'detail': 'Add prescription medicines from your approved prescription after signing in.'}, status=400)
             screening = _as_payload_dict(item_data.get('otc_screening'))
             error = _otc_screening_error(variant, screening)
@@ -3574,7 +3582,7 @@ class OrderCreateView(APIView):
             order = Order.objects.create(
                 customer=request.user,
                 coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
-                coupon_code=cart.coupon.code if cart.coupon else '',
+                coupon_code=cart.coupon.code if cart.coupon and cart.coupon.is_available(request.user) else '',
                 payment_method=payment_method,
                 payment_status=Order.PAYMENT_STATUS_PENDING,
                 delivery_method=data.get('delivery_method', 'standard'),
@@ -3838,4 +3846,3 @@ class AdminOrderStatusView(APIView):
             )
 
         return Response(AdminOrderSerializer(order).data)
-    DeliveryAuditSerializer,

@@ -4,6 +4,12 @@
 {% block intro %}Hi {{ first_name }}, your {{ account_role_lower|default:"professional" }} account has been created by {{ invited_by }}.{% endblock %}
 
 {% block content %}
+{% if consultation_fee %}
+Standard consultation fee: KSh {{ consultation_fee }}.
+AVA Pharmacy share: KSh {{ platform_fee }}.
+Your payout per paid consultation: KSh {{ clinician_payout }}.
+{% endif %}
+
 Activate account: {{ activation_url }}
 Dashboard: {{ dashboard_url }}
 Link expires in {{ expires_hours }} hours.

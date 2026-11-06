@@ -76,18 +76,18 @@ def check_site_compliance_settings(app_configs, **kwargs):
 @checks.register(checks.Tags.security, deploy=True)
 def check_bot_challenge_settings(app_configs, **kwargs):
     messages = []
-    if getattr(settings, 'BOT_CHALLENGE_PROVIDER', '') != 'turnstile':
+    if getattr(settings, 'BOT_CHALLENGE_PROVIDER', '') not in ('turnstile', 'hcaptcha'):
         messages.append(
             checks.Error(
-                'BOT_CHALLENGE_PROVIDER must be "turnstile" in production.',
-                hint='Set BOT_CHALLENGE_PROVIDER=turnstile.',
+                'BOT_CHALLENGE_PROVIDER must be "turnstile" or "hcaptcha" in production.',
+                hint='Set BOT_CHALLENGE_PROVIDER=turnstile or hcaptcha.',
                 id='ava.E010',
             )
         )
-    if not str(getattr(settings, 'TURNSTILE_SECRET_KEY', '') or '').strip():
+    if not str(getattr(settings, 'HCAPTCHA_SECRET_KEY' if getattr(settings, 'BOT_CHALLENGE_PROVIDER', 'turnstile') == 'hcaptcha' else 'TURNSTILE_SECRET_KEY', '') or '').strip():
         messages.append(
             checks.Error(
-                'TURNSTILE_SECRET_KEY is not configured.',
+                'The selected CAPTCHA provider secret key is not configured.',
                 hint='Set the Cloudflare Turnstile secret key so login/register/checkout challenges cannot be bypassed.',
                 id='ava.E011',
             )
@@ -187,4 +187,19 @@ def check_frontend_origin_settings(app_configs, **kwargs):
             )
         )
 
+    return messages
+
+
+@checks.register(checks.Tags.security, deploy=True)
+def check_pharmacy_operational_configuration(app_configs, **kwargs):
+    messages = []
+    if not getattr(settings, 'REQUIRE_VERIFIED_OPERATIONAL_EVIDENCE', False):
+        messages.append(checks.Error('Production medicine supply must require verified operational evidence.', id='ava.E040'))
+    from django.utils import timezone
+    secret = str(getattr(settings, 'SECRET_KEY', ''))
+    if len(secret) < 50 or len(set(secret)) < 5 or secret.startswith('django-insecure-'):
+        messages.append(checks.Error('A strong production SECRET_KEY is required.', hint='Provision a unique secret through the production secret manager; do not commit it.', id='ava.E042'))
+    year = str(timezone.localdate().year)
+    if not any(str(day).startswith(year+'-') for day in getattr(settings, 'KENYA_PUBLIC_HOLIDAYS', [])):
+        messages.append(checks.Error('The current Kenyan working-day holiday calendar needs operational verification.', hint='Set KENYA_PUBLIC_HOLIDAYS to approved ISO dates and review annually.', id='ava.E041'))
     return messages

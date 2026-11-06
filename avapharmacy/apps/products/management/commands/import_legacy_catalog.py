@@ -278,26 +278,25 @@ class Command(BaseCommand):
     def _sync_categories(self, plan, changes, *, batch_size):
         existing = list(Category.objects.filter(parent__isnull=True))
         by_key = {normalized_text_key(category.name): category for category in existing}
+        by_slug = {category.slug: category for category in existing}
         creates = []
         for category_plan in plan.categories:
-            if category_plan.key not in by_key:
-                creates.append(Category(
-                    name=category_plan.name,
-                    slug=category_plan.slug,
-                    is_active=True,
-                ))
+            if category_plan.key not in by_key and category_plan.slug not in by_slug:
+                creates.append(Category(name=category_plan.name, slug=category_plan.slug, is_active=True))
         Category.objects.bulk_create(creates, batch_size=batch_size)
         changes['categories_created'] += len(creates)
-        return {
-            normalized_text_key(category.name): category
-            for category in Category.objects.filter(parent__isnull=True)
-        }
+        existing = list(Category.objects.filter(parent__isnull=True))
+        by_key = {normalized_text_key(category.name): category for category in existing}
+        by_slug = {category.slug: category for category in existing}
+        # Curated root names may have changed; their preserved import slug is
+        # still the identity of the source category.
+        return {spec.key: by_key.get(spec.key) or by_slug[spec.slug] for spec in plan.categories}
 
     def _sync_products(self, plan, changes, *, batch_size):
-        existing = {
-            product.sku: product
-            for product in Product.objects.filter(sku__startswith=PRODUCT_SKU_PREFIX)
-        }
+        existing = {}
+        for product in Product.objects.filter(Q(catalog_family_key__startswith=PRODUCT_SKU_PREFIX) | Q(sku__startswith=PRODUCT_SKU_PREFIX)).order_by('pk'):
+            existing.setdefault(product.catalog_family_key or product.sku, product)
+
         creates = []
         updates = []
         now = timezone.now()
@@ -306,6 +305,7 @@ class Command(BaseCommand):
             if product is None:
                 creates.append(Product(
                     sku=product_plan.sku,
+                    catalog_family_key=product_plan.sku,
                     slug=product_plan.slug,
                     name=product_plan.name,
                     family_review_status=Product.FAMILY_REVIEW_INFERRED,
@@ -328,10 +328,9 @@ class Command(BaseCommand):
             )
         changes['products_created'] += len(creates)
         changes['products_updated'] += len(updates)
-        products = {
-            product.sku: product
-            for product in Product.objects.filter(sku__startswith=PRODUCT_SKU_PREFIX)
-        }
+        products = {}
+        for product in Product.objects.filter(Q(catalog_family_key__startswith=PRODUCT_SKU_PREFIX) | Q(sku__startswith=PRODUCT_SKU_PREFIX)).order_by('pk'):
+            products.setdefault(product.catalog_family_key or product.sku, product)
         self._assert_all_present(
             expected=(product.sku for product in plan.products),
             actual=products,
@@ -348,9 +347,11 @@ class Command(BaseCommand):
         changes,
         batch_size,
     ):
+        from apps.products.admin_cache import invalidate_admin_catalog
+        invalidate_admin_catalog()
         existing = {
             variant.sku: variant
-            for variant in Variant.objects.filter(sku__startswith=VARIANT_SKU_PREFIX)
+            for variant in Variant.objects.filter(sku__startswith=VARIANT_SKU_PREFIX).select_related('product', 'category', 'subcategory')
         }
         sort_orders = {}
         for product_plan in plan.products:
@@ -360,15 +361,28 @@ class Command(BaseCommand):
         updates = []
         now = timezone.now()
 
+        occupied_products = set(Variant.objects.values_list('product_id', flat=True))
         for variant_plan in plan.variants:
+            root = products[variant_plan.product_key]
+            previous_variant = existing.get(variant_plan.sku)
+            if previous_variant is not None:
+                owner = previous_variant.product
+            elif root.pk not in occupied_products:
+                owner = root
+                occupied_products.add(owner.pk)
+            else:
+                owner = Product.objects.create(name=variant_plan.name, slug=f'flat-{variant_plan.sku.lower()}', brand=root.brand, image=root.image, manufacturer=root.manufacturer, marketing_authorization_holder=root.marketing_authorization_holder, family_review_status=root.family_review_status, catalog_family_key=root.catalog_family_key or root.sku, is_active=variant_plan.is_active)
+                occupied_products.add(owner.pk)
+                changes['products_created'] += 1
+            Product.objects.filter(pk=owner.pk).update(name=variant_plan.name, sku=variant_plan.sku, catalog_family_key=root.catalog_family_key or root.sku, is_active=variant_plan.is_active)
             values = {
-                'product': products[variant_plan.product_key],
+                'product': owner,
                 'name': variant_plan.name,
                 'barcode': variant_plan.barcode,
                 'pos_product_id': '',
-                'strength': '',
-                'category': categories.get(variant_plan.category_key),
-                'subcategory': None,
+                'strength': previous_variant.strength if previous_variant else '',
+                'category': (previous_variant.category if previous_variant and previous_variant.subcategory_id else categories.get(variant_plan.category_key)),
+                'subcategory': previous_variant.subcategory if previous_variant and previous_variant.subcategory_id else None,
                 'short_description': variant_plan.description[:500],
                 'description': variant_plan.description,
                 'price': variant_plan.price,

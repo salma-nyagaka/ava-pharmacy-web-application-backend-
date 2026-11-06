@@ -35,7 +35,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'apps.accounts',
-    'apps.products',
+    'apps.products.apps.ProductsConfig',
     'apps.orders',
     'apps.prescriptions.apps.PrescriptionsConfig',
     'apps.consultations',
@@ -144,7 +144,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'avapharmacy.schema.PharmacyAutoSchema',
     'DEFAULT_THROTTLE_CLASSES': [
         'avapharmacy.throttles.PublicReadRateThrottle',
         'avapharmacy.throttles.AnonWriteRateThrottle',
@@ -194,6 +194,8 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Full-featured pharmacy backend API: e-commerce, prescriptions, telemedicine, lab, support, real-time notifications.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    # Keep each exact enum inline; avoid cross-domain status/choice name collisions.
+    'POSTPROCESSING_HOOKS': [],
     'COMPONENT_SPLIT_REQUEST': True,
 }
 
@@ -208,6 +210,7 @@ FREE_SHIPPING_THRESHOLD = 3000
 SHIPPING_FEE = 300
 PAYMENT_WEBHOOK_SECRET = config('PAYMENT_WEBHOOK_SECRET', default='')
 BOT_CHALLENGE_PROVIDER = config('BOT_CHALLENGE_PROVIDER', default='turnstile')
+HCAPTCHA_SECRET_KEY = config('HCAPTCHA_SECRET_KEY', default='')
 TURNSTILE_SECRET_KEY = config('TURNSTILE_SECRET_KEY', default='')
 BOT_CHALLENGE_REQUIRED = config('BOT_CHALLENGE_REQUIRED', default=False, cast=bool)
 CHECKOUT_RISK_CHALLENGE_THRESHOLD = config('CHECKOUT_RISK_CHALLENGE_THRESHOLD', default=40, cast=int)
@@ -362,6 +365,10 @@ CHANNEL_LAYERS = {
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='memory://')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='cache+memory://')
 CELERY_BEAT_SCHEDULE = {
+    'warm-admin-catalog-summary': {
+        'task': 'apps.products.tasks.warm_admin_catalog_summary',
+        'schedule': 60,
+    },
     'inventory-sync-fallback-every-15-minutes': {
         'task': 'apps.products.tasks.sync_inventory_task',
         'schedule': 15 * 60,
@@ -408,3 +415,21 @@ MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
 
 # Optional HTTPS origin for payment-only callback gateways (local QA tunnels).
 PAYMENT_PUBLIC_CALLBACK_BASE_URL = config('PAYMENT_PUBLIC_CALLBACK_BASE_URL', default='')
+
+# Review triage thresholds with the superintendent before production use.
+MEDICINE_REVIEW_ORDERS_30D = config('MEDICINE_REVIEW_ORDERS_30D', default=3, cast=int)
+MEDICINE_REVIEW_UNITS_30D = config('MEDICINE_REVIEW_UNITS_30D', default=30, cast=int)
+KENYA_PUBLIC_HOLIDAYS = [day.strip() for day in config('KENYA_PUBLIC_HOLIDAYS', default='').split(',') if day.strip()]
+
+# Admin catalog reads are shared across web/Celery processes. Redis is optional;
+# the file backend also shares invalidations across local workers.
+ADMIN_CATALOG_CACHE_TTL = config('ADMIN_CATALOG_CACHE_TTL', default=60, cast=int)
+ADMIN_CACHE_URL = config('ADMIN_CACHE_URL', default='')
+CACHES = {'default': {
+    'BACKEND': 'django.core.cache.backends.redis.RedisCache' if ADMIN_CACHE_URL else 'django.core.cache.backends.filebased.FileBasedCache',
+    'LOCATION': ADMIN_CACHE_URL or str(BASE_DIR / 'tmp' / 'admin-read-cache'),
+    'TIMEOUT': ADMIN_CATALOG_CACHE_TTL,
+}}
+
+# Checkout coupons are paused; automatic product deals remain available.
+CHECKOUT_COUPONS_ENABLED = False

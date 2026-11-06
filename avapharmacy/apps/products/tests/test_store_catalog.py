@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from decimal import Decimal
 
 from django.test import TestCase
@@ -32,7 +33,7 @@ class StoreCatalogTests(TestCase):
             sku='TEST-VARIANT',
             name='Test Product 100ml',
             price=Decimal('520.00'),
-        )
+        **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'price')))
         self.store = Store.objects.create(
             code='gtc-westlands',
             name='GTC Westlands',

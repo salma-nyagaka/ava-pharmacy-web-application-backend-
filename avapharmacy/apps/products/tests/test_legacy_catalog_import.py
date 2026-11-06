@@ -111,6 +111,18 @@ class LegacyCatalogImportCommandTests(TestCase):
         )
         return gtc, karen, nyali
 
+    def test_reimport_keeps_curated_category_and_subcategory_after_root_rename(self):
+        with TemporaryDirectory() as directory:
+            sources = self._write_sources(directory)
+            call_command('import_legacy_catalog', *(str(path) for path in sources), stdout=StringIO())
+            call_command('organize_catalog_taxonomy', report_dir=str(Path(directory)/'taxonomy'), apply=True, stdout=StringIO())
+            before = dict(Variant.objects.values_list('pk','category_id'))
+            children = dict(Variant.objects.values_list('pk','subcategory_id'))
+            self.assertTrue(all(children.values()))
+            call_command('import_legacy_catalog', *(str(path) for path in sources), stdout=StringIO())
+            self.assertEqual(dict(Variant.objects.values_list('pk','category_id')), before)
+            self.assertEqual(dict(Variant.objects.values_list('pk','subcategory_id')), children)
+
     def test_dry_run_does_not_change_database(self):
         with TemporaryDirectory() as directory:
             sources = self._write_sources(directory)
@@ -142,11 +154,17 @@ class LegacyCatalogImportCommandTests(TestCase):
                 replace_catalog=True,
                 stdout=StringIO(),
             )
+            original_skus = dict(Variant.objects.values_list('sku', 'pk'))
+            original_inventory_ids = set(VariantInventory.objects.values_list('pk', flat=True))
+            call_command('import_legacy_catalog', *(str(path) for path in sources), stdout=StringIO())
+            self.assertEqual(dict(Variant.objects.values_list('sku','pk')), original_skus)
+            self.assertEqual(set(VariantInventory.objects.values_list('pk',flat=True)), original_inventory_ids)
+            self.assertEqual(Variant.objects.values('product_id').distinct().count(), 3)
 
         self.assertEqual(Store.objects.count(), 3)
         self.assertEqual(StoreFulfillmentPolicy.objects.count(), 3)
         self.assertEqual(Category.objects.count(), 2)
-        self.assertEqual(Product.objects.count(), 2)
+        self.assertEqual(Product.objects.count(), 3)
         self.assertEqual(Variant.objects.count(), 3)
         self.assertEqual(StoreVariantListing.objects.count(), 4)
         self.assertEqual(VariantInventory.objects.count(), 4)

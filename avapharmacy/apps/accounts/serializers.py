@@ -96,6 +96,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Invalid role for self-registration.')
         return value
 
+    def validate_email(self, value):
+        return validate_unique_email(value, instance=self.instance)
+
     def validate_phone(self, value):
         """Ensure registration phone numbers are unique."""
         return validate_unique_phone(value)
@@ -167,10 +170,13 @@ class LoginSerializer(serializers.Serializer):
     """Serializer for validating login credentials (email + password)."""
 
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
     bot_challenge_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
     device_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
     website = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        return value.strip().lower()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -193,9 +199,12 @@ class UserSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Write serializer allowing users to update their own basic profile fields."""
 
+    current_password = serializers.CharField(write_only=True, required=False, trim_whitespace=False)
+
     class Meta:
         model = User
         fields = (
+            'current_password',
             'email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'gender', 'address',
             'weight_kg', 'height_cm', 'bmi', 'muac_cm', 'blood_glucose_mmol_l',
         )
@@ -320,16 +329,32 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         child=serializers.CharField(), required=False, write_only=True
     )
     pharmacist_license_number = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    pharmacist_license_document = serializers.FileField(required=False, write_only=True)
+    pharmacist_license_country = serializers.CharField(required=False, allow_blank=True, write_only=True, max_length=100)
+    pharmacist_license_board = serializers.CharField(required=False, allow_blank=True, write_only=True, max_length=160)
+    pharmacist_license_expiry = serializers.DateField(required=False, allow_null=True, write_only=True)
+    pharmacist_credential_evidence = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     pharmacist_branch_location = serializers.CharField(required=False, allow_blank=True, write_only=True)
     pharmacist_position = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
+    current_password = serializers.CharField(write_only=True, required=False, trim_whitespace=False)
 
     class Meta:
         model = User
         fields = (
+            'current_password',
             'email', 'first_name', 'last_name', 'phone', 'role', 'address', 'password',
             'pharmacist_permissions', 'pharmacist_license_number',
-            'pharmacist_branch_location', 'pharmacist_position'
+            'pharmacist_branch_location', 'pharmacist_position',
+            'pharmacist_license_document', 'pharmacist_license_country', 'pharmacist_license_board', 'pharmacist_license_expiry', 'pharmacist_credential_evidence'
         )
+
+    def validate_pharmacist_license_document(self, value):
+        from apps.support.serializers import ComplianceEvidenceSerializer
+        return ComplianceEvidenceSerializer().validate_upload(value)
+
+    def validate_email(self, value):
+        return validate_unique_email(value, instance=self.instance)
 
     def validate_phone(self, value):
         """Ensure admin-created or updated users have a unique phone number."""
@@ -345,6 +370,11 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'pharmacist_permissions': f'Invalid permission(s): {", ".join(invalid)}.'
                 })
+        evidence_id = attrs.get('pharmacist_credential_evidence')
+        if evidence_id is not None:
+            from apps.support.models import ComplianceEvidence
+            if not ComplianceEvidence.objects.filter(pk=evidence_id, evidence_type='professional_credential', status='active').exists():
+                raise serializers.ValidationError({'pharmacist_credential_evidence': 'Select active professional licence evidence.'})
         license_number = (attrs.get('pharmacist_license_number') or '').strip()
         if role == User.PHARMACIST:
             if self.instance is None and not license_number:
@@ -362,7 +392,12 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        validated_data.pop('current_password', None)
         """Create user and optional Pharmacist with the given permissions."""
+        document = validated_data.pop('pharmacist_license_document', None)
+        credential_fields = {key: validated_data.pop('pharmacist_' + key) for key in ('license_country', 'license_board', 'license_expiry', 'credential_evidence') if 'pharmacist_' + key in validated_data}
+        if 'credential_evidence' in credential_fields:
+            credential_fields['credential_evidence_id'] = credential_fields.pop('credential_evidence')
         permissions = validated_data.pop('pharmacist_permissions', [])
         license_number = (validated_data.pop('pharmacist_license_number', '') or '').strip()
         branch_location = (validated_data.pop('pharmacist_branch_location', '') or '').strip()
@@ -371,12 +406,23 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         actor = getattr(request, 'user', None)
 
+        if document and validated_data.get('role') == User.PHARMACIST:
+            from apps.support.models import ComplianceEvidence
+            evidence = ComplianceEvidence.objects.create(
+                evidence_type='professional_credential', title=f'Pharmacist licence — {license_number}'[:200],
+                reference_number=license_number, issuing_authority=credential_fields.get('license_board', ''),
+                expires_at=credential_fields.get('license_expiry'), file=document,
+                created_by=actor if getattr(actor, 'is_authenticated', False) else None,
+                updated_by=actor if getattr(actor, 'is_authenticated', False) else None,
+            )
+            credential_fields['credential_evidence_id'] = evidence.pk
         user = User.objects.create_user(password=password, **validated_data)
         if user.role == User.PHARMACIST:
             user.is_active = False
             user.save(update_fields=['is_active', 'updated_at'])
             Pharmacist.objects.create(
                 user=user,
+                **credential_fields,
                 license_number=license_number,
                 branch_location=branch_location,
                 position=position,
@@ -405,6 +451,9 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update user fields, optionally reset password, and sync pharmacist permissions."""
+        if 'pharmacist_license_document' in validated_data:
+            raise serializers.ValidationError({'pharmacist_license_document': 'Upload documents during pharmacist creation.'})
+        credential_fields = {key: validated_data.pop('pharmacist_' + key) for key in ('license_country', 'license_board', 'license_expiry', 'credential_evidence') if 'pharmacist_' + key in validated_data}
         permissions = validated_data.pop('pharmacist_permissions', None)
         license_number = validated_data.pop('pharmacist_license_number', None)
         branch_location = validated_data.pop('pharmacist_branch_location', None)
@@ -434,15 +483,21 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 profile.branch_location = branch_location.strip()
             if position is not None:
                 profile.position = position.strip()
+            for field, value in credential_fields.items():
+                setattr(profile, 'credential_evidence_id' if field == 'credential_evidence' else field, value)
             profile.updated_by = actor
             if created and not profile.created_by:
                 profile.created_by = actor
             profile.save(update_fields=[
                 'permissions', 'license_number', 'branch_location', 'position',
-                'updated_by', 'created_by', 'updated_at'
+                'updated_by', 'created_by', 'updated_at', *credential_fields.keys()
             ])
-        else:
-            Pharmacist.objects.filter(user=instance).delete()
+        elif instance.role != User.ADMIN:
+            profile = Pharmacist.objects.filter(user=instance).first()
+            if profile:
+                profile.permissions = []
+                profile.credential_status = 'suspended'
+                profile.save(update_fields=['permissions', 'credential_status'])
 
         if instance.role == User.CUSTOMER:
             customer_profile, created = Customer.objects.get_or_create(
@@ -544,7 +599,10 @@ class PasswordChangeSerializer(serializers.Serializer):
     def validate(self, attrs):
         """Ensure new_password and new_password_confirm match."""
         if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError({'new_password': 'Passwords do not match.'})
+            raise serializers.ValidationError({'new_password_confirm': 'Passwords do not match.'})
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            validate_password(attrs['new_password'], user=request.user)
         return attrs
 
 
@@ -738,6 +796,8 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
                 if len(values) == 1:
                     raw = values[0]
             mutable[field] = _parse_list_input(raw)
+        if mutable.get('licenseExpiry') == '':
+            mutable['licenseExpiry'] = None
         return super().to_internal_value(mutable)
 
     def validate_type(self, value):
@@ -821,9 +881,7 @@ class ProfessionalRegistrationSerializer(serializers.Serializer):
         return list(dict.fromkeys([*explicit, *uploaded]))
 
     def _doctor_payload(self, attrs):
-        consult_fee = attrs.get('fee')
-        if consult_fee is None:
-            consult_fee = 1500 if attrs['type'] == 'doctor' else 1200
+        consult_fee = 1500
         return {
             'name': attrs['name'].strip(),
             'type': attrs['type'],

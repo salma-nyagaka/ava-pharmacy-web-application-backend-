@@ -1,4 +1,6 @@
+from avapharmacy.test_compliance_fixtures import delivery_fixture
 """Catalog pagination and stock safety acceptance regressions."""
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from decimal import Decimal
@@ -32,8 +34,9 @@ class ModuleAcceptanceTests(TestCase):
         self.customer = User.objects.create_user(email='module-customer@avapharmacy.test')
         self.brand = Brand.objects.create(name='Synthetic QA Brand')
         self.product = Product.objects.create(name='Synthetic QA Medicine', sku='MODULE-QA', brand=self.brand)
-        self.a = Variant.objects.create(product=self.product, name='Synthetic QA 100mg', sku='MODULE-A', price=100)
-        self.b = Variant.objects.create(product=self.product, name='Synthetic QA 200mg', sku='MODULE-B', price=400)
+        self.a = Variant.objects.create(product=self.product, name='Synthetic QA 100mg', sku='MODULE-A', price=100,**catalogue_fixture(medicine=False, exclude=('product', 'name', 'sku', 'price')))
+        self.product_b = Product.objects.create(name='Synthetic QA Medicine B', sku='MODULE-QA-B', brand=self.brand)
+        self.b = Variant.objects.create(product=self.product_b, name='Synthetic QA 200mg', sku='MODULE-B', price=400,**catalogue_fixture(medicine=False, exclude=('product', 'name', 'sku', 'price')))
         self.rows = []
         for code, quantities in [('module-store-1', (50, 20)), ('module-store-2', (30, 10))]:
             store = Store.objects.create(name=code, code=code)
@@ -147,6 +150,7 @@ class ModuleAcceptanceTests(TestCase):
 
     def test_reviews_target_exact_variant_and_enforce_purchase_ownership(self):
         order = make_order(self.customer, self.b)
+        delivery_fixture(order)
         order.status = Order.STATUS_DELIVERED
         order.save(update_fields=['status'])
         self.client.force_authenticate(self.customer)
@@ -158,10 +162,11 @@ class ModuleAcceptanceTests(TestCase):
         self.client.force_authenticate(self.admin)
         self.assertEqual(self.client.post(url, {'rating': 1, 'user':self.customer.pk}, format='json').status_code, 403)
         self.assertEqual(VariantReview.objects.get(user=self.customer).rating, 5)
-        response = self.client.get(reverse('product-detail-by-id', args=[self.b.pk]))
-        ratings = {row['id']: row.get('review_count') for row in response.data['variants']}
-        self.assertEqual(ratings[self.a.pk], 0)
-        self.assertEqual(ratings[self.b.pk], 1)
+        for variant, expected in ((self.a, 0), (self.b, 1)):
+            response = self.client.get(reverse('product-detail-by-id', args=[variant.product_id]))
+            self.assertEqual(response.status_code, 200, response.data)
+            ratings = {row['id']: row.get('review_count') for row in response.data['variants']}
+            self.assertEqual(ratings[variant.pk], expected)
 
     def test_multiple_reviews_do_not_multiply_inventory_quantities(self):
         VariantReview.objects.create(variant=self.a, user=self.customer, rating=5, is_approved=True)
@@ -219,7 +224,7 @@ class ModuleAcceptanceTests(TestCase):
 class LastUnitConcurrencyTests(TransactionTestCase):
     def test_only_one_of_two_customers_can_commit_last_unit(self):
         product = Product.objects.create(name='Synthetic Last Unit', sku='LAST-UNIT')
-        variant = Variant.objects.create(product=product, name='Last Unit', sku='LAST-UNIT-A', price=100)
+        variant = Variant.objects.create(product=product, name='Last Unit', sku='LAST-UNIT-A', price=100,**catalogue_fixture(medicine=False, exclude=('product', 'name', 'sku', 'price')))
         inventory = VariantInventory.objects.create(variant=variant, stock_quantity=1)
         orders = [make_order(User.objects.create_user(email=f'last-unit-{i}@avapharmacy.test'), variant) for i in range(2)]
         barrier = Barrier(2)

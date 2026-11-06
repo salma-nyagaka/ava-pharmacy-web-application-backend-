@@ -1,0 +1,23 @@
+{
+  "conclusion": "Full compliance not established; material gaps and missing operational evidence",
+  "canonical_api_routes": 301,
+  "existing_tests": 364,
+  "existing_tests_passed": true,
+  "targeted_probes": 14,
+  "gap_observations": 10,
+  "protected_control_observations": 4,
+  "requirements_matrix_rows": 123,
+  "matrix_status_counts": {
+    "Evidence required": 40,
+    "Gap": 36,
+    "Scope": 1,
+    "Partial": 43,
+    "Implemented control": 3
+  },
+  "security_deployment_errors": 5,
+  "security_deployment_warnings": 1,
+  "frontend_build_passed": true,
+  "missing_migrations": false,
+  "live_business_mutations": 0,
+  "new_real_payments_refunds_transfers": 0
+}

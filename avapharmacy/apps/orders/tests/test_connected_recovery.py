@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import delivery_fixture
 """Connected recovery regression. Provider responses are mocked in the test DB only."""
 import csv
 from decimal import Decimal
@@ -50,6 +51,7 @@ class ConnectedRecoveryTests(TestCase):
         self.assertEqual(OrderEvent.objects.filter(order=order, event_type='order_finalized').count(), 1)
         self.assertEqual(self.variant.inventories.aggregate(n=Sum('stock_quantity'))['n'], before - 1)
         self.client.force_authenticate(self.admin)
+        delivery_fixture(order, self.admin)
         for status in ['processing', 'shipped', 'delivered']:
             self.assertEqual(self.client.patch(reverse('admin-order-detail', args=[order.pk]), {'status': status}, format='json').status_code, 200)
         self.client.force_authenticate(self.customer)

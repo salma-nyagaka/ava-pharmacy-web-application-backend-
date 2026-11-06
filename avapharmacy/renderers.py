@@ -138,14 +138,11 @@ class StandardizedJSONRenderer(JSONRenderer):
         # ── Paginated response ────────────────────────────────────────────────
         if self._is_paginated(data):
             count = data.get('count', 0)
-            # Try to figure out per_page from request
             request = renderer_context.get('request')
-            per_page = 20
-            if request:
-                try:
-                    per_page = int(request.query_params.get('page_size') or request.query_params.get('per_page', 20))
-                except (TypeError, ValueError):
-                    per_page = 20
+            view = renderer_context.get('view')
+            paginator = getattr(view, 'paginator', None)
+            per_page = paginator.get_page_size(request) if paginator and request else 20
+            per_page = per_page or 20
             total_pages = math.ceil(count / per_page) if per_page > 0 else 1
             try:
                 page = int(request.query_params.get('page', 1)) if request else 1

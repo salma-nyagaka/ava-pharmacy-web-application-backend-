@@ -9,6 +9,7 @@ from decimal import Decimal
 from django.utils import timezone
 
 from .models import Promotion
+from .compliance import promotional_product, prescription_required
 
 
 def get_active_promotions_queryset():
@@ -17,12 +18,15 @@ def get_active_promotions_queryset():
         status=Promotion.STATUS_ACTIVE,
         start_date__lte=today,
         end_date__gte=today,
-    ).order_by('-priority', '-created_at')
+    ).filter(value__gt=0).exclude(type=Promotion.TYPE_PERCENTAGE, value__gt=100).order_by('-priority', '-created_at')
 
 
 def get_product_promotions(product, promotions=None):
+    if not promotional_product(product):
+        return []
     promotions = promotions or get_active_promotions_queryset()
-    return [promotion for promotion in promotions if promotion.applies_to_product(product)]
+    return [promotion for promotion in promotions if promotion.is_currently_active
+            and promotion.applies_to_product(product)]
 
 
 def calculate_product_pricing(product, promotions=None):
@@ -75,7 +79,7 @@ def calculate_variant_pricing(variant, promotions=None, qualifying_subtotal=None
     """Price the exact sellable SKU; never apply a sibling SKU's promotion."""
     base = Decimal(variant.price)
     qualifying_subtotal = base if qualifying_subtotal is None else Decimal(qualifying_subtotal)
-    candidates = get_active_promotions_queryset() if promotions is None else promotions
+    candidates = [] if prescription_required(variant) else (get_active_promotions_queryset() if promotions is None else promotions)
     product = variant.product
     applied = []
     remaining = base

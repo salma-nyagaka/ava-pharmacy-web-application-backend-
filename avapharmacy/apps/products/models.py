@@ -9,7 +9,7 @@ import re
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Coalesce, Lower
 from django.utils import timezone
@@ -323,9 +323,10 @@ class StoreFulfillmentPolicy(models.Model):
 
 
 class Product(models.Model):
-    """A sellable product in the pharmacy catalog.
+    """One exact sellable item in Products & Stock.
 
-    Acts as a catalog parent for sellable variants.
+    Variant is its one-to-one detail extension, retained for existing order,
+    prescription and stock references. Store/batch balances stay independent.
     """
 
     STOCK_BRANCH = 'branch'
@@ -341,6 +342,8 @@ class Product(models.Model):
         (STOCK_WAREHOUSE, 'POS Store'),
     ]
     LEGACY_VARIANT_FIELD_NAMES = {
+        'barcode',
+        'pos_product_id',
         'strength',
         'category',
         'category_id',
@@ -361,10 +364,9 @@ class Product(models.Model):
         'requires_prescription',
     }
 
-    sku = models.CharField(max_length=50, unique=True)
+    sku = models.CharField(max_length=60, unique=True)
     master_product_id = models.CharField(max_length=100, blank=True, db_index=True)
-    barcode = models.CharField(max_length=64, blank=True)
-    pos_product_id = models.CharField(max_length=80, blank=True)
+    catalog_family_key = models.CharField(max_length=100, blank=True, db_index=True, help_text='Original family/group reference; never combines stock or sellable SKUs.')
     slug = models.SlugField(unique=True, max_length=200)
     name = models.CharField(max_length=200)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
@@ -401,6 +403,8 @@ class Product(models.Model):
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='updated_products')
 
     class Meta:
+        verbose_name = 'product item'
+        verbose_name_plural = 'Products & Stock'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['brand', 'is_active']),
@@ -411,7 +415,9 @@ class Product(models.Model):
         legacy_variant_values = {}
         for field_name in self.LEGACY_VARIANT_FIELD_NAMES:
             if field_name in kwargs:
-                legacy_variant_values[field_name] = kwargs.pop(field_name)
+                value = kwargs.pop(field_name)
+                if field_name not in {'barcode', 'pos_product_id'} or value:
+                    legacy_variant_values[field_name] = value
         super().__init__(*args, **kwargs)
         self._pending_variant_seed = legacy_variant_values
 
@@ -436,7 +442,7 @@ class Product(models.Model):
 
     def _get_inventory_rows(self):
         rows = []
-        for variant in self.get_active_variants():
+        for variant in self.variants.all():
             rows.extend(variant._get_inventory_rows())
         return rows
 
@@ -517,6 +523,39 @@ class Product(models.Model):
         # Product-level inventory writes are disabled. Stock is derived from variants only.
         return None
 
+    @property
+    def barcode(self):
+        """Compatibility alias; barcode is stored only on the exact variant."""
+        pending = self._get_variant_seed()
+        if 'barcode' in pending:
+            return pending['barcode']
+        return self._representative_variant_value('barcode', '') if self.pk else ''
+
+    @barcode.setter
+    def barcode(self, value):
+        self._set_variant_seed_value('barcode', value or '')
+
+    @property
+    def pos_product_id(self):
+        """Compatibility alias; POS identity belongs to the sellable variant."""
+        pending = self._get_variant_seed()
+        if 'pos_product_id' in pending:
+            return pending['pos_product_id']
+        return self._representative_variant_value('pos_product_id', '') if self.pk else ''
+
+    @pos_product_id.setter
+    def pos_product_id(self, value):
+        self._set_variant_seed_value('pos_product_id', value or '')
+
+    @property
+    def stock_records(self):
+        """All exact-variant/store/batch rows for this product family."""
+        return VariantInventory.objects.filter(variant__product_id=self.pk).select_related('variant', 'store_listing__store')
+
+    @property
+    def stock_movements(self):
+        return StockMovement.objects.filter(variant_inventory__variant__product_id=self.pk)
+
     def _get_variant_seed(self):
         return getattr(self, '_pending_variant_seed', {})
 
@@ -578,23 +617,27 @@ class Product(models.Model):
 
         self._pending_variant_seed = {}
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         """Auto-generate slug and persist catalog fields only."""
-        self.name = normalize_generic_product_name(self.name)
         if not self.slug:
             self.slug = slugify(self.name)
         if not self.sku:
             self.sku = generate_internal_product_sku(self.name, exclude_pk=self.pk)
 
+        sync_status = bool(self.pk and Product.objects.filter(pk=self.pk).exclude(is_active=self.is_active).exists())
         original_update_fields = kwargs.get('update_fields')
         if original_update_fields is not None:
             update_fields = set(original_update_fields)
-            kwargs['update_fields'] = [field for field in update_fields if field not in self.INVENTORY_FIELD_NAMES]
+            kwargs['update_fields'] = [field for field in update_fields if field not in self.INVENTORY_FIELD_NAMES | self.LEGACY_VARIANT_FIELD_NAMES]
             if not kwargs['update_fields']:
                 kwargs.pop('update_fields')
 
         if self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields')):
             super().save(*args, **kwargs)
+        if sync_status:
+            Variant.objects.filter(product_id=self.pk).update(is_active=self.is_active)
+            getattr(self, '_prefetched_objects_cache', {}).pop('variants', None)
         self._sync_pending_variant_seed()
 
     @property
@@ -607,6 +650,8 @@ class Product(models.Model):
         Returns:
             str: One of 'in_stock', 'low_stock', 'backorder', 'out_of_stock', 'inactive'.
         """
+        if not self.is_active:
+            return 'inactive'
         if self.has_variants:
             statuses = [variant.inventory_status for variant in self.variants.filter(is_active=True)]
             if 'in_stock' in statuses:
@@ -629,6 +674,8 @@ class Product(models.Model):
     @property
     def available_quantity(self):
         """Return the total purchasable quantity, including backorder allowance."""
+        if not self.is_active:
+            return 0
         if self.has_variants:
             return sum(variant.available_quantity for variant in self.variants.filter(is_active=True))
         inventory = self._get_inventory_values()
@@ -639,7 +686,8 @@ class Product(models.Model):
     @property
     def can_purchase(self):
         """Return True if the product is active and has available stock."""
-        return self.is_active and self.available_quantity > 0
+        from .compliance import supply_error
+        return self.is_active and self.available_quantity > 0 and any(not supply_error(v) for v in self.get_active_variants())
 
     @property
     def stock_source(self):
@@ -731,7 +779,12 @@ class Product(models.Model):
     def get_representative_variant(self):
         """Return the lead active variant used for derived display fields."""
         variants = sorted(self.get_active_variants(), key=self._variant_sort_key)
-        return variants[0] if variants else None
+        if variants:
+            return variants[0]
+        prefetched = getattr(self, '_prefetched_objects_cache', {}).get('variants')
+        if prefetched is not None:
+            return sorted(prefetched, key=self._variant_sort_key)[0] if prefetched else None
+        return self.variants.order_by('sort_order', 'pk').first()
 
     def get_display_sku(self):
         """Return the lead variant SKU for API/display usage."""
@@ -746,7 +799,8 @@ class Product(models.Model):
 
     def has_prescription_required_variant(self):
         active_variants = self.get_active_variants()
-        return any(variant.requires_prescription for variant in active_variants)
+        from .compliance import prescription_required
+        return any(prescription_required(variant) for variant in active_variants)
 
     def get_health_concerns(self):
         active_variants = self.get_active_variants()
@@ -1011,9 +1065,10 @@ class ProductImage(models.Model):
 
 
 class Variant(models.Model):
-    """A specific variant of a product (e.g. size, colour, strength).
+    """Exact SKU detail extension for one Product item.
 
-    Maintains its own SKU and price.
+    The unique product link prevents multiple sellable SKUs sharing one item.
+    The reverse manager remains for API compatibility with existing clients.
     """
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
@@ -1048,6 +1103,10 @@ class Variant(models.Model):
     dosage_frequency = models.CharField(max_length=50, blank=True, help_text="e.g. once_daily, twice_daily")
     dosage_notes = models.CharField(max_length=150, blank=True, help_text="e.g. with food, before meals")
     attributes = models.JSONField(default=dict, blank=True)  # e.g. {"size": "500mg"}
+    regulatory_scope = models.CharField(max_length=20, choices=[('unreviewed', 'Unreviewed'), ('medicine', 'Medicine'), ('non_medicine', 'Non-medicine')], default='unreviewed')
+    pil_source_url = models.URLField(max_length=1000, blank=True)
+    pil_reviewed_at = models.DateTimeField(null=True, blank=True)
+    pil_reviewed_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, null=True, blank=True, related_name='reviewed_medicine_information')
     ppb_registration_number = models.CharField(max_length=100, blank=True)
     marketing_authorization_number = models.CharField(max_length=100, blank=True)
     pil_version = models.CharField(max_length=80, blank=True)
@@ -1131,6 +1190,9 @@ class Variant(models.Model):
     class Meta:
         db_table = 'products_variant'
         ordering = ['sort_order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['product'], name='one_sellable_sku_per_product'),
+        ]
         indexes = [
             models.Index(fields=['product', 'is_active']),
             models.Index(fields=['category', 'is_active']),
@@ -1343,6 +1405,7 @@ class Variant(models.Model):
                 inventory_map[location].save()
             self._clear_inventory_cache()
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         """Persist variant inventory and keep parent display fields in sync."""
         original_update_fields = kwargs.get('update_fields')
@@ -1362,6 +1425,7 @@ class Variant(models.Model):
         should_save_variant = self.pk is None or original_update_fields is None or bool(kwargs.get('update_fields'))
         if should_save_variant:
             super().save(*args, **kwargs)
+            Product.objects.filter(pk=self.product_id).exclude(is_active=self.is_active, sku=self.sku).update(is_active=self.is_active, sku=self.sku)
 
         if original_update_fields is None:
             inventory_update_fields.update(pending.keys())
@@ -1502,6 +1566,8 @@ class VariantInventory(models.Model):
     next_restock_date = models.DateField(null=True, blank=True)
     is_pos_synced = models.BooleanField(default=False)
     last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='stock_records_added')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='stock_records_updated')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1539,6 +1605,14 @@ class VariantInventory(models.Model):
                         'The selected store listing belongs to a different product variant.'
                     ),
                 })
+
+    @property
+    def product(self):
+        return self.variant.product
+
+    @property
+    def product_id(self):
+        return self.variant.product_id
 
     @property
     def store(self):
@@ -1752,6 +1826,8 @@ class Promotion(models.Model):
         today = timezone.now().date()
         return (
             self.status == self.STATUS_ACTIVE
+            and self.value > 0
+            and (self.type != self.TYPE_PERCENTAGE or self.value <= 100)
             and self.start_date <= today <= self.end_date
         )
 
@@ -1769,7 +1845,8 @@ class Promotion(models.Model):
 
         targets = {str(value) for value in self.targets}
         if self.scope == self.SCOPE_CATEGORY and product.category:
-            return str(product.category_id) in targets or product.category.slug in targets
+            return (str(product.category_id) in targets or product.category.slug in targets
+                    or bool(product.subcategory and product.subcategory.slug in targets))
         if self.scope == self.SCOPE_BRAND and product.brand:
             return str(product.brand_id) in targets or product.brand.slug in targets
         if self.scope == self.SCOPE_PRODUCT:

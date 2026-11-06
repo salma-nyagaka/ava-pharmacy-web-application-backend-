@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from decimal import Decimal
 from io import StringIO
 
@@ -40,7 +41,7 @@ class CatalogCurationCommandTests(TestCase):
             name='CeraVe Hydrating Cleanser 236ml',
             category=self.category,
             price=Decimal('1200.00'),
-        )
+        **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'category', 'price')))
 
     def test_dry_run_does_not_write(self):
         call_command('curate_legacy_catalog', stdout=StringIO())
@@ -75,7 +76,7 @@ class CategoryNavigationSerializerTests(TestCase):
             name='Protein Powder 1kg',
             category=category,
             price=Decimal('2500.00'),
-        )
+        **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'category', 'price')))
         store = Store.objects.create(code='test-store', name='Test Store')
         listing = StoreVariantListing.objects.create(
             store=store,
@@ -114,7 +115,7 @@ class CategoryNavigationSerializerTests(TestCase):
                 name=f'Query Product {index}',
                 category=category,
                 price=Decimal('100.00'),
-            )
+            **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'category', 'price')))
             listing = StoreVariantListing.objects.create(
                 store=store, variant=variant, price=Decimal('100.00'), is_active=True,
             )

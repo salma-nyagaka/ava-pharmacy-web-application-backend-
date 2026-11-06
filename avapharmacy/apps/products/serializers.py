@@ -20,6 +20,17 @@ from .image_validators import validate_uploaded_image
 from .services import calculate_product_pricing, calculate_variant_pricing
 
 
+def validate_catalog_hierarchy(attrs, instance=None):
+    category = attrs.get('category', getattr(instance, 'category', None))
+    subcategory = attrs.get('subcategory', getattr(instance, 'subcategory', None))
+    if subcategory is not None:
+        if category is None and 'category' not in attrs:
+            attrs['category'] = subcategory.category
+        elif category is None or category.pk != subcategory.category_id:
+            raise serializers.ValidationError({'subcategory_id': ['Select a subcategory belonging to the selected category.']})
+    return attrs
+
+
 class ProductImageWithBrandFallbackField(serializers.ImageField):
     """Return a product photo, falling back only to a representative variant photo."""
 
@@ -125,9 +136,8 @@ class CategorySerializer(serializers.ModelSerializer):
     def get_products(self, obj):
         """Return a compact set of stocked products for navigation menus.
 
-        The legacy catalogue has useful flat categories but no subcategory
-        hierarchy.  Supplying direct product links keeps those categories
-        useful without inventing a hierarchy that was absent from the source.
+        Direct product links complement the category/subcategory hierarchy
+        for compact navigation menus.
         """
 
         prefetched_variants = getattr(obj, 'navigation_variants', None)
@@ -187,6 +197,18 @@ class SubcategorySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('A subcategory with this name already exists in the selected category.')
         return value
 
+    def update(self, instance, validated_data):
+        from django.db import transaction
+        from .admin_cache import invalidate_admin_catalog
+        with transaction.atomic():
+            old_category_id = instance.category_id
+            instance = super().update(instance, validated_data)
+            if old_category_id != instance.category_id:
+                Variant.objects.filter(subcategory=instance).update(category_id=instance.category_id)
+                invalidate_admin_catalog()
+            return instance
+
+
 class CatalogCategorySerializer(serializers.ModelSerializer):
     subcategories = SubcategorySerializer(many=True, read_only=True)
 
@@ -236,6 +258,10 @@ class HealthConcernSerializer(serializers.ModelSerializer):
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
+    variant_id = serializers.IntegerField(source='variant_inventory.variant_id', read_only=True)
+    variant_sku = serializers.CharField(source='variant_inventory.variant.sku', read_only=True)
+    product_id = serializers.IntegerField(source='variant_inventory.variant.product_id', read_only=True)
+    store_name = serializers.CharField(source='variant_inventory.store_name', read_only=True)
     created_by_name = serializers.SerializerMethodField()
     variant_name = serializers.CharField(source='variant_inventory.variant.name', read_only=True)
     product_name = serializers.CharField(source='variant_inventory.variant.product.name', read_only=True)
@@ -244,7 +270,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockMovement
         fields = (
-            'id', 'variant_inventory', 'product_name', 'variant_name', 'location',
+            'id', 'variant_inventory', 'variant_id', 'variant_sku', 'product_id', 'store_name', 'product_name', 'variant_name', 'location',
             'movement_type', 'batch_number', 'quantity_change', 'quantity_before', 'quantity_after',
             'source_location', 'destination_location', 'reason', 'reference',
             'created_at', 'updated_at', 'created_by', 'created_by_name',
@@ -257,12 +283,13 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
 
 class BrandSerializer(serializers.ModelSerializer):
+    product_count = serializers.IntegerField(read_only=True, default=0)
     logo = ExistingImageField(required=False, allow_null=True)
     image = serializers.SerializerMethodField()
 
     class Meta:
         model = Brand
-        fields = ('id', 'name', 'slug', 'logo', 'image', 'description', 'is_active')
+        fields = ('id', 'name', 'slug', 'logo', 'image', 'description', 'is_active', 'product_count')
         extra_kwargs = {'slug': {'required': False, 'allow_blank': True}}
 
     def to_internal_value(self, data):
@@ -366,6 +393,13 @@ class StoreSerializer(serializers.ModelSerializer):
 
 class AdminStoreSerializer(StoreSerializer):
     fulfillment_policy = AdminStoreFulfillmentPolicySerializer(required=False)
+
+    class Meta(StoreSerializer.Meta):
+        extra_kwargs = {
+            'name': {'required': True, 'allow_blank': False},
+            'city': {'required': True, 'allow_blank': False},
+            'code': {'required': True, 'allow_blank': False},
+        }
 
     def create(self, validated_data):
         policy_data = validated_data.pop('fulfillment_policy', None)
@@ -471,6 +505,25 @@ class VariantInventorySerializer(serializers.ModelSerializer):
 
 
 class VariantSerializer(serializers.ModelSerializer):
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        from .compliance import prescription_required
+        if prescription_required(instance):
+            data['original_price'] = None
+        return data
+
+    supply_hold_reason = serializers.SerializerMethodField()
+    can_purchase = serializers.SerializerMethodField()
+
+    def get_supply_hold_reason(self, obj):
+        from .compliance import supply_error
+        return supply_error(obj)
+
+    def get_can_purchase(self, obj):
+        return obj.is_active and obj.available_quantity > 0 and not self.get_supply_hold_reason(obj)
+
+    pil_reviewed_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    pil_reviewed_at = serializers.DateTimeField(read_only=True)
     average_rating = serializers.ReadOnlyField(source='approved_average_rating')
     review_count = serializers.ReadOnlyField(source='approved_review_count')
     brand = BrandSerializer(source='product.brand', read_only=True)
@@ -480,7 +533,7 @@ class VariantSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
     )
     subcategory_id = serializers.PrimaryKeyRelatedField(
-        queryset=Subcategory.objects.all(), source='subcategory', write_only=True, required=False, allow_null=True
+        queryset=Subcategory.objects.all(), source='subcategory', required=False, allow_null=True
     )
     subcategory_name = serializers.ReadOnlyField(source='subcategory.name')
     health_concern_ids = serializers.PrimaryKeyRelatedField(
@@ -500,12 +553,12 @@ class VariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Variant
         fields = (
-            'average_rating', 'review_count', 'id', 'sku', 'name', 'strength', 'dosage_form', 'pack_size', 'colour',
+            'supply_hold_reason', 'can_purchase', 'average_rating', 'review_count', 'id', 'sku', 'name', 'strength', 'dosage_form', 'pack_size', 'colour',
             'flavour', 'brand', 'brand_id', 'category', 'category_id',
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
             'short_description', 'description', 'features', 'dosage_instructions', 'directions',
             'warnings', 'dosage_quantity', 'dosage_unit', 'dosage_frequency', 'dosage_notes',
-            'attributes', 'ppb_registration_number', 'marketing_authorization_number',
+            'attributes', 'regulatory_scope', 'pil_source_url', 'pil_reviewed_at', 'pil_reviewed_by', 'ppb_registration_number', 'marketing_authorization_number',
             'pil_version', 'contraindications', 'side_effects', 'authorized_supplier',
             'prescription_classification', 'prescription_review_status',
             'regulatory_status', 'ppb_license_expiry_date', 'kra_classification',
@@ -521,7 +574,7 @@ class VariantSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'updated_at', 'effective_price', 'inventory_status', 'available_quantity')
 
     def validate(self, attrs):
-        attrs = super().validate(attrs)
+        attrs = validate_catalog_hierarchy(super().validate(attrs), self.instance)
         minimum = attrs.get(
             'storage_temperature_min_c',
             getattr(self.instance, 'storage_temperature_min_c', None),
@@ -622,6 +675,7 @@ class VariantInventoryValueField(serializers.Field):
 
 
 class AdminVariantSerializer(VariantSerializer):
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0'), required=False)
     sku = serializers.CharField(required=False, allow_blank=True)
     barcode = serializers.CharField(required=False, allow_blank=True)
     pos_product_id = serializers.CharField(required=False, allow_blank=True)
@@ -634,13 +688,13 @@ class AdminVariantSerializer(VariantSerializer):
 
     class Meta(VariantSerializer.Meta):
         fields = (
-            'id', 'sku', 'barcode', 'pos_product_id', 'name', 'strength',
+            'supply_hold_reason', 'can_purchase', 'id', 'sku', 'barcode', 'pos_product_id', 'name', 'strength',
             'dosage_form', 'pack_size', 'colour', 'flavour', 'brand', 'brand_id',
             'category', 'category_id', 'subcategory_id', 'subcategory_name', 'health_concerns',
             'health_concern_ids', 'short_description', 'description', 'features',
             'dosage_instructions', 'directions', 'warnings', 'dosage_quantity', 'dosage_unit',
             'dosage_frequency', 'dosage_notes', 'attributes',
-            'ppb_registration_number', 'marketing_authorization_number', 'pil_version',
+            'regulatory_scope', 'pil_source_url', 'pil_reviewed_at', 'pil_reviewed_by', 'ppb_registration_number', 'marketing_authorization_number', 'pil_version',
             'contraindications', 'side_effects', 'authorized_supplier',
             'prescription_classification', 'prescription_review_status',
             'regulatory_status', 'ppb_license_expiry_date', 'kra_classification',
@@ -766,6 +820,8 @@ class AdminVariantSerializer(VariantSerializer):
                 store_listing=listing,
                 location=location,
                 batch_number=batch_number,
+                created_by=actor if getattr(actor, 'is_authenticated', False) else None,
+                updated_by=actor if getattr(actor, 'is_authenticated', False) else None,
                 **defaults,
             )
         else:
@@ -791,6 +847,21 @@ class AdminVariantSerializer(VariantSerializer):
         return inventory
 
     def validate(self, attrs):
+        safety_fields = {'regulatory_scope', 'ppb_registration_number', 'regulatory_status', 'authorized_supplier',
+            'prescription_classification', 'prescription_review_status', 'is_ppb_registered', 'ppb_license_expiry_date',
+            'pil_source_url', 'pil_version', 'contraindications', 'side_effects', 'warnings', 'directions'}
+        # Serializer defaults (for example unreviewed) are not a professional decision.
+        # Check explicitly submitted fields so ordinary stock creation stays available.
+        if safety_fields.intersection(self.initial_data):
+            from apps.prescriptions.access import can_review
+            request = self.context.get('request')
+            if not request or not can_review(request.user):
+                raise serializers.ValidationError('Regulatory and clinical information requires an authorized professional reviewer.')
+            if any(f in attrs for f in ['pil_source_url', 'pil_version', 'contraindications', 'side_effects', 'warnings', 'directions']):
+                from django.utils import timezone
+                attrs['pil_reviewed_by'] = request.user
+                attrs['pil_reviewed_at'] = timezone.now()
+
         attrs = super().validate(attrs)
         if 'branch_inventory' in attrs:
             attrs['branch_inventory'] = self._validate_inventory_payload(attrs['branch_inventory'], 'Main shop')
@@ -984,6 +1055,9 @@ class ProductListSerializer(serializers.ModelSerializer):
         return self._pricing(obj)['final_price']
 
     def get_original_price(self, obj):
+        from .compliance import prescription_required, promotional_product
+        if (isinstance(obj, Variant) and prescription_required(obj)) or (isinstance(obj, Product) and not promotional_product(obj)):
+            return None
         final_price = self._pricing(obj)['final_price']
         price = self.get_price(obj)
         if final_price < price:
@@ -1018,8 +1092,8 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
     brand_name = serializers.ReadOnlyField(source='product.brand.name')
     brand_slug = serializers.ReadOnlyField(source='product.brand.slug')
     brand_image = serializers.ImageField(source='product.brand.logo', read_only=True)
-    category_name = serializers.ReadOnlyField(source='product.category.name')
-    category_slug = serializers.ReadOnlyField(source='product.category.slug')
+    category_name = serializers.ReadOnlyField(source='category.name')
+    category_slug = serializers.ReadOnlyField(source='category.slug')
     stock_source = serializers.ReadOnlyField()
     stock_quantity = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField(source='approved_average_rating')
@@ -1033,7 +1107,7 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
     discount_total = serializers.SerializerMethodField()
     active_promotions = serializers.SerializerMethodField()
     badge = serializers.SerializerMethodField()
-    short_description = serializers.ReadOnlyField(source='product.short_description')
+    short_description = serializers.ReadOnlyField()
     is_active = serializers.ReadOnlyField()
 
     class Meta:
@@ -1080,6 +1154,9 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
         return obj.price
 
     def get_original_price(self, obj):
+        from .compliance import prescription_required, promotional_product
+        if (isinstance(obj, Variant) and prescription_required(obj)) or (isinstance(obj, Product) and not promotional_product(obj)):
+            return None
         final_price = self._pricing(obj)['final_price']
         if final_price < obj.price:
             return obj.price
@@ -1097,7 +1174,8 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
         return self._pricing(obj)['promotions']
 
     def get_can_purchase(self, obj):
-        return obj.is_active and obj.available_quantity > 0
+        from .compliance import supply_error
+        return obj.is_active and obj.available_quantity > 0 and not supply_error(obj)
 
     def get_has_variants(self, obj):
         active_variants = getattr(obj.product, '_active_variant_count', None)
@@ -1113,9 +1191,9 @@ class AdminInventoryItemSerializer(AdminVariantSerializer):
     product_slug = serializers.CharField(source='product.slug', read_only=True)
     brand_name = serializers.ReadOnlyField(source='product.brand.name')
     brand_slug = serializers.ReadOnlyField(source='product.brand.slug')
-    category_name = serializers.ReadOnlyField(source='product.category.name')
-    category_slug = serializers.ReadOnlyField(source='product.category.slug')
-    short_description = serializers.ReadOnlyField(source='product.short_description')
+    category_name = serializers.ReadOnlyField(source='category.name')
+    category_slug = serializers.ReadOnlyField(source='category.slug')
+    short_description = serializers.ReadOnlyField()
 
     class Meta(AdminVariantSerializer.Meta):
         fields = (
@@ -1127,7 +1205,7 @@ class AdminInventoryItemSerializer(AdminVariantSerializer):
             'health_concerns', 'health_concern_ids', 'dosage_instructions',
             'directions', 'warnings', 'attributes', 'price', 'cost_price',
             'original_price', 'effective_price', 'image', 'requires_prescription',
-            'ppb_registration_number', 'marketing_authorization_number',
+            'regulatory_scope', 'pil_source_url', 'pil_reviewed_at', 'pil_reviewed_by', 'ppb_registration_number', 'marketing_authorization_number',
             'pil_version', 'contraindications', 'side_effects', 'authorized_supplier',
             'prescription_classification', 'prescription_review_status',
             'regulatory_status', 'ppb_license_expiry_date', 'kra_classification',
@@ -1142,6 +1220,13 @@ class AdminInventoryItemSerializer(AdminVariantSerializer):
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        from .compliance import promotional_product
+        if not promotional_product(instance):
+            data['original_price'] = None
+        return data
+
     sku = serializers.SerializerMethodField()
     image = ProductImageWithBrandFallbackField(required=False, allow_null=True)
     price = serializers.SerializerMethodField()
@@ -1157,7 +1242,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(), source='category', write_only=True, required=False, allow_null=True
     )
     subcategory_id = serializers.PrimaryKeyRelatedField(
-        queryset=Subcategory.objects.all(), source='subcategory', write_only=True, required=False, allow_null=True
+        queryset=Subcategory.objects.all(), source='subcategory', required=False, allow_null=True
     )
     subcategory_name = serializers.ReadOnlyField(source='subcategory.name')
     health_concern_ids = serializers.PrimaryKeyRelatedField(
@@ -1235,6 +1320,9 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return self._pricing(obj)['final_price']
 
     def get_original_price(self, obj):
+        from .compliance import prescription_required, promotional_product
+        if (isinstance(obj, Variant) and prescription_required(obj)) or (isinstance(obj, Product) and not promotional_product(obj)):
+            return None
         final_price = self._pricing(obj)['final_price']
         price = self.get_price(obj)
         if final_price < price:
@@ -1280,7 +1368,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return [concern.id for concern in self._resolved_health_concerns(obj)]
 
     def validate(self, attrs):
-        attrs = super().validate(attrs)
+        attrs = validate_catalog_hierarchy(super().validate(attrs), self.instance)
         provided_slug = attrs.get('slug')
         inventory_fields = {'branch_inventory', 'warehouse_inventory', 'stock_source', 'stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity'}
         initial_data = getattr(self, 'initial_data', {}) or {}
@@ -1309,11 +1397,18 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
 
 class AdminProductSerializer(ProductDetailSerializer):
+    pack_size = serializers.SerializerMethodField()
+
+    def get_pack_size(self, obj):
+        variant = next(iter(obj.variants.all()), None)
+        return variant.pack_size if variant else ''
+
+    category = serializers.IntegerField(source="category_id", read_only=True, allow_null=True)
     pos_product_id = serializers.CharField(required=False, allow_blank=True)
 
     class Meta(ProductDetailSerializer.Meta):
         fields = (
-            'id', 'pos_product_id', 'master_product_id', 'slug', 'name', 'strength',
+            'id', 'sku', 'pos_product_id', 'master_product_id', 'slug', 'name', 'strength', 'pack_size',
             'brand', 'brand_id', 'manufacturer', 'marketing_authorization_holder',
             'family_review_status', 'curation_notes', 'category', 'category_id',
             'subcategory_id', 'subcategory_name', 'health_concerns', 'health_concern_ids',
@@ -1361,6 +1456,21 @@ class WishlistSerializer(serializers.ModelSerializer):
 
 
 class BannerSerializer(serializers.ModelSerializer):
+    message = serializers.CharField(required=False, allow_blank=True)
+    link = serializers.CharField(required=False, allow_blank=True, max_length=200)
+
+    def validate_link(self, value):
+        if value.startswith('/') and not value.startswith('//') and not any(
+            character in value for character in ('\\', '\r', '\n', '\t')
+        ):
+            return value
+        if not value:
+            return value
+        return serializers.URLField().run_validation(value)
+
+    title = serializers.CharField(max_length=120, required=True, allow_blank=False, trim_whitespace=True, error_messages={
+        'required': 'Title is required.', 'blank': 'Title is required.',
+    })
     category_slug = serializers.ReadOnlyField(source='category.slug')
     category_name = serializers.ReadOnlyField(source='category.name')
     target_url = serializers.SerializerMethodField()
@@ -1398,8 +1508,44 @@ class PromotionSerializer(serializers.ModelSerializer):
             'priority': {'read_only': True},
         }
 
+    def validate_code(self, value):
+        value = (value or '').strip().upper()
+        if value:
+            matches = Promotion.objects.filter(code__iexact=value)
+            if self.instance:
+                matches = matches.exclude(pk=self.instance.pk)
+            if matches.exists():
+                raise serializers.ValidationError('This coupon code is already in use.')
+        return value or None
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        value = attrs.get('value', getattr(self.instance, 'value', None))
+        kind = attrs.get('type', getattr(self.instance, 'type', None))
+        if value is not None and (value <= 0 or (kind == Promotion.TYPE_PERCENTAGE and value > 100)):
+            raise serializers.ValidationError({'value': ['Enter a percentage greater than 0 and at most 100.' if kind == Promotion.TYPE_PERCENTAGE else 'Discount must be greater than 0.']})
+        if attrs.get('minimum_order_amount', 0) < 0:
+            raise serializers.ValidationError({'minimum_order_amount': ['Minimum spend cannot be negative.']})
+        start = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+        end = attrs.get('end_date', getattr(self.instance, 'end_date', None))
+        if start and end and end < start:
+            raise serializers.ValidationError({'end_date': ['End date must be on or after the start date.']})
+        scope = attrs.get('scope', getattr(self.instance, 'scope', 'all'))
+        targets = attrs.get('targets', getattr(self.instance, 'targets', []))
+        if scope != Promotion.SCOPE_ALL:
+            if not isinstance(targets, list) or not targets:
+                raise serializers.ValidationError({'targets': ['Select at least one target.']})
+            values = {str(value) for value in targets}
+            ids = [int(value) for value in values if value.isdigit()]
+            model = {'category': Category, 'brand': Brand, 'product': Product}[scope]
+            objects = model.objects.filter(Q(slug__in=values) | Q(pk__in=ids), is_active=True)
+            valid = {value for obj in objects for value in (str(obj.pk), obj.slug)}
+            if scope == Promotion.SCOPE_CATEGORY:
+                valid.update(Subcategory.objects.filter(slug__in=values, is_active=True, category__is_active=True).values_list('slug', flat=True))
+            if scope == Promotion.SCOPE_PRODUCT:
+                valid.update(Variant.objects.filter(sku__in=values, is_active=True, product__is_active=True).values_list('sku', flat=True))
+            if values - valid:
+                raise serializers.ValidationError({'targets': ['Choose valid active targets for the selected scope.']})
         has_image_input = hasattr(self, 'initial_data') and 'image' in self.initial_data
         existing_image = getattr(self.instance, 'image', None)
         if attrs.get('code', None) == '':
@@ -1452,3 +1598,19 @@ class FAQSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError('Answer is required.')
         return value
+
+
+class AdminProductTableSerializer(AdminProductSerializer):
+    """Small read representation; fetch full product detail only when editing."""
+    category = serializers.IntegerField(source='category_id', read_only=True, allow_null=True)
+    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
+    subcategory_id = serializers.IntegerField(read_only=True, allow_null=True)
+
+    class Meta(AdminProductSerializer.Meta):
+        fields = tuple(f for f in AdminProductSerializer.Meta.fields if f not in {
+            'variants', 'gallery', 'average_rating', 'review_count', 'can_purchase',
+        }) + ('category_name',)
+
+    def get_health_concerns(self, obj):
+        concerns = {c.pk: c for v in obj.get_active_variants() for c in v.health_concerns.all()}
+        return HealthConcernSerializer(list(concerns.values()), many=True, context=self.context).data

@@ -1,3 +1,7 @@
+from avapharmacy.test_compliance_fixtures import credential_fixture
+from avapharmacy.test_compliance_fixtures import inventory_fixture
+from avapharmacy.test_compliance_fixtures import prescription_payload
+from avapharmacy.test_compliance_fixtures import catalogue_fixture, clinician_fixture
 import importlib.util
 
 from django.core import mail
@@ -62,7 +66,7 @@ class ConsultationWorkflowTests(TestCase):
             user=self.pharmacist_user,
             license_number='RX-CONSULT-001',
             permissions=[Pharmacist.PERMISSION_PRESCRIPTION_REVIEW],
-        )
+        **credential_fixture(license_number='RX-CONSULT-001', exclude=('user', 'license_number', 'permissions')))
         self.doctor = ClinicianProfile.objects.create(
             provider_type=ClinicianProfile.TYPE_DOCTOR,
             user=self.doctor_user,
@@ -72,7 +76,7 @@ class ConsultationWorkflowTests(TestCase):
             phone=self.doctor_user.phone,
             license_number='KMD-2000',
             status=ClinicianProfile.STATUS_PENDING,
-        )
+        **clinician_fixture(exclude=('provider_type', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
         self.consultation = Consultation.objects.create(
             clinician=self.doctor,
             patient=self.patient,
@@ -216,7 +220,7 @@ class ConsultationWorkflowTests(TestCase):
             phone=other_doctor_user.phone,
             license_number='KMD-2999',
             status=ClinicianProfile.STATUS_ACTIVE,
-        )
+        **clinician_fixture(exclude=('provider_type', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
 
         self.client.force_authenticate(other_doctor_user)
         detail_response = self.client.get(reverse('consultation-detail', args=[self.consultation.id]))
@@ -273,7 +277,7 @@ class ConsultationWorkflowTests(TestCase):
             phone=other_doctor_user.phone,
             license_number='KMD-2888',
             status=ClinicianProfile.STATUS_ACTIVE,
-        )
+        **clinician_fixture(exclude=('provider_type', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status')))
         self.client.force_authenticate(other_doctor_user)
         denied_response = self.client.get(reverse('consultation-message-attachment', args=[message_id]))
         self.assertEqual(denied_response.status_code, 404)
@@ -294,14 +298,14 @@ class ConsultationWorkflowTests(TestCase):
             price='120.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=variant,
             location=Product.STOCK_BRANCH,
             defaults={
                 'stock_quantity': 8,
                 'low_stock_threshold': 2,
-            },
+            **inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.doctor_user)
@@ -367,7 +371,7 @@ class ConsultationWorkflowTests(TestCase):
             price='150.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         second_variant = Variant.objects.create(
             product=product,
             sku='EDIT-RX-MED-500',
@@ -375,12 +379,12 @@ class ConsultationWorkflowTests(TestCase):
             price='250.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         for variant in (first_variant, second_variant):
             VariantInventory.objects.update_or_create(
                 variant=variant,
                 location=Product.STOCK_BRANCH,
-                defaults={'stock_quantity': 8, 'low_stock_threshold': 2},
+                defaults={'stock_quantity': 8, 'low_stock_threshold': 2,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
             )
 
         self.client.force_authenticate(self.doctor_user)
@@ -439,11 +443,11 @@ class ConsultationWorkflowTests(TestCase):
             price='250.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=variant,
             location=Product.STOCK_BRANCH,
-            defaults={'stock_quantity': 8, 'low_stock_threshold': 2},
+            defaults={'stock_quantity': 8, 'low_stock_threshold': 2,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.doctor_user)
@@ -581,11 +585,11 @@ class ConsultationWorkflowTests(TestCase):
             price='150.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=variant,
             location=Product.STOCK_BRANCH,
-            defaults={'stock_quantity': 6, 'low_stock_threshold': 2},
+            defaults={'stock_quantity': 6, 'low_stock_threshold': 2,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.patient)
@@ -683,7 +687,7 @@ class ConsultationWorkflowTests(TestCase):
         self.assertIn(dispensing_rx.id, [row['id'] for row in queue_rows])
         review_response = self.client.post(
             reverse('pharmacist-prescription-review', args=[dispensing_rx.id]),
-            {'action': 'approve', 'notes': 'Approved after pharmacist review.'},
+            {'action': 'approve', **prescription_payload(), 'notes': 'Approved after pharmacist review.'},
             format='json',
         )
         self.assertEqual(review_response.status_code, 200, review_response.content)
@@ -715,7 +719,7 @@ class ConsultationWorkflowTests(TestCase):
             license_number='PED-FLOW-001',
             status=ClinicianProfile.STATUS_ACTIVE,
             consult_fee='1.00',
-        )
+        **clinician_fixture(exclude=('provider_type', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status', 'consult_fee')))
         product = Product.objects.create(
             name='Pediatric Flow Amoxicillin',
             sku='PED-FLOW-AMOX',
@@ -729,11 +733,11 @@ class ConsultationWorkflowTests(TestCase):
             price='180.00',
             requires_prescription=True,
             is_active=True,
-        )
+        **catalogue_fixture(medicine=True, exclude=('product', 'sku', 'name', 'price', 'requires_prescription', 'is_active')))
         VariantInventory.objects.update_or_create(
             variant=variant,
             location=Product.STOCK_BRANCH,
-            defaults={'stock_quantity': 10, 'low_stock_threshold': 2},
+            defaults={'stock_quantity': 10, 'low_stock_threshold': 2,**inventory_fixture(exclude=('stock_quantity', 'low_stock_threshold'))},
         )
 
         self.client.force_authenticate(self.patient)
@@ -919,7 +923,7 @@ class ConsultationWorkflowTests(TestCase):
             license_number='KMD-2010',
             status=ClinicianProfile.STATUS_ACTIVE,
             consult_fee='500.00',
-        )
+        **clinician_fixture(exclude=('provider_type', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status', 'consult_fee')))
 
         specialty_serializer = ConsultationCreateSerializer(data={
             'patient_name': self.patient.full_name,
@@ -1020,7 +1024,7 @@ class ConsultationWorkflowTests(TestCase):
             license_number='KMD-2001',
             status=ClinicianProfile.STATUS_ACTIVE,
             consult_fee='500.00',
-        )
+        **clinician_fixture(exclude=('provider_type', 'user', 'name', 'specialty', 'email', 'phone', 'license_number', 'status', 'consult_fee')))
 
         self.client.force_authenticate(self.patient)
         specialty_intent = ConsultationPaymentIntent.objects.create(

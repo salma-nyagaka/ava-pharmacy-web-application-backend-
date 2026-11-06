@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
@@ -17,7 +18,7 @@ class ConsultationQueueClaimTests(TransactionTestCase):
         doctors = []
         for number in [1, 2]:
             user = User.objects.create_user(email=f'claim-doctor-{number}@example.test', role='doctor')
-            doctors.append(ClinicianProfile.objects.create(user=user, provider_type='doctor', status='active', name=f'QA Doctor {number}', specialty='General Practice'))
+            doctors.append(ClinicianProfile.objects.create(user=user, provider_type='doctor', status='active', name=f'QA Doctor {number}', specialty='General Practice',**clinician_fixture(exclude=('user', 'provider_type', 'status', 'name', 'specialty'))))
         consultation = Consultation.objects.create(patient=patient, patient_name='QA', issue='Synthetic QA', requested_specialty='General Practice')
         barrier = Barrier(2)
         def claim(provider_id):

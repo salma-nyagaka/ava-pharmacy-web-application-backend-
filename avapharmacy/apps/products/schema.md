@@ -1,6 +1,6 @@
 ```mermaid
 erDiagram
-    PRODUCT ||--o{ VARIANT : "has many"
+    PRODUCT ||--o| VARIANT : "exact SKU details"
     PRODUCT ||--o{ PRODUCT_IMAGE : "has many"
     VARIANT ||--o{ VARIANT_INVENTORY : "has many"
     VARIANT ||--o{ VARIANT_REVIEW : "has many"
@@ -12,8 +12,7 @@ erDiagram
     PRODUCT {
         int id PK
         string sku UK
-        string barcode
-        string pos_product_id
+        string catalog_family_key
         string slug UK
         string name
         int brand_id FK
@@ -146,8 +145,10 @@ erDiagram
 
 Current design rules:
 
-- `Product` is a catalog parent only.
-- `Variant` is the sellable unit.
+- `Product` is one exact sellable item, identified by its SKU (up to 60 characters).
+- `Variant` is the single detail extension for that item; a database constraint prevents sibling variants. Its existing ID preserves cart, order, prescription and stock links.
+- `catalog_family_key` preserves the original import grouping without merging item quantities.
+- Product and detail SKU/status stay synchronized. Barcode and POS identifiers live on the detail extension.
 - Pricing lives on `Variant`.
 - Reviews live on `Variant`.
 - Wishlist entries point to `Variant`.
@@ -161,10 +162,10 @@ Current design rules:
 ```mermaid
 flowchart TD
     A["Product
-    Generic parent record
-    Example: Panadol"] --> B["Variant
-    Sellable child record
-    Example: Panadol Extra"]
+    Exact sellable item
+    Example: Panadol 500mg 20 tablets"] --> B["Variant
+    One SKU detail extension
+    Existing commerce and clinical links"]
 
     B --> C1["VariantInventory
     Main Shop stock"]
@@ -191,9 +192,9 @@ flowchart TD
 
 ## Workflow Notes
 
-1. `Product` is created as the generic catalog parent.
-2. One or more `Variant` records are created under that product.
-3. Each variant gets one or more `VariantInventory` rows by location.
+1. Create the exact sellable item through Products & Stock, with its price and optional opening stock.
+2. Exactly one `Variant` detail record belongs to the product. A different strength or pack gets a separate product.
+3. Each item can have multiple `VariantInventory` rows by store and batch.
 4. The customer interacts with the `Variant`, not the parent product, for wishlist and cart actions.
 5. Checkout converts `CartItem` rows into `OrderItem` rows.
 6. Inventory changes are recorded against `VariantInventory` and logged in `StockMovement`.

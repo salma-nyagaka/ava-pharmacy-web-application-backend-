@@ -15,6 +15,29 @@ from apps.products.serializers import ProductListSerializer, VariantSerializer
 
 
 class CouponSerializer(serializers.ModelSerializer):
+    def validate_code(self, value):
+        value = value.strip().upper()
+        matches = Coupon.objects.filter(code__iexact=value)
+        if self.instance:
+            matches = matches.exclude(pk=self.instance.pk)
+        if matches.exists():
+            raise serializers.ValidationError('This coupon code is already in use.')
+        return value
+
+    def validate(self, attrs):
+        value = attrs.get('value', getattr(self.instance, 'value', None))
+        kind = attrs.get('discount_type', getattr(self.instance, 'discount_type', Coupon.TYPE_PERCENTAGE))
+        if value is not None and (value <= 0 or (kind == Coupon.TYPE_PERCENTAGE and value > 100)):
+            raise serializers.ValidationError({'value': ['Enter a percentage greater than 0 and at most 100.' if kind == Coupon.TYPE_PERCENTAGE else 'Discount must be greater than 0.']})
+        for field in ('minimum_subtotal', 'maximum_discount'):
+            if attrs.get(field) is not None and attrs[field] < 0:
+                raise serializers.ValidationError({field: ['Enter zero or a positive amount.']})
+        start = attrs.get('starts_at', getattr(self.instance, 'starts_at', None))
+        end = attrs.get('ends_at', getattr(self.instance, 'ends_at', None))
+        if start and end and end < start:
+            raise serializers.ValidationError({'ends_at': ['End date must be on or after the start date.']})
+        return attrs
+
     class Meta:
         model = Coupon
         fields = (
@@ -159,6 +182,27 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
 
 class DeliveryAuditSerializer(serializers.ModelSerializer):
     recorded_by_name = serializers.ReadOnlyField(source='recorded_by.full_name')
+
+    def validate(self, attrs):
+        if attrs.get('event_type') == 'delivered':
+            if not attrs.get('recipient_verified') or not attrs.get('recipient_name', '').strip():
+                raise serializers.ValidationError('Delivered events require verified recipient identity.')
+            request = self.context.get('request')
+            view = self.context.get('view')
+            order = Order.objects.filter(pk=getattr(view, 'kwargs', {}).get('pk')).first()
+            sensitive = attrs.get('temperature_sensitive') or (order and order.items.filter(variant__is_temperature_sensitive=True).exists())
+            attrs['temperature_sensitive'] = bool(sensitive)
+            if sensitive and (attrs.get('cold_chain_intact') is not True or attrs.get('temperature_reading_c') is None):
+                raise serializers.ValidationError('Successful delivery requires intact cold chain and a temperature reading. Record a failed event for an excursion.')
+            if sensitive and order:
+                for item in order.items.filter(variant__is_temperature_sensitive=True).select_related('variant'):
+                    variant = item.variant
+                    reading = attrs.get('temperature_reading_c')
+                    if variant.storage_temperature_min_c is None or variant.storage_temperature_max_c is None or not variant.storage_temperature_min_c <= reading <= variant.storage_temperature_max_c:
+                        raise serializers.ValidationError('Missing temperature limits or temperature excursion. Record a failed event and hold for review.')
+        if attrs.get('event_type') == 'failed' and not attrs.get('failure_reason', '').strip():
+            raise serializers.ValidationError({'failure_reason': 'Explain why delivery failed.'})
+        return attrs
 
     class Meta:
         model = DeliveryAudit
@@ -342,6 +386,11 @@ class AdminOrderUpdateSerializer(serializers.ModelSerializer):
         order = self.instance
         next_status = attrs.get('status', order.status)
         payment_status = attrs.get('payment_status', order.payment_status)
+        if next_status == Order.STATUS_DELIVERED and next_status != order.status:
+            from apps.support.compliance import delivery_error
+            error = delivery_error(order)
+            if error:
+                raise serializers.ValidationError({'status': error})
         if next_status != order.status:
             if order.status in [Order.STATUS_CANCELLED, Order.STATUS_REFUNDED, Order.STATUS_DELIVERED]:
                 raise serializers.ValidationError({'status': 'A terminal order cannot change fulfillment status.'})

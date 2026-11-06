@@ -222,6 +222,8 @@ class LoginView(APIView):
         )
         if not user:
             pending_user = User.objects.filter(email__iexact=serializer.validated_data['email']).first()
+            if pending_user and pending_user.status == User.STATUS_SUSPENDED and pending_user.check_password(serializer.validated_data['password']):
+                return Response({'detail': 'Your account has been suspended. Please contact support for assistance.'}, status=status.HTTP_403_FORBIDDEN)
             if (
                 pending_user
                 and pending_user.role == User.CUSTOMER
@@ -305,11 +307,17 @@ class MeView(generics.RetrieveUpdateAPIView):
             return UserUpdateSerializer
         return UserSerializer
 
+    def perform_update(self, serializer):
+        from .email_changes import save_with_email_verification
+        self.changed_user = save_with_email_verification(serializer)
+
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
         # The account screen replaces its profile with this response. Return
         # the complete read representation after validating writable fields.
         response.data = UserSerializer(self.get_object(), context=self.get_serializer_context()).data
+        if hasattr(self.changed_user, 'email_change'):
+            response.data['email_change'] = self.changed_user.email_change
         return response
 
 
@@ -320,7 +328,7 @@ class PasswordChangeView(APIView):
 
     def post(self, request):
         """Validate old password, then set the new password."""
-        serializer = PasswordChangeSerializer(data=request.data)
+        serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = request.user
         if not user.check_password(serializer.validated_data['old_password']):
@@ -328,7 +336,7 @@ class PasswordChangeView(APIView):
         user.set_password(serializer.validated_data['new_password'])
         user.save()
         blacklist_user_refresh_tokens(user)
-        return Response({'detail': 'Password updated successfully.'})
+        return Response({'detail': 'Password updated successfully.', 'confirmation_email': getattr(user, '_confirmation_delivery', {'sent_to': [], 'failed_to': []})})
 
 
 class PharmacistActivationSetPasswordView(APIView):
@@ -495,11 +503,19 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
             return AdminUserCreateSerializer
         return AdminUserSerializer
 
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        if hasattr(self, 'changed_user') and hasattr(self.changed_user, 'email_change'):
+            response.data['email_change'] = self.changed_user.email_change
+        return response
+
     def perform_update(self, serializer):
         """Save changes and write an audit log entry."""
         previous = self.get_object()
         previous_is_active = previous.is_active
-        user = serializer.save()
+        from .email_changes import save_with_email_verification
+        user = save_with_email_verification(serializer)
+        self.changed_user = user
         if previous_is_active and (not user.is_active or user.status != User.STATUS_ACTIVE):
             blacklist_user_refresh_tokens(user)
         log_admin_action(
@@ -512,17 +528,19 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
     def perform_destroy(self, instance):
-        """Invalidate sessions before permanently deleting an account."""
+        """Deactivate access while retaining attributable clinical records."""
         user_id = instance.id
         email = instance.email
         blacklist_user_refresh_tokens(instance)
-        instance.delete()
+        instance.is_active = False
+        instance.status = User.STATUS_SUSPENDED
+        instance.save(update_fields=['is_active', 'status', 'updated_at'])
         log_admin_action(
             self.request.user,
-            action='user_deleted',
+            action='user_deactivated',
             entity_type='user',
             entity_id=user_id,
-            message=f'Deleted user {email}',
+            message=f'Deactivated user {email}; retained clinical records',
             )
 
 
@@ -591,6 +609,9 @@ class AdminUserSuspendView(APIView):
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        reason = str(request.data.get('reason', '')).strip()
+        if len(reason) > 2000:
+            return Response({'detail': 'Reason must be 2,000 characters or fewer.'}, status=status.HTTP_400_BAD_REQUEST)
         user.status = User.STATUS_SUSPENDED
         user.is_active = False
         user.save()
@@ -601,6 +622,7 @@ class AdminUserSuspendView(APIView):
             entity_type='user',
             entity_id=user.id,
             message=f'Suspended user {user.email}',
+            metadata={'reason': reason},
         )
         return Response(AdminUserSerializer(user).data)
 
@@ -942,3 +964,40 @@ class AccountDeleteView(APIView):
         user.email = f'deleted_{user.pk}_{user.email}'
         user.save(update_fields=['is_active', 'status', 'email', 'updated_at'])
         return Response({'message': 'Account deactivated. Contact support to request removal of retained records.'}, status=status.HTTP_200_OK)
+
+
+class ConfirmEmailChangeView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+
+    def post(self, request):
+        from django.db import IntegrityError
+        from .email_changes import digest
+        from .models import EmailChangeRequest
+        from django.utils import timezone
+        token = request.data.get('token')
+        if not isinstance(token, str) or not 20 <= len(token) <= 128:
+            return Response({'detail': 'Invalid or expired confirmation link.'}, status=400)
+        hashed = digest(token)
+        candidate = EmailChangeRequest.objects.filter(old_token_hash=hashed).values('pk', 'user_id').first()
+        if not candidate:
+            return Response({'detail': 'Invalid or expired confirmation link.'}, status=400)
+        try:
+            with transaction.atomic():
+                user = User.objects.select_for_update().get(pk=candidate['user_id'])
+                pending = EmailChangeRequest.objects.select_for_update().get(pk=candidate['pk'])
+                if (pending.used_at or pending.expires_at <= timezone.now() or not user.is_active
+                        or user.email != pending.old_email or digest(user.password) != pending.password_fingerprint
+                        or pending.old_confirmed):
+                    return Response({'detail': 'Invalid, already used or expired confirmation link.'}, status=400)
+                if User.objects.filter(email__iexact=pending.new_email).exclude(pk=user.pk).exists():
+                    return Response({'detail': 'This email address is no longer available.'}, status=400)
+                pending.old_confirmed = True
+                user.email = pending.new_email
+                user.save(update_fields=['email', 'updated_at'])
+                blacklist_user_refresh_tokens(user)
+                pending.used_at = timezone.now()
+                pending.save()
+                return Response({'detail': 'Email address changed successfully. Please sign in with your new email.'})
+        except IntegrityError:
+            return Response({'detail': 'This email address is no longer available.'}, status=400)

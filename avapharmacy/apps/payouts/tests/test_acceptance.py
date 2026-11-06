@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 from datetime import timedelta
 from decimal import Decimal
 from django.test import TestCase
@@ -120,7 +121,7 @@ class PayoutAcceptanceTests(TestCase):
         self.assertEqual(self.client.post(reverse('admin-payouts'),self.payload(),format='json').status_code,400)
 
     def test_consultation_source_matches_recorded_payment_and_earning(self):
-        profile=ClinicianProfile.objects.create(user=self.doctor,provider_type='doctor',name='SYNTHETIC QA',status='verified')
+        profile=ClinicianProfile.objects.create(user=self.doctor,provider_type='doctor',name='SYNTHETIC QA',status='verified',**clinician_fixture(exclude=('user', 'provider_type', 'name', 'status')))
         consultation=Consultation.objects.create(clinician=profile,patient=self.patient,patient_name='SYNTHETIC',issue='QA only',status='completed')
         earning=ClinicianEarning.objects.create(clinician=profile,consultation=consultation,amount='450.00')
         payment=ConsultationPaymentIntent.objects.create(clinician=profile,consultation=consultation,provider='mpesa',amount='500.00',status='succeeded')

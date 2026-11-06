@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 from asgiref.sync import async_to_sync
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
@@ -16,7 +17,7 @@ class ConsultationSocketIntegrationTests(TransactionTestCase):
         self.patient = User.objects.create_user(email='socket-patient@example.test', role='customer')
         self.other = User.objects.create_user(email='socket-other@example.test', role='customer')
         self.user = User.objects.create_user(email='socket-doctor@example.test', role='doctor')
-        self.provider = ClinicianProfile.objects.create(user=self.user, provider_type='doctor', status='active', name='QA')
+        self.provider = ClinicianProfile.objects.create(user=self.user, provider_type='doctor', status='active', name='QA',**clinician_fixture(exclude=('user', 'provider_type', 'status', 'name')))
         self.consultation = Consultation.objects.create(patient=self.patient, clinician=self.provider, patient_name='QA', issue='Synthetic QA')
         self.application = URLRouter([re_path(r'^ws/consultations/(?P<pk>\d+)/$', ConsultationConsumer.as_asgi())])
 

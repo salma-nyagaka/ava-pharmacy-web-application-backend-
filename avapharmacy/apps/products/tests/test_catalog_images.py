@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -29,7 +30,7 @@ class CatalogImageCommandTests(TestCase):
             barcode='12345670',
             category=self.category,
             price='250.00',
-        )
+        **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'barcode', 'category', 'price')))
 
     def test_placeholder_mode_covers_products_and_variants(self):
         with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):

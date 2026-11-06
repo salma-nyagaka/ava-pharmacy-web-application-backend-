@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 from unittest.mock import AsyncMock
 
 from asgiref.sync import async_to_sync
@@ -20,7 +21,7 @@ class ConsultationPrivacyTests(TestCase):
         self.clinician = ClinicianProfile.objects.create(
             user=self.clinician_user, provider_type='doctor', name='QA Doctor',
             status='active', id_number='PRIVATE-ID', payout_account='PRIVATE-PAYOUT',
-        )
+        **clinician_fixture(exclude=('user', 'provider_type', 'name', 'status', 'id_number', 'payout_account')))
         self.consultation = Consultation.objects.create(patient=self.patient, clinician=self.clinician, patient_name='QA Patient', issue='QA')
         self.client = APIClient()
 

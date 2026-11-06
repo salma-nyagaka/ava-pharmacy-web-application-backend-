@@ -27,6 +27,8 @@ def _resolve_order_item_image(item):
 
 
 def _build_order_email_context(order, *, heading, intro, preheader, primary_cta_label):
+    from apps.support.models import SiteSettings
+    pharmacy = SiteSettings.get_solo()
     frontend_base = frontend_base_url()
     account_order_path = f'/account/orders/{order.id}'
     placed_at = order.placed_at or order.created_at
@@ -44,6 +46,7 @@ def _build_order_email_context(order, *, heading, intro, preheader, primary_cta_
         })
 
     return {
+        'pharmacy': pharmacy,
         'first_name': order.shipping_first_name or 'Customer',
         'customer_full_name': f'{order.shipping_first_name} {order.shipping_last_name}'.strip(),
         'order': order,

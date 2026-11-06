@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from datetime import timedelta
 from decimal import Decimal
 from django.db.models import Sum
@@ -151,7 +152,7 @@ class OrdersModuleAcceptanceTests(TestCase):
         Promotion.objects.create(title='Synthetic SKU offer', type='percentage', value=10,
                                  scope='product', targets=[self.variant.sku], status='active',
                                  start_date=today, end_date=today)
-        sibling = self.product.variants.create(sku='ORDER-SIBLING', name='Other pack', price=1000)
+        sibling = self.product.variants.create(sku='ORDER-SIBLING', name='Other pack', price=1000,**catalogue_fixture(medicine=False, exclude=('sku', 'name', 'price')))
         cart = Cart.objects.create(user=self.customer)
         item = CartItem.objects.create(cart=cart, variant=self.variant, quantity=2)
         self.assertEqual(calculate_variant_pricing(self.variant)['final_price'], Decimal('630'))

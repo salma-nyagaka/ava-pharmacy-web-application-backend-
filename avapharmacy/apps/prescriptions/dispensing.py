@@ -6,6 +6,11 @@ def dispensing_error(item, variant, quantity, *, exclude_order=None):
     from .models import Prescription
     if item.prescription.status != Prescription.STATUS_APPROVED:
         return 'An approved prescription is required.'
+    from .compliance import approval_error
+    from apps.products.compliance import supply_error
+    error = approval_error(item.prescription) or supply_error(variant)
+    if error:
+        return error
     if item.is_controlled_substance:
         return 'Controlled drugs cannot be supplied online.'
     approved_variant = item.variant_id

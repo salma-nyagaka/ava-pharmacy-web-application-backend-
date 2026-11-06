@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -25,13 +26,13 @@ class StoreInventoryIntegrityTests(TestCase):
             sku='INTEGRITY-FIRST',
             name='First Variant',
             price=Decimal('100.00'),
-        )
+        **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'price')))
         self.second_variant = Variant.objects.create(
             product=self.product,
             sku='INTEGRITY-SECOND',
             name='Second Variant',
             price=Decimal('120.00'),
-        )
+        **catalogue_fixture(medicine=False, exclude=('product', 'sku', 'name', 'price')))
         self.store = Store.objects.create(code='integrity-store', name='Integrity Store')
         self.listing = StoreVariantListing.objects.create(
             store=self.store,

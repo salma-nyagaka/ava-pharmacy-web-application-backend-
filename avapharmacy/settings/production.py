@@ -90,3 +90,7 @@ LOGGING = {
         },
     },
 }
+
+# A production medicine order must never rely on unverified licence placeholders.
+REQUIRE_VERIFIED_OPERATIONAL_EVIDENCE = True
+BOT_CHALLENGE_REQUIRED = True

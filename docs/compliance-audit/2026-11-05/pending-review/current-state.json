@@ -1,0 +1,93 @@
+{
+  "checked_date": "2026-11-05",
+  "checked_at_utc": "2026-11-05T07:15:16.024569+00:00",
+  "scope": "Local application database and local host only; no production host inspected",
+  "no_business_records_changed": true,
+  "missing_public_disclosures": [
+    "postal_address",
+    "health_safety_code",
+    "premises_registration_number",
+    "online_pharmacy_license_number",
+    "superintendent_name",
+    "superintendent_registration_number",
+    "pharmacist_consultation_hours"
+  ],
+  "catalogue": {
+    "active_non_synthetic_variants": 22733,
+    "unreviewed": 22733,
+    "scope_counts": [
+      {
+        "regulatory_scope": "unreviewed",
+        "count": 22733
+      }
+    ],
+    "rx_or_controlled": 4183,
+    "rx_missing_registration": 4183,
+    "rx_missing_supplier": 4183,
+    "rx_missing_contraindications": 4183,
+    "rx_missing_side_effects": 4183,
+    "rx_missing_pil_provenance_or_review": 4183,
+    "rx_not_regulatory_approved": 4183,
+    "rx_missing_current_registration_expiry": 4183,
+    "stocked_rx_inventory_rows": 6007,
+    "stocked_rx_rows_missing_batch_supplier_or_current_expiry": 6007
+  },
+  "evidence": {
+    "total_records": 1,
+    "verified_current_records": 0,
+    "by_type_status": [
+      {
+        "evidence_type": "qa_audit_report",
+        "status": "review_due",
+        "count": 1
+      }
+    ],
+    "missing_verified_current_types": [
+      "odpc_certificate",
+      "data_center_proof",
+      "x509_certificate",
+      "third_party_sla",
+      "backup_evidence",
+      "iso27001_control",
+      "ppb_authorization",
+      "qa_audit_report"
+    ]
+  },
+  "operational_reviews": {
+    "scheduled_records": 0,
+    "completed_records": 0,
+    "exact_qa_areas_completed": 0,
+    "required_exact_qa_areas": 12,
+    "overdue_open": 0
+  },
+  "clinicians": {
+    "active_with_active_accounts": 8,
+    "currently_eligible": 0,
+    "expired_licence": 1,
+    "missing_licence_expiry": 5,
+    "unverified": 1
+  },
+  "pharmacists": {
+    "total_profiles": 6,
+    "missing_recorded_licence_number": 0,
+    "licence_expiry_verification_field_present": false
+  },
+  "local_backup_executables": {
+    "pg_dump": true,
+    "age": false,
+    "rclone": true
+  },
+  "local_application_indicators": {
+    "recorded_recalls": 0,
+    "recorded_privacy_requests": 0,
+    "field_encryption_key_configured": true
+  },
+  "local_db_role": {
+    "superuser": true,
+    "can_create_db": true,
+    "can_create_roles": true,
+    "owns_prescription_table": false,
+    "can_truncate_prescription_table": true,
+    "production_role_not_inspected": true
+  }
+}

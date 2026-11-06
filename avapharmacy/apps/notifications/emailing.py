@@ -60,6 +60,8 @@ def send_rendered_email(
     context,
     fail_silently=False,
 ):
+    from apps.support.models import SiteSettings
+    context = {**context, 'pharmacy': SiteSettings.get_solo()}
     message = render_to_string(text_template, context)
     html_message = render_to_string(html_template, context)
     return send_mail(

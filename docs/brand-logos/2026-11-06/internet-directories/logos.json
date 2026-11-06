@@ -1,0 +1,354 @@
+[
+  {
+    "brand": "Abidec",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/abidec.png",
+    "brand_id": 1231,
+    "sha256": "7081465529b90e13234871a8680570f9841d2b03c8be8a9f47e18cef4db19cdc",
+    "result": "imported"
+  },
+  {
+    "brand": "After Bite",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/afterbitehandy.png",
+    "brand_id": 1245,
+    "sha256": "9c25e547aa0d938a3189044288646ce0a0b71ecf0c5b434f4e83de1c99c147a1",
+    "result": "imported"
+  },
+  {
+    "brand": "Astral",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/astral.png",
+    "brand_id": 1263,
+    "sha256": "e25c0397a1c5707311e412b0a343169cfe07beef93b43c4db17279fdb027e867",
+    "result": "imported"
+  },
+  {
+    "brand": "Bepanthen",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/bepanthen.png",
+    "brand_id": 357,
+    "sha256": "f04a6f47d17b13f554279ae99dd87b7740c3982501335140e99d33bdd59ed18a",
+    "result": "imported"
+  },
+  {
+    "brand": "Brylcreem",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/brylcreem.png",
+    "brand_id": 1291,
+    "sha256": "e2654b5f62e47e56f2e89cbe42b4bf0d458b83c0665a108f75a98a0f4634e2a5",
+    "result": "imported"
+  },
+  {
+    "brand": "Clean & Clear",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/cleanclear.png",
+    "brand_id": 1311,
+    "sha256": "7c02a08bd16e7891d716bf4ce7da2466563cef3199eb5dd2229eff84f36c8629",
+    "result": "imported"
+  },
+  {
+    "brand": "Daktarin",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/daktarin.png",
+    "brand_id": 503,
+    "sha256": "10b39a327e7ddb6b91f68f65040b52c68f6eb642016de120ee5e918d9d41c6b4",
+    "result": "imported"
+  },
+  {
+    "brand": "Deep Freeze",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/Deep_Freeze_1.png",
+    "brand_id": 515,
+    "sha256": "355a99d8fe6cef466cd8c8831421540659ce500b5b4548cce2bf6a4e3116aad1",
+    "result": "imported"
+  },
+  {
+    "brand": "Deep Heat",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/Deep_Heat_1.png",
+    "brand_id": 516,
+    "sha256": "207432f7eb38e395c8e8a3fbb94af333118de237b7a2520f19094c04093016ba",
+    "result": "imported"
+  },
+  {
+    "brand": "Femfresh",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/femfresh.png",
+    "brand_id": 1363,
+    "sha256": "beb460c713fe1e109d032543a5a7888e164756b7ad3fb0caef4d4d8fa96e96bb",
+    "result": "imported"
+  },
+  {
+    "brand": "Head & Shoulders",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/headshoulders.png",
+    "brand_id": 691,
+    "sha256": "fb9a517684c27756eff47e9f28131cc904427e0275da3e970f57b21ccd7d9bb7",
+    "result": "imported"
+  },
+  {
+    "brand": "Healthpoint",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/healthpoint.png",
+    "brand_id": 1390,
+    "sha256": "9bcb6a6eef1f705a8edcf0b72e164359cf3e89bbf358c2adb6bd1931ea8d453b",
+    "result": "imported"
+  },
+  {
+    "brand": "Imodium",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/imodium.png",
+    "brand_id": 713,
+    "sha256": "2f8f3af355ed12b6bc8c5b9679bfdca4b3164d0c7aa834f6556ecd5280e9d672",
+    "result": "imported"
+  },
+  {
+    "brand": "Infacol",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/infacol.png",
+    "brand_id": 715,
+    "sha256": "c0d167099b9b6ff969d2d12e1effede44987566d394317a90c9c59efca9edd5b",
+    "result": "imported"
+  },
+  {
+    "brand": "Jolen",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/jolen.png",
+    "brand_id": 1400,
+    "sha256": "f5eebfa36dd07304c0b57549ff0b2e2515b6ec285c22821f1facbce6b42a41c7",
+    "result": "imported"
+  },
+  {
+    "brand": "Jungle Formula",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/jungleformula.png",
+    "brand_id": 739,
+    "sha256": "f263d14b4ec2ffd062eda83f7f1276786505c27353f1458706b1afa08161bd35",
+    "result": "imported"
+  },
+  {
+    "brand": "Nair",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/nair.png",
+    "brand_id": 1442,
+    "sha256": "4488295ab879eada14959d04b0af049b40ff6b49fdc467df420d5ed3adbc8500",
+    "result": "imported"
+  },
+  {
+    "brand": "Nestle",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/nestle.png",
+    "brand_id": 1444,
+    "sha256": "5960b44aa5bbd4cb97df9513c241df5273cbb7db72edae3140df7ae4c5e7fba5",
+    "result": "imported"
+  },
+  {
+    "brand": "Niquitin",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/niquitin.png",
+    "brand_id": 1447,
+    "sha256": "077fd0b7868c1f1ce054fd1df385a97c9274ac9b555c9b24c589027f597abf2d",
+    "result": "imported"
+  },
+  {
+    "brand": "Nuage",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/nuage.png",
+    "brand_id": 1452,
+    "sha256": "bd8bb7922876987856e7cbaf8bd00fd8d28fb37cc04d42e2b948f1506622c069",
+    "result": "imported"
+  },
+  {
+    "brand": "Nytol",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/nytol.png",
+    "brand_id": 1455,
+    "sha256": "b6cfe1becd3d234c862d1d59ccfd863c1cfe80c4c5091fba56a71dd7d3fb56c4",
+    "result": "imported"
+  },
+  {
+    "brand": "Sinutab",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/sinutab.png",
+    "brand_id": 1511,
+    "sha256": "92b2d5759cc94ed32790daecdb25e1a1e333793589ecc46a974b6e0705261366",
+    "result": "imported"
+  },
+  {
+    "brand": "Stugeron",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/Stugeron.png",
+    "brand_id": 1070,
+    "sha256": "3609b3453cee4feb405b3a85429b43c16f940ad89d3ccf5d456875f4b2dac478",
+    "result": "imported"
+  },
+  {
+    "brand": "Tiger Balm",
+    "source": "https://sianwholesale.com/brands",
+    "image_url": "https://sianwholesale.com/media/amasty/shopby/option_images/slider/tigerbalm.png",
+    "brand_id": 1526,
+    "sha256": "7c0739d5441c2d3c8c92dda575f5a623f04150f9c12ac1e617cd2bda30d4532f",
+    "result": "imported"
+  },
+  {
+    "brand": "Abidec",
+    "source": "https://ahmu.co.uk/category/shop-brands-a-z",
+    "image_url": "https://d3ctn9hg7s2hbu.cloudfront.net/categories/abidec.webp",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Altruist",
+    "source": "https://ahmu.co.uk/category/shop-brands-a-z",
+    "image_url": "https://d3ctn9hg7s2hbu.cloudfront.net/categories/idoRMHJtFv_logos.webp",
+    "brand_id": 1251,
+    "sha256": "7f0ddad155172a0e9d78e715bf46caad49e09c3bddec5060c7d76dc45fdf7cb4",
+    "result": "imported"
+  },
+  {
+    "brand": "Abidec",
+    "source": "https://shop.nilapharm.com/brands/A/",
+    "image_url": "https://shop.nilapharm.com/media/brands/Abidec.jpg",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Acnes",
+    "source": "https://shop.nilapharm.com/brands/A/",
+    "image_url": "https://shop.nilapharm.com/media/brands/ACNES.png",
+    "brand_id": 1236,
+    "sha256": "9337e7c9c6b705eb117adc05a62fac34e16ff9c6d7bbcc19a4ebe9667e05d957",
+    "result": "imported"
+  },
+  {
+    "brand": "Actilife",
+    "source": "https://shop.nilapharm.com/brands/A/",
+    "image_url": "https://shop.nilapharm.com/media/brands/ACTILIFE.png",
+    "brand_id": 1239,
+    "sha256": "c2f212da9bcd0f8b0ec80a76431177992c8c08924fc0eebb30c48b7aea2f2ca3",
+    "result": "imported"
+  },
+  {
+    "brand": "Bayer",
+    "source": "https://shop.nilapharm.com/brands/B/",
+    "image_url": "https://shop.nilapharm.com/media/brands/bayer.jpeg",
+    "brand_id": 1271,
+    "sha256": "4e6e6216535a4742d9fa150a5162362ce5a979b44212e019db93e8775613b9a1",
+    "result": "imported"
+  },
+  {
+    "brand": "Sinomarin",
+    "source": "https://shop.nilapharm.com/brands/S/?page=1&letter=S",
+    "image_url": "https://shop.nilapharm.com/media/brands/sinomarin-min2.png",
+    "brand_id": 1510,
+    "sha256": "4805f004f4d304530aefc1adcea4a4952232a27832658a16370cf937e515dae4",
+    "result": "imported"
+  },
+  {
+    "brand": "Pentasure",
+    "source": "https://shop.nilapharm.com/brands/P/",
+    "image_url": "https://shop.nilapharm.com/media/brands/pentasure.jpeg",
+    "brand_id": 1475,
+    "sha256": "9a5af13b5a7f961055b2491005690628b1dc29b808733e32fc3f22bef240e71f",
+    "result": "imported"
+  },
+  {
+    "brand": "Profertil",
+    "source": "https://shop.nilapharm.com/brands/P/",
+    "image_url": "https://shop.nilapharm.com/media/brands/cropped-Profortil-new-logo-v2.png",
+    "brand_id": 1488,
+    "sha256": "2f0f7975b9559499f482ec59bcc9334373f35f7dcdf9855e53ad4765da54df46",
+    "result": "imported"
+  },
+  {
+    "brand": "Femfresh",
+    "source": "https://shop.nilapharm.com/brands/F/",
+    "image_url": "https://shop.nilapharm.com/media/brands/femfresh_logo.webp",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "WellBaby",
+    "source": "https://shop.nilapharm.com/brands/W/",
+    "image_url": "https://shop.nilapharm.com/media/brands/vitabiotics-wellbaby.jpg",
+    "brand_id": 1544,
+    "sha256": "2f83d01219d9fb5c1e0589931f443971499d076ad492ff11af094a68ab517bc2",
+    "result": "imported"
+  },
+  {
+    "brand": "WellKid",
+    "source": "https://shop.nilapharm.com/brands/W/",
+    "image_url": "https://shop.nilapharm.com/media/brands/wellkid-logo.jpg",
+    "brand_id": 1545,
+    "sha256": "b64d2676e92e03e727b03609afbf908b9274fbdee0896a6af54ef368639c8b7b",
+    "result": "imported"
+  },
+  {
+    "brand": "Woodwards",
+    "source": "https://shop.nilapharm.com/brands/W/",
+    "image_url": "https://shop.nilapharm.com/media/brands/woodwards-logo.jpg",
+    "brand_id": 1551,
+    "sha256": "f7ae30e325897191db6bf7b10fbdde82288d0b15159b89d0d139285d7b20e1b9",
+    "result": "imported"
+  },
+  {
+    "brand": "Cow & Gate",
+    "source": "https://shop.nilapharm.com/brands/C/",
+    "image_url": "https://shop.nilapharm.com/media/brands/cowgate.jpeg",
+    "brand_id": 1327,
+    "sha256": "86b12865b2d764a98e80edcfe253d58946869cfd8d7b9d6032e1ff6cb82c5080",
+    "result": "imported"
+  },
+  {
+    "brand": "Ziva",
+    "source": "https://shop.nilapharm.com/brands/Z/",
+    "image_url": "https://shop.nilapharm.com/media/brands/347419092_246944158014715_2821589327150836059_n.jpg",
+    "brand_id": 1563,
+    "sha256": "57f2a21f786dbb4abcf00460a40b014a10a82546c6934254d41f832f1807634d",
+    "result": "imported"
+  },
+  {
+    "brand": "On Call",
+    "source": "https://shop.nilapharm.com/brands/O/",
+    "image_url": "https://shop.nilapharm.com/media/brands/on_call.png",
+    "brand_id": 1459,
+    "sha256": "7e98409d7ae242c942b954ce343689aaf2810e420c1f62070edc0297e4821bec",
+    "result": "imported"
+  },
+  {
+    "brand": "Nestle",
+    "source": "https://shop.nilapharm.com/brands/N/",
+    "image_url": "https://shop.nilapharm.com/media/brands/NESTLE_LOGO.png",
+    "result": "existing logo preserved"
+  },
+  {
+    "brand": "Doppelherz",
+    "source": "https://shop.nilapharm.com/brands/D/?page=1&letter=D",
+    "image_url": "https://shop.nilapharm.com/media/brands/Dopper_herz.png",
+    "brand_id": 563,
+    "sha256": "7e8ef18a8198f29a7f31360be111a9e82fd0be4302ec6282678c37d85106df45",
+    "result": "imported"
+  },
+  {
+    "brand": "Melano CC",
+    "source": "https://shop.nilapharm.com/brands/M/?page=1&letter=M",
+    "image_url": "https://shop.nilapharm.com/media/brands/Melano-CC--Logo.png",
+    "brand_id": 1433,
+    "sha256": "cde70fb53405940047126a2956ad464699ab6cdcf6aee5b15a7b836029172949",
+    "result": "imported"
+  },
+  {
+    "brand": "Supradyn",
+    "source": "https://shop.nilapharm.com/brands/S/?page=2&letter=S",
+    "image_url": "https://shop.nilapharm.com/media/brands/Supradyn.jpg",
+    "brand_id": 1522,
+    "sha256": "5660b7c2381b3ca08d4ea570af24d3ded7c7dd06ad1a035cca13d9d9e417d199",
+    "result": "imported"
+  },
+  {
+    "brand": "Holland & Barrett",
+    "source": "https://www.iabuk.com/member-directory/holland-barret-international",
+    "image_url": "https://www.iabuk.com/sites/default/files/styles/company_logo_280x280/public/thumb_27796_logo_retailer_1x.png?itok=C5KiHHEe",
+    "brand_id": 688,
+    "sha256": "52912e3b3b094f7769448dd80bed54654bfe0c91138d300c3bba182bf698721f",
+    "result": "imported"
+  }
+]

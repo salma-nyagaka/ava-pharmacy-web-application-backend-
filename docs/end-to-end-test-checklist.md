@@ -1,6 +1,10 @@
 # AvaPharmacy end-to-end test checklist
 
+For the PPB software-control implementation and the genuine operational evidence still pending, use the [5 November compliance remediation checklist](compliance-audit/2026-11-05/ppb-remediation-checklist.md). Functional test passes do not establish regulatory sign-off.
+
 Use this as a manual test plan across the website, backend, staff dashboards, and configured external services. These are acceptance checks to perform, not claims that the current implementation passes them.
+
+For a fresh browser run with numbered actions and expected results, use the [manual end-user testing guide](manual-end-user-testing-guide.md) or its [interactive version](../output/manual-testing/index.html). Previous acceptance results below do not prefill your manual run.
 
 Latest update: **1 November 2026** — reconciled against the latest module reports. [Consultations](test-runs/2026-10-29/consultations-completion.md): **18/18 passed at the recorded test layers**, including genuine doctor receipt UK1I20IYUB. [Prescriptions](test-runs/2026-10-29/prescriptions-completion.md): **9/9 local application checks passed**, including simulated checkout payment. [Inventory follow-up](test-runs/2026-10-28/inv02.md): **14/15 passed**, including exact-store stock deduction and cancellation with a simulated payment. [Orders / STK](test-runs/2026-10-29/ord05-retry.md): **ORD-05 provider-confirmed sandbox pass**; [ORD-06 Paybill](test-runs/2026-10-29/paybill-delivery-investigation.md) and real POS remain blocked. [Pediatric follow-up](test-runs/2026-10-30/pediatric-journey.md): all 7 pediatric checks pass at the recorded layers; receipt UJUI207MTB confirms KSh 1 intent 51, and CONS-8AF578 is completed with one KSh 0.90 earning. The four account credential-entry steps retain their user-verified browser results from 27 October.
 

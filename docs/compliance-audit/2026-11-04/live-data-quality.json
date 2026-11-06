@@ -1,0 +1,36 @@
+{
+  "audit_date": "2026-11-04",
+  "source_pdf_sha256": "a8365cd0e1e379822878301426bd545578de387071ade1d4017337e455eb9eed",
+  "settings_record_exists": true,
+  "disclosure_fields_populated": {
+    "postal_address": false,
+    "health_safety_code": false,
+    "premises_registration_number": false,
+    "online_pharmacy_license_number": false,
+    "superintendent_name": false,
+    "superintendent_registration_number": false,
+    "pharmacist_consultation_hours": false
+  },
+  "active_catalogue_variants": 22733,
+  "requires_prescription_or_classified_rx": 4183,
+  "rx_missing_ppb_registration": 4183,
+  "rx_not_regulatory_approved": 4183,
+  "rx_missing_contraindications": 4183,
+  "rx_missing_side_effects": 4183,
+  "rx_missing_authorized_supplier": 4183,
+  "classified_controlled_without_rx_flag": 0,
+  "rx_classification_without_rx_flag": 0,
+  "compliance_evidence_summary": [
+    {
+      "evidence_type": "qa_audit_report",
+      "status": "review_due",
+      "count": 1
+    }
+  ],
+  "active_clinicians_expired_license": 2,
+  "optional_encryption_key_configured": true,
+  "runtime_settings_module": "avapharmacy.settings.development",
+  "runtime_https_redirect": false,
+  "no_patient_records_exported": true,
+  "no_live_data_changed": true
+}

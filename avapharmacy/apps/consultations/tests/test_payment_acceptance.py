@@ -1,3 +1,4 @@
+from avapharmacy.test_compliance_fixtures import clinician_fixture
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -17,7 +18,7 @@ class ConsultationPaymentAcceptanceTests(TestCase):
         self.guardian = User.objects.create_user(email='measure-guardian@example.test', role='customer')
         self.other = User.objects.create_user(email='measure-other@example.test', role='customer')
         self.user = User.objects.create_user(email='measure-ped@example.test', role='pediatrician')
-        self.provider = ClinicianProfile.objects.create(user=self.user, provider_type='pediatrician', status='active', name='QA Pediatrician', consult_fee=500)
+        self.provider = ClinicianProfile.objects.create(user=self.user, provider_type='pediatrician', status='active', name='QA Pediatrician', consult_fee=500,**clinician_fixture(exclude=('user', 'provider_type', 'status', 'name', 'consult_fee')))
         self.child = ChildPatient.objects.create(guardian=self.guardian, first_name='QA Alpha', age_years=6, weight_kg=Decimal('21.5'), height_cm=Decimal('110.5'), bmi=Decimal('17.61'), muac_cm=Decimal('15.5'), blood_glucose_mmol_l=Decimal('4.8'))
         self.client = APIClient()
         self.client.force_authenticate(self.guardian)
@@ -134,7 +135,7 @@ class ConsultationPaymentAcceptanceTests(TestCase):
         counts = {row['child']['id']: row['consultations_count'] for row in rows}
         self.assertEqual(counts, {self.child.pk: 2, sibling.pk: 1})
         unrelated = User.objects.create_user(email='unrelated-ped@example.test', role='pediatrician')
-        ClinicianProfile.objects.create(user=unrelated, provider_type='pediatrician', status='active', name='Other')
+        ClinicianProfile.objects.create(user=unrelated, provider_type='pediatrician', status='active', name='Other',**clinician_fixture(exclude=('user', 'provider_type', 'status', 'name')))
         self.client.force_authenticate(unrelated)
         self.assertEqual(self.client.get(reverse('pediatrician-patient-detail', args=[self.child.pk])).status_code, 404)
 

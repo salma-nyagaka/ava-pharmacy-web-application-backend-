@@ -1,0 +1,10 @@
+{
+  "canonical_routes": 316,
+  "rest_routes": 314,
+  "html_activation_routes": 2,
+  "application_routes": 313,
+  "canonical_schema_paths": 310,
+  "schema_validation_errors": 0,
+  "missing_operations": [],
+  "generic_contract_note": "Legacy/action handlers without serializers use explicitly generic JSON; field-level completeness is not claimed."
+}

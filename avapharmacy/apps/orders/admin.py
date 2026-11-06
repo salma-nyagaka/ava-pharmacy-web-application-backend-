@@ -60,6 +60,10 @@ class CouponAdmin(admin.ModelAdmin):
     list_filter = ('discount_type', 'is_active')
     search_fields = ('code', 'description')
 
+    def has_add_permission(self, request):
+        from django.conf import settings
+        return bool(getattr(settings, 'CHECKOUT_COUPONS_ENABLED', False)) and super().has_add_permission(request)
+
 
 @admin.register(ShippingMethod)
 class ShippingMethodAdmin(admin.ModelAdmin):

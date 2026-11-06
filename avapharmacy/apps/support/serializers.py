@@ -1,3 +1,4 @@
+from .compliance_audit import AuditedSerializerMixin
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import reverse
@@ -60,7 +61,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ComplianceEvidenceSerializer(serializers.ModelSerializer):
+class ComplianceEvidenceSerializer(AuditedSerializerMixin, serializers.ModelSerializer):
     file = serializers.SerializerMethodField()
     upload = serializers.FileField(write_only=True, required=False, source='file')
 
@@ -102,11 +103,11 @@ class ComplianceEvidenceSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'evidence_type', 'evidence_type_display', 'title', 'reference_number',
             'issuing_authority', 'file', 'upload', 'external_url', 'issued_at', 'expires_at',
-            'status', 'status_display', 'notes', 'created_by', 'created_by_name',
+            'verified_by', 'verified_at', 'verification_reference', 'status', 'status_display', 'notes', 'created_by', 'created_by_name',
             'updated_by', 'updated_by_name', 'created_at', 'updated_at',
         )
         read_only_fields = (
-            'id', 'evidence_type_display', 'status_display', 'created_by',
+            'verified_by', 'verified_at', 'verification_reference', 'id', 'evidence_type_display', 'status_display', 'created_by',
             'created_by_name', 'updated_by', 'updated_by_name', 'created_at', 'updated_at',
         )
 

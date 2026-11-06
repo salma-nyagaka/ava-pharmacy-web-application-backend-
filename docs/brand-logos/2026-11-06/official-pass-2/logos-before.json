@@ -1,0 +1,7362 @@
+[
+  {
+    "id": 248,
+    "name": "3M",
+    "logo": "brands/3m.png"
+  },
+  {
+    "id": 258,
+    "name": "ACM",
+    "logo": ""
+  },
+  {
+    "id": 247,
+    "name": "Abena",
+    "logo": "brands/abena.png"
+  },
+  {
+    "id": 252,
+    "name": "Abhayrab",
+    "logo": ""
+  },
+  {
+    "id": 1231,
+    "name": "Abidec",
+    "logo": ""
+  },
+  {
+    "id": 253,
+    "name": "Abpara",
+    "logo": ""
+  },
+  {
+    "id": 254,
+    "name": "Abz",
+    "logo": ""
+  },
+  {
+    "id": 1232,
+    "name": "Accu-chek",
+    "logo": "brands/researched-1232-c8785c4da985.svg"
+  },
+  {
+    "id": 1233,
+    "name": "Accufast",
+    "logo": ""
+  },
+  {
+    "id": 1234,
+    "name": "Accusure",
+    "logo": ""
+  },
+  {
+    "id": 255,
+    "name": "Acepar Sp Caplets",
+    "logo": ""
+  },
+  {
+    "id": 256,
+    "name": "Acetamox",
+    "logo": ""
+  },
+  {
+    "id": 1235,
+    "name": "Acetifizz",
+    "logo": ""
+  },
+  {
+    "id": 257,
+    "name": "Acinet",
+    "logo": ""
+  },
+  {
+    "id": 1236,
+    "name": "Acnes",
+    "logo": ""
+  },
+  {
+    "id": 259,
+    "name": "Acnesol",
+    "logo": ""
+  },
+  {
+    "id": 260,
+    "name": "Acnestar",
+    "logo": ""
+  },
+  {
+    "id": 1237,
+    "name": "Acnevit",
+    "logo": ""
+  },
+  {
+    "id": 261,
+    "name": "Acriptega",
+    "logo": ""
+  },
+  {
+    "id": 1238,
+    "name": "Actikid",
+    "logo": ""
+  },
+  {
+    "id": 1239,
+    "name": "Actilife",
+    "logo": ""
+  },
+  {
+    "id": 1240,
+    "name": "Actilosa",
+    "logo": ""
+  },
+  {
+    "id": 262,
+    "name": "Actophlem Cough",
+    "logo": ""
+  },
+  {
+    "id": 263,
+    "name": "Actrapid",
+    "logo": ""
+  },
+  {
+    "id": 264,
+    "name": "Acular",
+    "logo": ""
+  },
+  {
+    "id": 265,
+    "name": "Acupan",
+    "logo": ""
+  },
+  {
+    "id": 1241,
+    "name": "Adalat",
+    "logo": ""
+  },
+  {
+    "id": 266,
+    "name": "Adalat La",
+    "logo": ""
+  },
+  {
+    "id": 267,
+    "name": "Adol",
+    "logo": ""
+  },
+  {
+    "id": 1242,
+    "name": "Advancis",
+    "logo": ""
+  },
+  {
+    "id": 268,
+    "name": "Advant",
+    "logo": ""
+  },
+  {
+    "id": 1243,
+    "name": "Advil",
+    "logo": "brands/researched-1243-8ffb852b23e6.png"
+  },
+  {
+    "id": 269,
+    "name": "Aerius",
+    "logo": ""
+  },
+  {
+    "id": 1244,
+    "name": "African Pride",
+    "logo": ""
+  },
+  {
+    "id": 1245,
+    "name": "After Bite",
+    "logo": ""
+  },
+  {
+    "id": 270,
+    "name": "Aidplast",
+    "logo": "brands/researched-270-d633f693cd07.png"
+  },
+  {
+    "id": 271,
+    "name": "Airtal",
+    "logo": ""
+  },
+  {
+    "id": 1246,
+    "name": "Alben",
+    "logo": ""
+  },
+  {
+    "id": 1247,
+    "name": "Alberto",
+    "logo": ""
+  },
+  {
+    "id": 272,
+    "name": "Alcosed",
+    "logo": ""
+  },
+  {
+    "id": 273,
+    "name": "Aldactone",
+    "logo": ""
+  },
+  {
+    "id": 274,
+    "name": "Aldara",
+    "logo": ""
+  },
+  {
+    "id": 275,
+    "name": "Aldomet",
+    "logo": ""
+  },
+  {
+    "id": 276,
+    "name": "Alerid",
+    "logo": ""
+  },
+  {
+    "id": 1248,
+    "name": "Aleve",
+    "logo": ""
+  },
+  {
+    "id": 277,
+    "name": "Alison's",
+    "logo": ""
+  },
+  {
+    "id": 278,
+    "name": "Alka-Seltzer",
+    "logo": ""
+  },
+  {
+    "id": 279,
+    "name": "Allergo Comod",
+    "logo": ""
+  },
+  {
+    "id": 280,
+    "name": "Allucid",
+    "logo": ""
+  },
+  {
+    "id": 1249,
+    "name": "Almax",
+    "logo": ""
+  },
+  {
+    "id": 1250,
+    "name": "Alphagan",
+    "logo": ""
+  },
+  {
+    "id": 281,
+    "name": "Alphagan Purite",
+    "logo": ""
+  },
+  {
+    "id": 282,
+    "name": "Altacef",
+    "logo": ""
+  },
+  {
+    "id": 1251,
+    "name": "Altruist",
+    "logo": ""
+  },
+  {
+    "id": 283,
+    "name": "Alugel",
+    "logo": ""
+  },
+  {
+    "id": 1252,
+    "name": "Alvityl",
+    "logo": ""
+  },
+  {
+    "id": 246,
+    "name": "Always",
+    "logo": "brands/generated/always.png"
+  },
+  {
+    "id": 284,
+    "name": "Alzolam",
+    "logo": ""
+  },
+  {
+    "id": 285,
+    "name": "Amaryl",
+    "logo": ""
+  },
+  {
+    "id": 286,
+    "name": "Amax",
+    "logo": ""
+  },
+  {
+    "id": 287,
+    "name": "Ambezim G",
+    "logo": ""
+  },
+  {
+    "id": 288,
+    "name": "Ambrox",
+    "logo": ""
+  },
+  {
+    "id": 289,
+    "name": "Aminogard",
+    "logo": ""
+  },
+  {
+    "id": 290,
+    "name": "Amlodawa",
+    "logo": ""
+  },
+  {
+    "id": 1253,
+    "name": "Amlodenk",
+    "logo": ""
+  },
+  {
+    "id": 291,
+    "name": "Amlong",
+    "logo": ""
+  },
+  {
+    "id": 292,
+    "name": "Amlostar",
+    "logo": ""
+  },
+  {
+    "id": 293,
+    "name": "Amlosun",
+    "logo": ""
+  },
+  {
+    "id": 294,
+    "name": "Amlovas",
+    "logo": ""
+  },
+  {
+    "id": 295,
+    "name": "Amlozaar",
+    "logo": ""
+  },
+  {
+    "id": 296,
+    "name": "Amlozest",
+    "logo": ""
+  },
+  {
+    "id": 1254,
+    "name": "Amnaya",
+    "logo": ""
+  },
+  {
+    "id": 297,
+    "name": "Amoklavin",
+    "logo": ""
+  },
+  {
+    "id": 298,
+    "name": "Amoxil",
+    "logo": ""
+  },
+  {
+    "id": 1255,
+    "name": "Amroid",
+    "logo": ""
+  },
+  {
+    "id": 1256,
+    "name": "Ams",
+    "logo": ""
+  },
+  {
+    "id": 299,
+    "name": "Amtel",
+    "logo": ""
+  },
+  {
+    "id": 245,
+    "name": "Anashe",
+    "logo": "brands/generated/anashe.png"
+  },
+  {
+    "id": 300,
+    "name": "Andolex C",
+    "logo": ""
+  },
+  {
+    "id": 301,
+    "name": "Angizaar",
+    "logo": ""
+  },
+  {
+    "id": 1257,
+    "name": "Aniosgel",
+    "logo": ""
+  },
+  {
+    "id": 302,
+    "name": "Anomex",
+    "logo": ""
+  },
+  {
+    "id": 303,
+    "name": "Anti D",
+    "logo": ""
+  },
+  {
+    "id": 244,
+    "name": "Anua",
+    "logo": "brands/generated/anua.png"
+  },
+  {
+    "id": 304,
+    "name": "Anusol",
+    "logo": ""
+  },
+  {
+    "id": 305,
+    "name": "Anustat",
+    "logo": ""
+  },
+  {
+    "id": 306,
+    "name": "Apdrops",
+    "logo": ""
+  },
+  {
+    "id": 307,
+    "name": "Apixa",
+    "logo": ""
+  },
+  {
+    "id": 308,
+    "name": "Apixaget",
+    "logo": ""
+  },
+  {
+    "id": 309,
+    "name": "Applied Nutrition",
+    "logo": ""
+  },
+  {
+    "id": 310,
+    "name": "Aprazole Plus",
+    "logo": ""
+  },
+  {
+    "id": 311,
+    "name": "Aprovasc",
+    "logo": ""
+  },
+  {
+    "id": 312,
+    "name": "Aprovel",
+    "logo": ""
+  },
+  {
+    "id": 243,
+    "name": "Aptamil",
+    "logo": "brands/generated/aptamil.png"
+  },
+  {
+    "id": 313,
+    "name": "Aquafresh",
+    "logo": ""
+  },
+  {
+    "id": 242,
+    "name": "Aquaphor",
+    "logo": "brands/aquaphor.png"
+  },
+  {
+    "id": 1258,
+    "name": "Aquasoft",
+    "logo": ""
+  },
+  {
+    "id": 1259,
+    "name": "Aquax",
+    "logo": ""
+  },
+  {
+    "id": 314,
+    "name": "Arbitel",
+    "logo": ""
+  },
+  {
+    "id": 315,
+    "name": "Arcoxia",
+    "logo": ""
+  },
+  {
+    "id": 316,
+    "name": "Aricept",
+    "logo": ""
+  },
+  {
+    "id": 317,
+    "name": "Arimidex",
+    "logo": ""
+  },
+  {
+    "id": 318,
+    "name": "Aripitas",
+    "logo": ""
+  },
+  {
+    "id": 241,
+    "name": "Arm & Hammer",
+    "logo": "brands/generated/arm-hammer.png"
+  },
+  {
+    "id": 319,
+    "name": "Aromel Plus",
+    "logo": ""
+  },
+  {
+    "id": 320,
+    "name": "Artefan",
+    "logo": ""
+  },
+  {
+    "id": 321,
+    "name": "Artesiane",
+    "logo": ""
+  },
+  {
+    "id": 322,
+    "name": "Artesun",
+    "logo": ""
+  },
+  {
+    "id": 323,
+    "name": "Ascard",
+    "logo": ""
+  },
+  {
+    "id": 1260,
+    "name": "Ascoril",
+    "logo": ""
+  },
+  {
+    "id": 324,
+    "name": "Ascoril D",
+    "logo": ""
+  },
+  {
+    "id": 325,
+    "name": "Ascoril Expectorant",
+    "logo": ""
+  },
+  {
+    "id": 1261,
+    "name": "Ashtons",
+    "logo": ""
+  },
+  {
+    "id": 326,
+    "name": "Asomex",
+    "logo": ""
+  },
+  {
+    "id": 1262,
+    "name": "Astek",
+    "logo": ""
+  },
+  {
+    "id": 327,
+    "name": "Asthalin",
+    "logo": ""
+  },
+  {
+    "id": 1263,
+    "name": "Astral",
+    "logo": ""
+  },
+  {
+    "id": 1264,
+    "name": "Astymin",
+    "logo": ""
+  },
+  {
+    "id": 1265,
+    "name": "Atacand",
+    "logo": ""
+  },
+  {
+    "id": 328,
+    "name": "Atm",
+    "logo": ""
+  },
+  {
+    "id": 329,
+    "name": "Atorid",
+    "logo": ""
+  },
+  {
+    "id": 330,
+    "name": "Atrest",
+    "logo": ""
+  },
+  {
+    "id": 331,
+    "name": "Atrovent",
+    "logo": ""
+  },
+  {
+    "id": 332,
+    "name": "Augmentin",
+    "logo": ""
+  },
+  {
+    "id": 240,
+    "name": "Aunt Jackie's",
+    "logo": "brands/generated/aunt-jackies.png"
+  },
+  {
+    "id": 333,
+    "name": "Aurocrome",
+    "logo": ""
+  },
+  {
+    "id": 334,
+    "name": "Aurotim",
+    "logo": ""
+  },
+  {
+    "id": 1266,
+    "name": "Avalife",
+    "logo": ""
+  },
+  {
+    "id": 335,
+    "name": "Avamys",
+    "logo": ""
+  },
+  {
+    "id": 336,
+    "name": "Avas",
+    "logo": ""
+  },
+  {
+    "id": 337,
+    "name": "Avastatin",
+    "logo": ""
+  },
+  {
+    "id": 239,
+    "name": "Aveeno",
+    "logo": "brands/aveeno.png"
+  },
+  {
+    "id": 338,
+    "name": "Avelox",
+    "logo": ""
+  },
+  {
+    "id": 238,
+    "name": "Av\u00e8ne",
+    "logo": "brands/generated/avene.png"
+  },
+  {
+    "id": 237,
+    "name": "Avent",
+    "logo": "brands/generated/avent.png"
+  },
+  {
+    "id": 339,
+    "name": "Avodart",
+    "logo": ""
+  },
+  {
+    "id": 236,
+    "name": "Avon",
+    "logo": "brands/generated/avon.png"
+  },
+  {
+    "id": 235,
+    "name": "Axe",
+    "logo": "brands/axe.png"
+  },
+  {
+    "id": 340,
+    "name": "Azarga",
+    "logo": ""
+  },
+  {
+    "id": 341,
+    "name": "Azicip",
+    "logo": ""
+  },
+  {
+    "id": 342,
+    "name": "Azicure",
+    "logo": ""
+  },
+  {
+    "id": 343,
+    "name": "Azioprin",
+    "logo": ""
+  },
+  {
+    "id": 344,
+    "name": "Azithrax",
+    "logo": ""
+  },
+  {
+    "id": 345,
+    "name": "Azopt",
+    "logo": ""
+  },
+  {
+    "id": 346,
+    "name": "Aztor",
+    "logo": ""
+  },
+  {
+    "id": 222,
+    "name": "BSN",
+    "logo": "brands/generated/bsn.png"
+  },
+  {
+    "id": 381,
+    "name": "BU.KE\u2019",
+    "logo": ""
+  },
+  {
+    "id": 1267,
+    "name": "Babylait",
+    "logo": ""
+  },
+  {
+    "id": 1268,
+    "name": "Bach Rescue",
+    "logo": ""
+  },
+  {
+    "id": 1269,
+    "name": "Bactigras",
+    "logo": ""
+  },
+  {
+    "id": 1270,
+    "name": "Ballet",
+    "logo": ""
+  },
+  {
+    "id": 347,
+    "name": "Band-Aid",
+    "logo": ""
+  },
+  {
+    "id": 234,
+    "name": "Bath & Body Works",
+    "logo": "brands/bath-body-works.png"
+  },
+  {
+    "id": 233,
+    "name": "Batiste",
+    "logo": "brands/generated/batiste.png"
+  },
+  {
+    "id": 1271,
+    "name": "Bayer",
+    "logo": ""
+  },
+  {
+    "id": 232,
+    "name": "Baylis & Harding",
+    "logo": "brands/generated/baylis-harding.png"
+  },
+  {
+    "id": 1272,
+    "name": "Bazuka",
+    "logo": ""
+  },
+  {
+    "id": 349,
+    "name": "Beauty Formulas",
+    "logo": "brands/researched-349-bde07451a7ca.svg"
+  },
+  {
+    "id": 350,
+    "name": "Beclomin",
+    "logo": ""
+  },
+  {
+    "id": 351,
+    "name": "Becoactin",
+    "logo": ""
+  },
+  {
+    "id": 352,
+    "name": "Bectoxime",
+    "logo": ""
+  },
+  {
+    "id": 1273,
+    "name": "Beechams",
+    "logo": ""
+  },
+  {
+    "id": 353,
+    "name": "Beecox",
+    "logo": ""
+  },
+  {
+    "id": 1274,
+    "name": "Bells",
+    "logo": ""
+  },
+  {
+    "id": 354,
+    "name": "Bempetol",
+    "logo": ""
+  },
+  {
+    "id": 231,
+    "name": "Benadryl",
+    "logo": "brands/generated/benadryl.png"
+  },
+  {
+    "id": 355,
+    "name": "Benduric",
+    "logo": ""
+  },
+  {
+    "id": 356,
+    "name": "Bennetts",
+    "logo": "brands/researched-356-7c2708298f94.png"
+  },
+  {
+    "id": 230,
+    "name": "Benylin",
+    "logo": "brands/generated/benylin.png"
+  },
+  {
+    "id": 357,
+    "name": "Bepanthen",
+    "logo": ""
+  },
+  {
+    "id": 229,
+    "name": "Berocca",
+    "logo": "brands/generated/berocca.png"
+  },
+  {
+    "id": 358,
+    "name": "Betadine",
+    "logo": ""
+  },
+  {
+    "id": 1275,
+    "name": "Betaloc",
+    "logo": ""
+  },
+  {
+    "id": 359,
+    "name": "Betaloc Zok",
+    "logo": ""
+  },
+  {
+    "id": 360,
+    "name": "Betapyn",
+    "logo": ""
+  },
+  {
+    "id": 361,
+    "name": "Betaserc",
+    "logo": ""
+  },
+  {
+    "id": 362,
+    "name": "Betason",
+    "logo": ""
+  },
+  {
+    "id": 1276,
+    "name": "BetterYou",
+    "logo": ""
+  },
+  {
+    "id": 228,
+    "name": "Beurer",
+    "logo": "brands/beurer.png"
+  },
+  {
+    "id": 363,
+    "name": "Bifilac",
+    "logo": ""
+  },
+  {
+    "id": 227,
+    "name": "Bigen",
+    "logo": "brands/generated/bigen.png"
+  },
+  {
+    "id": 364,
+    "name": "Bilas",
+    "logo": ""
+  },
+  {
+    "id": 1277,
+    "name": "Bio Balance",
+    "logo": ""
+  },
+  {
+    "id": 1278,
+    "name": "Bio Health",
+    "logo": ""
+  },
+  {
+    "id": 365,
+    "name": "Bio-Oil",
+    "logo": "brands/researched-365-91560daa33ff.svg"
+  },
+  {
+    "id": 224,
+    "name": "BioTechUSA",
+    "logo": "brands/biotechusa.png"
+  },
+  {
+    "id": 226,
+    "name": "Bioderma",
+    "logo": "brands/bioderma.png"
+  },
+  {
+    "id": 366,
+    "name": "Bioflor",
+    "logo": ""
+  },
+  {
+    "id": 1279,
+    "name": "Biofolic",
+    "logo": ""
+  },
+  {
+    "id": 1280,
+    "name": "Biofreeze",
+    "logo": ""
+  },
+  {
+    "id": 225,
+    "name": "Bioglan",
+    "logo": "brands/generated/bioglan.png"
+  },
+  {
+    "id": 1281,
+    "name": "Bipreterax",
+    "logo": ""
+  },
+  {
+    "id": 1282,
+    "name": "Biretix",
+    "logo": ""
+  },
+  {
+    "id": 1283,
+    "name": "Bisodol",
+    "logo": ""
+  },
+  {
+    "id": 367,
+    "name": "Bisolol",
+    "logo": ""
+  },
+  {
+    "id": 1284,
+    "name": "Bisolvon",
+    "logo": ""
+  },
+  {
+    "id": 368,
+    "name": "Bispanol",
+    "logo": ""
+  },
+  {
+    "id": 1285,
+    "name": "Biw Biw",
+    "logo": ""
+  },
+  {
+    "id": 1286,
+    "name": "Black Opal",
+    "logo": ""
+  },
+  {
+    "id": 223,
+    "name": "Blistex",
+    "logo": "brands/generated/blistex.png"
+  },
+  {
+    "id": 1287,
+    "name": "Blue Cap",
+    "logo": ""
+  },
+  {
+    "id": 369,
+    "name": "Bonium",
+    "logo": ""
+  },
+  {
+    "id": 1288,
+    "name": "Bonjela",
+    "logo": ""
+  },
+  {
+    "id": 370,
+    "name": "Bonnisan Liquid",
+    "logo": ""
+  },
+  {
+    "id": 371,
+    "name": "Bosetan",
+    "logo": ""
+  },
+  {
+    "id": 372,
+    "name": "Botox",
+    "logo": ""
+  },
+  {
+    "id": 1289,
+    "name": "Breathe right",
+    "logo": ""
+  },
+  {
+    "id": 373,
+    "name": "Brilinta",
+    "logo": ""
+  },
+  {
+    "id": 374,
+    "name": "Brivetam",
+    "logo": ""
+  },
+  {
+    "id": 375,
+    "name": "Bromsal Expectorant",
+    "logo": ""
+  },
+  {
+    "id": 1290,
+    "name": "Brozelin",
+    "logo": ""
+  },
+  {
+    "id": 376,
+    "name": "Brufen Paediatric",
+    "logo": ""
+  },
+  {
+    "id": 377,
+    "name": "Brustan",
+    "logo": ""
+  },
+  {
+    "id": 378,
+    "name": "Brut",
+    "logo": "brands/researched-378-9452dedb40b9.png"
+  },
+  {
+    "id": 1291,
+    "name": "Brylcreem",
+    "logo": ""
+  },
+  {
+    "id": 379,
+    "name": "Budecort",
+    "logo": ""
+  },
+  {
+    "id": 380,
+    "name": "Budesma",
+    "logo": ""
+  },
+  {
+    "id": 382,
+    "name": "Bulkot",
+    "logo": ""
+  },
+  {
+    "id": 1292,
+    "name": "Bump Patrol",
+    "logo": ""
+  },
+  {
+    "id": 221,
+    "name": "Burt's Bees",
+    "logo": "brands/generated/burts-bees.png"
+  },
+  {
+    "id": 383,
+    "name": "Buscopan",
+    "logo": ""
+  },
+  {
+    "id": 1293,
+    "name": "By My Beard",
+    "logo": ""
+  },
+  {
+    "id": 1294,
+    "name": "C-Defence",
+    "logo": ""
+  },
+  {
+    "id": 207,
+    "name": "COSRX",
+    "logo": "brands/generated/cosrx.png"
+  },
+  {
+    "id": 384,
+    "name": "Cabalin",
+    "logo": ""
+  },
+  {
+    "id": 385,
+    "name": "Cachcet",
+    "logo": ""
+  },
+  {
+    "id": 386,
+    "name": "Cachnerve",
+    "logo": ""
+  },
+  {
+    "id": 387,
+    "name": "Cadiphen Expectorant",
+    "logo": ""
+  },
+  {
+    "id": 389,
+    "name": "Cadistin Expectorant",
+    "logo": ""
+  },
+  {
+    "id": 388,
+    "name": "Cadistin Plus",
+    "logo": ""
+  },
+  {
+    "id": 390,
+    "name": "Cadronate",
+    "logo": ""
+  },
+  {
+    "id": 1295,
+    "name": "Cadu-Crex",
+    "logo": ""
+  },
+  {
+    "id": 1296,
+    "name": "Cal-C-Vita",
+    "logo": ""
+  },
+  {
+    "id": 391,
+    "name": "Calcigard Retard",
+    "logo": ""
+  },
+  {
+    "id": 1297,
+    "name": "Calcimax",
+    "logo": ""
+  },
+  {
+    "id": 392,
+    "name": "Calcinol",
+    "logo": ""
+  },
+  {
+    "id": 393,
+    "name": "Caldoberg",
+    "logo": ""
+  },
+  {
+    "id": 220,
+    "name": "Calpol",
+    "logo": "brands/generated/calpol.png"
+  },
+  {
+    "id": 1298,
+    "name": "Calypso",
+    "logo": ""
+  },
+  {
+    "id": 1299,
+    "name": "Camcolit",
+    "logo": ""
+  },
+  {
+    "id": 1300,
+    "name": "Canderel",
+    "logo": ""
+  },
+  {
+    "id": 394,
+    "name": "Candid",
+    "logo": ""
+  },
+  {
+    "id": 395,
+    "name": "Candiforce",
+    "logo": ""
+  },
+  {
+    "id": 396,
+    "name": "Candistat",
+    "logo": ""
+  },
+  {
+    "id": 397,
+    "name": "Canditral",
+    "logo": ""
+  },
+  {
+    "id": 398,
+    "name": "Canem",
+    "logo": ""
+  },
+  {
+    "id": 399,
+    "name": "Canespor",
+    "logo": ""
+  },
+  {
+    "id": 400,
+    "name": "Canesten",
+    "logo": ""
+  },
+  {
+    "id": 219,
+    "name": "Cantu",
+    "logo": "brands/generated/cantu.png"
+  },
+  {
+    "id": 401,
+    "name": "Capsifenac",
+    "logo": ""
+  },
+  {
+    "id": 402,
+    "name": "Caral",
+    "logo": ""
+  },
+  {
+    "id": 403,
+    "name": "Carca",
+    "logo": ""
+  },
+  {
+    "id": 404,
+    "name": "Cardace",
+    "logo": ""
+  },
+  {
+    "id": 405,
+    "name": "Cardesine",
+    "logo": ""
+  },
+  {
+    "id": 406,
+    "name": "Cardinol",
+    "logo": ""
+  },
+  {
+    "id": 407,
+    "name": "Carditan",
+    "logo": ""
+  },
+  {
+    "id": 408,
+    "name": "Cardoz",
+    "logo": ""
+  },
+  {
+    "id": 409,
+    "name": "Carefusem",
+    "logo": ""
+  },
+  {
+    "id": 218,
+    "name": "Careway",
+    "logo": "brands/generated/careway.png"
+  },
+  {
+    "id": 217,
+    "name": "Carmex",
+    "logo": "brands/carmex.png"
+  },
+  {
+    "id": 216,
+    "name": "Carnation",
+    "logo": "brands/generated/carnation.png"
+  },
+  {
+    "id": 1301,
+    "name": "Carnivita",
+    "logo": ""
+  },
+  {
+    "id": 410,
+    "name": "Carticare Forte",
+    "logo": ""
+  },
+  {
+    "id": 1302,
+    "name": "Cartiflex",
+    "logo": ""
+  },
+  {
+    "id": 1303,
+    "name": "Cartil",
+    "logo": ""
+  },
+  {
+    "id": 411,
+    "name": "Cartil Forte",
+    "logo": ""
+  },
+  {
+    "id": 412,
+    "name": "Cartil Super Forte",
+    "logo": ""
+  },
+  {
+    "id": 1304,
+    "name": "Cartimove",
+    "logo": ""
+  },
+  {
+    "id": 413,
+    "name": "Cartinex",
+    "logo": ""
+  },
+  {
+    "id": 414,
+    "name": "Casodex",
+    "logo": ""
+  },
+  {
+    "id": 1305,
+    "name": "Castocap",
+    "logo": ""
+  },
+  {
+    "id": 415,
+    "name": "Cataflam",
+    "logo": ""
+  },
+  {
+    "id": 416,
+    "name": "Catoxymag N",
+    "logo": ""
+  },
+  {
+    "id": 417,
+    "name": "Cefalin",
+    "logo": ""
+  },
+  {
+    "id": 418,
+    "name": "Celabet",
+    "logo": ""
+  },
+  {
+    "id": 419,
+    "name": "Celcoxx",
+    "logo": ""
+  },
+  {
+    "id": 420,
+    "name": "Celebrex",
+    "logo": ""
+  },
+  {
+    "id": 421,
+    "name": "Celex B",
+    "logo": ""
+  },
+  {
+    "id": 422,
+    "name": "Cellcept",
+    "logo": ""
+  },
+  {
+    "id": 215,
+    "name": "Cellucor",
+    "logo": "brands/cellucor.png"
+  },
+  {
+    "id": 423,
+    "name": "Cemet",
+    "logo": ""
+  },
+  {
+    "id": 214,
+    "name": "Centrum",
+    "logo": "brands/imported/centrum.jpeg"
+  },
+  {
+    "id": 1306,
+    "name": "Ceovit",
+    "logo": ""
+  },
+  {
+    "id": 424,
+    "name": "Ceprolen",
+    "logo": ""
+  },
+  {
+    "id": 213,
+    "name": "CeraVe",
+    "logo": "brands/imported/cerave.png"
+  },
+  {
+    "id": 425,
+    "name": "Ceregard",
+    "logo": ""
+  },
+  {
+    "id": 1307,
+    "name": "Cerumol",
+    "logo": ""
+  },
+  {
+    "id": 426,
+    "name": "Cetafor",
+    "logo": ""
+  },
+  {
+    "id": 427,
+    "name": "Cetamol",
+    "logo": ""
+  },
+  {
+    "id": 212,
+    "name": "Cetaphil",
+    "logo": "brands/cetaphil.png"
+  },
+  {
+    "id": 1308,
+    "name": "Cetoderm",
+    "logo": ""
+  },
+  {
+    "id": 428,
+    "name": "Cetraben",
+    "logo": ""
+  },
+  {
+    "id": 429,
+    "name": "Cetrimed",
+    "logo": ""
+  },
+  {
+    "id": 430,
+    "name": "Cetrino",
+    "logo": ""
+  },
+  {
+    "id": 431,
+    "name": "Cetrizet",
+    "logo": ""
+  },
+  {
+    "id": 432,
+    "name": "Cetrotide",
+    "logo": ""
+  },
+  {
+    "id": 1309,
+    "name": "Chapstick",
+    "logo": ""
+  },
+  {
+    "id": 433,
+    "name": "Charco",
+    "logo": ""
+  },
+  {
+    "id": 211,
+    "name": "Chicco",
+    "logo": "brands/chicco.png"
+  },
+  {
+    "id": 434,
+    "name": "Chupa Chups",
+    "logo": "brands/researched-434-628197617486.png"
+  },
+  {
+    "id": 435,
+    "name": "Cialis",
+    "logo": ""
+  },
+  {
+    "id": 436,
+    "name": "Cilneb",
+    "logo": ""
+  },
+  {
+    "id": 437,
+    "name": "Cilneed",
+    "logo": ""
+  },
+  {
+    "id": 438,
+    "name": "Cilnitel",
+    "logo": ""
+  },
+  {
+    "id": 439,
+    "name": "Ciloxan",
+    "logo": ""
+  },
+  {
+    "id": 440,
+    "name": "Cilvas Tel",
+    "logo": ""
+  },
+  {
+    "id": 441,
+    "name": "Cipladon",
+    "logo": ""
+  },
+  {
+    "id": 442,
+    "name": "Cipro T",
+    "logo": ""
+  },
+  {
+    "id": 443,
+    "name": "Ciprobay",
+    "logo": ""
+  },
+  {
+    "id": 444,
+    "name": "Ciprointa",
+    "logo": ""
+  },
+  {
+    "id": 445,
+    "name": "Ciproken",
+    "logo": ""
+  },
+  {
+    "id": 446,
+    "name": "Cital",
+    "logo": ""
+  },
+  {
+    "id": 1310,
+    "name": "Citrosoda",
+    "logo": ""
+  },
+  {
+    "id": 447,
+    "name": "Clarinase Repetabs",
+    "logo": ""
+  },
+  {
+    "id": 448,
+    "name": "Claritek",
+    "logo": ""
+  },
+  {
+    "id": 449,
+    "name": "Claritine",
+    "logo": ""
+  },
+  {
+    "id": 450,
+    "name": "Clariwin",
+    "logo": ""
+  },
+  {
+    "id": 451,
+    "name": "Clavulin",
+    "logo": ""
+  },
+  {
+    "id": 1311,
+    "name": "Clean & Clear",
+    "logo": ""
+  },
+  {
+    "id": 1312,
+    "name": "Clear & Simple",
+    "logo": ""
+  },
+  {
+    "id": 1313,
+    "name": "Clear Essence",
+    "logo": ""
+  },
+  {
+    "id": 1314,
+    "name": "Clear Eyes",
+    "logo": ""
+  },
+  {
+    "id": 210,
+    "name": "Clearblue",
+    "logo": "brands/clearblue.png"
+  },
+  {
+    "id": 1315,
+    "name": "Cleo Nature",
+    "logo": ""
+  },
+  {
+    "id": 452,
+    "name": "Clexane",
+    "logo": ""
+  },
+  {
+    "id": 453,
+    "name": "Clindar T Plus",
+    "logo": ""
+  },
+  {
+    "id": 454,
+    "name": "Clob B",
+    "logo": ""
+  },
+  {
+    "id": 455,
+    "name": "Clobederm",
+    "logo": ""
+  },
+  {
+    "id": 456,
+    "name": "Clofort",
+    "logo": ""
+  },
+  {
+    "id": 457,
+    "name": "Clopilet",
+    "logo": ""
+  },
+  {
+    "id": 458,
+    "name": "Clopress",
+    "logo": ""
+  },
+  {
+    "id": 459,
+    "name": "Clostat Dusting",
+    "logo": ""
+  },
+  {
+    "id": 460,
+    "name": "Clotrine",
+    "logo": ""
+  },
+  {
+    "id": 461,
+    "name": "Clozole",
+    "logo": ""
+  },
+  {
+    "id": 462,
+    "name": "Coartem",
+    "logo": ""
+  },
+  {
+    "id": 463,
+    "name": "Coempaken",
+    "logo": ""
+  },
+  {
+    "id": 464,
+    "name": "Coldamol",
+    "logo": ""
+  },
+  {
+    "id": 465,
+    "name": "Coldcap",
+    "logo": ""
+  },
+  {
+    "id": 1316,
+    "name": "Colfresh",
+    "logo": ""
+  },
+  {
+    "id": 209,
+    "name": "Colgate",
+    "logo": "brands/colgate.png"
+  },
+  {
+    "id": 1317,
+    "name": "Collajoint",
+    "logo": ""
+  },
+  {
+    "id": 1318,
+    "name": "Collamax",
+    "logo": ""
+  },
+  {
+    "id": 466,
+    "name": "Colosar Denk",
+    "logo": ""
+  },
+  {
+    "id": 1319,
+    "name": "Colvee",
+    "logo": ""
+  },
+  {
+    "id": 467,
+    "name": "Combigan",
+    "logo": ""
+  },
+  {
+    "id": 468,
+    "name": "Combivent Udv",
+    "logo": ""
+  },
+  {
+    "id": 469,
+    "name": "Combiwave Sf",
+    "logo": ""
+  },
+  {
+    "id": 1320,
+    "name": "Compeed",
+    "logo": ""
+  },
+  {
+    "id": 1321,
+    "name": "Conceive Plus",
+    "logo": ""
+  },
+  {
+    "id": 251,
+    "name": "Concerta",
+    "logo": ""
+  },
+  {
+    "id": 470,
+    "name": "Concor",
+    "logo": ""
+  },
+  {
+    "id": 1322,
+    "name": "Confini",
+    "logo": ""
+  },
+  {
+    "id": 471,
+    "name": "Contiflo Od",
+    "logo": ""
+  },
+  {
+    "id": 208,
+    "name": "Contigo",
+    "logo": "brands/generated/contigo.png"
+  },
+  {
+    "id": 1323,
+    "name": "Contour",
+    "logo": ""
+  },
+  {
+    "id": 472,
+    "name": "Contus",
+    "logo": ""
+  },
+  {
+    "id": 473,
+    "name": "Cordarone",
+    "logo": ""
+  },
+  {
+    "id": 1324,
+    "name": "Core 24",
+    "logo": ""
+  },
+  {
+    "id": 1325,
+    "name": "Coronation",
+    "logo": ""
+  },
+  {
+    "id": 474,
+    "name": "Corsodyl",
+    "logo": ""
+  },
+  {
+    "id": 475,
+    "name": "Cosamide",
+    "logo": ""
+  },
+  {
+    "id": 476,
+    "name": "Cosatrim",
+    "logo": ""
+  },
+  {
+    "id": 1326,
+    "name": "Coscof",
+    "logo": ""
+  },
+  {
+    "id": 479,
+    "name": "Coscof C Linctus",
+    "logo": ""
+  },
+  {
+    "id": 477,
+    "name": "Coscof Dm Linctus",
+    "logo": ""
+  },
+  {
+    "id": 478,
+    "name": "Coscof Expectorant Original",
+    "logo": ""
+  },
+  {
+    "id": 480,
+    "name": "Cosgrel",
+    "logo": ""
+  },
+  {
+    "id": 481,
+    "name": "Cosmo",
+    "logo": ""
+  },
+  {
+    "id": 482,
+    "name": "Cosvate",
+    "logo": ""
+  },
+  {
+    "id": 483,
+    "name": "Cottons",
+    "logo": ""
+  },
+  {
+    "id": 484,
+    "name": "Coveram",
+    "logo": ""
+  },
+  {
+    "id": 485,
+    "name": "Coversyl",
+    "logo": ""
+  },
+  {
+    "id": 206,
+    "name": "Covonia",
+    "logo": "brands/generated/covonia.png"
+  },
+  {
+    "id": 1327,
+    "name": "Cow & Gate",
+    "logo": ""
+  },
+  {
+    "id": 486,
+    "name": "Cox B",
+    "logo": ""
+  },
+  {
+    "id": 487,
+    "name": "Coxirav",
+    "logo": ""
+  },
+  {
+    "id": 1328,
+    "name": "Crafe Away",
+    "logo": ""
+  },
+  {
+    "id": 1329,
+    "name": "Creche Guard",
+    "logo": ""
+  },
+  {
+    "id": 488,
+    "name": "Crescina",
+    "logo": "brands/researched-488-7bfb2af23804.png"
+  },
+  {
+    "id": 489,
+    "name": "Crestor",
+    "logo": ""
+  },
+  {
+    "id": 1330,
+    "name": "Crevil",
+    "logo": ""
+  },
+  {
+    "id": 490,
+    "name": "Crinone",
+    "logo": ""
+  },
+  {
+    "id": 1331,
+    "name": "Cura-heat",
+    "logo": ""
+  },
+  {
+    "id": 491,
+    "name": "Curam",
+    "logo": ""
+  },
+  {
+    "id": 492,
+    "name": "Curamol",
+    "logo": ""
+  },
+  {
+    "id": 1332,
+    "name": "Curapor",
+    "logo": ""
+  },
+  {
+    "id": 493,
+    "name": "Cyclopam",
+    "logo": ""
+  },
+  {
+    "id": 494,
+    "name": "Cyclovir",
+    "logo": ""
+  },
+  {
+    "id": 495,
+    "name": "Cypon",
+    "logo": ""
+  },
+  {
+    "id": 496,
+    "name": "Cypro B Plus",
+    "logo": ""
+  },
+  {
+    "id": 497,
+    "name": "Cytotec",
+    "logo": ""
+  },
+  {
+    "id": 498,
+    "name": "Daboral",
+    "logo": ""
+  },
+  {
+    "id": 499,
+    "name": "Dacof Dry",
+    "logo": ""
+  },
+  {
+    "id": 500,
+    "name": "Dacof Expectorant",
+    "logo": ""
+  },
+  {
+    "id": 501,
+    "name": "Daflon",
+    "logo": ""
+  },
+  {
+    "id": 502,
+    "name": "Dafraclav",
+    "logo": ""
+  },
+  {
+    "id": 503,
+    "name": "Daktarin",
+    "logo": ""
+  },
+  {
+    "id": 504,
+    "name": "Dalacin",
+    "logo": ""
+  },
+  {
+    "id": 505,
+    "name": "Dapamet",
+    "logo": ""
+  },
+  {
+    "id": 506,
+    "name": "Dapazin",
+    "logo": ""
+  },
+  {
+    "id": 507,
+    "name": "Dapefy Sm",
+    "logo": ""
+  },
+  {
+    "id": 508,
+    "name": "Dark & Lovely",
+    "logo": ""
+  },
+  {
+    "id": 509,
+    "name": "Dawasprin",
+    "logo": ""
+  },
+  {
+    "id": 1333,
+    "name": "Dayquil",
+    "logo": ""
+  },
+  {
+    "id": 510,
+    "name": "Dazel Kit",
+    "logo": ""
+  },
+  {
+    "id": 511,
+    "name": "Dazit",
+    "logo": ""
+  },
+  {
+    "id": 512,
+    "name": "Dazolic",
+    "logo": ""
+  },
+  {
+    "id": 513,
+    "name": "Debridace",
+    "logo": ""
+  },
+  {
+    "id": 514,
+    "name": "Decomit",
+    "logo": ""
+  },
+  {
+    "id": 515,
+    "name": "Deep Freeze",
+    "logo": ""
+  },
+  {
+    "id": 516,
+    "name": "Deep Heat",
+    "logo": ""
+  },
+  {
+    "id": 517,
+    "name": "Deep Relief",
+    "logo": ""
+  },
+  {
+    "id": 1334,
+    "name": "Delased",
+    "logo": ""
+  },
+  {
+    "id": 518,
+    "name": "Delased Chesty",
+    "logo": ""
+  },
+  {
+    "id": 519,
+    "name": "Delased Dry Cough",
+    "logo": ""
+  },
+  {
+    "id": 1335,
+    "name": "Delmar",
+    "logo": ""
+  },
+  {
+    "id": 520,
+    "name": "Delsia",
+    "logo": ""
+  },
+  {
+    "id": 1336,
+    "name": "Denk",
+    "logo": ""
+  },
+  {
+    "id": 205,
+    "name": "Denman",
+    "logo": "brands/generated/denman.png"
+  },
+  {
+    "id": 1337,
+    "name": "Dentinox",
+    "logo": ""
+  },
+  {
+    "id": 521,
+    "name": "Dentogel",
+    "logo": ""
+  },
+  {
+    "id": 522,
+    "name": "Depin E Retard",
+    "logo": ""
+  },
+  {
+    "id": 523,
+    "name": "Deprex",
+    "logo": ""
+  },
+  {
+    "id": 524,
+    "name": "Deprozet",
+    "logo": ""
+  },
+  {
+    "id": 525,
+    "name": "Derihaler",
+    "logo": ""
+  },
+  {
+    "id": 526,
+    "name": "Deriphyllin",
+    "logo": ""
+  },
+  {
+    "id": 527,
+    "name": "Dermazine",
+    "logo": ""
+  },
+  {
+    "id": 528,
+    "name": "Dermobacter",
+    "logo": ""
+  },
+  {
+    "id": 529,
+    "name": "Dermofix",
+    "logo": ""
+  },
+  {
+    "id": 1338,
+    "name": "Dermol",
+    "logo": ""
+  },
+  {
+    "id": 530,
+    "name": "Dermovate",
+    "logo": ""
+  },
+  {
+    "id": 1339,
+    "name": "Desirol",
+    "logo": ""
+  },
+  {
+    "id": 531,
+    "name": "Dettol",
+    "logo": "brands/researched-531-4c0a7ce007f3.png"
+  },
+  {
+    "id": 532,
+    "name": "Dexa G",
+    "logo": ""
+  },
+  {
+    "id": 533,
+    "name": "Dexipan",
+    "logo": ""
+  },
+  {
+    "id": 534,
+    "name": "Dexneo",
+    "logo": ""
+  },
+  {
+    "id": 1340,
+    "name": "Dexorange",
+    "logo": ""
+  },
+  {
+    "id": 535,
+    "name": "Dexpure",
+    "logo": ""
+  },
+  {
+    "id": 536,
+    "name": "Dextracin",
+    "logo": ""
+  },
+  {
+    "id": 1341,
+    "name": "Dextro",
+    "logo": ""
+  },
+  {
+    "id": 537,
+    "name": "Dhc",
+    "logo": ""
+  },
+  {
+    "id": 538,
+    "name": "Diagluc",
+    "logo": ""
+  },
+  {
+    "id": 539,
+    "name": "Diamicron Mr",
+    "logo": ""
+  },
+  {
+    "id": 540,
+    "name": "Diane",
+    "logo": ""
+  },
+  {
+    "id": 541,
+    "name": "Diax Ts",
+    "logo": ""
+  },
+  {
+    "id": 542,
+    "name": "Dicard",
+    "logo": ""
+  },
+  {
+    "id": 543,
+    "name": "Dichlor",
+    "logo": ""
+  },
+  {
+    "id": 544,
+    "name": "Diclogenta",
+    "logo": ""
+  },
+  {
+    "id": 545,
+    "name": "Diflucan",
+    "logo": ""
+  },
+  {
+    "id": 1342,
+    "name": "Digeva",
+    "logo": ""
+  },
+  {
+    "id": 546,
+    "name": "Diltigesic",
+    "logo": ""
+  },
+  {
+    "id": 547,
+    "name": "Diovan",
+    "logo": ""
+  },
+  {
+    "id": 548,
+    "name": "Diprofos",
+    "logo": ""
+  },
+  {
+    "id": 549,
+    "name": "Diprogenta",
+    "logo": ""
+  },
+  {
+    "id": 550,
+    "name": "Diprosalic",
+    "logo": ""
+  },
+  {
+    "id": 551,
+    "name": "Diproson",
+    "logo": ""
+  },
+  {
+    "id": 552,
+    "name": "Diprosone",
+    "logo": ""
+  },
+  {
+    "id": 553,
+    "name": "Diracip M",
+    "logo": ""
+  },
+  {
+    "id": 1343,
+    "name": "Disflatyl",
+    "logo": ""
+  },
+  {
+    "id": 1344,
+    "name": "Disprin",
+    "logo": ""
+  },
+  {
+    "id": 554,
+    "name": "Diuride",
+    "logo": ""
+  },
+  {
+    "id": 555,
+    "name": "Dobesil",
+    "logo": ""
+  },
+  {
+    "id": 556,
+    "name": "Doloact",
+    "logo": ""
+  },
+  {
+    "id": 557,
+    "name": "Domadol",
+    "logo": ""
+  },
+  {
+    "id": 558,
+    "name": "Domi",
+    "logo": ""
+  },
+  {
+    "id": 559,
+    "name": "Dompan Od",
+    "logo": ""
+  },
+  {
+    "id": 560,
+    "name": "Domperon",
+    "logo": ""
+  },
+  {
+    "id": 561,
+    "name": "Donecept",
+    "logo": ""
+  },
+  {
+    "id": 562,
+    "name": "Donet M",
+    "logo": ""
+  },
+  {
+    "id": 563,
+    "name": "Doppelherz",
+    "logo": ""
+  },
+  {
+    "id": 564,
+    "name": "Dormicum",
+    "logo": ""
+  },
+  {
+    "id": 204,
+    "name": "Dove",
+    "logo": "brands/dove.png"
+  },
+  {
+    "id": 565,
+    "name": "Dr Teal's",
+    "logo": ""
+  },
+  {
+    "id": 203,
+    "name": "Dr. Brown's",
+    "logo": "brands/generated/dr-browns.png"
+  },
+  {
+    "id": 566,
+    "name": "Dr. Organic",
+    "logo": ""
+  },
+  {
+    "id": 1345,
+    "name": "Dramamine",
+    "logo": ""
+  },
+  {
+    "id": 567,
+    "name": "Drez",
+    "logo": ""
+  },
+  {
+    "id": 568,
+    "name": "Dronis",
+    "logo": ""
+  },
+  {
+    "id": 202,
+    "name": "Dulcolax",
+    "logo": "brands/generated/dulcolax.png"
+  },
+  {
+    "id": 569,
+    "name": "Duodart",
+    "logo": ""
+  },
+  {
+    "id": 570,
+    "name": "Duoskin",
+    "logo": ""
+  },
+  {
+    "id": 571,
+    "name": "Duotrav",
+    "logo": ""
+  },
+  {
+    "id": 572,
+    "name": "Duphalac",
+    "logo": ""
+  },
+  {
+    "id": 573,
+    "name": "Duphaston",
+    "logo": ""
+  },
+  {
+    "id": 201,
+    "name": "Durex",
+    "logo": "brands/imported/durex.png"
+  },
+  {
+    "id": 574,
+    "name": "Duspatalin",
+    "logo": ""
+  },
+  {
+    "id": 575,
+    "name": "Duzela",
+    "logo": ""
+  },
+  {
+    "id": 576,
+    "name": "Dynacort",
+    "logo": ""
+  },
+  {
+    "id": 577,
+    "name": "Dynamogen",
+    "logo": ""
+  },
+  {
+    "id": 578,
+    "name": "Dynapar",
+    "logo": ""
+  },
+  {
+    "id": 579,
+    "name": "Dyrade M",
+    "logo": ""
+  },
+  {
+    "id": 200,
+    "name": "E45",
+    "logo": "brands/generated/e45.png"
+  },
+  {
+    "id": 198,
+    "name": "ENO",
+    "logo": "brands/generated/eno.png"
+  },
+  {
+    "id": 197,
+    "name": "EOS",
+    "logo": "brands/generated/eos.png"
+  },
+  {
+    "id": 580,
+    "name": "Ebastel",
+    "logo": ""
+  },
+  {
+    "id": 581,
+    "name": "Ecee",
+    "logo": ""
+  },
+  {
+    "id": 1346,
+    "name": "Eco Style",
+    "logo": ""
+  },
+  {
+    "id": 582,
+    "name": "Ecofree",
+    "logo": ""
+  },
+  {
+    "id": 583,
+    "name": "Ecoxx",
+    "logo": ""
+  },
+  {
+    "id": 584,
+    "name": "Efferalgan",
+    "logo": ""
+  },
+  {
+    "id": 585,
+    "name": "Eflaron",
+    "logo": ""
+  },
+  {
+    "id": 199,
+    "name": "Elastoplast",
+    "logo": "brands/generated/elastoplast.png"
+  },
+  {
+    "id": 586,
+    "name": "Electrorush Ors",
+    "logo": ""
+  },
+  {
+    "id": 1347,
+    "name": "Elevit",
+    "logo": ""
+  },
+  {
+    "id": 587,
+    "name": "Elica",
+    "logo": ""
+  },
+  {
+    "id": 588,
+    "name": "Eliquis",
+    "logo": ""
+  },
+  {
+    "id": 589,
+    "name": "Elocom",
+    "logo": ""
+  },
+  {
+    "id": 590,
+    "name": "Elyvate",
+    "logo": ""
+  },
+  {
+    "id": 591,
+    "name": "Emanzen Forte",
+    "logo": ""
+  },
+  {
+    "id": 592,
+    "name": "Emefilm",
+    "logo": ""
+  },
+  {
+    "id": 593,
+    "name": "Emesafe",
+    "logo": ""
+  },
+  {
+    "id": 594,
+    "name": "Emitino",
+    "logo": ""
+  },
+  {
+    "id": 595,
+    "name": "Empalin",
+    "logo": ""
+  },
+  {
+    "id": 596,
+    "name": "Empiget Lt",
+    "logo": ""
+  },
+  {
+    "id": 597,
+    "name": "Empiget M",
+    "logo": ""
+  },
+  {
+    "id": 598,
+    "name": "Enapril",
+    "logo": ""
+  },
+  {
+    "id": 1348,
+    "name": "Enat",
+    "logo": ""
+  },
+  {
+    "id": 599,
+    "name": "Enbrel",
+    "logo": ""
+  },
+  {
+    "id": 600,
+    "name": "Encicarb",
+    "logo": ""
+  },
+  {
+    "id": 601,
+    "name": "Encorate",
+    "logo": ""
+  },
+  {
+    "id": 1349,
+    "name": "Endocare",
+    "logo": ""
+  },
+  {
+    "id": 1350,
+    "name": "Ensure",
+    "logo": ""
+  },
+  {
+    "id": 1351,
+    "name": "Enterobasila",
+    "logo": ""
+  },
+  {
+    "id": 602,
+    "name": "Enterogermina",
+    "logo": ""
+  },
+  {
+    "id": 1352,
+    "name": "Enteromint",
+    "logo": ""
+  },
+  {
+    "id": 603,
+    "name": "Enzoflam",
+    "logo": ""
+  },
+  {
+    "id": 604,
+    "name": "Epanutin",
+    "logo": ""
+  },
+  {
+    "id": 196,
+    "name": "Epi-Max",
+    "logo": "brands/generated/epi-max.png"
+  },
+  {
+    "id": 605,
+    "name": "Epilim",
+    "logo": ""
+  },
+  {
+    "id": 606,
+    "name": "Epimol",
+    "logo": ""
+  },
+  {
+    "id": 607,
+    "name": "Epivir",
+    "logo": ""
+  },
+  {
+    "id": 608,
+    "name": "Epnone",
+    "logo": ""
+  },
+  {
+    "id": 1353,
+    "name": "Equate",
+    "logo": ""
+  },
+  {
+    "id": 609,
+    "name": "Erocin",
+    "logo": ""
+  },
+  {
+    "id": 610,
+    "name": "Erostin",
+    "logo": ""
+  },
+  {
+    "id": 1354,
+    "name": "Erovita",
+    "logo": ""
+  },
+  {
+    "id": 611,
+    "name": "Erythrox",
+    "logo": ""
+  },
+  {
+    "id": 612,
+    "name": "Esofag",
+    "logo": ""
+  },
+  {
+    "id": 613,
+    "name": "Esoglax",
+    "logo": ""
+  },
+  {
+    "id": 614,
+    "name": "Esomac",
+    "logo": ""
+  },
+  {
+    "id": 615,
+    "name": "Esome",
+    "logo": ""
+  },
+  {
+    "id": 616,
+    "name": "Esomod",
+    "logo": ""
+  },
+  {
+    "id": 617,
+    "name": "Esose",
+    "logo": ""
+  },
+  {
+    "id": 1355,
+    "name": "Estovon",
+    "logo": ""
+  },
+  {
+    "id": 1356,
+    "name": "Etoflam",
+    "logo": ""
+  },
+  {
+    "id": 618,
+    "name": "Etored",
+    "logo": ""
+  },
+  {
+    "id": 619,
+    "name": "Etorix",
+    "logo": ""
+  },
+  {
+    "id": 620,
+    "name": "Etoxym",
+    "logo": ""
+  },
+  {
+    "id": 195,
+    "name": "Eucerin",
+    "logo": "brands/imported/eucerin.png"
+  },
+  {
+    "id": 1357,
+    "name": "Eucryl",
+    "logo": ""
+  },
+  {
+    "id": 1358,
+    "name": "Eugica",
+    "logo": ""
+  },
+  {
+    "id": 1359,
+    "name": "Eurax",
+    "logo": ""
+  },
+  {
+    "id": 621,
+    "name": "Euthyrox",
+    "logo": ""
+  },
+  {
+    "id": 1360,
+    "name": "Evit",
+    "logo": ""
+  },
+  {
+    "id": 622,
+    "name": "Evra",
+    "logo": ""
+  },
+  {
+    "id": 623,
+    "name": "Exevate Mf",
+    "logo": ""
+  },
+  {
+    "id": 624,
+    "name": "Exforge",
+    "logo": ""
+  },
+  {
+    "id": 625,
+    "name": "Exocin",
+    "logo": ""
+  },
+  {
+    "id": 626,
+    "name": "Ezetrol",
+    "logo": ""
+  },
+  {
+    "id": 627,
+    "name": "Fanlar",
+    "logo": ""
+  },
+  {
+    "id": 1361,
+    "name": "Fast Aid",
+    "logo": ""
+  },
+  {
+    "id": 628,
+    "name": "Faverin",
+    "logo": ""
+  },
+  {
+    "id": 629,
+    "name": "Febo G",
+    "logo": ""
+  },
+  {
+    "id": 630,
+    "name": "Febuday",
+    "logo": ""
+  },
+  {
+    "id": 631,
+    "name": "Febus",
+    "logo": ""
+  },
+  {
+    "id": 1362,
+    "name": "Femelle",
+    "logo": ""
+  },
+  {
+    "id": 1363,
+    "name": "Femfresh",
+    "logo": ""
+  },
+  {
+    "id": 632,
+    "name": "Femoston",
+    "logo": ""
+  },
+  {
+    "id": 633,
+    "name": "Fenplus",
+    "logo": ""
+  },
+  {
+    "id": 1364,
+    "name": "Feromax",
+    "logo": ""
+  },
+  {
+    "id": 1365,
+    "name": "Fertilion",
+    "logo": ""
+  },
+  {
+    "id": 634,
+    "name": "Fexet",
+    "logo": ""
+  },
+  {
+    "id": 194,
+    "name": "Fillerina",
+    "logo": "brands/generated/fillerina.png"
+  },
+  {
+    "id": 635,
+    "name": "Finosin",
+    "logo": ""
+  },
+  {
+    "id": 193,
+    "name": "Fixodent",
+    "logo": "brands/generated/fixodent.png"
+  },
+  {
+    "id": 636,
+    "name": "Flagyl",
+    "logo": ""
+  },
+  {
+    "id": 1366,
+    "name": "Flamingo",
+    "logo": ""
+  },
+  {
+    "id": 1367,
+    "name": "Flatameal Ds",
+    "logo": ""
+  },
+  {
+    "id": 637,
+    "name": "Flazine",
+    "logo": ""
+  },
+  {
+    "id": 638,
+    "name": "Flexen",
+    "logo": ""
+  },
+  {
+    "id": 1368,
+    "name": "Flexsa",
+    "logo": ""
+  },
+  {
+    "id": 639,
+    "name": "Flixonase Aqueous",
+    "logo": ""
+  },
+  {
+    "id": 640,
+    "name": "Flixotide",
+    "logo": ""
+  },
+  {
+    "id": 641,
+    "name": "Floezy",
+    "logo": ""
+  },
+  {
+    "id": 642,
+    "name": "Flonaspray",
+    "logo": ""
+  },
+  {
+    "id": 1369,
+    "name": "Floralink",
+    "logo": ""
+  },
+  {
+    "id": 643,
+    "name": "Floranorm",
+    "logo": ""
+  },
+  {
+    "id": 644,
+    "name": "Flotac",
+    "logo": ""
+  },
+  {
+    "id": 1370,
+    "name": "Flucoldex",
+    "logo": ""
+  },
+  {
+    "id": 645,
+    "name": "Flucona Denk",
+    "logo": ""
+  },
+  {
+    "id": 1371,
+    "name": "Flugone",
+    "logo": ""
+  },
+  {
+    "id": 646,
+    "name": "Fluroxan",
+    "logo": ""
+  },
+  {
+    "id": 647,
+    "name": "Flusort",
+    "logo": ""
+  },
+  {
+    "id": 648,
+    "name": "Flutrox",
+    "logo": ""
+  },
+  {
+    "id": 1372,
+    "name": "Foetasafe",
+    "logo": ""
+  },
+  {
+    "id": 649,
+    "name": "Foralin",
+    "logo": ""
+  },
+  {
+    "id": 1373,
+    "name": "Forscar Recovery",
+    "logo": ""
+  },
+  {
+    "id": 650,
+    "name": "Fortide",
+    "logo": ""
+  },
+  {
+    "id": 651,
+    "name": "Forxiga",
+    "logo": ""
+  },
+  {
+    "id": 652,
+    "name": "Fosfomax",
+    "logo": ""
+  },
+  {
+    "id": 653,
+    "name": "Framydex",
+    "logo": ""
+  },
+  {
+    "id": 1375,
+    "name": "Fresubin",
+    "logo": ""
+  },
+  {
+    "id": 1376,
+    "name": "Fricks",
+    "logo": ""
+  },
+  {
+    "id": 654,
+    "name": "Frinase",
+    "logo": ""
+  },
+  {
+    "id": 655,
+    "name": "Funbact",
+    "logo": ""
+  },
+  {
+    "id": 656,
+    "name": "Fungisil",
+    "logo": ""
+  },
+  {
+    "id": 657,
+    "name": "Fungiter",
+    "logo": ""
+  },
+  {
+    "id": 658,
+    "name": "Fusigen",
+    "logo": ""
+  },
+  {
+    "id": 1377,
+    "name": "Futsil",
+    "logo": ""
+  },
+  {
+    "id": 1378,
+    "name": "Fybogel",
+    "logo": ""
+  },
+  {
+    "id": 659,
+    "name": "Gabanerve",
+    "logo": ""
+  },
+  {
+    "id": 660,
+    "name": "Gabbroral",
+    "logo": ""
+  },
+  {
+    "id": 661,
+    "name": "Gabica",
+    "logo": ""
+  },
+  {
+    "id": 662,
+    "name": "Gabix",
+    "logo": ""
+  },
+  {
+    "id": 663,
+    "name": "Gacet",
+    "logo": ""
+  },
+  {
+    "id": 664,
+    "name": "Galvus",
+    "logo": ""
+  },
+  {
+    "id": 665,
+    "name": "Galvusmet",
+    "logo": ""
+  },
+  {
+    "id": 666,
+    "name": "Ganfort",
+    "logo": ""
+  },
+  {
+    "id": 192,
+    "name": "Garnier",
+    "logo": "brands/garnier.png"
+  },
+  {
+    "id": 191,
+    "name": "Gaviscon",
+    "logo": "brands/generated/gaviscon.png"
+  },
+  {
+    "id": 1379,
+    "name": "Gengigel",
+    "logo": ""
+  },
+  {
+    "id": 1380,
+    "name": "Geratherm",
+    "logo": ""
+  },
+  {
+    "id": 1381,
+    "name": "Germolene",
+    "logo": ""
+  },
+  {
+    "id": 667,
+    "name": "Gestaglen",
+    "logo": ""
+  },
+  {
+    "id": 668,
+    "name": "Getryl",
+    "logo": ""
+  },
+  {
+    "id": 190,
+    "name": "Gillette",
+    "logo": "brands/gillette.png"
+  },
+  {
+    "id": 1382,
+    "name": "Giloba",
+    "logo": ""
+  },
+  {
+    "id": 1383,
+    "name": "Ginsomin",
+    "logo": ""
+  },
+  {
+    "id": 669,
+    "name": "Git",
+    "logo": ""
+  },
+  {
+    "id": 670,
+    "name": "Glemont L",
+    "logo": ""
+  },
+  {
+    "id": 1384,
+    "name": "Glencee",
+    "logo": ""
+  },
+  {
+    "id": 671,
+    "name": "Glencet",
+    "logo": ""
+  },
+  {
+    "id": 672,
+    "name": "Glentel",
+    "logo": ""
+  },
+  {
+    "id": 673,
+    "name": "Glevonix",
+    "logo": ""
+  },
+  {
+    "id": 674,
+    "name": "Glipita M",
+    "logo": ""
+  },
+  {
+    "id": 1385,
+    "name": "Glucerna",
+    "logo": ""
+  },
+  {
+    "id": 675,
+    "name": "Glucomet",
+    "logo": ""
+  },
+  {
+    "id": 676,
+    "name": "Glucophage",
+    "logo": ""
+  },
+  {
+    "id": 677,
+    "name": "Glucovance",
+    "logo": ""
+  },
+  {
+    "id": 678,
+    "name": "Glucowell",
+    "logo": ""
+  },
+  {
+    "id": 679,
+    "name": "Gludown",
+    "logo": ""
+  },
+  {
+    "id": 680,
+    "name": "Glycinorm Mr",
+    "logo": ""
+  },
+  {
+    "id": 1386,
+    "name": "Glykof",
+    "logo": ""
+  },
+  {
+    "id": 681,
+    "name": "Glympa",
+    "logo": ""
+  },
+  {
+    "id": 682,
+    "name": "Glypin",
+    "logo": ""
+  },
+  {
+    "id": 683,
+    "name": "Glysit Plus",
+    "logo": ""
+  },
+  {
+    "id": 1387,
+    "name": "Go-pain",
+    "logo": ""
+  },
+  {
+    "id": 684,
+    "name": "Gofen",
+    "logo": ""
+  },
+  {
+    "id": 1388,
+    "name": "Goodsense",
+    "logo": ""
+  },
+  {
+    "id": 685,
+    "name": "Goutgesic",
+    "logo": ""
+  },
+  {
+    "id": 686,
+    "name": "Goutnil",
+    "logo": ""
+  },
+  {
+    "id": 687,
+    "name": "Gramocef O",
+    "logo": ""
+  },
+  {
+    "id": 189,
+    "name": "Haliborange",
+    "logo": "brands/generated/haliborange.png"
+  },
+  {
+    "id": 188,
+    "name": "Halls",
+    "logo": "brands/halls.png"
+  },
+  {
+    "id": 689,
+    "name": "Hawi",
+    "logo": "brands/researched-689-efe89cb6ed36.png"
+  },
+  {
+    "id": 1389,
+    "name": "Hazellic",
+    "logo": ""
+  },
+  {
+    "id": 690,
+    "name": "Hcqs",
+    "logo": ""
+  },
+  {
+    "id": 691,
+    "name": "Head & Shoulders",
+    "logo": ""
+  },
+  {
+    "id": 692,
+    "name": "HealthAid",
+    "logo": "brands/researched-692-8286ee1d48b8.png"
+  },
+  {
+    "id": 1390,
+    "name": "Healthpoint",
+    "logo": ""
+  },
+  {
+    "id": 1391,
+    "name": "Hedex",
+    "logo": ""
+  },
+  {
+    "id": 693,
+    "name": "Hedrin",
+    "logo": ""
+  },
+  {
+    "id": 694,
+    "name": "Helicos Kit",
+    "logo": ""
+  },
+  {
+    "id": 187,
+    "name": "Heliocare",
+    "logo": "brands/generated/heliocare.png"
+  },
+  {
+    "id": 695,
+    "name": "Hemsamic",
+    "logo": ""
+  },
+  {
+    "id": 1392,
+    "name": "Herbigor",
+    "logo": ""
+  },
+  {
+    "id": 696,
+    "name": "Hexicord",
+    "logo": ""
+  },
+  {
+    "id": 186,
+    "name": "Higher Nature",
+    "logo": "brands/generated/higher-nature.png"
+  },
+  {
+    "id": 697,
+    "name": "Hitoral",
+    "logo": ""
+  },
+  {
+    "id": 688,
+    "name": "Holland & Barrett",
+    "logo": ""
+  },
+  {
+    "id": 698,
+    "name": "Hot",
+    "logo": ""
+  },
+  {
+    "id": 699,
+    "name": "Hovite",
+    "logo": ""
+  },
+  {
+    "id": 185,
+    "name": "Huggies",
+    "logo": "brands/imported/huggies.jpeg"
+  },
+  {
+    "id": 700,
+    "name": "Humalog",
+    "logo": ""
+  },
+  {
+    "id": 701,
+    "name": "Humulin",
+    "logo": ""
+  },
+  {
+    "id": 702,
+    "name": "Hydrofoz",
+    "logo": ""
+  },
+  {
+    "id": 1393,
+    "name": "Hyglow",
+    "logo": ""
+  },
+  {
+    "id": 703,
+    "name": "Hylo Comod",
+    "logo": ""
+  },
+  {
+    "id": 704,
+    "name": "I Love Cosmetics",
+    "logo": ""
+  },
+  {
+    "id": 184,
+    "name": "I'm From",
+    "logo": "brands/generated/im-from.png"
+  },
+  {
+    "id": 705,
+    "name": "Ibex",
+    "logo": ""
+  },
+  {
+    "id": 706,
+    "name": "Ibucap",
+    "logo": ""
+  },
+  {
+    "id": 707,
+    "name": "Ibumex",
+    "logo": ""
+  },
+  {
+    "id": 708,
+    "name": "Idanil",
+    "logo": ""
+  },
+  {
+    "id": 709,
+    "name": "Ideos",
+    "logo": ""
+  },
+  {
+    "id": 710,
+    "name": "Ilaxten",
+    "logo": ""
+  },
+  {
+    "id": 711,
+    "name": "Imeg",
+    "logo": ""
+  },
+  {
+    "id": 712,
+    "name": "Imicil",
+    "logo": ""
+  },
+  {
+    "id": 713,
+    "name": "Imodium",
+    "logo": ""
+  },
+  {
+    "id": 714,
+    "name": "Indirab",
+    "logo": ""
+  },
+  {
+    "id": 715,
+    "name": "Infacol",
+    "logo": ""
+  },
+  {
+    "id": 1394,
+    "name": "Ingrams",
+    "logo": ""
+  },
+  {
+    "id": 716,
+    "name": "Inosita",
+    "logo": ""
+  },
+  {
+    "id": 717,
+    "name": "Inspra",
+    "logo": ""
+  },
+  {
+    "id": 718,
+    "name": "Intamine",
+    "logo": ""
+  },
+  {
+    "id": 719,
+    "name": "Intelence",
+    "logo": ""
+  },
+  {
+    "id": 720,
+    "name": "Invega Sustenna",
+    "logo": ""
+  },
+  {
+    "id": 721,
+    "name": "Invokana",
+    "logo": ""
+  },
+  {
+    "id": 722,
+    "name": "Irovel",
+    "logo": ""
+  },
+  {
+    "id": 723,
+    "name": "Isentress",
+    "logo": ""
+  },
+  {
+    "id": 1395,
+    "name": "Islim",
+    "logo": ""
+  },
+  {
+    "id": 724,
+    "name": "Isoptin",
+    "logo": ""
+  },
+  {
+    "id": 725,
+    "name": "Isoryn Adult",
+    "logo": ""
+  },
+  {
+    "id": 726,
+    "name": "Isoryn Paediatric",
+    "logo": ""
+  },
+  {
+    "id": 727,
+    "name": "Isovent",
+    "logo": ""
+  },
+  {
+    "id": 728,
+    "name": "Itacare",
+    "logo": ""
+  },
+  {
+    "id": 729,
+    "name": "Itranox",
+    "logo": ""
+  },
+  {
+    "id": 730,
+    "name": "Ivadin",
+    "logo": ""
+  },
+  {
+    "id": 731,
+    "name": "Ivermectol",
+    "logo": ""
+  },
+  {
+    "id": 732,
+    "name": "Ivygentacin",
+    "logo": ""
+  },
+  {
+    "id": 733,
+    "name": "Ivyphenicol",
+    "logo": ""
+  },
+  {
+    "id": 734,
+    "name": "Ivytimol",
+    "logo": ""
+  },
+  {
+    "id": 1396,
+    "name": "Jakemans",
+    "logo": ""
+  },
+  {
+    "id": 183,
+    "name": "Jamieson",
+    "logo": "brands/generated/jamieson.png"
+  },
+  {
+    "id": 735,
+    "name": "Japlo",
+    "logo": "brands/researched-735-242eb11d9015.png"
+  },
+  {
+    "id": 736,
+    "name": "Jardian",
+    "logo": ""
+  },
+  {
+    "id": 737,
+    "name": "Jardiance",
+    "logo": ""
+  },
+  {
+    "id": 738,
+    "name": "Jentadueto",
+    "logo": ""
+  },
+  {
+    "id": 1397,
+    "name": "Jergens",
+    "logo": ""
+  },
+  {
+    "id": 182,
+    "name": "Johnson's",
+    "logo": "brands/generated/johnsons.png"
+  },
+  {
+    "id": 1398,
+    "name": "Jointace",
+    "logo": ""
+  },
+  {
+    "id": 1399,
+    "name": "Jointfix",
+    "logo": ""
+  },
+  {
+    "id": 1400,
+    "name": "Jolen",
+    "logo": ""
+  },
+  {
+    "id": 1401,
+    "name": "Joseristine",
+    "logo": ""
+  },
+  {
+    "id": 1402,
+    "name": "Juicy Fruit",
+    "logo": ""
+  },
+  {
+    "id": 739,
+    "name": "Jungle Formula",
+    "logo": ""
+  },
+  {
+    "id": 1403,
+    "name": "Juvamine",
+    "logo": ""
+  },
+  {
+    "id": 1404,
+    "name": "Kalms",
+    "logo": ""
+  },
+  {
+    "id": 1405,
+    "name": "Kaluma",
+    "logo": ""
+  },
+  {
+    "id": 740,
+    "name": "Kamagra",
+    "logo": ""
+  },
+  {
+    "id": 1406,
+    "name": "Karvol",
+    "logo": ""
+  },
+  {
+    "id": 741,
+    "name": "Katya",
+    "logo": ""
+  },
+  {
+    "id": 742,
+    "name": "Kchek",
+    "logo": ""
+  },
+  {
+    "id": 181,
+    "name": "Kedley",
+    "logo": "brands/generated/kedley.png"
+  },
+  {
+    "id": 743,
+    "name": "Kendol",
+    "logo": ""
+  },
+  {
+    "id": 744,
+    "name": "Keppra",
+    "logo": ""
+  },
+  {
+    "id": 745,
+    "name": "Ketazol",
+    "logo": ""
+  },
+  {
+    "id": 746,
+    "name": "Ketesse",
+    "logo": ""
+  },
+  {
+    "id": 747,
+    "name": "Ketogress",
+    "logo": ""
+  },
+  {
+    "id": 748,
+    "name": "Ketolac",
+    "logo": ""
+  },
+  {
+    "id": 1407,
+    "name": "Keyara",
+    "logo": ""
+  },
+  {
+    "id": 749,
+    "name": "Klacid",
+    "logo": ""
+  },
+  {
+    "id": 750,
+    "name": "Kleen Enema",
+    "logo": ""
+  },
+  {
+    "id": 751,
+    "name": "Klenzit",
+    "logo": ""
+  },
+  {
+    "id": 1408,
+    "name": "Kly",
+    "logo": ""
+  },
+  {
+    "id": 752,
+    "name": "Kolzine",
+    "logo": ""
+  },
+  {
+    "id": 753,
+    "name": "Komfort Xtra",
+    "logo": ""
+  },
+  {
+    "id": 754,
+    "name": "Kontab",
+    "logo": ""
+  },
+  {
+    "id": 180,
+    "name": "Kotex",
+    "logo": "brands/kotex.png"
+  },
+  {
+    "id": 1409,
+    "name": "Kwells",
+    "logo": ""
+  },
+  {
+    "id": 171,
+    "name": "L'Or\u00e9al",
+    "logo": "brands/loreal.png"
+  },
+  {
+    "id": 179,
+    "name": "L.A. Girl",
+    "logo": "brands/generated/la-girl.png"
+  },
+  {
+    "id": 178,
+    "name": "La Roche-Posay",
+    "logo": "brands/imported/la-roche-posay.webp"
+  },
+  {
+    "id": 755,
+    "name": "Lacoma",
+    "logo": ""
+  },
+  {
+    "id": 1410,
+    "name": "Lactacyd",
+    "logo": ""
+  },
+  {
+    "id": 756,
+    "name": "Lactulac",
+    "logo": ""
+  },
+  {
+    "id": 757,
+    "name": "Lactulin",
+    "logo": ""
+  },
+  {
+    "id": 1411,
+    "name": "Lakanto",
+    "logo": ""
+  },
+  {
+    "id": 177,
+    "name": "Lamberts",
+    "logo": "brands/generated/lamberts.png"
+  },
+  {
+    "id": 758,
+    "name": "Lamictal",
+    "logo": ""
+  },
+  {
+    "id": 759,
+    "name": "Lamitor",
+    "logo": ""
+  },
+  {
+    "id": 176,
+    "name": "Lansinoh",
+    "logo": "brands/generated/lansinoh.png"
+  },
+  {
+    "id": 760,
+    "name": "Lantus",
+    "logo": ""
+  },
+  {
+    "id": 761,
+    "name": "Lanzol Dt Junior",
+    "logo": ""
+  },
+  {
+    "id": 762,
+    "name": "Lasix",
+    "logo": ""
+  },
+  {
+    "id": 763,
+    "name": "Ldnil",
+    "logo": ""
+  },
+  {
+    "id": 764,
+    "name": "Lecotrim",
+    "logo": ""
+  },
+  {
+    "id": 765,
+    "name": "Leflox",
+    "logo": ""
+  },
+  {
+    "id": 766,
+    "name": "Lefno",
+    "logo": ""
+  },
+  {
+    "id": 1412,
+    "name": "Lemocalm",
+    "logo": ""
+  },
+  {
+    "id": 175,
+    "name": "Lemsip",
+    "logo": "brands/generated/lemsip.png"
+  },
+  {
+    "id": 767,
+    "name": "Letroz",
+    "logo": ""
+  },
+  {
+    "id": 768,
+    "name": "Leukomed",
+    "logo": ""
+  },
+  {
+    "id": 769,
+    "name": "Leve Q",
+    "logo": ""
+  },
+  {
+    "id": 770,
+    "name": "Leveget",
+    "logo": ""
+  },
+  {
+    "id": 771,
+    "name": "Levemir",
+    "logo": ""
+  },
+  {
+    "id": 772,
+    "name": "Levipil",
+    "logo": ""
+  },
+  {
+    "id": 773,
+    "name": "Levobact",
+    "logo": ""
+  },
+  {
+    "id": 774,
+    "name": "Levolukast",
+    "logo": ""
+  },
+  {
+    "id": 775,
+    "name": "Levostar",
+    "logo": ""
+  },
+  {
+    "id": 776,
+    "name": "Lexotanil",
+    "logo": ""
+  },
+  {
+    "id": 777,
+    "name": "Liceoma",
+    "logo": ""
+  },
+  {
+    "id": 174,
+    "name": "Life Extension",
+    "logo": "brands/generated/life-extension.png"
+  },
+  {
+    "id": 173,
+    "name": "Lil-Lets",
+    "logo": "brands/generated/lil-lets.png"
+  },
+  {
+    "id": 778,
+    "name": "Lioton",
+    "logo": ""
+  },
+  {
+    "id": 779,
+    "name": "Lipiget",
+    "logo": ""
+  },
+  {
+    "id": 780,
+    "name": "Lipitas",
+    "logo": ""
+  },
+  {
+    "id": 781,
+    "name": "Lipitor",
+    "logo": ""
+  },
+  {
+    "id": 1413,
+    "name": "Liptogrow",
+    "logo": ""
+  },
+  {
+    "id": 1414,
+    "name": "Liptomil",
+    "logo": ""
+  },
+  {
+    "id": 172,
+    "name": "Listerine",
+    "logo": "brands/listerine.png"
+  },
+  {
+    "id": 1415,
+    "name": "Livolin",
+    "logo": ""
+  },
+  {
+    "id": 782,
+    "name": "Livoluk",
+    "logo": ""
+  },
+  {
+    "id": 783,
+    "name": "Lizolid",
+    "logo": ""
+  },
+  {
+    "id": 784,
+    "name": "Lobak",
+    "logo": ""
+  },
+  {
+    "id": 785,
+    "name": "Lofnac",
+    "logo": ""
+  },
+  {
+    "id": 1416,
+    "name": "Logusgyn",
+    "logo": ""
+  },
+  {
+    "id": 786,
+    "name": "Lomoh",
+    "logo": ""
+  },
+  {
+    "id": 787,
+    "name": "Lonart",
+    "logo": ""
+  },
+  {
+    "id": 788,
+    "name": "Lonoflam",
+    "logo": ""
+  },
+  {
+    "id": 789,
+    "name": "Lorabil Plus",
+    "logo": ""
+  },
+  {
+    "id": 790,
+    "name": "Loratin Fast",
+    "logo": ""
+  },
+  {
+    "id": 791,
+    "name": "Lorhistina",
+    "logo": ""
+  },
+  {
+    "id": 792,
+    "name": "Losar Denk",
+    "logo": ""
+  },
+  {
+    "id": 793,
+    "name": "Losartas",
+    "logo": ""
+  },
+  {
+    "id": 794,
+    "name": "Lotel",
+    "logo": ""
+  },
+  {
+    "id": 1417,
+    "name": "Lotem",
+    "logo": ""
+  },
+  {
+    "id": 795,
+    "name": "Lox",
+    "logo": ""
+  },
+  {
+    "id": 796,
+    "name": "Loxiam",
+    "logo": ""
+  },
+  {
+    "id": 797,
+    "name": "Lozart H",
+    "logo": ""
+  },
+  {
+    "id": 798,
+    "name": "Lubtear",
+    "logo": ""
+  },
+  {
+    "id": 799,
+    "name": "Lulu Life",
+    "logo": ""
+  },
+  {
+    "id": 1418,
+    "name": "Lumecare",
+    "logo": ""
+  },
+  {
+    "id": 800,
+    "name": "Lumigan",
+    "logo": ""
+  },
+  {
+    "id": 1419,
+    "name": "Lyclear",
+    "logo": ""
+  },
+  {
+    "id": 801,
+    "name": "Lyrica",
+    "logo": ""
+  },
+  {
+    "id": 802,
+    "name": "Lysodol",
+    "logo": ""
+  },
+  {
+    "id": 803,
+    "name": "Lysoflam",
+    "logo": ""
+  },
+  {
+    "id": 1420,
+    "name": "M&M",
+    "logo": ""
+  },
+  {
+    "id": 1564,
+    "name": "MANUAL-20261105 Brand",
+    "logo": "brands/Screenshot_2026-11-06_at_10.41.20.png"
+  },
+  {
+    "id": 163,
+    "name": "MUA",
+    "logo": "brands/generated/mua.png"
+  },
+  {
+    "id": 804,
+    "name": "Maalox",
+    "logo": ""
+  },
+  {
+    "id": 805,
+    "name": "Mabthera",
+    "logo": ""
+  },
+  {
+    "id": 806,
+    "name": "Mack's",
+    "logo": "brands/researched-806-9d2e3d674ec1.png"
+  },
+  {
+    "id": 1421,
+    "name": "Magsim",
+    "logo": ""
+  },
+  {
+    "id": 1422,
+    "name": "Makari",
+    "logo": ""
+  },
+  {
+    "id": 808,
+    "name": "Malanil Adult",
+    "logo": ""
+  },
+  {
+    "id": 809,
+    "name": "Malanil Paediatric",
+    "logo": ""
+  },
+  {
+    "id": 170,
+    "name": "Malibu",
+    "logo": "brands/generated/malibu.png"
+  },
+  {
+    "id": 1423,
+    "name": "Mamalait",
+    "logo": ""
+  },
+  {
+    "id": 810,
+    "name": "Mandevu",
+    "logo": "brands/researched-810-d35b7f36f5d3.png"
+  },
+  {
+    "id": 1424,
+    "name": "Manix",
+    "logo": ""
+  },
+  {
+    "id": 811,
+    "name": "Mara Moja",
+    "logo": ""
+  },
+  {
+    "id": 1425,
+    "name": "Marnys",
+    "logo": ""
+  },
+  {
+    "id": 1426,
+    "name": "Mars",
+    "logo": ""
+  },
+  {
+    "id": 812,
+    "name": "Marvelon",
+    "logo": ""
+  },
+  {
+    "id": 1427,
+    "name": "Masculan",
+    "logo": ""
+  },
+  {
+    "id": 813,
+    "name": "Maxidex",
+    "logo": ""
+  },
+  {
+    "id": 1428,
+    "name": "Maximmune",
+    "logo": ""
+  },
+  {
+    "id": 814,
+    "name": "Maxitrol",
+    "logo": ""
+  },
+  {
+    "id": 1429,
+    "name": "Maxrich",
+    "logo": ""
+  },
+  {
+    "id": 169,
+    "name": "Maybelline",
+    "logo": "brands/maybelline.png"
+  },
+  {
+    "id": 815,
+    "name": "Mebux",
+    "logo": ""
+  },
+  {
+    "id": 168,
+    "name": "Medela",
+    "logo": "brands/generated/medela.png"
+  },
+  {
+    "id": 1430,
+    "name": "Medimax",
+    "logo": ""
+  },
+  {
+    "id": 816,
+    "name": "Medinox",
+    "logo": "brands/researched-816-354012246f45.png"
+  },
+  {
+    "id": 1431,
+    "name": "Medisure",
+    "logo": ""
+  },
+  {
+    "id": 817,
+    "name": "Meditrol",
+    "logo": ""
+  },
+  {
+    "id": 818,
+    "name": "Mediven",
+    "logo": ""
+  },
+  {
+    "id": 819,
+    "name": "Medopress",
+    "logo": ""
+  },
+  {
+    "id": 820,
+    "name": "Medrol",
+    "logo": ""
+  },
+  {
+    "id": 1432,
+    "name": "Medtextile",
+    "logo": ""
+  },
+  {
+    "id": 821,
+    "name": "Meftal",
+    "logo": ""
+  },
+  {
+    "id": 822,
+    "name": "Megacid",
+    "logo": ""
+  },
+  {
+    "id": 823,
+    "name": "Melacare",
+    "logo": ""
+  },
+  {
+    "id": 1433,
+    "name": "Melano CC",
+    "logo": ""
+  },
+  {
+    "id": 824,
+    "name": "Melanov",
+    "logo": ""
+  },
+  {
+    "id": 825,
+    "name": "Melcam",
+    "logo": ""
+  },
+  {
+    "id": 1434,
+    "name": "Menopearl",
+    "logo": ""
+  },
+  {
+    "id": 826,
+    "name": "Menozip",
+    "logo": ""
+  },
+  {
+    "id": 1435,
+    "name": "Menthodex",
+    "logo": ""
+  },
+  {
+    "id": 827,
+    "name": "Mentos",
+    "logo": "brands/researched-827-6dd5af091ba2.png"
+  },
+  {
+    "id": 828,
+    "name": "Meronem",
+    "logo": ""
+  },
+  {
+    "id": 829,
+    "name": "Mesacol",
+    "logo": ""
+  },
+  {
+    "id": 830,
+    "name": "Metadol",
+    "logo": ""
+  },
+  {
+    "id": 831,
+    "name": "Metcos",
+    "logo": ""
+  },
+  {
+    "id": 832,
+    "name": "Metoz",
+    "logo": ""
+  },
+  {
+    "id": 833,
+    "name": "Metpure Xl",
+    "logo": ""
+  },
+  {
+    "id": 834,
+    "name": "Metrogyl",
+    "logo": ""
+  },
+  {
+    "id": 835,
+    "name": "Mgr",
+    "logo": ""
+  },
+  {
+    "id": 836,
+    "name": "Micardis",
+    "logo": ""
+  },
+  {
+    "id": 837,
+    "name": "Micona",
+    "logo": ""
+  },
+  {
+    "id": 838,
+    "name": "Microgynon",
+    "logo": ""
+  },
+  {
+    "id": 167,
+    "name": "Microlife",
+    "logo": "brands/generated/microlife.png"
+  },
+  {
+    "id": 839,
+    "name": "Micronema",
+    "logo": ""
+  },
+  {
+    "id": 166,
+    "name": "Mielle",
+    "logo": "brands/generated/mielle.png"
+  },
+  {
+    "id": 165,
+    "name": "Milton",
+    "logo": "brands/generated/milton.png"
+  },
+  {
+    "id": 840,
+    "name": "Minoxin",
+    "logo": ""
+  },
+  {
+    "id": 841,
+    "name": "Miraba",
+    "logo": ""
+  },
+  {
+    "id": 842,
+    "name": "Mirahault",
+    "logo": ""
+  },
+  {
+    "id": 843,
+    "name": "Mirtaz",
+    "logo": ""
+  },
+  {
+    "id": 164,
+    "name": "Mitchum",
+    "logo": "brands/generated/mitchum.png"
+  },
+  {
+    "id": 844,
+    "name": "Mixtard",
+    "logo": ""
+  },
+  {
+    "id": 845,
+    "name": "Mizani",
+    "logo": ""
+  },
+  {
+    "id": 846,
+    "name": "Mobic",
+    "logo": ""
+  },
+  {
+    "id": 847,
+    "name": "Mofilet",
+    "logo": ""
+  },
+  {
+    "id": 848,
+    "name": "Momate",
+    "logo": ""
+  },
+  {
+    "id": 849,
+    "name": "Montallerg",
+    "logo": ""
+  },
+  {
+    "id": 850,
+    "name": "Montel",
+    "logo": ""
+  },
+  {
+    "id": 851,
+    "name": "Montiget",
+    "logo": ""
+  },
+  {
+    "id": 852,
+    "name": "Mosi",
+    "logo": ""
+  },
+  {
+    "id": 1436,
+    "name": "Moskina",
+    "logo": ""
+  },
+  {
+    "id": 1437,
+    "name": "Movicol",
+    "logo": ""
+  },
+  {
+    "id": 853,
+    "name": "Moxacil",
+    "logo": ""
+  },
+  {
+    "id": 854,
+    "name": "Moxilact",
+    "logo": ""
+  },
+  {
+    "id": 855,
+    "name": "Mphetas",
+    "logo": ""
+  },
+  {
+    "id": 1438,
+    "name": "Ms tellme",
+    "logo": ""
+  },
+  {
+    "id": 856,
+    "name": "Mtm",
+    "logo": ""
+  },
+  {
+    "id": 857,
+    "name": "Mucinex",
+    "logo": "brands/researched-857-e950f97441c0.png"
+  },
+  {
+    "id": 858,
+    "name": "Mucosolvan",
+    "logo": ""
+  },
+  {
+    "id": 162,
+    "name": "Mueller",
+    "logo": "brands/generated/mueller.png"
+  },
+  {
+    "id": 859,
+    "name": "Multibionta",
+    "logo": ""
+  },
+  {
+    "id": 1439,
+    "name": "Murine",
+    "logo": ""
+  },
+  {
+    "id": 860,
+    "name": "MuscleTech",
+    "logo": ""
+  },
+  {
+    "id": 861,
+    "name": "Mycodeal",
+    "logo": ""
+  },
+  {
+    "id": 862,
+    "name": "Mycospor",
+    "logo": ""
+  },
+  {
+    "id": 1440,
+    "name": "Mycota",
+    "logo": ""
+  },
+  {
+    "id": 1441,
+    "name": "Myoatom",
+    "logo": ""
+  },
+  {
+    "id": 152,
+    "name": "NOW Foods",
+    "logo": "brands/generated/now-foods.png"
+  },
+  {
+    "id": 1442,
+    "name": "Nair",
+    "logo": ""
+  },
+  {
+    "id": 863,
+    "name": "Nascita",
+    "logo": "brands/researched-863-f5b7b266a502.png"
+  },
+  {
+    "id": 864,
+    "name": "Nasonex",
+    "logo": ""
+  },
+  {
+    "id": 1443,
+    "name": "Nasosal",
+    "logo": ""
+  },
+  {
+    "id": 865,
+    "name": "Native",
+    "logo": ""
+  },
+  {
+    "id": 866,
+    "name": "Natrixam",
+    "logo": ""
+  },
+  {
+    "id": 161,
+    "name": "Natural Factors",
+    "logo": "brands/generated/natural-factors.png"
+  },
+  {
+    "id": 867,
+    "name": "Natural Lamu",
+    "logo": "brands/researched-867-948e62085361.png"
+  },
+  {
+    "id": 160,
+    "name": "Nature's Aid",
+    "logo": "brands/generated/natures-aid.png"
+  },
+  {
+    "id": 868,
+    "name": "Nature's Bounty",
+    "logo": "brands/researched-868-ed46be01ed9a.svg"
+  },
+  {
+    "id": 159,
+    "name": "Nature's Plus",
+    "logo": "brands/generated/natures-plus.png"
+  },
+  {
+    "id": 869,
+    "name": "Nature's Truth",
+    "logo": "brands/researched-869-dac1398187f2.png"
+  },
+  {
+    "id": 870,
+    "name": "Nature's Way",
+    "logo": "brands/researched-870-a7bfd0f23354.png"
+  },
+  {
+    "id": 158,
+    "name": "Naturium",
+    "logo": "brands/generated/naturium.png"
+  },
+  {
+    "id": 871,
+    "name": "Nebicard",
+    "logo": ""
+  },
+  {
+    "id": 872,
+    "name": "Nebilet",
+    "logo": ""
+  },
+  {
+    "id": 873,
+    "name": "Nebilong",
+    "logo": ""
+  },
+  {
+    "id": 874,
+    "name": "Nebtas",
+    "logo": ""
+  },
+  {
+    "id": 157,
+    "name": "NeilMed",
+    "logo": "brands/neilmed.png"
+  },
+  {
+    "id": 156,
+    "name": "NeoStrata",
+    "logo": "brands/generated/neostrata.png"
+  },
+  {
+    "id": 875,
+    "name": "Neopeptine",
+    "logo": ""
+  },
+  {
+    "id": 876,
+    "name": "Nervilin",
+    "logo": ""
+  },
+  {
+    "id": 1444,
+    "name": "Nestle",
+    "logo": ""
+  },
+  {
+    "id": 877,
+    "name": "Neubria",
+    "logo": ""
+  },
+  {
+    "id": 878,
+    "name": "Neurontin",
+    "logo": ""
+  },
+  {
+    "id": 155,
+    "name": "Neutrogena",
+    "logo": "brands/neutrogena.png"
+  },
+  {
+    "id": 879,
+    "name": "Nevanac",
+    "logo": ""
+  },
+  {
+    "id": 880,
+    "name": "Nexito",
+    "logo": ""
+  },
+  {
+    "id": 881,
+    "name": "Nexium",
+    "logo": ""
+  },
+  {
+    "id": 882,
+    "name": "Nexpro",
+    "logo": ""
+  },
+  {
+    "id": 1445,
+    "name": "Nice & Lovely",
+    "logo": ""
+  },
+  {
+    "id": 154,
+    "name": "Nicorette",
+    "logo": "brands/nicorette.png"
+  },
+  {
+    "id": 1446,
+    "name": "Nicotex",
+    "logo": ""
+  },
+  {
+    "id": 883,
+    "name": "Nilacid",
+    "logo": ""
+  },
+  {
+    "id": 1447,
+    "name": "Niquitin",
+    "logo": ""
+  },
+  {
+    "id": 884,
+    "name": "Nitrest",
+    "logo": ""
+  },
+  {
+    "id": 153,
+    "name": "Nivea",
+    "logo": "brands/imported/nivea.png"
+  },
+  {
+    "id": 1448,
+    "name": "Nizoral",
+    "logo": ""
+  },
+  {
+    "id": 885,
+    "name": "Nogluc",
+    "logo": ""
+  },
+  {
+    "id": 886,
+    "name": "Norash",
+    "logo": ""
+  },
+  {
+    "id": 1449,
+    "name": "Norditalia",
+    "logo": ""
+  },
+  {
+    "id": 887,
+    "name": "Norflex",
+    "logo": ""
+  },
+  {
+    "id": 888,
+    "name": "Noristerat",
+    "logo": ""
+  },
+  {
+    "id": 1450,
+    "name": "Normagut",
+    "logo": ""
+  },
+  {
+    "id": 889,
+    "name": "Normnil",
+    "logo": ""
+  },
+  {
+    "id": 890,
+    "name": "Norplat S",
+    "logo": ""
+  },
+  {
+    "id": 891,
+    "name": "Norvasc",
+    "logo": ""
+  },
+  {
+    "id": 892,
+    "name": "Nosic",
+    "logo": ""
+  },
+  {
+    "id": 893,
+    "name": "Nospa",
+    "logo": ""
+  },
+  {
+    "id": 894,
+    "name": "Nospasum",
+    "logo": ""
+  },
+  {
+    "id": 895,
+    "name": "Novomix",
+    "logo": ""
+  },
+  {
+    "id": 896,
+    "name": "Novorapid",
+    "logo": ""
+  },
+  {
+    "id": 1451,
+    "name": "Novorin",
+    "logo": ""
+  },
+  {
+    "id": 1452,
+    "name": "Nuage",
+    "logo": ""
+  },
+  {
+    "id": 151,
+    "name": "Nuby",
+    "logo": "brands/generated/nuby.png"
+  },
+  {
+    "id": 897,
+    "name": "Nuflex Sr",
+    "logo": ""
+  },
+  {
+    "id": 898,
+    "name": "Nugrel",
+    "logo": ""
+  },
+  {
+    "id": 150,
+    "name": "Nurofen",
+    "logo": "brands/generated/nurofen.png"
+  },
+  {
+    "id": 1453,
+    "name": "Nutrimom",
+    "logo": ""
+  },
+  {
+    "id": 899,
+    "name": "Nycostat",
+    "logo": ""
+  },
+  {
+    "id": 1454,
+    "name": "Nyquil",
+    "logo": ""
+  },
+  {
+    "id": 1455,
+    "name": "Nytol",
+    "logo": ""
+  },
+  {
+    "id": 900,
+    "name": "OPI",
+    "logo": ""
+  },
+  {
+    "id": 1456,
+    "name": "Oatveen",
+    "logo": ""
+  },
+  {
+    "id": 901,
+    "name": "Obetas",
+    "logo": ""
+  },
+  {
+    "id": 902,
+    "name": "Oculast",
+    "logo": ""
+  },
+  {
+    "id": 1457,
+    "name": "Odor Eaters",
+    "logo": ""
+  },
+  {
+    "id": 903,
+    "name": "Oestrogel",
+    "logo": ""
+  },
+  {
+    "id": 904,
+    "name": "Oflodex",
+    "logo": ""
+  },
+  {
+    "id": 905,
+    "name": "Oflonida",
+    "logo": ""
+  },
+  {
+    "id": 906,
+    "name": "Oilatum",
+    "logo": ""
+  },
+  {
+    "id": 907,
+    "name": "Ojen Oz",
+    "logo": ""
+  },
+  {
+    "id": 149,
+    "name": "Olay",
+    "logo": "brands/generated/olay.png"
+  },
+  {
+    "id": 1458,
+    "name": "Olbas",
+    "logo": ""
+  },
+  {
+    "id": 148,
+    "name": "Old Spice",
+    "logo": "brands/old-spice.png"
+  },
+  {
+    "id": 908,
+    "name": "Olfen",
+    "logo": ""
+  },
+  {
+    "id": 909,
+    "name": "Oligocare",
+    "logo": ""
+  },
+  {
+    "id": 147,
+    "name": "Olimp",
+    "logo": "brands/generated/olimp.png"
+  },
+  {
+    "id": 910,
+    "name": "Olmat",
+    "logo": ""
+  },
+  {
+    "id": 911,
+    "name": "Olme",
+    "logo": ""
+  },
+  {
+    "id": 912,
+    "name": "Olopat",
+    "logo": ""
+  },
+  {
+    "id": 913,
+    "name": "Omastin",
+    "logo": ""
+  },
+  {
+    "id": 146,
+    "name": "Omron",
+    "logo": "brands/omron.png"
+  },
+  {
+    "id": 1459,
+    "name": "On Call",
+    "logo": ""
+  },
+  {
+    "id": 914,
+    "name": "Oncosil",
+    "logo": ""
+  },
+  {
+    "id": 915,
+    "name": "Ondex",
+    "logo": ""
+  },
+  {
+    "id": 916,
+    "name": "Onecid",
+    "logo": ""
+  },
+  {
+    "id": 1460,
+    "name": "Opsite",
+    "logo": ""
+  },
+  {
+    "id": 1461,
+    "name": "Opti-free",
+    "logo": ""
+  },
+  {
+    "id": 1462,
+    "name": "Opticrom",
+    "logo": ""
+  },
+  {
+    "id": 145,
+    "name": "Optimum Nutrition",
+    "logo": "brands/generated/optimum-nutrition.png"
+  },
+  {
+    "id": 1463,
+    "name": "Optive",
+    "logo": ""
+  },
+  {
+    "id": 144,
+    "name": "Optrex",
+    "logo": "brands/generated/optrex.png"
+  },
+  {
+    "id": 917,
+    "name": "Oracef",
+    "logo": ""
+  },
+  {
+    "id": 1464,
+    "name": "Oragel",
+    "logo": ""
+  },
+  {
+    "id": 143,
+    "name": "Oral-B",
+    "logo": "brands/oral-b.png"
+  },
+  {
+    "id": 918,
+    "name": "Oralex C",
+    "logo": ""
+  },
+  {
+    "id": 919,
+    "name": "Orbidex",
+    "logo": ""
+  },
+  {
+    "id": 1465,
+    "name": "Orbit",
+    "logo": ""
+  },
+  {
+    "id": 920,
+    "name": "Orelox",
+    "logo": ""
+  },
+  {
+    "id": 921,
+    "name": "Orofer",
+    "logo": ""
+  },
+  {
+    "id": 1466,
+    "name": "Orthoflex",
+    "logo": ""
+  },
+  {
+    "id": 922,
+    "name": "Osmotas",
+    "logo": ""
+  },
+  {
+    "id": 923,
+    "name": "Osteocerin",
+    "logo": ""
+  },
+  {
+    "id": 1467,
+    "name": "Osteomin",
+    "logo": ""
+  },
+  {
+    "id": 924,
+    "name": "Otipax",
+    "logo": ""
+  },
+  {
+    "id": 925,
+    "name": "Otobiotic",
+    "logo": ""
+  },
+  {
+    "id": 926,
+    "name": "Otorex",
+    "logo": ""
+  },
+  {
+    "id": 927,
+    "name": "Otrivin",
+    "logo": ""
+  },
+  {
+    "id": 142,
+    "name": "Otrivine",
+    "logo": "brands/generated/otrivine.png"
+  },
+  {
+    "id": 1468,
+    "name": "Ovabless",
+    "logo": ""
+  },
+  {
+    "id": 928,
+    "name": "Ovacare",
+    "logo": ""
+  },
+  {
+    "id": 929,
+    "name": "Ovizep",
+    "logo": ""
+  },
+  {
+    "id": 930,
+    "name": "Oxifast Mr",
+    "logo": ""
+  },
+  {
+    "id": 931,
+    "name": "Oxinus",
+    "logo": ""
+  },
+  {
+    "id": 932,
+    "name": "Ozempic",
+    "logo": ""
+  },
+  {
+    "id": 933,
+    "name": "Ozitas",
+    "logo": ""
+  },
+  {
+    "id": 934,
+    "name": "Palido",
+    "logo": ""
+  },
+  {
+    "id": 141,
+    "name": "Palmer's",
+    "logo": "brands/generated/palmers.png"
+  },
+  {
+    "id": 935,
+    "name": "Pampers",
+    "logo": "brands/researched-935-df3e2a722fa1.svg"
+  },
+  {
+    "id": 140,
+    "name": "Panadol",
+    "logo": "brands/imported/panadol.jpeg"
+  },
+  {
+    "id": 936,
+    "name": "Panderm",
+    "logo": ""
+  },
+  {
+    "id": 937,
+    "name": "Pangraf",
+    "logo": ""
+  },
+  {
+    "id": 938,
+    "name": "Pantene",
+    "logo": ""
+  },
+  {
+    "id": 939,
+    "name": "Pantocid",
+    "logo": ""
+  },
+  {
+    "id": 1469,
+    "name": "Pantogar",
+    "logo": ""
+  },
+  {
+    "id": 940,
+    "name": "Parabuzz",
+    "logo": ""
+  },
+  {
+    "id": 1470,
+    "name": "Paradontax",
+    "logo": ""
+  },
+  {
+    "id": 1471,
+    "name": "Parafast",
+    "logo": ""
+  },
+  {
+    "id": 941,
+    "name": "Parafast Et",
+    "logo": ""
+  },
+  {
+    "id": 942,
+    "name": "Paragon",
+    "logo": ""
+  },
+  {
+    "id": 943,
+    "name": "Pariet",
+    "logo": ""
+  },
+  {
+    "id": 944,
+    "name": "Parol",
+    "logo": ""
+  },
+  {
+    "id": 945,
+    "name": "Patanol",
+    "logo": ""
+  },
+  {
+    "id": 946,
+    "name": "Pecol",
+    "logo": ""
+  },
+  {
+    "id": 1472,
+    "name": "Pedialyte",
+    "logo": ""
+  },
+  {
+    "id": 947,
+    "name": "Pedifen",
+    "logo": ""
+  },
+  {
+    "id": 1474,
+    "name": "Peditral",
+    "logo": ""
+  },
+  {
+    "id": 948,
+    "name": "Peitel",
+    "logo": ""
+  },
+  {
+    "id": 1475,
+    "name": "Pentasure",
+    "logo": ""
+  },
+  {
+    "id": 949,
+    "name": "Penvir",
+    "logo": ""
+  },
+  {
+    "id": 139,
+    "name": "Pepto-Bismol",
+    "logo": "brands/generated/pepto-bismol.png"
+  },
+  {
+    "id": 950,
+    "name": "Perkinil",
+    "logo": ""
+  },
+  {
+    "id": 951,
+    "name": "Pernex Ac",
+    "logo": ""
+  },
+  {
+    "id": 1476,
+    "name": "Perobar",
+    "logo": ""
+  },
+  {
+    "id": 1477,
+    "name": "Ph care",
+    "logo": ""
+  },
+  {
+    "id": 138,
+    "name": "PhD Nutrition",
+    "logo": "brands/generated/phd-nutrition.png"
+  },
+  {
+    "id": 952,
+    "name": "Pharmasal",
+    "logo": ""
+  },
+  {
+    "id": 1478,
+    "name": "Pharmaton",
+    "logo": ""
+  },
+  {
+    "id": 1479,
+    "name": "Philips",
+    "logo": ""
+  },
+  {
+    "id": 953,
+    "name": "Phlebodia",
+    "logo": ""
+  },
+  {
+    "id": 954,
+    "name": "Phloro G",
+    "logo": ""
+  },
+  {
+    "id": 1480,
+    "name": "Photoblock",
+    "logo": ""
+  },
+  {
+    "id": 955,
+    "name": "Piogluc",
+    "logo": ""
+  },
+  {
+    "id": 956,
+    "name": "Pipcel",
+    "logo": ""
+  },
+  {
+    "id": 957,
+    "name": "Pipzo",
+    "logo": ""
+  },
+  {
+    "id": 958,
+    "name": "Piricet",
+    "logo": ""
+  },
+  {
+    "id": 1481,
+    "name": "Piriclor",
+    "logo": ""
+  },
+  {
+    "id": 959,
+    "name": "Piriton",
+    "logo": ""
+  },
+  {
+    "id": 960,
+    "name": "Pirucin",
+    "logo": ""
+  },
+  {
+    "id": 961,
+    "name": "Pitava",
+    "logo": ""
+  },
+  {
+    "id": 962,
+    "name": "Plavix",
+    "logo": ""
+  },
+  {
+    "id": 1482,
+    "name": "Poligrip",
+    "logo": ""
+  },
+  {
+    "id": 963,
+    "name": "Polygynax",
+    "logo": ""
+  },
+  {
+    "id": 964,
+    "name": "Ponstan Forte",
+    "logo": ""
+  },
+  {
+    "id": 965,
+    "name": "Postinor",
+    "logo": ""
+  },
+  {
+    "id": 966,
+    "name": "Power Health",
+    "logo": ""
+  },
+  {
+    "id": 1483,
+    "name": "Powergesic",
+    "logo": ""
+  },
+  {
+    "id": 967,
+    "name": "Powergesic Mr",
+    "logo": ""
+  },
+  {
+    "id": 968,
+    "name": "Pradaxa",
+    "logo": ""
+  },
+  {
+    "id": 969,
+    "name": "Prasusafe",
+    "logo": ""
+  },
+  {
+    "id": 970,
+    "name": "Prazitel",
+    "logo": ""
+  },
+  {
+    "id": 971,
+    "name": "Pregatas",
+    "logo": ""
+  },
+  {
+    "id": 972,
+    "name": "Presartan",
+    "logo": ""
+  },
+  {
+    "id": 973,
+    "name": "Priligy",
+    "logo": ""
+  },
+  {
+    "id": 1485,
+    "name": "Primapore",
+    "logo": ""
+  },
+  {
+    "id": 974,
+    "name": "Primolut N",
+    "logo": ""
+  },
+  {
+    "id": 1486,
+    "name": "Principle HealthCare",
+    "logo": ""
+  },
+  {
+    "id": 975,
+    "name": "Probeta",
+    "logo": ""
+  },
+  {
+    "id": 976,
+    "name": "Procoralan",
+    "logo": ""
+  },
+  {
+    "id": 1487,
+    "name": "Proctosedyl",
+    "logo": ""
+  },
+  {
+    "id": 1488,
+    "name": "Profertil",
+    "logo": ""
+  },
+  {
+    "id": 137,
+    "name": "Profoot",
+    "logo": "brands/generated/profoot.png"
+  },
+  {
+    "id": 977,
+    "name": "Progynova",
+    "logo": ""
+  },
+  {
+    "id": 1489,
+    "name": "Promimba",
+    "logo": ""
+  },
+  {
+    "id": 978,
+    "name": "Prostaflo F",
+    "logo": ""
+  },
+  {
+    "id": 1490,
+    "name": "Prostanorm",
+    "logo": ""
+  },
+  {
+    "id": 979,
+    "name": "Protas",
+    "logo": ""
+  },
+  {
+    "id": 1491,
+    "name": "Protoken",
+    "logo": ""
+  },
+  {
+    "id": 980,
+    "name": "Proviron",
+    "logo": ""
+  },
+  {
+    "id": 981,
+    "name": "Proxym",
+    "logo": ""
+  },
+  {
+    "id": 982,
+    "name": "Pulmicort Nebulising",
+    "logo": ""
+  },
+  {
+    "id": 983,
+    "name": "Pulmocef",
+    "logo": ""
+  },
+  {
+    "id": 984,
+    "name": "Pulmofirst",
+    "logo": ""
+  },
+  {
+    "id": 985,
+    "name": "Purecal",
+    "logo": ""
+  },
+  {
+    "id": 986,
+    "name": "Pynstop",
+    "logo": ""
+  },
+  {
+    "id": 987,
+    "name": "Pyodine",
+    "logo": ""
+  },
+  {
+    "id": 1492,
+    "name": "Pyralvex",
+    "logo": ""
+  },
+  {
+    "id": 988,
+    "name": "Qlaira",
+    "logo": ""
+  },
+  {
+    "id": 989,
+    "name": "Quadrajel",
+    "logo": ""
+  },
+  {
+    "id": 990,
+    "name": "Quest",
+    "logo": "brands/researched-990-36a3a01de000.png"
+  },
+  {
+    "id": 991,
+    "name": "Qutipin",
+    "logo": ""
+  },
+  {
+    "id": 992,
+    "name": "Rabeloc",
+    "logo": ""
+  },
+  {
+    "id": 993,
+    "name": "Rabemac",
+    "logo": ""
+  },
+  {
+    "id": 994,
+    "name": "Ranexa",
+    "logo": ""
+  },
+  {
+    "id": 995,
+    "name": "Ranferon",
+    "logo": ""
+  },
+  {
+    "id": 1493,
+    "name": "Recare",
+    "logo": ""
+  },
+  {
+    "id": 1494,
+    "name": "Recartix",
+    "logo": ""
+  },
+  {
+    "id": 1495,
+    "name": "Redoxon",
+    "logo": ""
+  },
+  {
+    "id": 1496,
+    "name": "Refresh Tears",
+    "logo": ""
+  },
+  {
+    "id": 1497,
+    "name": "Regenovex",
+    "logo": ""
+  },
+  {
+    "id": 1498,
+    "name": "Rekfa",
+    "logo": ""
+  },
+  {
+    "id": 996,
+    "name": "Relcer",
+    "logo": ""
+  },
+  {
+    "id": 997,
+    "name": "Relestat",
+    "logo": ""
+  },
+  {
+    "id": 998,
+    "name": "Relezin",
+    "logo": ""
+  },
+  {
+    "id": 999,
+    "name": "Reme D",
+    "logo": ""
+  },
+  {
+    "id": 1000,
+    "name": "Remidin",
+    "logo": ""
+  },
+  {
+    "id": 1001,
+    "name": "Remiflu",
+    "logo": ""
+  },
+  {
+    "id": 1002,
+    "name": "Rennie",
+    "logo": ""
+  },
+  {
+    "id": 1499,
+    "name": "Renogold",
+    "logo": ""
+  },
+  {
+    "id": 348,
+    "name": "Renu",
+    "logo": ""
+  },
+  {
+    "id": 1003,
+    "name": "Repace H",
+    "logo": ""
+  },
+  {
+    "id": 1004,
+    "name": "Revital",
+    "logo": ""
+  },
+  {
+    "id": 136,
+    "name": "Revlon",
+    "logo": "brands/revlon.png"
+  },
+  {
+    "id": 1005,
+    "name": "Rhinaphyto",
+    "logo": ""
+  },
+  {
+    "id": 1006,
+    "name": "Rhinathiol",
+    "logo": ""
+  },
+  {
+    "id": 1007,
+    "name": "Rhino Rescue",
+    "logo": ""
+  },
+  {
+    "id": 1008,
+    "name": "Rhinocort",
+    "logo": ""
+  },
+  {
+    "id": 1009,
+    "name": "Rhizin",
+    "logo": ""
+  },
+  {
+    "id": 1010,
+    "name": "Rifaxa",
+    "logo": ""
+  },
+  {
+    "id": 1011,
+    "name": "Rilif Mr",
+    "logo": ""
+  },
+  {
+    "id": 1012,
+    "name": "Rinacet",
+    "logo": ""
+  },
+  {
+    "id": 1013,
+    "name": "Risdone",
+    "logo": ""
+  },
+  {
+    "id": 1014,
+    "name": "Risek",
+    "logo": ""
+  },
+  {
+    "id": 1015,
+    "name": "Risperdal",
+    "logo": ""
+  },
+  {
+    "id": 1016,
+    "name": "Rito Sr",
+    "logo": ""
+  },
+  {
+    "id": 1017,
+    "name": "Ritri",
+    "logo": ""
+  },
+  {
+    "id": 1018,
+    "name": "Riva Q",
+    "logo": ""
+  },
+  {
+    "id": 1019,
+    "name": "Rivotril",
+    "logo": ""
+  },
+  {
+    "id": 1020,
+    "name": "Rizact",
+    "logo": ""
+  },
+  {
+    "id": 1021,
+    "name": "Roaccutane",
+    "logo": ""
+  },
+  {
+    "id": 1022,
+    "name": "Robidom Sr",
+    "logo": ""
+  },
+  {
+    "id": 1023,
+    "name": "Robiflox",
+    "logo": ""
+  },
+  {
+    "id": 1500,
+    "name": "Robitussin",
+    "logo": ""
+  },
+  {
+    "id": 1024,
+    "name": "Rocephin",
+    "logo": ""
+  },
+  {
+    "id": 1501,
+    "name": "Rohto",
+    "logo": ""
+  },
+  {
+    "id": 1025,
+    "name": "Rolac",
+    "logo": ""
+  },
+  {
+    "id": 1026,
+    "name": "Rostat",
+    "logo": ""
+  },
+  {
+    "id": 1027,
+    "name": "Rovas",
+    "logo": ""
+  },
+  {
+    "id": 1028,
+    "name": "Rovast",
+    "logo": ""
+  },
+  {
+    "id": 1029,
+    "name": "Rovista",
+    "logo": ""
+  },
+  {
+    "id": 1030,
+    "name": "Rozavel",
+    "logo": ""
+  },
+  {
+    "id": 1031,
+    "name": "Ryaltris",
+    "logo": ""
+  },
+  {
+    "id": 807,
+    "name": "SKIN1004",
+    "logo": "brands/researched-807-ba3c4455035d.png"
+  },
+  {
+    "id": 125,
+    "name": "SMOK",
+    "logo": "brands/smok.png"
+  },
+  {
+    "id": 1032,
+    "name": "Sabezole",
+    "logo": ""
+  },
+  {
+    "id": 1033,
+    "name": "Safecal",
+    "logo": ""
+  },
+  {
+    "id": 1034,
+    "name": "Saferon",
+    "logo": ""
+  },
+  {
+    "id": 1035,
+    "name": "Safetelmi",
+    "logo": ""
+  },
+  {
+    "id": 1502,
+    "name": "Sahara",
+    "logo": ""
+  },
+  {
+    "id": 1036,
+    "name": "Salbut",
+    "logo": ""
+  },
+  {
+    "id": 1037,
+    "name": "Salonpas",
+    "logo": ""
+  },
+  {
+    "id": 135,
+    "name": "Sambucol",
+    "logo": "brands/generated/sambucol.png"
+  },
+  {
+    "id": 1503,
+    "name": "Saracal",
+    "logo": ""
+  },
+  {
+    "id": 1038,
+    "name": "Saraya",
+    "logo": ""
+  },
+  {
+    "id": 1039,
+    "name": "Satrogyl",
+    "logo": ""
+  },
+  {
+    "id": 1040,
+    "name": "Savlon",
+    "logo": ""
+  },
+  {
+    "id": 1504,
+    "name": "Scabees",
+    "logo": ""
+  },
+  {
+    "id": 134,
+    "name": "Scholl",
+    "logo": "brands/generated/scholl.png"
+  },
+  {
+    "id": 133,
+    "name": "Schwarzkopf",
+    "logo": "brands/generated/schwarzkopf.png"
+  },
+  {
+    "id": 132,
+    "name": "Sebamed",
+    "logo": "brands/imported/sebamed.png"
+  },
+  {
+    "id": 131,
+    "name": "Secret",
+    "logo": "brands/generated/secret.png"
+  },
+  {
+    "id": 1505,
+    "name": "Sekisan",
+    "logo": ""
+  },
+  {
+    "id": 1041,
+    "name": "Selanz Sr",
+    "logo": ""
+  },
+  {
+    "id": 1042,
+    "name": "Selerin",
+    "logo": ""
+  },
+  {
+    "id": 1506,
+    "name": "Selsun",
+    "logo": ""
+  },
+  {
+    "id": 1043,
+    "name": "Sema Q",
+    "logo": ""
+  },
+  {
+    "id": 1507,
+    "name": "Senokot",
+    "logo": ""
+  },
+  {
+    "id": 130,
+    "name": "Sensodyne",
+    "logo": "brands/generated/sensodyne.png"
+  },
+  {
+    "id": 1508,
+    "name": "Septona",
+    "logo": ""
+  },
+  {
+    "id": 1044,
+    "name": "Septrin Ds",
+    "logo": ""
+  },
+  {
+    "id": 1045,
+    "name": "Septrin Paediatric",
+    "logo": ""
+  },
+  {
+    "id": 1046,
+    "name": "Seretide",
+    "logo": ""
+  },
+  {
+    "id": 1047,
+    "name": "Serocort",
+    "logo": ""
+  },
+  {
+    "id": 1048,
+    "name": "Seroxat",
+    "logo": ""
+  },
+  {
+    "id": 1049,
+    "name": "Serrazen",
+    "logo": ""
+  },
+  {
+    "id": 129,
+    "name": "Seven Seas",
+    "logo": "brands/generated/seven-seas.png"
+  },
+  {
+    "id": 1050,
+    "name": "Sevlaren",
+    "logo": ""
+  },
+  {
+    "id": 128,
+    "name": "SheaMoisture",
+    "logo": "brands/generated/sheamoisture.png"
+  },
+  {
+    "id": 1051,
+    "name": "Siccapos",
+    "logo": ""
+  },
+  {
+    "id": 1052,
+    "name": "Siccaprotect",
+    "logo": ""
+  },
+  {
+    "id": 1053,
+    "name": "Siclofen",
+    "logo": ""
+  },
+  {
+    "id": 1054,
+    "name": "Silotrif",
+    "logo": ""
+  },
+  {
+    "id": 1509,
+    "name": "Similac",
+    "logo": ""
+  },
+  {
+    "id": 127,
+    "name": "Simple",
+    "logo": "brands/generated/simple.png"
+  },
+  {
+    "id": 1510,
+    "name": "Sinomarin",
+    "logo": ""
+  },
+  {
+    "id": 1511,
+    "name": "Sinutab",
+    "logo": ""
+  },
+  {
+    "id": 1055,
+    "name": "Sitcom",
+    "logo": ""
+  },
+  {
+    "id": 1056,
+    "name": "Skilax",
+    "logo": ""
+  },
+  {
+    "id": 1057,
+    "name": "Skins",
+    "logo": "brands/researched-1057-1cc563b7a7ee.png"
+  },
+  {
+    "id": 1512,
+    "name": "Skittles",
+    "logo": ""
+  },
+  {
+    "id": 1513,
+    "name": "Skyn",
+    "logo": ""
+  },
+  {
+    "id": 126,
+    "name": "Sleek",
+    "logo": "brands/generated/sleek.png"
+  },
+  {
+    "id": 1514,
+    "name": "Smugel",
+    "logo": ""
+  },
+  {
+    "id": 1058,
+    "name": "Softdrops",
+    "logo": ""
+  },
+  {
+    "id": 124,
+    "name": "Solgar",
+    "logo": "brands/generated/solgar.png"
+  },
+  {
+    "id": 1059,
+    "name": "Solifen",
+    "logo": ""
+  },
+  {
+    "id": 1060,
+    "name": "Sompraz",
+    "logo": ""
+  },
+  {
+    "id": 1061,
+    "name": "Soranix",
+    "logo": ""
+  },
+  {
+    "id": 1062,
+    "name": "Sorid",
+    "logo": ""
+  },
+  {
+    "id": 1063,
+    "name": "Spasmomen",
+    "logo": ""
+  },
+  {
+    "id": 1064,
+    "name": "Spaszed",
+    "logo": ""
+  },
+  {
+    "id": 1065,
+    "name": "Spiriva",
+    "logo": ""
+  },
+  {
+    "id": 1066,
+    "name": "St. Ives",
+    "logo": "brands/researched-1066-7fb0a2bbf053.png"
+  },
+  {
+    "id": 1515,
+    "name": "Staminogro",
+    "logo": ""
+  },
+  {
+    "id": 123,
+    "name": "Stanley",
+    "logo": "brands/generated/stanley.png"
+  },
+  {
+    "id": 1516,
+    "name": "Starbalm",
+    "logo": ""
+  },
+  {
+    "id": 1067,
+    "name": "Stednac",
+    "logo": ""
+  },
+  {
+    "id": 1517,
+    "name": "Steradent",
+    "logo": ""
+  },
+  {
+    "id": 122,
+    "name": "Sterimar",
+    "logo": "brands/generated/sterimar.png"
+  },
+  {
+    "id": 1518,
+    "name": "Steroplast",
+    "logo": ""
+  },
+  {
+    "id": 1068,
+    "name": "Stilnox",
+    "logo": ""
+  },
+  {
+    "id": 121,
+    "name": "Strepsils",
+    "logo": "brands/strepsils.png"
+  },
+  {
+    "id": 1069,
+    "name": "Studex",
+    "logo": "brands/researched-1069-607f2f09551e.png"
+  },
+  {
+    "id": 1070,
+    "name": "Stugeron",
+    "logo": ""
+  },
+  {
+    "id": 1071,
+    "name": "Subsyde Cr",
+    "logo": ""
+  },
+  {
+    "id": 1519,
+    "name": "Sucrafil",
+    "logo": ""
+  },
+  {
+    "id": 1072,
+    "name": "Sucrafil O",
+    "logo": ""
+  },
+  {
+    "id": 1073,
+    "name": "Sucralox",
+    "logo": ""
+  },
+  {
+    "id": 120,
+    "name": "Sudafed",
+    "logo": "brands/sudafed.png"
+  },
+  {
+    "id": 1074,
+    "name": "Sudocrem",
+    "logo": ""
+  },
+  {
+    "id": 1075,
+    "name": "Sumafix",
+    "logo": ""
+  },
+  {
+    "id": 119,
+    "name": "Summer's Eve",
+    "logo": "brands/generated/summers-eve.png"
+  },
+  {
+    "id": 118,
+    "name": "Sundown",
+    "logo": "brands/generated/sundown.png"
+  },
+  {
+    "id": 1520,
+    "name": "Sunkroma",
+    "logo": ""
+  },
+  {
+    "id": 1521,
+    "name": "Sunlife",
+    "logo": ""
+  },
+  {
+    "id": 1076,
+    "name": "Sunshine Nutrition",
+    "logo": "brands/researched-1076-3fbeef83642c.png"
+  },
+  {
+    "id": 1522,
+    "name": "Supradyn",
+    "logo": ""
+  },
+  {
+    "id": 117,
+    "name": "Sure",
+    "logo": "brands/generated/sure.png"
+  },
+  {
+    "id": 1077,
+    "name": "Suresign",
+    "logo": ""
+  },
+  {
+    "id": 1078,
+    "name": "Susten",
+    "logo": ""
+  },
+  {
+    "id": 1079,
+    "name": "Swanson",
+    "logo": "brands/researched-1079-984f37a578a4.svg"
+  },
+  {
+    "id": 1080,
+    "name": "Swiss Energy",
+    "logo": "brands/researched-1080-527be7c789af.svg"
+  },
+  {
+    "id": 1081,
+    "name": "Sylate",
+    "logo": ""
+  },
+  {
+    "id": 1082,
+    "name": "Sylent",
+    "logo": ""
+  },
+  {
+    "id": 1523,
+    "name": "Synolin",
+    "logo": ""
+  },
+  {
+    "id": 1083,
+    "name": "Syschol",
+    "logo": ""
+  },
+  {
+    "id": 115,
+    "name": "TENA",
+    "logo": "brands/tena.png"
+  },
+  {
+    "id": 1084,
+    "name": "Tacrovate",
+    "logo": ""
+  },
+  {
+    "id": 1085,
+    "name": "Tadarect",
+    "logo": ""
+  },
+  {
+    "id": 1086,
+    "name": "Tagera Forte",
+    "logo": ""
+  },
+  {
+    "id": 1087,
+    "name": "Takol Cr",
+    "logo": ""
+  },
+  {
+    "id": 1088,
+    "name": "Talgentis",
+    "logo": ""
+  },
+  {
+    "id": 1089,
+    "name": "Talimus",
+    "logo": ""
+  },
+  {
+    "id": 250,
+    "name": "Tam",
+    "logo": ""
+  },
+  {
+    "id": 116,
+    "name": "Tampax",
+    "logo": "brands/tampax.png"
+  },
+  {
+    "id": 1090,
+    "name": "Tamsolin",
+    "logo": ""
+  },
+  {
+    "id": 1091,
+    "name": "Tanzol",
+    "logo": ""
+  },
+  {
+    "id": 1092,
+    "name": "Tapal",
+    "logo": ""
+  },
+  {
+    "id": 1093,
+    "name": "Tasnovel",
+    "logo": ""
+  },
+  {
+    "id": 1094,
+    "name": "Tavanic",
+    "logo": ""
+  },
+  {
+    "id": 1095,
+    "name": "Taxim O",
+    "logo": ""
+  },
+  {
+    "id": 1096,
+    "name": "Tazocin Ef",
+    "logo": ""
+  },
+  {
+    "id": 114,
+    "name": "TePe",
+    "logo": "brands/generated/tepe.png"
+  },
+  {
+    "id": 1097,
+    "name": "Tegretol",
+    "logo": ""
+  },
+  {
+    "id": 1098,
+    "name": "Telfast",
+    "logo": ""
+  },
+  {
+    "id": 1099,
+    "name": "Teltas",
+    "logo": ""
+  },
+  {
+    "id": 1100,
+    "name": "Tenoretic",
+    "logo": ""
+  },
+  {
+    "id": 1101,
+    "name": "Tenormin",
+    "logo": ""
+  },
+  {
+    "id": 1102,
+    "name": "Terbifin",
+    "logo": ""
+  },
+  {
+    "id": 1103,
+    "name": "Terbin",
+    "logo": ""
+  },
+  {
+    "id": 1104,
+    "name": "Terpynta",
+    "logo": ""
+  },
+  {
+    "id": 1524,
+    "name": "Tetmosal",
+    "logo": ""
+  },
+  {
+    "id": 113,
+    "name": "The Body Shop",
+    "logo": "brands/the-body-shop.png"
+  },
+  {
+    "id": 112,
+    "name": "The Ordinary",
+    "logo": "brands/the-ordinary.png"
+  },
+  {
+    "id": 1105,
+    "name": "Theofix",
+    "logo": ""
+  },
+  {
+    "id": 1106,
+    "name": "Thiozone C",
+    "logo": ""
+  },
+  {
+    "id": 1525,
+    "name": "Thuasne",
+    "logo": ""
+  },
+  {
+    "id": 1526,
+    "name": "Tiger Balm",
+    "logo": ""
+  },
+  {
+    "id": 111,
+    "name": "Titania",
+    "logo": "brands/generated/titania.png"
+  },
+  {
+    "id": 1107,
+    "name": "Tivicay",
+    "logo": ""
+  },
+  {
+    "id": 1108,
+    "name": "Tivortin",
+    "logo": ""
+  },
+  {
+    "id": 1527,
+    "name": "Tixylix",
+    "logo": ""
+  },
+  {
+    "id": 1109,
+    "name": "Tiza Q",
+    "logo": ""
+  },
+  {
+    "id": 1110,
+    "name": "Tobradex",
+    "logo": ""
+  },
+  {
+    "id": 1111,
+    "name": "Tobrex",
+    "logo": ""
+  },
+  {
+    "id": 1112,
+    "name": "Tofaderm",
+    "logo": ""
+  },
+  {
+    "id": 1113,
+    "name": "Tofen",
+    "logo": ""
+  },
+  {
+    "id": 1114,
+    "name": "Tolanz",
+    "logo": ""
+  },
+  {
+    "id": 1115,
+    "name": "Topamax",
+    "logo": ""
+  },
+  {
+    "id": 1116,
+    "name": "Topara",
+    "logo": ""
+  },
+  {
+    "id": 1117,
+    "name": "Topraz",
+    "logo": ""
+  },
+  {
+    "id": 1118,
+    "name": "Toras Denk",
+    "logo": ""
+  },
+  {
+    "id": 1119,
+    "name": "Torixa Mr",
+    "logo": ""
+  },
+  {
+    "id": 1120,
+    "name": "Torpezil",
+    "logo": ""
+  },
+  {
+    "id": 1121,
+    "name": "Torsenone",
+    "logo": ""
+  },
+  {
+    "id": 1122,
+    "name": "Trace Minerals",
+    "logo": ""
+  },
+  {
+    "id": 1123,
+    "name": "Tramacet",
+    "logo": ""
+  },
+  {
+    "id": 1124,
+    "name": "Tramacetal",
+    "logo": ""
+  },
+  {
+    "id": 1125,
+    "name": "Travatan",
+    "logo": ""
+  },
+  {
+    "id": 1126,
+    "name": "Trenaxa",
+    "logo": ""
+  },
+  {
+    "id": 1528,
+    "name": "Tres Orix Forte",
+    "logo": ""
+  },
+  {
+    "id": 1127,
+    "name": "Trevia",
+    "logo": ""
+  },
+  {
+    "id": 1128,
+    "name": "Treviamet",
+    "logo": ""
+  },
+  {
+    "id": 1129,
+    "name": "Tribees Forte",
+    "logo": ""
+  },
+  {
+    "id": 1529,
+    "name": "Tricohist",
+    "logo": ""
+  },
+  {
+    "id": 1530,
+    "name": "Trident",
+    "logo": ""
+  },
+  {
+    "id": 1130,
+    "name": "Trileptal",
+    "logo": ""
+  },
+  {
+    "id": 1131,
+    "name": "Trimetabol",
+    "logo": ""
+  },
+  {
+    "id": 1531,
+    "name": "Trimex",
+    "logo": ""
+  },
+  {
+    "id": 1132,
+    "name": "Trimex Adult",
+    "logo": ""
+  },
+  {
+    "id": 1133,
+    "name": "Trimex Mucolytic",
+    "logo": ""
+  },
+  {
+    "id": 1134,
+    "name": "Trimex Paediatric",
+    "logo": ""
+  },
+  {
+    "id": 1532,
+    "name": "Trinerve",
+    "logo": ""
+  },
+  {
+    "id": 1135,
+    "name": "Triokit",
+    "logo": ""
+  },
+  {
+    "id": 1136,
+    "name": "Triplixam",
+    "logo": ""
+  },
+  {
+    "id": 1137,
+    "name": "Trofentyl",
+    "logo": ""
+  },
+  {
+    "id": 1533,
+    "name": "Trubliss",
+    "logo": ""
+  },
+  {
+    "id": 1138,
+    "name": "Tumivono",
+    "logo": ""
+  },
+  {
+    "id": 1139,
+    "name": "Turbovas",
+    "logo": ""
+  },
+  {
+    "id": 1534,
+    "name": "Tuspel",
+    "logo": ""
+  },
+  {
+    "id": 1140,
+    "name": "Tuspress Cough Suppressant",
+    "logo": ""
+  },
+  {
+    "id": 1141,
+    "name": "Twistshake",
+    "logo": "brands/researched-1141-365d668225ba.png"
+  },
+  {
+    "id": 1142,
+    "name": "Twynsta",
+    "logo": ""
+  },
+  {
+    "id": 110,
+    "name": "Tylenol",
+    "logo": "brands/tylenol.png"
+  },
+  {
+    "id": 109,
+    "name": "Tynor",
+    "logo": "brands/generated/tynor.png"
+  },
+  {
+    "id": 107,
+    "name": "USN",
+    "logo": "brands/generated/usn.png"
+  },
+  {
+    "id": 1143,
+    "name": "Udihep",
+    "logo": ""
+  },
+  {
+    "id": 1144,
+    "name": "Ulgicid",
+    "logo": ""
+  },
+  {
+    "id": 1145,
+    "name": "Uncover",
+    "logo": ""
+  },
+  {
+    "id": 1146,
+    "name": "Unibrol",
+    "logo": ""
+  },
+  {
+    "id": 1147,
+    "name": "Unibrom",
+    "logo": ""
+  },
+  {
+    "id": 1148,
+    "name": "Unicontin",
+    "logo": ""
+  },
+  {
+    "id": 1149,
+    "name": "Univir",
+    "logo": ""
+  },
+  {
+    "id": 1150,
+    "name": "Unizar Forte",
+    "logo": ""
+  },
+  {
+    "id": 1535,
+    "name": "Urgo",
+    "logo": ""
+  },
+  {
+    "id": 108,
+    "name": "Uriage",
+    "logo": "brands/generated/uriage.png"
+  },
+  {
+    "id": 1536,
+    "name": "Urofit",
+    "logo": ""
+  },
+  {
+    "id": 1151,
+    "name": "Vagid",
+    "logo": ""
+  },
+  {
+    "id": 106,
+    "name": "Vagisil",
+    "logo": "brands/generated/vagisil.png"
+  },
+  {
+    "id": 1152,
+    "name": "Valabin",
+    "logo": ""
+  },
+  {
+    "id": 1153,
+    "name": "Valium",
+    "logo": ""
+  },
+  {
+    "id": 1154,
+    "name": "Valtas Od",
+    "logo": ""
+  },
+  {
+    "id": 105,
+    "name": "Valupak",
+    "logo": "brands/generated/valupak.png"
+  },
+  {
+    "id": 1155,
+    "name": "Valvas",
+    "logo": ""
+  },
+  {
+    "id": 1156,
+    "name": "Varinil",
+    "logo": ""
+  },
+  {
+    "id": 1157,
+    "name": "Varoxa",
+    "logo": ""
+  },
+  {
+    "id": 104,
+    "name": "Vaseline",
+    "logo": "brands/generated/vaseline.png"
+  },
+  {
+    "id": 1158,
+    "name": "Vasocare",
+    "logo": ""
+  },
+  {
+    "id": 1537,
+    "name": "Vastamin",
+    "logo": ""
+  },
+  {
+    "id": 1159,
+    "name": "Vastarel Mr",
+    "logo": ""
+  },
+  {
+    "id": 1160,
+    "name": "Vdm Kit",
+    "logo": ""
+  },
+  {
+    "id": 1161,
+    "name": "Vedrox",
+    "logo": ""
+  },
+  {
+    "id": 103,
+    "name": "Veet",
+    "logo": "brands/veet.png"
+  },
+  {
+    "id": 1538,
+    "name": "Velvex",
+    "logo": ""
+  },
+  {
+    "id": 1162,
+    "name": "Venofer",
+    "logo": ""
+  },
+  {
+    "id": 1163,
+    "name": "Ventab Xl",
+    "logo": ""
+  },
+  {
+    "id": 1164,
+    "name": "Ventolin",
+    "logo": ""
+  },
+  {
+    "id": 1165,
+    "name": "Veralpam",
+    "logo": ""
+  },
+  {
+    "id": 1166,
+    "name": "Verket",
+    "logo": ""
+  },
+  {
+    "id": 1167,
+    "name": "Vermor",
+    "logo": ""
+  },
+  {
+    "id": 1168,
+    "name": "Vermox",
+    "logo": ""
+  },
+  {
+    "id": 1169,
+    "name": "Verzepam Diazepam",
+    "logo": ""
+  },
+  {
+    "id": 1170,
+    "name": "Vfend",
+    "logo": ""
+  },
+  {
+    "id": 1171,
+    "name": "Viagra",
+    "logo": ""
+  },
+  {
+    "id": 102,
+    "name": "Vichy",
+    "logo": "brands/imported/vichy.png"
+  },
+  {
+    "id": 101,
+    "name": "Vicks",
+    "logo": "brands/vicks.png"
+  },
+  {
+    "id": 100,
+    "name": "Victoria's Secret",
+    "logo": "brands/generated/victorias-secret.png"
+  },
+  {
+    "id": 1172,
+    "name": "Victoza",
+    "logo": ""
+  },
+  {
+    "id": 1173,
+    "name": "Vidol",
+    "logo": ""
+  },
+  {
+    "id": 1174,
+    "name": "Vigamox",
+    "logo": ""
+  },
+  {
+    "id": 1539,
+    "name": "Vigomax",
+    "logo": ""
+  },
+  {
+    "id": 1175,
+    "name": "Vildaril",
+    "logo": ""
+  },
+  {
+    "id": 99,
+    "name": "Viridian",
+    "logo": "brands/generated/viridian.png"
+  },
+  {
+    "id": 1176,
+    "name": "Visanne",
+    "logo": ""
+  },
+  {
+    "id": 98,
+    "name": "Visine",
+    "logo": "brands/generated/visine.png"
+  },
+  {
+    "id": 1540,
+    "name": "Vita-lift",
+    "logo": ""
+  },
+  {
+    "id": 97,
+    "name": "Vitabiotics",
+    "logo": "brands/vitabiotics.png"
+  },
+  {
+    "id": 1541,
+    "name": "Vitacap",
+    "logo": ""
+  },
+  {
+    "id": 1542,
+    "name": "Vitahealth",
+    "logo": ""
+  },
+  {
+    "id": 1177,
+    "name": "Vitamadol",
+    "logo": ""
+  },
+  {
+    "id": 1178,
+    "name": "Volini",
+    "logo": ""
+  },
+  {
+    "id": 1179,
+    "name": "Voltaren",
+    "logo": ""
+  },
+  {
+    "id": 1180,
+    "name": "Voltfast",
+    "logo": ""
+  },
+  {
+    "id": 1181,
+    "name": "Vonapro",
+    "logo": ""
+  },
+  {
+    "id": 1182,
+    "name": "Vono Q",
+    "logo": ""
+  },
+  {
+    "id": 1183,
+    "name": "Vorzole",
+    "logo": ""
+  },
+  {
+    "id": 1543,
+    "name": "Wahl",
+    "logo": ""
+  },
+  {
+    "id": 96,
+    "name": "Waterpik",
+    "logo": "brands/generated/waterpik.png"
+  },
+  {
+    "id": 95,
+    "name": "Webber Naturals",
+    "logo": "brands/generated/webber-naturals.png"
+  },
+  {
+    "id": 1184,
+    "name": "Wegovy",
+    "logo": ""
+  },
+  {
+    "id": 1544,
+    "name": "WellBaby",
+    "logo": ""
+  },
+  {
+    "id": 1545,
+    "name": "WellKid",
+    "logo": ""
+  },
+  {
+    "id": 1546,
+    "name": "WellMan",
+    "logo": ""
+  },
+  {
+    "id": 1548,
+    "name": "WellWoman",
+    "logo": ""
+  },
+  {
+    "id": 94,
+    "name": "Wella",
+    "logo": "brands/wella.png"
+  },
+  {
+    "id": 1547,
+    "name": "Wellteen",
+    "logo": ""
+  },
+  {
+    "id": 1549,
+    "name": "Weltek",
+    "logo": ""
+  },
+  {
+    "id": 93,
+    "name": "Wet Brush",
+    "logo": "brands/generated/wet-brush.png"
+  },
+  {
+    "id": 1550,
+    "name": "Wipe N Clear",
+    "logo": ""
+  },
+  {
+    "id": 92,
+    "name": "Wisdom",
+    "logo": "brands/generated/wisdom.png"
+  },
+  {
+    "id": 1551,
+    "name": "Woodwards",
+    "logo": ""
+  },
+  {
+    "id": 1552,
+    "name": "Wrigley'S",
+    "logo": ""
+  },
+  {
+    "id": 1185,
+    "name": "Xalatan",
+    "logo": ""
+  },
+  {
+    "id": 1186,
+    "name": "Xanax",
+    "logo": ""
+  },
+  {
+    "id": 1187,
+    "name": "Xarelto",
+    "logo": ""
+  },
+  {
+    "id": 1188,
+    "name": "Xatral",
+    "logo": ""
+  },
+  {
+    "id": 1189,
+    "name": "Xeloda",
+    "logo": ""
+  },
+  {
+    "id": 1190,
+    "name": "Xeltin",
+    "logo": ""
+  },
+  {
+    "id": 1191,
+    "name": "Xempa",
+    "logo": ""
+  },
+  {
+    "id": 1192,
+    "name": "Xenglu Met",
+    "logo": ""
+  },
+  {
+    "id": 1193,
+    "name": "Xifaxan",
+    "logo": ""
+  },
+  {
+    "id": 1194,
+    "name": "Xime",
+    "logo": ""
+  },
+  {
+    "id": 1195,
+    "name": "Xola",
+    "logo": ""
+  },
+  {
+    "id": 1196,
+    "name": "Xolamol Opthalmic",
+    "logo": ""
+  },
+  {
+    "id": 1197,
+    "name": "Xtraderm",
+    "logo": ""
+  },
+  {
+    "id": 1553,
+    "name": "Xykaa",
+    "logo": ""
+  },
+  {
+    "id": 1554,
+    "name": "Xylo",
+    "logo": ""
+  },
+  {
+    "id": 1555,
+    "name": "Xylolin",
+    "logo": ""
+  },
+  {
+    "id": 1198,
+    "name": "Xylolin Adult",
+    "logo": ""
+  },
+  {
+    "id": 1199,
+    "name": "Xyzal",
+    "logo": ""
+  },
+  {
+    "id": 1200,
+    "name": "Yasmin",
+    "logo": ""
+  },
+  {
+    "id": 1201,
+    "name": "Yescort",
+    "logo": ""
+  },
+  {
+    "id": 1202,
+    "name": "Ythera",
+    "logo": "brands/researched-1202-b673ab8d92ae.png"
+  },
+  {
+    "id": 1203,
+    "name": "Zaroza",
+    "logo": "brands/researched-1203-547636509176.png"
+  },
+  {
+    "id": 1556,
+    "name": "Zecuf",
+    "logo": ""
+  },
+  {
+    "id": 1204,
+    "name": "Zecuf Herbal Cough Remedy",
+    "logo": ""
+  },
+  {
+    "id": 1205,
+    "name": "Zedcal",
+    "logo": ""
+  },
+  {
+    "id": 1557,
+    "name": "Zedex",
+    "logo": ""
+  },
+  {
+    "id": 1206,
+    "name": "Zeebact",
+    "logo": ""
+  },
+  {
+    "id": 1558,
+    "name": "Zefcolin",
+    "logo": ""
+  },
+  {
+    "id": 1559,
+    "name": "Zelaton",
+    "logo": ""
+  },
+  {
+    "id": 1560,
+    "name": "Zeman",
+    "logo": ""
+  },
+  {
+    "id": 1207,
+    "name": "Zentel",
+    "logo": ""
+  },
+  {
+    "id": 1561,
+    "name": "Zeroderm",
+    "logo": ""
+  },
+  {
+    "id": 1208,
+    "name": "Zerodol",
+    "logo": ""
+  },
+  {
+    "id": 1209,
+    "name": "Zestoretic",
+    "logo": ""
+  },
+  {
+    "id": 1210,
+    "name": "Zestril",
+    "logo": ""
+  },
+  {
+    "id": 1562,
+    "name": "Zevac",
+    "logo": ""
+  },
+  {
+    "id": 1211,
+    "name": "Ziak",
+    "logo": ""
+  },
+  {
+    "id": 1212,
+    "name": "Zinnat",
+    "logo": ""
+  },
+  {
+    "id": 1213,
+    "name": "Ziten",
+    "logo": ""
+  },
+  {
+    "id": 1214,
+    "name": "Zithromax",
+    "logo": ""
+  },
+  {
+    "id": 1563,
+    "name": "Ziva",
+    "logo": ""
+  },
+  {
+    "id": 1215,
+    "name": "Zocef",
+    "logo": ""
+  },
+  {
+    "id": 1216,
+    "name": "Zoladex",
+    "logo": ""
+  },
+  {
+    "id": 1217,
+    "name": "Zolocan",
+    "logo": ""
+  },
+  {
+    "id": 1218,
+    "name": "Zoloft",
+    "logo": ""
+  },
+  {
+    "id": 1219,
+    "name": "Zolpirex",
+    "logo": ""
+  },
+  {
+    "id": 1220,
+    "name": "Zomep Es",
+    "logo": ""
+  },
+  {
+    "id": 1221,
+    "name": "Zosert",
+    "logo": ""
+  },
+  {
+    "id": 1222,
+    "name": "Zovirax",
+    "logo": ""
+  },
+  {
+    "id": 1223,
+    "name": "Zubinal",
+    "logo": ""
+  },
+  {
+    "id": 1224,
+    "name": "Zulu",
+    "logo": ""
+  },
+  {
+    "id": 1225,
+    "name": "Zupricin",
+    "logo": ""
+  },
+  {
+    "id": 1226,
+    "name": "Zyloric",
+    "logo": ""
+  },
+  {
+    "id": 1227,
+    "name": "Zyncet",
+    "logo": ""
+  },
+  {
+    "id": 1228,
+    "name": "Zyrtal",
+    "logo": ""
+  },
+  {
+    "id": 1229,
+    "name": "Zyrtec",
+    "logo": "brands/researched-1229-3d267ec4ac36.png"
+  },
+  {
+    "id": 1230,
+    "name": "ZzzQuil",
+    "logo": ""
+  },
+  {
+    "id": 1374,
+    "name": "freeflex Forte",
+    "logo": ""
+  },
+  {
+    "id": 1473,
+    "name": "pediasure",
+    "logo": ""
+  },
+  {
+    "id": 1484,
+    "name": "pregnacare",
+    "logo": ""
+  }
+]

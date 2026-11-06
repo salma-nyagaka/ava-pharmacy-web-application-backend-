@@ -5,6 +5,8 @@
 {% block intro %}Hi {{ first_name }}, your {{ account_role_lower|default:"professional" }} account has been created by {{ invited_by }}.{% endblock %}
 
 {% block content %}
+{% if consultation_fee %}<p>Your application has been approved. The standard consultation fee is <strong>KSh {{ consultation_fee }}</strong>. AVA Pharmacy receives KSh {{ platform_fee }}; your payout per paid consultation is <strong>KSh {{ clinician_payout }}</strong>.</p>{% endif %}
+
   <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#4a5568;">
     Activate your account by setting a password using the button below. This activation link expires in <strong>{{ expires_hours }} hours</strong>.
   </p>

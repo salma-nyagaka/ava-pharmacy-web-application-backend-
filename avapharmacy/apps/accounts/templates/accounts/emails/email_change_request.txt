@@ -1,0 +1,8 @@
+Hello {{ first_name }},
+
+A change of your AVA Pharmacy login email to {{ new_email }} was requested.
+Approve the change using this link within 30 minutes:
+{{ confirmation_url }}
+
+Approve using the link sent to your current email address to complete the change.
+If you did not request this, do not approve it. Change your password and contact support.

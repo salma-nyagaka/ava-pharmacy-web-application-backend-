@@ -371,12 +371,14 @@ class AdminDoctorUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = ('status', 'status_note', 'rejection_note', 'commission', 'consult_fee', 'verified_at')
+        read_only_fields = ('commission', 'consult_fee')
 
 
 class AdminPediatricianUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = ('status', 'status_note', 'rejection_note', 'commission', 'consult_fee', 'verified_at')
+        read_only_fields = ('commission', 'consult_fee')
 
 
 class ConsultationMessageSerializer(serializers.ModelSerializer):
@@ -592,6 +594,8 @@ class ConsultationCreateSerializer(serializers.ModelSerializer):
             attrs['_open_doctor_queue'] = True
         if clinician is None:
             raise serializers.ValidationError('A doctor or pediatrician is required.')
+        if not clinician.eligible_to_practice:
+            raise serializers.ValidationError('A currently verified Kenyan clinician with an unexpired licence is required.')
         if clinician.status != ClinicianProfile.STATUS_ACTIVE:
             field = 'pediatrician' if clinician.provider_type == ClinicianProfile.TYPE_PEDIATRICIAN else 'doctor'
             raise serializers.ValidationError({field: 'Selected clinician is not active.'})
@@ -856,6 +860,7 @@ class DoctorOnboardingAvailabilityStepSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicianProfile
         fields = ('consult_fee', 'currency', 'availability_schedule')
+        read_only_fields = ('consult_fee', 'currency')
 
     def validate_availability_schedule(self, value):
         if not isinstance(value, list):

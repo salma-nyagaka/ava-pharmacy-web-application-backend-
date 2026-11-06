@@ -1,0 +1,3943 @@
+[
+  {
+    "path": "/api/schema/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "drf_spectacular.views.SpectacularAPIView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/venv/lib/python3.11/site-packages/drf_spectacular/views.py:44"
+  },
+  {
+    "path": "/api/docs/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "drf_spectacular.views.SpectacularSwaggerView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/venv/lib/python3.11/site-packages/drf_spectacular/views.py:122"
+  },
+  {
+    "path": "/api/redoc/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "drf_spectacular.views.SpectacularRedocView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/venv/lib/python3.11/site-packages/drf_spectacular/views.py:234"
+  },
+  {
+    "path": "/api/auth/register/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.RegisterView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:93"
+  },
+  {
+    "path": "/api/auth/login/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.LoginView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:200"
+  },
+  {
+    "path": "/api/auth/logout/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.LogoutView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:279"
+  },
+  {
+    "path": "/api/auth/verify-email/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.VerifyEmailView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:888"
+  },
+  {
+    "path": "/api/auth/resend-verification/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ResendVerificationView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:911"
+  },
+  {
+    "path": "/api/auth/forgot-password/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ForgotPasswordView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:810"
+  },
+  {
+    "path": "/api/auth/reset-password/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ResetPasswordView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:846"
+  },
+  {
+    "path": "/api/auth/pharmacist/activate/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.PharmacistActivationSetPasswordView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:334"
+  },
+  {
+    "path": "/api/auth/pharmacist/activate/<str:token>/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.PharmacistActivationPageView",
+    "is_rest": false,
+    "permissions": [],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:363"
+  },
+  {
+    "path": "/api/auth/professional/activate/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ProfessionalActivationSetPasswordView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:413"
+  },
+  {
+    "path": "/api/auth/professional/activate/<str:token>/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ProfessionalActivationPageView",
+    "is_rest": false,
+    "permissions": [],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:417"
+  },
+  {
+    "path": "/api/auth/token/refresh/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ActiveUserTokenRefreshView",
+    "is_rest": true,
+    "permissions": [],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:89"
+  },
+  {
+    "path": "/api/auth/refresh/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ActiveUserTokenRefreshView",
+    "is_rest": true,
+    "permissions": [],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:89"
+  },
+  {
+    "path": "/api/auth/me/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.accounts.views.MeView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:293"
+  },
+  {
+    "path": "/api/auth/me/password/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.PasswordChangeView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:316"
+  },
+  {
+    "path": "/api/auth/me/addresses/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AddressListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:694"
+  },
+  {
+    "path": "/api/auth/me/addresses/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.accounts.views.AddressDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:712"
+  },
+  {
+    "path": "/api/auth/me/payment-methods/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.PaymentMethodListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:739"
+  },
+  {
+    "path": "/api/auth/me/payment-methods/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.accounts.views.PaymentMethodDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:758"
+  },
+  {
+    "path": "/api/professionals/register/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.ProfessionalRegistrationView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:134"
+  },
+  {
+    "path": "/api/professionals/lab-partners/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.accounts.views.PublicLabPartnerListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:188"
+  },
+  {
+    "path": "/api/account/profile/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.accounts.views.AccountProfileView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:930"
+  },
+  {
+    "path": "/api/account/change-password/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.PasswordChangeView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:316"
+  },
+  {
+    "path": "/api/account/",
+    "methods": [
+      "DELETE"
+    ],
+    "handler": "apps.accounts.views.AccountDeleteView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:934"
+  },
+  {
+    "path": "/api/admin/users/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AdminUserListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:421"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.accounts.views.AdminUserDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:486"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/suspend/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AdminUserSuspendView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:585"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/activate/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AdminUserActivateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:610"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/resend-activation/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AdminPharmacistActivationResendView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:652"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/notes/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.UserNoteListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:783"
+  },
+  {
+    "path": "/api/admin/customers/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AdminCustomerListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:467"
+  },
+  {
+    "path": "/api/admin/customers/stats/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.accounts.views.AdminCustomerStatsView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:547"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.accounts.views.AdminCustomerDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:531"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/suspend/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AdminCustomerSuspendView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:634"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/activate/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.accounts.views.AdminCustomerActivateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:643"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/notes/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.accounts.views.UserNoteListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:783"
+  },
+  {
+    "path": "/api/admin/audit-logs/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.accounts.views.AdminAuditLogListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/accounts/views.py:798"
+  },
+  {
+    "path": "/api/catalog/summary/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.CatalogSummaryView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1315"
+  },
+  {
+    "path": "/api/categories/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.CategoryListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:225"
+  },
+  {
+    "path": "/api/product-categories/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.CategoryListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:225"
+  },
+  {
+    "path": "/api/products/categories/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.CategoryListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:225"
+  },
+  {
+    "path": "/api/brands/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.BrandListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:263"
+  },
+  {
+    "path": "/api/stores/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.StoreListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:269"
+  },
+  {
+    "path": "/api/health-concerns/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.HealthConcernListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:275"
+  },
+  {
+    "path": "/api/catalog-categories/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.CatalogCategoryListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:281"
+  },
+  {
+    "path": "/api/products/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:292"
+  },
+  {
+    "path": "/api/inventory-items/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.InventoryItemListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:317"
+  },
+  {
+    "path": "/api/products/featured/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.FeaturedProductListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:395"
+  },
+  {
+    "path": "/api/products/search/suggestions/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductSuggestionsView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1465"
+  },
+  {
+    "path": "/api/products/search/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductSearchView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1385"
+  },
+  {
+    "path": "/api/products/availability/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductAvailabilityView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1499"
+  },
+  {
+    "path": "/api/products/<int:pk>/availability/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductAvailabilityDetailView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1536"
+  },
+  {
+    "path": "/api/products/id/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductDetailByIdView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1348"
+  },
+  {
+    "path": "/api/products/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductDetailByIdView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1348"
+  },
+  {
+    "path": "/api/products/slug/<slug:slug>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductDetailView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:431"
+  },
+  {
+    "path": "/api/products/<slug:slug>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.ProductDetailView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:431"
+  },
+  {
+    "path": "/api/products/<int:pk>/reviews/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.ProductReviewListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:703"
+  },
+  {
+    "path": "/api/variants/<int:variant_pk>/reviews/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.ProductReviewListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:703"
+  },
+  {
+    "path": "/api/wishlist/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.WishlistView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:764"
+  },
+  {
+    "path": "/api/wishlist/<int:pk>/",
+    "methods": [
+      "DELETE"
+    ],
+    "handler": "apps.products.views.WishlistItemDeleteView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:811"
+  },
+  {
+    "path": "/api/wishlist/<int:pk>/move-to-cart/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.WishlistItemMoveToCartView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:818"
+  },
+  {
+    "path": "/api/cart/items/<int:pk>/move-to-wishlist/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.CartItemMoveToWishlistView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:865"
+  },
+  {
+    "path": "/api/banners/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.BannerListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:886"
+  },
+  {
+    "path": "/api/cms/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.CMSBlockListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:899"
+  },
+  {
+    "path": "/api/faqs/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.FAQListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:912"
+  },
+  {
+    "path": "/api/promotions/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.PromotionListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:957"
+  },
+  {
+    "path": "/api/webhooks/inventory/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.InventoryWebhookView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1585"
+  },
+  {
+    "path": "/api/admin/categories/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminCategoryListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:450"
+  },
+  {
+    "path": "/api/admin/categories/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminCategoryDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:471"
+  },
+  {
+    "path": "/api/admin/sub-categories/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminSubCategoryListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:489"
+  },
+  {
+    "path": "/api/admin/sub-categories/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminSubCategoryDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:503"
+  },
+  {
+    "path": "/api/admin/brands/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminBrandListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:513"
+  },
+  {
+    "path": "/api/admin/brands/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminBrandDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:531"
+  },
+  {
+    "path": "/api/admin/stores/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminStoreListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:547"
+  },
+  {
+    "path": "/api/admin/stores/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminStoreDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:555"
+  },
+  {
+    "path": "/api/admin/store-listings/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminStoreVariantListingListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:561"
+  },
+  {
+    "path": "/api/admin/store-listings/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminStoreVariantListingDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:577"
+  },
+  {
+    "path": "/api/admin/products/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminProductListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:585"
+  },
+  {
+    "path": "/api/admin/products/meta/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.AdminProductFormMetaView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:618"
+  },
+  {
+    "path": "/api/admin/products/pos-options/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.AdminPosProductOptionListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:632"
+  },
+  {
+    "path": "/api/admin/products/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminProductDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:672"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/images/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminProductImageListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1027"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/images/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminProductImageDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1046"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/variants/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminProductVariantListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1054"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/variants/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminProductVariantDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1079"
+  },
+  {
+    "path": "/api/admin/inventory/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.AdminInventoryListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1167"
+  },
+  {
+    "path": "/api/admin/inventory/variant-pos-refresh/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminInventoryVariantPosRefreshView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1250"
+  },
+  {
+    "path": "/api/admin/inventory/pos-sync/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminInventoryPosSyncView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1665"
+  },
+  {
+    "path": "/api/admin/inventory/pos-refresh/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminInventoryPosRefreshView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1199"
+  },
+  {
+    "path": "/api/admin/inventory/bulk-update/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminInventoryBulkUpdateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1598"
+  },
+  {
+    "path": "/api/admin/inventory/reserve/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminInventoryReserveView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1781"
+  },
+  {
+    "path": "/api/admin/inventory/release/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminInventoryReleaseView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1812"
+  },
+  {
+    "path": "/api/admin/inventory/deduct/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminInventoryDeductView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1834"
+  },
+  {
+    "path": "/api/admin/inventory/<int:pk>/movements/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.products.views.AdminInventoryMovementsView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1765"
+  },
+  {
+    "path": "/api/admin/inventory/<int:pk>/",
+    "methods": [
+      "PATCH"
+    ],
+    "handler": "apps.products.views.AdminInventoryAdjustView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1298"
+  },
+  {
+    "path": "/api/admin/banners/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminBannerListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:925"
+  },
+  {
+    "path": "/api/admin/banners/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminBannerDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:941"
+  },
+  {
+    "path": "/api/admin/cms/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminCMSBlockListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1087"
+  },
+  {
+    "path": "/api/admin/cms/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminCMSBlockDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1105"
+  },
+  {
+    "path": "/api/admin/faqs/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminFAQListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1121"
+  },
+  {
+    "path": "/api/admin/faqs/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminFAQDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1140"
+  },
+  {
+    "path": "/api/admin/promotions/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminPromotionListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:974"
+  },
+  {
+    "path": "/api/admin/promotions/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminPromotionDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:991"
+  },
+  {
+    "path": "/api/admin/health-concerns/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.products.views.AdminHealthConcernListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1007"
+  },
+  {
+    "path": "/api/admin/health-concerns/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.products.views.AdminHealthConcernDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/products/views.py:1018"
+  },
+  {
+    "path": "/api/shipping-methods/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.ShippingMethodListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2651"
+  },
+  {
+    "path": "/api/checkout/delivery-options/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.ShippingMethodListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2651"
+  },
+  {
+    "path": "/api/cart/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.CartView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1185"
+  },
+  {
+    "path": "/api/cart/items/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.CartItemCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1193"
+  },
+  {
+    "path": "/api/cart/items/<int:pk>/",
+    "methods": [
+      "PATCH"
+    ],
+    "handler": "apps.orders.views.CartItemUpdateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1332"
+  },
+  {
+    "path": "/api/cart/items/<int:pk>/delete/",
+    "methods": [
+      "DELETE"
+    ],
+    "handler": "apps.orders.views.CartItemDeleteView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1380"
+  },
+  {
+    "path": "/api/cart/clear/",
+    "methods": [
+      "DELETE"
+    ],
+    "handler": "apps.orders.views.CartClearView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1393"
+  },
+  {
+    "path": "/api/cart/merge/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.CartMergeView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3460"
+  },
+  {
+    "path": "/api/cart/coupon/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.CartApplyCouponView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1404"
+  },
+  {
+    "path": "/api/cart/coupon/remove/",
+    "methods": [
+      "DELETE"
+    ],
+    "handler": "apps.orders.views.CartRemoveCouponView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1427"
+  },
+  {
+    "path": "/api/cart/promo/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.CartApplyCouponView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1404"
+  },
+  {
+    "path": "/api/cart/promo/remove/",
+    "methods": [
+      "DELETE"
+    ],
+    "handler": "apps.orders.views.CartRemoveCouponView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1427"
+  },
+  {
+    "path": "/api/checkout/draft/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.CheckoutDraftView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1437"
+  },
+  {
+    "path": "/api/checkout/<int:pk>/finalize/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.CheckoutFinalizeView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2493"
+  },
+  {
+    "path": "/api/payments/intents/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.PaymentIntentCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1523"
+  },
+  {
+    "path": "/api/payments/intents/<int:pk>/sync/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.PaymentIntentStatusSyncView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1946"
+  },
+  {
+    "path": "/api/payments/intents/<int:pk>/cancel/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.PaymentIntentCancelView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2073"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/initiate/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.FlutterwaveInitiateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1739"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/callback/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.FlutterwaveCallbackView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1863"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/redirect/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.FlutterwaveRedirectView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1746"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/status/<str:tx_ref>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.FlutterwaveStatusView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1826"
+  },
+  {
+    "path": "/api/payments/mpesa/initiate/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.MpesaInitiateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3673"
+  },
+  {
+    "path": "/api/payments/mpesa/status/<str:checkout_request_id>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.MpesaStatusView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3759"
+  },
+  {
+    "path": "/api/payments/mpesa/callback/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.MpesaCallbackView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:1906"
+  },
+  {
+    "path": "/api/payments/mpesa/paybill/validation/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.MpesaPaybillValidationView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2117"
+  },
+  {
+    "path": "/api/payments/mpesa/paybill/confirmation/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.MpesaPaybillConfirmationView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2167"
+  },
+  {
+    "path": "/api/payments/mpesa/paybill/webhook/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.PaybillWebhookView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2277"
+  },
+  {
+    "path": "/api/payments/webhook/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.PaymentWebhookView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2207"
+  },
+  {
+    "path": "/api/webhooks/order-status/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.OrderStatusWebhookView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2894"
+  },
+  {
+    "path": "/api/orders/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.OrderListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2571"
+  },
+  {
+    "path": "/api/orders/create/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.OrderCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3515"
+  },
+  {
+    "path": "/api/orders/tracking/lookup/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.PublicOrderTrackingLookupView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3641"
+  },
+  {
+    "path": "/api/orders/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.OrderDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2581"
+  },
+  {
+    "path": "/api/orders/<int:pk>/cancel/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.OrderCancelView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2591"
+  },
+  {
+    "path": "/api/orders/<int:pk>/tracking/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.OrderTrackingView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3623"
+  },
+  {
+    "path": "/api/orders/<int:pk>/return/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.orders.views.ReturnRequestListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2618"
+  },
+  {
+    "path": "/api/returns/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.orders.views.ReturnRequestListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2618"
+  },
+  {
+    "path": "/api/admin/orders/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminOrderListView",
+    "is_rest": true,
+    "permissions": [
+      "IsPharmacistAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2691"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.orders.views.AdminOrderDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsPharmacistAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2705"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/delivery-audits/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminOrderDeliveryAuditListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsPharmacistAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3434"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/status/",
+    "methods": [
+      "PUT"
+    ],
+    "handler": "apps.orders.views.AdminOrderStatusView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3792"
+  },
+  {
+    "path": "/api/admin/order-push/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminOrderPushListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2861"
+  },
+  {
+    "path": "/api/admin/order-push/<int:pk>/retry/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminOrderPushRetryView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2871"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/notes/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminOrderNoteView",
+    "is_rest": true,
+    "permissions": [
+      "IsPharmacistOrAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2775"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/refund/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminOrderRefundView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2795"
+  },
+  {
+    "path": "/api/admin/finance/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminFinanceDashboardView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3277"
+  },
+  {
+    "path": "/api/admin/finance/reports/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminReportsView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2958"
+  },
+  {
+    "path": "/api/admin/finance/reports/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminDownloadReportView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3355"
+  },
+  {
+    "path": "/api/admin/finance/payments/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminPaymentIntentListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2836"
+  },
+  {
+    "path": "/api/admin/finance/payments/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminPaymentIntentDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2853"
+  },
+  {
+    "path": "/api/admin/finance/payments/<int:pk>/reconcile/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminPaybillReconcileView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2392"
+  },
+  {
+    "path": "/api/admin/finance/invoices/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminInvoiceListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3327"
+  },
+  {
+    "path": "/api/admin/finance/invoices/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminInvoiceDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3343"
+  },
+  {
+    "path": "/api/admin/finance/returns/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminReturnRequestListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2921"
+  },
+  {
+    "path": "/api/admin/finance/returns/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.orders.views.AdminReturnRequestDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2931"
+  },
+  {
+    "path": "/api/admin/payments/mpesa/paybill/register-urls/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminMpesaPaybillRegisterUrlsView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2451"
+  },
+  {
+    "path": "/api/admin/payments/intents/<int:pk>/reconcile/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminPaybillReconcileView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2392"
+  },
+  {
+    "path": "/api/admin/shipping-methods/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.orders.views.AdminShippingMethodListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2657"
+  },
+  {
+    "path": "/api/admin/shipping-methods/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.orders.views.AdminShippingMethodDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2675"
+  },
+  {
+    "path": "/api/admin/returns/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminReturnRequestListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2921"
+  },
+  {
+    "path": "/api/admin/returns/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.orders.views.AdminReturnRequestDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2931"
+  },
+  {
+    "path": "/api/admin/reports/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminReportsView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:2958"
+  },
+  {
+    "path": "/api/admin/reports/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminDownloadReportView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3355"
+  },
+  {
+    "path": "/api/admin/activity-feed/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminActivityFeedView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3281"
+  },
+  {
+    "path": "/api/admin/invoices/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminInvoiceListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3327"
+  },
+  {
+    "path": "/api/admin/invoices/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.orders.views.AdminInvoiceDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/orders/views.py:3343"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/files/<int:file_pk>/download/<str:filename>",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionFileDownloadView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:732"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/files/<int:file_pk>/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionFileDownloadView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:732"
+  },
+  {
+    "path": "/api/prescriptions/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:166"
+  },
+  {
+    "path": "/api/prescriptions/upload/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionUploadView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:178"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:266"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/clarification-replies/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionClarificationReplyView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:673"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/update/",
+    "methods": [
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionUpdateView",
+    "is_rest": true,
+    "permissions": [
+      "CanReviewPrescriptionsOrAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:277"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/resubmit/",
+    "methods": [
+      "PATCH"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionResubmitView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:625"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/audit/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionAuditView",
+    "is_rest": true,
+    "permissions": [
+      "CanReviewPrescriptionsOrAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:318"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/items/<int:item_pk>/add-to-cart/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.prescriptions.views.PrescriptionItemAddToCartView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:403"
+  },
+  {
+    "path": "/api/pharmacist/prescriptions/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.prescriptions.views.PharmacistPrescriptionQueueView",
+    "is_rest": true,
+    "permissions": [
+      "IsPrescriptionReviewPharmacist"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:510"
+  },
+  {
+    "path": "/api/pharmacist/catalog/variants/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.prescriptions.views.PharmacistVariantSearchView",
+    "is_rest": true,
+    "permissions": [
+      "IsPharmacistOrAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:356"
+  },
+  {
+    "path": "/api/pharmacist/prescriptions/<int:pk>/assign/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.prescriptions.views.PharmacistPrescriptionAssignView",
+    "is_rest": true,
+    "permissions": [
+      "IsPrescriptionReviewPharmacist"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:524"
+  },
+  {
+    "path": "/api/pharmacist/prescriptions/<int:pk>/review/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.prescriptions.views.PharmacistPrescriptionReviewView",
+    "is_rest": true,
+    "permissions": [
+      "IsPrescriptionReviewPharmacist"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:548"
+  },
+  {
+    "path": "/api/admin/prescriptions/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.prescriptions.views.AdminPrescriptionListView",
+    "is_rest": true,
+    "permissions": [
+      "CanReadPrescriptionRegister"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/prescriptions/views.py:345"
+  },
+  {
+    "path": "/api/doctors/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.DoctorListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:562"
+  },
+  {
+    "path": "/api/doctors/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.DoctorDetailView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:582"
+  },
+  {
+    "path": "/api/doctors/register/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.DoctorOnboardingView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:610"
+  },
+  {
+    "path": "/api/professionals/register/doctor/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.DoctorOnboardingView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:610"
+  },
+  {
+    "path": "/api/professionals/applications/resubmissions/<path:token>/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ProfessionalDocumentResubmissionView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:634"
+  },
+  {
+    "path": "/api/doctor/onboarding/profile/",
+    "methods": [
+      "PATCH"
+    ],
+    "handler": "apps.consultations.views.DoctorOnboardingProfileStepView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:712"
+  },
+  {
+    "path": "/api/doctor/onboarding/documents/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.DoctorOnboardingDocumentsStepView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:726"
+  },
+  {
+    "path": "/api/doctor/onboarding/availability/",
+    "methods": [
+      "PATCH"
+    ],
+    "handler": "apps.consultations.views.DoctorOnboardingAvailabilityStepView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:757"
+  },
+  {
+    "path": "/api/doctor/onboarding/payout/",
+    "methods": [
+      "PATCH"
+    ],
+    "handler": "apps.consultations.views.DoctorOnboardingPayoutStepView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:770"
+  },
+  {
+    "path": "/api/pediatricians/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.PediatricianListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:572"
+  },
+  {
+    "path": "/api/pediatricians/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.PediatricianDetailView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:595"
+  },
+  {
+    "path": "/api/professionals/register/pediatrician/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.PediatricianOnboardingView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:622"
+  },
+  {
+    "path": "/api/consultations/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ConsultationListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1017"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.consultations.views.ConsultationDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1305"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/messages/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ConsultationMessageListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1401"
+  },
+  {
+    "path": "/api/consultations/messages/<int:pk>/attachment/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ConsultationMessageAttachmentView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1904"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/end/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ConsultationEndView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1528"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/consent/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.GuardianConsentView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:876"
+  },
+  {
+    "path": "/api/consultations/payments/intents/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ConsultationPaymentIntentCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1072"
+  },
+  {
+    "path": "/api/consultations/payments/intents/<int:pk>/sync/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ConsultationPaymentIntentStatusView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1179"
+  },
+  {
+    "path": "/api/consultations/payments/finalize/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ConsultationPaymentFinalizeView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1234"
+  },
+  {
+    "path": "/api/consultations/payments/mpesa/callback/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ConsultationMpesaCallbackView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1256"
+  },
+  {
+    "path": "/api/guardian/children/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.consultations.views.GuardianChildPatientListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:894"
+  },
+  {
+    "path": "/api/guardian/children/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.consultations.views.GuardianChildPatientDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:905"
+  },
+  {
+    "path": "/api/doctor/dashboard/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.DoctorDashboardView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:787"
+  },
+  {
+    "path": "/api/doctor/consultations/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.DoctorConsultationListView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1514"
+  },
+  {
+    "path": "/api/doctor/catalog/variants/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ClinicianVariantSearchView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1647"
+  },
+  {
+    "path": "/api/doctor/prescriptions/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ClinicianPrescriptionListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1586"
+  },
+  {
+    "path": "/api/doctor/prescriptions/<int:pk>/send/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ClinicianPrescriptionSendView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1694"
+  },
+  {
+    "path": "/api/doctor/prescriptions/<int:pk>/pdf/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ClinicianPrescriptionPDFView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1833"
+  },
+  {
+    "path": "/api/doctor/earnings/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ClinicianEarningsView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1935"
+  },
+  {
+    "path": "/api/pediatrician/dashboard/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.PediatricianDashboardView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:831"
+  },
+  {
+    "path": "/api/pediatrician/consultations/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.DoctorConsultationListView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1514"
+  },
+  {
+    "path": "/api/pediatrician/catalog/variants/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ClinicianVariantSearchView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1647"
+  },
+  {
+    "path": "/api/pediatrician/patients/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.PediatricianPatientListView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:917"
+  },
+  {
+    "path": "/api/pediatrician/patients/<int:child_id>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.PediatricianPatientDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:956"
+  },
+  {
+    "path": "/api/pediatrician/prescriptions/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ClinicianPrescriptionListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1586"
+  },
+  {
+    "path": "/api/pediatrician/prescriptions/<int:pk>/send/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ClinicianPrescriptionSendView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1694"
+  },
+  {
+    "path": "/api/pediatrician/prescriptions/<int:pk>/pdf/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ClinicianPrescriptionPDFView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1833"
+  },
+  {
+    "path": "/api/pediatrician/earnings/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ClinicianEarningsView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1935"
+  },
+  {
+    "path": "/api/clinician/prescriptions/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.consultations.views.ClinicianPrescriptionListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1586"
+  },
+  {
+    "path": "/api/clinician/earnings/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.ClinicianEarningsView",
+    "is_rest": true,
+    "permissions": [
+      "IsDoctor"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1935"
+  },
+  {
+    "path": "/api/admin/dashboard/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.AdminDashboardView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2309"
+  },
+  {
+    "path": "/api/admin/doctors/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.AdminDoctorListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1952"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.consultations.views.AdminDoctorDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:1961"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/action/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.AdminDoctorActionView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2001"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/verify/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.AdminDoctorVerifyView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2071"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/suspend/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.AdminDoctorSuspendView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2093"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/provision-account/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.AdminDoctorProvisionAccountView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2128"
+  },
+  {
+    "path": "/api/admin/pediatricians/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.consultations.views.AdminPediatricianListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2167"
+  },
+  {
+    "path": "/api/admin/pediatricians/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.consultations.views.AdminPediatricianDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2176"
+  },
+  {
+    "path": "/api/admin/pediatricians/<int:pk>/action/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.AdminPediatricianActionView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2208"
+  },
+  {
+    "path": "/api/admin/pediatricians/<int:pk>/provision-account/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.consultations.views.AdminPediatricianProvisionAccountView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/consultations/views.py:2268"
+  },
+  {
+    "path": "/api/lab/technician-documents/<int:pk>/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabTechDocumentDownloadView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:1267"
+  },
+  {
+    "path": "/api/lab/tests/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabTestListView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:832"
+  },
+  {
+    "path": "/api/lab/requests/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabRequestListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:858"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabRequestDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:886"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/update/",
+    "methods": [
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.lab.views.LabRequestUpdateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:894"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/collection-code/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabCollectionCodeIssueView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:1044"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/verify-collection/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabCollectionCodeVerifyView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabTechOrAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:1086"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/results/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabResultCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabTechOrAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:1152"
+  },
+  {
+    "path": "/api/lab/results/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabResultDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:1235"
+  },
+  {
+    "path": "/api/lab/results/<int:pk>/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabResultDownloadView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:1243"
+  },
+  {
+    "path": "/api/lab/dashboard/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabTechDashboardView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabTechOrAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:774"
+  },
+  {
+    "path": "/api/lab/partner/dashboard/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabPartnerDashboardView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:403"
+  },
+  {
+    "path": "/api/lab/partner/facilities/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabPartnerFacilityListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:444"
+  },
+  {
+    "path": "/api/lab/partner/facilities/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.lab.views.LabPartnerFacilityDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:468"
+  },
+  {
+    "path": "/api/lab/partner/facilities/<int:facility_pk>/documents/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabPartnerFacilityDocumentListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:505"
+  },
+  {
+    "path": "/api/lab/partner-documents/<int:pk>/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LabPartnerDocumentDownloadView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:170"
+  },
+  {
+    "path": "/api/lab/facility-documents/<int:pk>/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.LaboratoryFacilityDocumentDownloadView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:543"
+  },
+  {
+    "path": "/api/lab/partner/technicians/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabPartnerTechnicianListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:659"
+  },
+  {
+    "path": "/api/lab/partner/technicians/<int:pk>/action/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabPartnerTechnicianActionView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:693"
+  },
+  {
+    "path": "/api/lab/partner/technicians/<int:pk>/provision-account/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabPartnerTechnicianProvisionAccountView",
+    "is_rest": true,
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:719"
+  },
+  {
+    "path": "/api/professionals/register/lab-partner/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.LabPartnerRegistrationView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:750"
+  },
+  {
+    "path": "/api/admin/lab/tests/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLabTestListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:844"
+  },
+  {
+    "path": "/api/admin/lab/tests/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.lab.views.AdminLabTestDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:850"
+  },
+  {
+    "path": "/api/admin/lab/approval-queue/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.AdminLabApprovalQueueView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:571"
+  },
+  {
+    "path": "/api/admin/lab/facilities/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.lab.views.AdminLaboratoryFacilityListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:559"
+  },
+  {
+    "path": "/api/admin/lab/facilities/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.lab.views.AdminLaboratoryFacilityDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:593"
+  },
+  {
+    "path": "/api/admin/lab/facilities/<int:pk>/action/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLaboratoryFacilityActionView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:601"
+  },
+  {
+    "path": "/api/admin/lab/partners/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLabPartnerListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:123"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.lab.views.AdminLabPartnerDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:145"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:pk>/action/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLabPartnerActionView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:216"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:pk>/provision-account/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLabPartnerProvisionAccountView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:335"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:partner_pk>/technicians/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLabTechnicianListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:185"
+  },
+  {
+    "path": "/api/admin/lab/technicians/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "handler": "apps.lab.views.AdminLabTechnicianDetailView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:207"
+  },
+  {
+    "path": "/api/admin/lab/technicians/<int:pk>/action/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLabTechnicianActionView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:287"
+  },
+  {
+    "path": "/api/admin/lab/technicians/<int:pk>/provision-account/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.lab.views.AdminLabTechnicianProvisionAccountView",
+    "is_rest": true,
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/lab/views.py:369"
+  },
+  {
+    "path": "/api/compliance/catalogue/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.support.compliance_api.CurationListView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:288"
+  },
+  {
+    "path": "/api/compliance/catalogue/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.compliance_api.CurationDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:297"
+  },
+  {
+    "path": "/api/compliance/assessment-queue/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.support.compliance_api.AssessmentQueueView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:254"
+  },
+  {
+    "path": "/api/compliance/evidence/<int:pk>/verify/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.support.compliance_api.EvidenceVerifyView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:234"
+  },
+  {
+    "path": "/api/compliance/readiness/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.support.compliance_api.ReadinessView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:218"
+  },
+  {
+    "path": "/api/compliance/medicine-assessments/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.support.compliance_api.AssessmentView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:37"
+  },
+  {
+    "path": "/api/compliance/recalls/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.support.compliance_api.RecallListView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:75"
+  },
+  {
+    "path": "/api/compliance/recalls/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.compliance_api.RecallDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:94"
+  },
+  {
+    "path": "/api/compliance/recalls/<int:pk>/affected-orders/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.support.compliance_api.RecallAffectedListView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:119"
+  },
+  {
+    "path": "/api/compliance/recall-orders/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.compliance_api.RecallAffectedDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ReviewerAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:126"
+  },
+  {
+    "path": "/api/privacy/requests/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.support.compliance_api.PrivacyListView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:158"
+  },
+  {
+    "path": "/api/privacy/requests/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.compliance_api.PrivacyDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:168"
+  },
+  {
+    "path": "/api/privacy/requests/<int:pk>/verify/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.support.compliance_api.PrivacyVerifyView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:178"
+  },
+  {
+    "path": "/api/compliance/reviews/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.support.compliance_api.OperationalListView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:206"
+  },
+  {
+    "path": "/api/compliance/reviews/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.compliance_api.OperationalDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/compliance_api.py:212"
+  },
+  {
+    "path": "/api/compliance/evidence/<int:pk>/download/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.support.views.ComplianceEvidenceDownloadView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:242"
+  },
+  {
+    "path": "/api/site-settings/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.views.SiteSettingsView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:42"
+  },
+  {
+    "path": "/api/compliance/evidence/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.support.views.ComplianceEvidenceListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:108"
+  },
+  {
+    "path": "/api/compliance/evidence/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.views.ComplianceEvidenceDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:121"
+  },
+  {
+    "path": "/api/newsletter/subscribe/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.support.views.NewsletterSubscribeView",
+    "is_rest": true,
+    "permissions": [
+      "AllowAny"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:55"
+  },
+  {
+    "path": "/api/support/tickets/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.support.views.SupportTicketListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:130"
+  },
+  {
+    "path": "/api/support/tickets/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.support.views.SupportTicketDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:159"
+  },
+  {
+    "path": "/api/support/tickets/<int:pk>/notes/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.support.views.SupportNoteCreateView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/support/views.py:193"
+  },
+  {
+    "path": "/api/admin/payout-recipients/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.payouts.views.PayoutRecipientListView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:244"
+  },
+  {
+    "path": "/api/payouts/mine/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.payouts.views.MyPayoutListView",
+    "is_rest": true,
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:253"
+  },
+  {
+    "path": "/api/admin/payouts/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.payouts.views.PayoutListCreateView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:34"
+  },
+  {
+    "path": "/api/admin/payouts/<int:pk>/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.payouts.views.PayoutDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:67"
+  },
+  {
+    "path": "/api/admin/payouts/<int:pk>/actions/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.payouts.views.PayoutActionView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:75"
+  },
+  {
+    "path": "/api/admin/payouts-summary/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.payouts.views.PayoutSummaryView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:212"
+  },
+  {
+    "path": "/api/admin/payout-rules/",
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "handler": "apps.payouts.views.PayoutRuleListView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:232"
+  },
+  {
+    "path": "/api/admin/payout-rules/<int:pk>/",
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH"
+    ],
+    "handler": "apps.payouts.views.PayoutRuleDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/payouts/views.py:238"
+  },
+  {
+    "path": "/api/notifications/deliveries/<int:pk>/retry/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.notifications.views.NotificationDeliveryRetryView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:86"
+  },
+  {
+    "path": "/api/notifications/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.notifications.views.NotificationListView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:16"
+  },
+  {
+    "path": "/api/notifications/preferences/",
+    "methods": [
+      "GET",
+      "PATCH"
+    ],
+    "handler": "apps.notifications.views.NotificationPreferenceView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:61"
+  },
+  {
+    "path": "/api/notifications/deliveries/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.notifications.views.NotificationDeliveryListView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:76"
+  },
+  {
+    "path": "/api/notifications/unread/",
+    "methods": [
+      "GET"
+    ],
+    "handler": "apps.notifications.views.NotificationUnreadCountView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:53"
+  },
+  {
+    "path": "/api/notifications/mark-all-read/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.notifications.views.NotificationMarkAllReadView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:45"
+  },
+  {
+    "path": "/api/notifications/<int:pk>/",
+    "methods": [
+      "GET",
+      "DELETE"
+    ],
+    "handler": "apps.notifications.views.NotificationDetailView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:27"
+  },
+  {
+    "path": "/api/notifications/<int:pk>/read/",
+    "methods": [
+      "POST"
+    ],
+    "handler": "apps.notifications.views.NotificationMarkReadView",
+    "is_rest": true,
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "source": "/Users/salmanyagaka/Documents/ava-pharmacy-web-application-backend-/avapharmacy/apps/notifications/views.py:35"
+  }
+]

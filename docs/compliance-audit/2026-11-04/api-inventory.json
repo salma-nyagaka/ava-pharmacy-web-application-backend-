@@ -1,0 +1,5250 @@
+[
+  {
+    "path": "/api/schema/",
+    "name": "schema",
+    "handler": "drf_spectacular.views.SpectacularAPIView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "venv/lib/python3.11/site-packages/drf_spectacular/views.py:44"
+  },
+  {
+    "path": "/api/docs/",
+    "name": "swagger-ui",
+    "handler": "drf_spectacular.views.SpectacularSwaggerView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "venv/lib/python3.11/site-packages/drf_spectacular/views.py:122"
+  },
+  {
+    "path": "/api/redoc/",
+    "name": "redoc",
+    "handler": "drf_spectacular.views.SpectacularRedocView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "venv/lib/python3.11/site-packages/drf_spectacular/views.py:234"
+  },
+  {
+    "path": "/api/auth/register/",
+    "name": "register",
+    "handler": "apps.accounts.views.RegisterView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:93"
+  },
+  {
+    "path": "/api/auth/login/",
+    "name": "login",
+    "handler": "apps.accounts.views.LoginView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:200"
+  },
+  {
+    "path": "/api/auth/logout/",
+    "name": "logout",
+    "handler": "apps.accounts.views.LogoutView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:279"
+  },
+  {
+    "path": "/api/auth/verify-email/",
+    "name": "verify-email",
+    "handler": "apps.accounts.views.VerifyEmailView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:886"
+  },
+  {
+    "path": "/api/auth/resend-verification/",
+    "name": "resend-verification",
+    "handler": "apps.accounts.views.ResendVerificationView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:909"
+  },
+  {
+    "path": "/api/auth/forgot-password/",
+    "name": "forgot-password",
+    "handler": "apps.accounts.views.ForgotPasswordView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:808"
+  },
+  {
+    "path": "/api/auth/reset-password/",
+    "name": "reset-password",
+    "handler": "apps.accounts.views.ResetPasswordView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:844"
+  },
+  {
+    "path": "/api/auth/pharmacist/activate/",
+    "name": "pharmacist-activate",
+    "handler": "apps.accounts.views.PharmacistActivationSetPasswordView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:334"
+  },
+  {
+    "path": "/api/auth/pharmacist/activate/<str:token>/",
+    "name": "pharmacist-activate-page",
+    "handler": "apps.accounts.views.PharmacistActivationPageView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:363"
+  },
+  {
+    "path": "/api/auth/professional/activate/",
+    "name": "professional-activate",
+    "handler": "apps.accounts.views.ProfessionalActivationSetPasswordView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:413"
+  },
+  {
+    "path": "/api/auth/professional/activate/<str:token>/",
+    "name": "professional-activate-page",
+    "handler": "apps.accounts.views.ProfessionalActivationPageView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:417"
+  },
+  {
+    "path": "/api/auth/token/refresh/",
+    "name": "token-refresh",
+    "handler": "apps.accounts.views.ActiveUserTokenRefreshView",
+    "permissions": [],
+    "authentication": [],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:89"
+  },
+  {
+    "path": "/api/auth/refresh/",
+    "name": "token-refresh-alias",
+    "handler": "apps.accounts.views.ActiveUserTokenRefreshView",
+    "permissions": [],
+    "authentication": [],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:89"
+  },
+  {
+    "path": "/api/auth/me/",
+    "name": "me",
+    "handler": "apps.accounts.views.MeView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:293"
+  },
+  {
+    "path": "/api/auth/me/password/",
+    "name": "password-change",
+    "handler": "apps.accounts.views.PasswordChangeView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:316"
+  },
+  {
+    "path": "/api/auth/me/addresses/",
+    "name": "addresses",
+    "handler": "apps.accounts.views.AddressListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:692"
+  },
+  {
+    "path": "/api/auth/me/addresses/<int:pk>/",
+    "name": "address-detail",
+    "handler": "apps.accounts.views.AddressDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:710"
+  },
+  {
+    "path": "/api/auth/me/payment-methods/",
+    "name": "payment-methods",
+    "handler": "apps.accounts.views.PaymentMethodListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:737"
+  },
+  {
+    "path": "/api/auth/me/payment-methods/<int:pk>/",
+    "name": "payment-method-detail",
+    "handler": "apps.accounts.views.PaymentMethodDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:756"
+  },
+  {
+    "path": "/api/professionals/register/",
+    "name": "professional-register",
+    "handler": "apps.accounts.views.ProfessionalRegistrationView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:134"
+  },
+  {
+    "path": "/api/professionals/lab-partners/",
+    "name": "public-lab-partners",
+    "handler": "apps.accounts.views.PublicLabPartnerListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:188"
+  },
+  {
+    "path": "/api/account/profile/",
+    "name": "account-profile",
+    "handler": "apps.accounts.views.AccountProfileView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:928"
+  },
+  {
+    "path": "/api/account/change-password/",
+    "name": "account-change-password",
+    "handler": "apps.accounts.views.PasswordChangeView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:316"
+  },
+  {
+    "path": "/api/account/",
+    "name": "account-delete",
+    "handler": "apps.accounts.views.AccountDeleteView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:932"
+  },
+  {
+    "path": "/api/admin/users/",
+    "name": "admin-users",
+    "handler": "apps.accounts.views.AdminUserListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:421"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/",
+    "name": "admin-user-detail",
+    "handler": "apps.accounts.views.AdminUserDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:486"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/suspend/",
+    "name": "admin-user-suspend",
+    "handler": "apps.accounts.views.AdminUserSuspendView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:583"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/activate/",
+    "name": "admin-user-activate",
+    "handler": "apps.accounts.views.AdminUserActivateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:608"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/resend-activation/",
+    "name": "admin-user-resend-activation",
+    "handler": "apps.accounts.views.AdminPharmacistActivationResendView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:650"
+  },
+  {
+    "path": "/api/admin/users/<int:pk>/notes/",
+    "name": "admin-user-notes",
+    "handler": "apps.accounts.views.UserNoteListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:781"
+  },
+  {
+    "path": "/api/admin/customers/",
+    "name": "admin-customers",
+    "handler": "apps.accounts.views.AdminCustomerListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:467"
+  },
+  {
+    "path": "/api/admin/customers/stats/",
+    "name": "admin-customer-stats",
+    "handler": "apps.accounts.views.AdminCustomerStatsView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:545"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/",
+    "name": "admin-customer-detail",
+    "handler": "apps.accounts.views.AdminCustomerDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:529"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/suspend/",
+    "name": "admin-customer-suspend",
+    "handler": "apps.accounts.views.AdminCustomerSuspendView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:632"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/activate/",
+    "name": "admin-customer-activate",
+    "handler": "apps.accounts.views.AdminCustomerActivateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:641"
+  },
+  {
+    "path": "/api/admin/customers/<int:pk>/notes/",
+    "name": "admin-customer-notes",
+    "handler": "apps.accounts.views.UserNoteListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:781"
+  },
+  {
+    "path": "/api/admin/audit-logs/",
+    "name": "admin-audit-logs",
+    "handler": "apps.accounts.views.AdminAuditLogListView",
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/accounts/views.py:796"
+  },
+  {
+    "path": "/api/catalog/summary/",
+    "name": "catalog-summary",
+    "handler": "apps.products.views.CatalogSummaryView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1304"
+  },
+  {
+    "path": "/api/categories/",
+    "name": "categories",
+    "handler": "apps.products.views.CategoryListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:225"
+  },
+  {
+    "path": "/api/product-categories/",
+    "name": "product-categories",
+    "handler": "apps.products.views.CategoryListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:225"
+  },
+  {
+    "path": "/api/products/categories/",
+    "name": "products-categories",
+    "handler": "apps.products.views.CategoryListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:225"
+  },
+  {
+    "path": "/api/brands/",
+    "name": "brands",
+    "handler": "apps.products.views.BrandListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:263"
+  },
+  {
+    "path": "/api/stores/",
+    "name": "stores",
+    "handler": "apps.products.views.StoreListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:269"
+  },
+  {
+    "path": "/api/health-concerns/",
+    "name": "health-concerns",
+    "handler": "apps.products.views.HealthConcernListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:275"
+  },
+  {
+    "path": "/api/catalog-categories/",
+    "name": "catalog-categories",
+    "handler": "apps.products.views.CatalogCategoryListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:281"
+  },
+  {
+    "path": "/api/products/",
+    "name": "products",
+    "handler": "apps.products.views.ProductListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:292"
+  },
+  {
+    "path": "/api/inventory-items/",
+    "name": "inventory-items",
+    "handler": "apps.products.views.InventoryItemListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:317"
+  },
+  {
+    "path": "/api/products/featured/",
+    "name": "featured-products",
+    "handler": "apps.products.views.FeaturedProductListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:395"
+  },
+  {
+    "path": "/api/products/search/suggestions/",
+    "name": "product-suggestions",
+    "handler": "apps.products.views.ProductSuggestionsView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1454"
+  },
+  {
+    "path": "/api/products/search/",
+    "name": "product-search",
+    "handler": "apps.products.views.ProductSearchView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1374"
+  },
+  {
+    "path": "/api/products/availability/",
+    "name": "product-availability",
+    "handler": "apps.products.views.ProductAvailabilityView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1488"
+  },
+  {
+    "path": "/api/products/<int:pk>/availability/",
+    "name": "product-availability-detail",
+    "handler": "apps.products.views.ProductAvailabilityDetailView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1525"
+  },
+  {
+    "path": "/api/products/id/<int:pk>/",
+    "name": "product-detail-by-id-alias",
+    "handler": "apps.products.views.ProductDetailByIdView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1337"
+  },
+  {
+    "path": "/api/products/<int:pk>/",
+    "name": "product-detail-by-id",
+    "handler": "apps.products.views.ProductDetailByIdView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1337"
+  },
+  {
+    "path": "/api/products/slug/<slug:slug>/",
+    "name": "product-detail-by-slug",
+    "handler": "apps.products.views.ProductDetailView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:431"
+  },
+  {
+    "path": "/api/products/<slug:slug>/",
+    "name": "product-detail",
+    "handler": "apps.products.views.ProductDetailView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:431"
+  },
+  {
+    "path": "/api/products/<int:pk>/reviews/",
+    "name": "product-reviews",
+    "handler": "apps.products.views.ProductReviewListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": true,
+    "source": "avapharmacy/apps/products/views.py:703"
+  },
+  {
+    "path": "/api/variants/<int:variant_pk>/reviews/",
+    "name": "variant-reviews",
+    "handler": "apps.products.views.ProductReviewListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": true,
+    "source": "avapharmacy/apps/products/views.py:703"
+  },
+  {
+    "path": "/api/wishlist/",
+    "name": "wishlist",
+    "handler": "apps.products.views.WishlistView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:764"
+  },
+  {
+    "path": "/api/wishlist/<int:pk>/",
+    "name": "wishlist-item",
+    "handler": "apps.products.views.WishlistItemDeleteView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:811"
+  },
+  {
+    "path": "/api/wishlist/<int:pk>/move-to-cart/",
+    "name": "wishlist-item-move-to-cart",
+    "handler": "apps.products.views.WishlistItemMoveToCartView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:818"
+  },
+  {
+    "path": "/api/cart/items/<int:pk>/move-to-wishlist/",
+    "name": "cart-item-move-to-wishlist",
+    "handler": "apps.products.views.CartItemMoveToWishlistView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:865"
+  },
+  {
+    "path": "/api/banners/",
+    "name": "banners",
+    "handler": "apps.products.views.BannerListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:886"
+  },
+  {
+    "path": "/api/cms/",
+    "name": "cms-blocks",
+    "handler": "apps.products.views.CMSBlockListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:898"
+  },
+  {
+    "path": "/api/faqs/",
+    "name": "faqs",
+    "handler": "apps.products.views.FAQListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:910"
+  },
+  {
+    "path": "/api/promotions/",
+    "name": "promotions",
+    "handler": "apps.products.views.PromotionListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:955"
+  },
+  {
+    "path": "/api/webhooks/inventory/",
+    "name": "inventory-webhook",
+    "handler": "apps.products.views.InventoryWebhookView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1574"
+  },
+  {
+    "path": "/api/admin/categories/",
+    "name": "admin-categories",
+    "handler": "apps.products.views.AdminCategoryListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:450"
+  },
+  {
+    "path": "/api/admin/categories/<int:pk>/",
+    "name": "admin-category-detail",
+    "handler": "apps.products.views.AdminCategoryDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:471"
+  },
+  {
+    "path": "/api/admin/sub-categories/",
+    "name": "admin-sub-categories",
+    "handler": "apps.products.views.AdminSubCategoryListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:489"
+  },
+  {
+    "path": "/api/admin/sub-categories/<int:pk>/",
+    "name": "admin-sub-category-detail",
+    "handler": "apps.products.views.AdminSubCategoryDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:503"
+  },
+  {
+    "path": "/api/admin/brands/",
+    "name": "admin-brands",
+    "handler": "apps.products.views.AdminBrandListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:513"
+  },
+  {
+    "path": "/api/admin/brands/<int:pk>/",
+    "name": "admin-brand-detail",
+    "handler": "apps.products.views.AdminBrandDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:531"
+  },
+  {
+    "path": "/api/admin/stores/",
+    "name": "admin-stores",
+    "handler": "apps.products.views.AdminStoreListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:547"
+  },
+  {
+    "path": "/api/admin/stores/<int:pk>/",
+    "name": "admin-store-detail",
+    "handler": "apps.products.views.AdminStoreDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:555"
+  },
+  {
+    "path": "/api/admin/store-listings/",
+    "name": "admin-store-listings",
+    "handler": "apps.products.views.AdminStoreVariantListingListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:561"
+  },
+  {
+    "path": "/api/admin/store-listings/<int:pk>/",
+    "name": "admin-store-listing-detail",
+    "handler": "apps.products.views.AdminStoreVariantListingDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:577"
+  },
+  {
+    "path": "/api/admin/products/",
+    "name": "admin-products",
+    "handler": "apps.products.views.AdminProductListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:585"
+  },
+  {
+    "path": "/api/admin/products/meta/",
+    "name": "admin-product-form-meta",
+    "handler": "apps.products.views.AdminProductFormMetaView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:618"
+  },
+  {
+    "path": "/api/admin/products/pos-options/",
+    "name": "admin-pos-product-options",
+    "handler": "apps.products.views.AdminPosProductOptionListView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:632"
+  },
+  {
+    "path": "/api/admin/products/<int:pk>/",
+    "name": "admin-product-detail",
+    "handler": "apps.products.views.AdminProductDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:672"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/images/",
+    "name": "admin-product-images",
+    "handler": "apps.products.views.AdminProductImageListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1016"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/images/<int:pk>/",
+    "name": "admin-product-image-detail",
+    "handler": "apps.products.views.AdminProductImageDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1035"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/variants/",
+    "name": "admin-product-variants",
+    "handler": "apps.products.views.AdminProductVariantListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1043"
+  },
+  {
+    "path": "/api/admin/products/<int:product_pk>/variants/<int:pk>/",
+    "name": "admin-product-variant-detail",
+    "handler": "apps.products.views.AdminProductVariantDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1068"
+  },
+  {
+    "path": "/api/admin/inventory/",
+    "name": "admin-inventory",
+    "handler": "apps.products.views.AdminInventoryListView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1156"
+  },
+  {
+    "path": "/api/admin/inventory/variant-pos-refresh/",
+    "name": "admin-inventory-variant-pos-refresh",
+    "handler": "apps.products.views.AdminInventoryVariantPosRefreshView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1239"
+  },
+  {
+    "path": "/api/admin/inventory/pos-sync/",
+    "name": "admin-inventory-pos-sync",
+    "handler": "apps.products.views.AdminInventoryPosSyncView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1654"
+  },
+  {
+    "path": "/api/admin/inventory/pos-refresh/",
+    "name": "admin-inventory-pos-refresh",
+    "handler": "apps.products.views.AdminInventoryPosRefreshView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1188"
+  },
+  {
+    "path": "/api/admin/inventory/bulk-update/",
+    "name": "admin-inventory-bulk-update",
+    "handler": "apps.products.views.AdminInventoryBulkUpdateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1587"
+  },
+  {
+    "path": "/api/admin/inventory/reserve/",
+    "name": "admin-inventory-reserve",
+    "handler": "apps.products.views.AdminInventoryReserveView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1770"
+  },
+  {
+    "path": "/api/admin/inventory/release/",
+    "name": "admin-inventory-release",
+    "handler": "apps.products.views.AdminInventoryReleaseView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1801"
+  },
+  {
+    "path": "/api/admin/inventory/deduct/",
+    "name": "admin-inventory-deduct",
+    "handler": "apps.products.views.AdminInventoryDeductView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1823"
+  },
+  {
+    "path": "/api/admin/inventory/<int:pk>/movements/",
+    "name": "admin-inventory-movements",
+    "handler": "apps.products.views.AdminInventoryMovementsView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1754"
+  },
+  {
+    "path": "/api/admin/inventory/<int:pk>/",
+    "name": "admin-inventory-adjust",
+    "handler": "apps.products.views.AdminInventoryAdjustView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1287"
+  },
+  {
+    "path": "/api/admin/banners/",
+    "name": "admin-banners",
+    "handler": "apps.products.views.AdminBannerListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:923"
+  },
+  {
+    "path": "/api/admin/banners/<int:pk>/",
+    "name": "admin-banner-detail",
+    "handler": "apps.products.views.AdminBannerDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:939"
+  },
+  {
+    "path": "/api/admin/cms/",
+    "name": "admin-cms-blocks",
+    "handler": "apps.products.views.AdminCMSBlockListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1076"
+  },
+  {
+    "path": "/api/admin/cms/<int:pk>/",
+    "name": "admin-cms-block-detail",
+    "handler": "apps.products.views.AdminCMSBlockDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1094"
+  },
+  {
+    "path": "/api/admin/faqs/",
+    "name": "admin-faqs",
+    "handler": "apps.products.views.AdminFAQListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1110"
+  },
+  {
+    "path": "/api/admin/faqs/<int:pk>/",
+    "name": "admin-faq-detail",
+    "handler": "apps.products.views.AdminFAQDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1129"
+  },
+  {
+    "path": "/api/admin/promotions/",
+    "name": "admin-promotions",
+    "handler": "apps.products.views.AdminPromotionListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:963"
+  },
+  {
+    "path": "/api/admin/promotions/<int:pk>/",
+    "name": "admin-promotion-detail",
+    "handler": "apps.products.views.AdminPromotionDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:980"
+  },
+  {
+    "path": "/api/admin/health-concerns/",
+    "name": "admin-health-concerns",
+    "handler": "apps.products.views.AdminHealthConcernListCreateView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:996"
+  },
+  {
+    "path": "/api/admin/health-concerns/<int:pk>/",
+    "name": "admin-health-concern-detail",
+    "handler": "apps.products.views.AdminHealthConcernDetailView",
+    "permissions": [
+      "IsAdminOrInventoryStaff"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/products/views.py:1007"
+  },
+  {
+    "path": "/api/shipping-methods/",
+    "name": "shipping-methods",
+    "handler": "apps.orders.views.ShippingMethodListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2652"
+  },
+  {
+    "path": "/api/checkout/delivery-options/",
+    "name": "delivery-options",
+    "handler": "apps.orders.views.ShippingMethodListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2652"
+  },
+  {
+    "path": "/api/cart/",
+    "name": "cart",
+    "handler": "apps.orders.views.CartView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1186"
+  },
+  {
+    "path": "/api/cart/items/",
+    "name": "cart-items",
+    "handler": "apps.orders.views.CartItemCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1194"
+  },
+  {
+    "path": "/api/cart/items/<int:pk>/",
+    "name": "cart-item-update",
+    "handler": "apps.orders.views.CartItemUpdateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1333"
+  },
+  {
+    "path": "/api/cart/items/<int:pk>/delete/",
+    "name": "cart-item-delete",
+    "handler": "apps.orders.views.CartItemDeleteView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1381"
+  },
+  {
+    "path": "/api/cart/clear/",
+    "name": "cart-clear",
+    "handler": "apps.orders.views.CartClearView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1394"
+  },
+  {
+    "path": "/api/cart/merge/",
+    "name": "cart-merge",
+    "handler": "apps.orders.views.CartMergeView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3461"
+  },
+  {
+    "path": "/api/cart/coupon/",
+    "name": "cart-apply-coupon",
+    "handler": "apps.orders.views.CartApplyCouponView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1405"
+  },
+  {
+    "path": "/api/cart/coupon/remove/",
+    "name": "cart-remove-coupon",
+    "handler": "apps.orders.views.CartRemoveCouponView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1428"
+  },
+  {
+    "path": "/api/cart/promo/",
+    "name": "cart-apply-promo",
+    "handler": "apps.orders.views.CartApplyCouponView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1405"
+  },
+  {
+    "path": "/api/cart/promo/remove/",
+    "name": "cart-remove-promo",
+    "handler": "apps.orders.views.CartRemoveCouponView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1428"
+  },
+  {
+    "path": "/api/checkout/draft/",
+    "name": "checkout-draft",
+    "handler": "apps.orders.views.CheckoutDraftView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1438"
+  },
+  {
+    "path": "/api/checkout/<int:pk>/finalize/",
+    "name": "checkout-finalize",
+    "handler": "apps.orders.views.CheckoutFinalizeView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2494"
+  },
+  {
+    "path": "/api/payments/intents/",
+    "name": "payment-intents",
+    "handler": "apps.orders.views.PaymentIntentCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1524"
+  },
+  {
+    "path": "/api/payments/intents/<int:pk>/sync/",
+    "name": "payment-intent-sync",
+    "handler": "apps.orders.views.PaymentIntentStatusSyncView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1947"
+  },
+  {
+    "path": "/api/payments/intents/<int:pk>/cancel/",
+    "name": "payment-intent-cancel",
+    "handler": "apps.orders.views.PaymentIntentCancelView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2074"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/initiate/",
+    "name": "orders-payment-flutterwave-initiate",
+    "handler": "apps.orders.views.FlutterwaveInitiateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1740"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/callback/",
+    "name": "orders-payment-flutterwave-callback",
+    "handler": "apps.orders.views.FlutterwaveCallbackView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1864"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/redirect/",
+    "name": "orders-payment-flutterwave-redirect",
+    "handler": "apps.orders.views.FlutterwaveRedirectView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1747"
+  },
+  {
+    "path": "/api/orders/payments/flutterwave/status/<str:tx_ref>/",
+    "name": "orders-payment-flutterwave-status",
+    "handler": "apps.orders.views.FlutterwaveStatusView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1827"
+  },
+  {
+    "path": "/api/payments/mpesa/initiate/",
+    "name": "payment-mpesa-initiate",
+    "handler": "apps.orders.views.MpesaInitiateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3674"
+  },
+  {
+    "path": "/api/payments/mpesa/status/<str:checkout_request_id>/",
+    "name": "payment-mpesa-status",
+    "handler": "apps.orders.views.MpesaStatusView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3760"
+  },
+  {
+    "path": "/api/payments/mpesa/callback/",
+    "name": "payment-mpesa-callback",
+    "handler": "apps.orders.views.MpesaCallbackView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:1907"
+  },
+  {
+    "path": "/api/payments/mpesa/paybill/validation/",
+    "name": "payment-mpesa-paybill-validation",
+    "handler": "apps.orders.views.MpesaPaybillValidationView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2118"
+  },
+  {
+    "path": "/api/payments/mpesa/paybill/confirmation/",
+    "name": "payment-mpesa-paybill-confirmation",
+    "handler": "apps.orders.views.MpesaPaybillConfirmationView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2168"
+  },
+  {
+    "path": "/api/payments/mpesa/paybill/webhook/",
+    "name": "payment-mpesa-paybill-webhook",
+    "handler": "apps.orders.views.PaybillWebhookView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2278"
+  },
+  {
+    "path": "/api/payments/webhook/",
+    "name": "payment-webhook",
+    "handler": "apps.orders.views.PaymentWebhookView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2208"
+  },
+  {
+    "path": "/api/webhooks/order-status/",
+    "name": "order-status-webhook",
+    "handler": "apps.orders.views.OrderStatusWebhookView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2895"
+  },
+  {
+    "path": "/api/orders/",
+    "name": "orders",
+    "handler": "apps.orders.views.OrderListView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2572"
+  },
+  {
+    "path": "/api/orders/create/",
+    "name": "order-create",
+    "handler": "apps.orders.views.OrderCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3516"
+  },
+  {
+    "path": "/api/orders/tracking/lookup/",
+    "name": "order-tracking-lookup",
+    "handler": "apps.orders.views.PublicOrderTrackingLookupView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3642"
+  },
+  {
+    "path": "/api/orders/<int:pk>/",
+    "name": "order-detail",
+    "handler": "apps.orders.views.OrderDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2582"
+  },
+  {
+    "path": "/api/orders/<int:pk>/cancel/",
+    "name": "order-cancel",
+    "handler": "apps.orders.views.OrderCancelView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2592"
+  },
+  {
+    "path": "/api/orders/<int:pk>/tracking/",
+    "name": "order-tracking",
+    "handler": "apps.orders.views.OrderTrackingView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3624"
+  },
+  {
+    "path": "/api/orders/<int:pk>/return/",
+    "name": "order-return",
+    "handler": "apps.orders.views.ReturnRequestListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2619"
+  },
+  {
+    "path": "/api/returns/",
+    "name": "return-requests",
+    "handler": "apps.orders.views.ReturnRequestListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2619"
+  },
+  {
+    "path": "/api/admin/orders/",
+    "name": "admin-orders",
+    "handler": "apps.orders.views.AdminOrderListView",
+    "permissions": [
+      "IsPharmacistAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2692"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/",
+    "name": "admin-order-detail",
+    "handler": "apps.orders.views.AdminOrderDetailView",
+    "permissions": [
+      "IsPharmacistAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2706"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/delivery-audits/",
+    "name": "admin-order-delivery-audits",
+    "handler": "apps.orders.views.AdminOrderDeliveryAuditListCreateView",
+    "permissions": [
+      "IsPharmacistAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3435"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/status/",
+    "name": "admin-order-status",
+    "handler": "apps.orders.views.AdminOrderStatusView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PUT",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3793"
+  },
+  {
+    "path": "/api/admin/order-push/",
+    "name": "admin-order-push-list",
+    "handler": "apps.orders.views.AdminOrderPushListView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2862"
+  },
+  {
+    "path": "/api/admin/order-push/<int:pk>/retry/",
+    "name": "admin-order-push-retry",
+    "handler": "apps.orders.views.AdminOrderPushRetryView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2872"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/notes/",
+    "name": "admin-order-notes",
+    "handler": "apps.orders.views.AdminOrderNoteView",
+    "permissions": [
+      "IsPharmacistOrAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2776"
+  },
+  {
+    "path": "/api/admin/orders/<int:pk>/refund/",
+    "name": "admin-order-refund",
+    "handler": "apps.orders.views.AdminOrderRefundView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2796"
+  },
+  {
+    "path": "/api/admin/finance/",
+    "name": "admin-finance",
+    "handler": "apps.orders.views.AdminFinanceDashboardView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3278"
+  },
+  {
+    "path": "/api/admin/finance/reports/",
+    "name": "admin-finance-reports",
+    "handler": "apps.orders.views.AdminReportsView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2959"
+  },
+  {
+    "path": "/api/admin/finance/reports/download/",
+    "name": "admin-finance-reports-download",
+    "handler": "apps.orders.views.AdminDownloadReportView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3356"
+  },
+  {
+    "path": "/api/admin/finance/payments/",
+    "name": "admin-finance-payments",
+    "handler": "apps.orders.views.AdminPaymentIntentListView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2837"
+  },
+  {
+    "path": "/api/admin/finance/payments/<int:pk>/",
+    "name": "admin-finance-payment-detail",
+    "handler": "apps.orders.views.AdminPaymentIntentDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2854"
+  },
+  {
+    "path": "/api/admin/finance/payments/<int:pk>/reconcile/",
+    "name": "admin-finance-payment-reconcile",
+    "handler": "apps.orders.views.AdminPaybillReconcileView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2393"
+  },
+  {
+    "path": "/api/admin/finance/invoices/",
+    "name": "admin-finance-invoices",
+    "handler": "apps.orders.views.AdminInvoiceListView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3328"
+  },
+  {
+    "path": "/api/admin/finance/invoices/<int:pk>/",
+    "name": "admin-finance-invoice-detail",
+    "handler": "apps.orders.views.AdminInvoiceDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3344"
+  },
+  {
+    "path": "/api/admin/finance/returns/",
+    "name": "admin-finance-returns",
+    "handler": "apps.orders.views.AdminReturnRequestListView",
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2922"
+  },
+  {
+    "path": "/api/admin/finance/returns/<int:pk>/",
+    "name": "admin-finance-return-detail",
+    "handler": "apps.orders.views.AdminReturnRequestDetailView",
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2932"
+  },
+  {
+    "path": "/api/admin/payments/mpesa/paybill/register-urls/",
+    "name": "admin-payment-mpesa-paybill-register-urls",
+    "handler": "apps.orders.views.AdminMpesaPaybillRegisterUrlsView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2452"
+  },
+  {
+    "path": "/api/admin/payments/intents/<int:pk>/reconcile/",
+    "name": "admin-payment-intent-reconcile",
+    "handler": "apps.orders.views.AdminPaybillReconcileView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2393"
+  },
+  {
+    "path": "/api/admin/shipping-methods/",
+    "name": "admin-shipping-methods",
+    "handler": "apps.orders.views.AdminShippingMethodListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2658"
+  },
+  {
+    "path": "/api/admin/shipping-methods/<int:pk>/",
+    "name": "admin-shipping-method-detail",
+    "handler": "apps.orders.views.AdminShippingMethodDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2676"
+  },
+  {
+    "path": "/api/admin/returns/",
+    "name": "admin-return-requests",
+    "handler": "apps.orders.views.AdminReturnRequestListView",
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2922"
+  },
+  {
+    "path": "/api/admin/returns/<int:pk>/",
+    "name": "admin-return-request-detail",
+    "handler": "apps.orders.views.AdminReturnRequestDetailView",
+    "permissions": [
+      "IsAdminOrPPBInspector"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2932"
+  },
+  {
+    "path": "/api/admin/reports/",
+    "name": "admin-reports",
+    "handler": "apps.orders.views.AdminReportsView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:2959"
+  },
+  {
+    "path": "/api/admin/reports/download/",
+    "name": "admin-reports-download",
+    "handler": "apps.orders.views.AdminDownloadReportView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3356"
+  },
+  {
+    "path": "/api/admin/activity-feed/",
+    "name": "admin-activity-feed",
+    "handler": "apps.orders.views.AdminActivityFeedView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3282"
+  },
+  {
+    "path": "/api/admin/invoices/",
+    "name": "admin-invoices",
+    "handler": "apps.orders.views.AdminInvoiceListView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3328"
+  },
+  {
+    "path": "/api/admin/invoices/<int:pk>/",
+    "name": "admin-invoice-detail",
+    "handler": "apps.orders.views.AdminInvoiceDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/orders/views.py:3344"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/files/<int:file_pk>/download/<str:filename>",
+    "name": "prescription-file-download-named",
+    "handler": "apps.prescriptions.views.PrescriptionFileDownloadView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:724"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/files/<int:file_pk>/download/",
+    "name": "prescription-file-download",
+    "handler": "apps.prescriptions.views.PrescriptionFileDownloadView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:724"
+  },
+  {
+    "path": "/api/prescriptions/",
+    "name": "prescriptions",
+    "handler": "apps.prescriptions.views.PrescriptionListView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:165"
+  },
+  {
+    "path": "/api/prescriptions/upload/",
+    "name": "prescription-upload",
+    "handler": "apps.prescriptions.views.PrescriptionUploadView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:177"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/",
+    "name": "prescription-detail",
+    "handler": "apps.prescriptions.views.PrescriptionDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:265"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/clarification-replies/",
+    "name": "prescription-clarification-reply",
+    "handler": "apps.prescriptions.views.PrescriptionClarificationReplyView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:665"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/update/",
+    "name": "prescription-update",
+    "handler": "apps.prescriptions.views.PrescriptionUpdateView",
+    "permissions": [
+      "CanReviewPrescriptionsOrAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:276"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/resubmit/",
+    "name": "prescription-resubmit",
+    "handler": "apps.prescriptions.views.PrescriptionResubmitView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:617"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/audit/",
+    "name": "prescription-audit",
+    "handler": "apps.prescriptions.views.PrescriptionAuditView",
+    "permissions": [
+      "CanReviewPrescriptionsOrAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:317"
+  },
+  {
+    "path": "/api/prescriptions/<int:pk>/items/<int:item_pk>/add-to-cart/",
+    "name": "prescription-item-add-to-cart",
+    "handler": "apps.prescriptions.views.PrescriptionItemAddToCartView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:402"
+  },
+  {
+    "path": "/api/pharmacist/prescriptions/",
+    "name": "pharmacist-prescriptions",
+    "handler": "apps.prescriptions.views.PharmacistPrescriptionQueueView",
+    "permissions": [
+      "IsPrescriptionReviewPharmacist"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:509"
+  },
+  {
+    "path": "/api/pharmacist/catalog/variants/",
+    "name": "pharmacist-catalog-variants",
+    "handler": "apps.prescriptions.views.PharmacistVariantSearchView",
+    "permissions": [
+      "IsPharmacistOrAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:355"
+  },
+  {
+    "path": "/api/pharmacist/prescriptions/<int:pk>/assign/",
+    "name": "pharmacist-prescription-assign",
+    "handler": "apps.prescriptions.views.PharmacistPrescriptionAssignView",
+    "permissions": [
+      "IsPrescriptionReviewPharmacist"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:523"
+  },
+  {
+    "path": "/api/pharmacist/prescriptions/<int:pk>/review/",
+    "name": "pharmacist-prescription-review",
+    "handler": "apps.prescriptions.views.PharmacistPrescriptionReviewView",
+    "permissions": [
+      "IsPrescriptionReviewPharmacist"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:547"
+  },
+  {
+    "path": "/api/admin/prescriptions/",
+    "name": "admin-prescriptions",
+    "handler": "apps.prescriptions.views.AdminPrescriptionListView",
+    "permissions": [
+      "CanReadPrescriptionRegister"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/prescriptions/views.py:344"
+  },
+  {
+    "path": "/api/doctors/",
+    "name": "doctors",
+    "handler": "apps.consultations.views.DoctorListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:562"
+  },
+  {
+    "path": "/api/doctors/<int:pk>/",
+    "name": "doctor-detail",
+    "handler": "apps.consultations.views.DoctorDetailView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:582"
+  },
+  {
+    "path": "/api/doctors/register/",
+    "name": "doctor-register",
+    "handler": "apps.consultations.views.DoctorOnboardingView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:610"
+  },
+  {
+    "path": "/api/professionals/register/doctor/",
+    "name": "doctor-register-alt",
+    "handler": "apps.consultations.views.DoctorOnboardingView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:610"
+  },
+  {
+    "path": "/api/professionals/applications/resubmissions/<path:token>/",
+    "name": "professional-document-resubmission",
+    "handler": "apps.consultations.views.ProfessionalDocumentResubmissionView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:634"
+  },
+  {
+    "path": "/api/doctor/onboarding/profile/",
+    "name": "doctor-onboarding-profile",
+    "handler": "apps.consultations.views.DoctorOnboardingProfileStepView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:712"
+  },
+  {
+    "path": "/api/doctor/onboarding/documents/",
+    "name": "doctor-onboarding-documents",
+    "handler": "apps.consultations.views.DoctorOnboardingDocumentsStepView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:726"
+  },
+  {
+    "path": "/api/doctor/onboarding/availability/",
+    "name": "doctor-onboarding-availability",
+    "handler": "apps.consultations.views.DoctorOnboardingAvailabilityStepView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:757"
+  },
+  {
+    "path": "/api/doctor/onboarding/payout/",
+    "name": "doctor-onboarding-payout",
+    "handler": "apps.consultations.views.DoctorOnboardingPayoutStepView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:770"
+  },
+  {
+    "path": "/api/pediatricians/",
+    "name": "pediatricians",
+    "handler": "apps.consultations.views.PediatricianListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:572"
+  },
+  {
+    "path": "/api/pediatricians/<int:pk>/",
+    "name": "pediatrician-detail",
+    "handler": "apps.consultations.views.PediatricianDetailView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:595"
+  },
+  {
+    "path": "/api/professionals/register/pediatrician/",
+    "name": "pediatrician-register",
+    "handler": "apps.consultations.views.PediatricianOnboardingView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:622"
+  },
+  {
+    "path": "/api/consultations/",
+    "name": "consultations",
+    "handler": "apps.consultations.views.ConsultationListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1017"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/",
+    "name": "consultation-detail",
+    "handler": "apps.consultations.views.ConsultationDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1305"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/messages/",
+    "name": "consultation-messages",
+    "handler": "apps.consultations.views.ConsultationMessageListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1401"
+  },
+  {
+    "path": "/api/consultations/messages/<int:pk>/attachment/",
+    "name": "consultation-message-attachment",
+    "handler": "apps.consultations.views.ConsultationMessageAttachmentView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1904"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/end/",
+    "name": "consultation-end",
+    "handler": "apps.consultations.views.ConsultationEndView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1528"
+  },
+  {
+    "path": "/api/consultations/<int:pk>/consent/",
+    "name": "consultation-consent",
+    "handler": "apps.consultations.views.GuardianConsentView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:876"
+  },
+  {
+    "path": "/api/consultations/payments/intents/",
+    "name": "consultation-payment-intents",
+    "handler": "apps.consultations.views.ConsultationPaymentIntentCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1072"
+  },
+  {
+    "path": "/api/consultations/payments/intents/<int:pk>/sync/",
+    "name": "consultation-payment-intent-sync",
+    "handler": "apps.consultations.views.ConsultationPaymentIntentStatusView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1179"
+  },
+  {
+    "path": "/api/consultations/payments/finalize/",
+    "name": "consultation-payment-finalize",
+    "handler": "apps.consultations.views.ConsultationPaymentFinalizeView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1234"
+  },
+  {
+    "path": "/api/consultations/payments/mpesa/callback/",
+    "name": "consultation-payment-mpesa-callback",
+    "handler": "apps.consultations.views.ConsultationMpesaCallbackView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1256"
+  },
+  {
+    "path": "/api/guardian/children/",
+    "name": "guardian-children",
+    "handler": "apps.consultations.views.GuardianChildPatientListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:894"
+  },
+  {
+    "path": "/api/guardian/children/<int:pk>/",
+    "name": "guardian-child-detail",
+    "handler": "apps.consultations.views.GuardianChildPatientDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:905"
+  },
+  {
+    "path": "/api/doctor/dashboard/",
+    "name": "doctor-dashboard",
+    "handler": "apps.consultations.views.DoctorDashboardView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:787"
+  },
+  {
+    "path": "/api/doctor/consultations/",
+    "name": "doctor-consultations",
+    "handler": "apps.consultations.views.DoctorConsultationListView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1514"
+  },
+  {
+    "path": "/api/doctor/catalog/variants/",
+    "name": "doctor-catalog-variants",
+    "handler": "apps.consultations.views.ClinicianVariantSearchView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1647"
+  },
+  {
+    "path": "/api/doctor/prescriptions/",
+    "name": "doctor-prescriptions",
+    "handler": "apps.consultations.views.ClinicianPrescriptionListCreateView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1586"
+  },
+  {
+    "path": "/api/doctor/prescriptions/<int:pk>/send/",
+    "name": "doctor-prescription-send",
+    "handler": "apps.consultations.views.ClinicianPrescriptionSendView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1694"
+  },
+  {
+    "path": "/api/doctor/prescriptions/<int:pk>/pdf/",
+    "name": "doctor-prescription-pdf",
+    "handler": "apps.consultations.views.ClinicianPrescriptionPDFView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1833"
+  },
+  {
+    "path": "/api/doctor/earnings/",
+    "name": "doctor-earnings",
+    "handler": "apps.consultations.views.ClinicianEarningsView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1935"
+  },
+  {
+    "path": "/api/pediatrician/dashboard/",
+    "name": "pediatrician-dashboard",
+    "handler": "apps.consultations.views.PediatricianDashboardView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:831"
+  },
+  {
+    "path": "/api/pediatrician/consultations/",
+    "name": "pediatrician-consultations",
+    "handler": "apps.consultations.views.DoctorConsultationListView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1514"
+  },
+  {
+    "path": "/api/pediatrician/catalog/variants/",
+    "name": "pediatrician-catalog-variants",
+    "handler": "apps.consultations.views.ClinicianVariantSearchView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1647"
+  },
+  {
+    "path": "/api/pediatrician/patients/",
+    "name": "pediatrician-patients",
+    "handler": "apps.consultations.views.PediatricianPatientListView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:917"
+  },
+  {
+    "path": "/api/pediatrician/patients/<int:child_id>/",
+    "name": "pediatrician-patient-detail",
+    "handler": "apps.consultations.views.PediatricianPatientDetailView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:956"
+  },
+  {
+    "path": "/api/pediatrician/prescriptions/",
+    "name": "pediatrician-prescriptions",
+    "handler": "apps.consultations.views.ClinicianPrescriptionListCreateView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1586"
+  },
+  {
+    "path": "/api/pediatrician/prescriptions/<int:pk>/send/",
+    "name": "pediatrician-prescription-send",
+    "handler": "apps.consultations.views.ClinicianPrescriptionSendView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1694"
+  },
+  {
+    "path": "/api/pediatrician/prescriptions/<int:pk>/pdf/",
+    "name": "pediatrician-prescription-pdf",
+    "handler": "apps.consultations.views.ClinicianPrescriptionPDFView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1833"
+  },
+  {
+    "path": "/api/pediatrician/earnings/",
+    "name": "pediatrician-earnings",
+    "handler": "apps.consultations.views.ClinicianEarningsView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1935"
+  },
+  {
+    "path": "/api/clinician/prescriptions/",
+    "name": "clinician-prescriptions",
+    "handler": "apps.consultations.views.ClinicianPrescriptionListCreateView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1586"
+  },
+  {
+    "path": "/api/clinician/earnings/",
+    "name": "clinician-earnings",
+    "handler": "apps.consultations.views.ClinicianEarningsView",
+    "permissions": [
+      "IsDoctor"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1935"
+  },
+  {
+    "path": "/api/admin/dashboard/",
+    "name": "admin-dashboard",
+    "handler": "apps.consultations.views.AdminDashboardView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2309"
+  },
+  {
+    "path": "/api/admin/doctors/",
+    "name": "admin-doctors",
+    "handler": "apps.consultations.views.AdminDoctorListView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1952"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/",
+    "name": "admin-doctor-detail",
+    "handler": "apps.consultations.views.AdminDoctorDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:1961"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/action/",
+    "name": "admin-doctor-action",
+    "handler": "apps.consultations.views.AdminDoctorActionView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2001"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/verify/",
+    "name": "admin-doctor-verify",
+    "handler": "apps.consultations.views.AdminDoctorVerifyView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2071"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/suspend/",
+    "name": "admin-doctor-suspend",
+    "handler": "apps.consultations.views.AdminDoctorSuspendView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2093"
+  },
+  {
+    "path": "/api/admin/doctors/<int:pk>/provision-account/",
+    "name": "admin-doctor-provision-account",
+    "handler": "apps.consultations.views.AdminDoctorProvisionAccountView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2128"
+  },
+  {
+    "path": "/api/admin/pediatricians/",
+    "name": "admin-pediatricians",
+    "handler": "apps.consultations.views.AdminPediatricianListView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2167"
+  },
+  {
+    "path": "/api/admin/pediatricians/<int:pk>/",
+    "name": "admin-pediatrician-detail",
+    "handler": "apps.consultations.views.AdminPediatricianDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2176"
+  },
+  {
+    "path": "/api/admin/pediatricians/<int:pk>/action/",
+    "name": "admin-pediatrician-action",
+    "handler": "apps.consultations.views.AdminPediatricianActionView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2208"
+  },
+  {
+    "path": "/api/admin/pediatricians/<int:pk>/provision-account/",
+    "name": "admin-pediatrician-provision-account",
+    "handler": "apps.consultations.views.AdminPediatricianProvisionAccountView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/consultations/views.py:2268"
+  },
+  {
+    "path": "/api/lab/technician-documents/<int:pk>/download/",
+    "name": "lab-tech-document-download",
+    "handler": "apps.lab.views.LabTechDocumentDownloadView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:1267"
+  },
+  {
+    "path": "/api/lab/tests/",
+    "name": "lab-tests",
+    "handler": "apps.lab.views.LabTestListView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:832"
+  },
+  {
+    "path": "/api/lab/requests/",
+    "name": "lab-requests",
+    "handler": "apps.lab.views.LabRequestListCreateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:858"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/",
+    "name": "lab-request-detail",
+    "handler": "apps.lab.views.LabRequestDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:886"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/update/",
+    "name": "lab-request-update",
+    "handler": "apps.lab.views.LabRequestUpdateView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:894"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/collection-code/",
+    "name": "lab-collection-code",
+    "handler": "apps.lab.views.LabCollectionCodeIssueView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:1044"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/verify-collection/",
+    "name": "lab-verify-collection",
+    "handler": "apps.lab.views.LabCollectionCodeVerifyView",
+    "permissions": [
+      "IsLabTechOrAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:1086"
+  },
+  {
+    "path": "/api/lab/requests/<int:pk>/results/",
+    "name": "lab-result-create",
+    "handler": "apps.lab.views.LabResultCreateView",
+    "permissions": [
+      "IsLabTechOrAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:1152"
+  },
+  {
+    "path": "/api/lab/results/<int:pk>/",
+    "name": "lab-result-detail",
+    "handler": "apps.lab.views.LabResultDetailView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:1235"
+  },
+  {
+    "path": "/api/lab/results/<int:pk>/download/",
+    "name": "lab-result-download",
+    "handler": "apps.lab.views.LabResultDownloadView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:1243"
+  },
+  {
+    "path": "/api/lab/dashboard/",
+    "name": "lab-dashboard",
+    "handler": "apps.lab.views.LabTechDashboardView",
+    "permissions": [
+      "IsLabTechOrAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:774"
+  },
+  {
+    "path": "/api/lab/partner/dashboard/",
+    "name": "lab-partner-dashboard",
+    "handler": "apps.lab.views.LabPartnerDashboardView",
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:403"
+  },
+  {
+    "path": "/api/lab/partner/facilities/",
+    "name": "lab-partner-facilities",
+    "handler": "apps.lab.views.LabPartnerFacilityListCreateView",
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:444"
+  },
+  {
+    "path": "/api/lab/partner/facilities/<int:pk>/",
+    "name": "lab-partner-facility-detail",
+    "handler": "apps.lab.views.LabPartnerFacilityDetailView",
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:468"
+  },
+  {
+    "path": "/api/lab/partner/facilities/<int:facility_pk>/documents/",
+    "name": "lab-partner-facility-documents",
+    "handler": "apps.lab.views.LabPartnerFacilityDocumentListCreateView",
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:505"
+  },
+  {
+    "path": "/api/lab/partner-documents/<int:pk>/download/",
+    "name": "lab-partner-document-download",
+    "handler": "apps.lab.views.LabPartnerDocumentDownloadView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:170"
+  },
+  {
+    "path": "/api/lab/facility-documents/<int:pk>/download/",
+    "name": "lab-facility-document-download",
+    "handler": "apps.lab.views.LaboratoryFacilityDocumentDownloadView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:543"
+  },
+  {
+    "path": "/api/lab/partner/technicians/",
+    "name": "lab-partner-techs",
+    "handler": "apps.lab.views.LabPartnerTechnicianListCreateView",
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:659"
+  },
+  {
+    "path": "/api/lab/partner/technicians/<int:pk>/action/",
+    "name": "lab-partner-tech-action",
+    "handler": "apps.lab.views.LabPartnerTechnicianActionView",
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:693"
+  },
+  {
+    "path": "/api/lab/partner/technicians/<int:pk>/provision-account/",
+    "name": "lab-partner-tech-provision-account",
+    "handler": "apps.lab.views.LabPartnerTechnicianProvisionAccountView",
+    "permissions": [
+      "IsLabPartner"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:719"
+  },
+  {
+    "path": "/api/professionals/register/lab-partner/",
+    "name": "lab-partner-register",
+    "handler": "apps.lab.views.LabPartnerRegistrationView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:750"
+  },
+  {
+    "path": "/api/admin/lab/tests/",
+    "name": "admin-lab-tests",
+    "handler": "apps.lab.views.AdminLabTestListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:844"
+  },
+  {
+    "path": "/api/admin/lab/tests/<int:pk>/",
+    "name": "admin-lab-test-detail",
+    "handler": "apps.lab.views.AdminLabTestDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:850"
+  },
+  {
+    "path": "/api/admin/lab/approval-queue/",
+    "name": "admin-lab-approval-queue",
+    "handler": "apps.lab.views.AdminLabApprovalQueueView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:571"
+  },
+  {
+    "path": "/api/admin/lab/facilities/",
+    "name": "admin-lab-facilities",
+    "handler": "apps.lab.views.AdminLaboratoryFacilityListView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:559"
+  },
+  {
+    "path": "/api/admin/lab/facilities/<int:pk>/",
+    "name": "admin-lab-facility-detail",
+    "handler": "apps.lab.views.AdminLaboratoryFacilityDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:593"
+  },
+  {
+    "path": "/api/admin/lab/facilities/<int:pk>/action/",
+    "name": "admin-lab-facility-action",
+    "handler": "apps.lab.views.AdminLaboratoryFacilityActionView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:601"
+  },
+  {
+    "path": "/api/admin/lab/partners/",
+    "name": "admin-lab-partners",
+    "handler": "apps.lab.views.AdminLabPartnerListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:123"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:pk>/",
+    "name": "admin-lab-partner-detail",
+    "handler": "apps.lab.views.AdminLabPartnerDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:145"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:pk>/action/",
+    "name": "admin-lab-partner-action",
+    "handler": "apps.lab.views.AdminLabPartnerActionView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:216"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:pk>/provision-account/",
+    "name": "admin-lab-partner-provision-account",
+    "handler": "apps.lab.views.AdminLabPartnerProvisionAccountView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:335"
+  },
+  {
+    "path": "/api/admin/lab/partners/<int:partner_pk>/technicians/",
+    "name": "admin-lab-partner-techs",
+    "handler": "apps.lab.views.AdminLabTechnicianListCreateView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:185"
+  },
+  {
+    "path": "/api/admin/lab/technicians/<int:pk>/",
+    "name": "admin-lab-tech-detail",
+    "handler": "apps.lab.views.AdminLabTechnicianDetailView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:207"
+  },
+  {
+    "path": "/api/admin/lab/technicians/<int:pk>/action/",
+    "name": "admin-lab-tech-action",
+    "handler": "apps.lab.views.AdminLabTechnicianActionView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:287"
+  },
+  {
+    "path": "/api/admin/lab/technicians/<int:pk>/provision-account/",
+    "name": "admin-lab-tech-provision-account",
+    "handler": "apps.lab.views.AdminLabTechnicianProvisionAccountView",
+    "permissions": [
+      "IsAdminUser"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/lab/views.py:369"
+  },
+  {
+    "path": "/api/compliance/evidence/<int:pk>/download/",
+    "name": "compliance-evidence-download",
+    "handler": "apps.support.views.ComplianceEvidenceDownloadView",
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:241"
+  },
+  {
+    "path": "/api/site-settings/",
+    "name": "site-settings",
+    "handler": "apps.support.views.SiteSettingsView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:41"
+  },
+  {
+    "path": "/api/compliance/evidence/",
+    "name": "compliance-evidence",
+    "handler": "apps.support.views.ComplianceEvidenceListCreateView",
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:107"
+  },
+  {
+    "path": "/api/compliance/evidence/<int:pk>/",
+    "name": "compliance-evidence-detail",
+    "handler": "apps.support.views.ComplianceEvidenceDetailView",
+    "permissions": [
+      "ActiveEvidenceAccess"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:120"
+  },
+  {
+    "path": "/api/newsletter/subscribe/",
+    "name": "newsletter-subscribe",
+    "handler": "apps.support.views.NewsletterSubscribeView",
+    "permissions": [
+      "AllowAny"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:54"
+  },
+  {
+    "path": "/api/support/tickets/",
+    "name": "support-tickets",
+    "handler": "apps.support.views.SupportTicketListCreateView",
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:129"
+  },
+  {
+    "path": "/api/support/tickets/<int:pk>/",
+    "name": "support-ticket-detail",
+    "handler": "apps.support.views.SupportTicketDetailView",
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:158"
+  },
+  {
+    "path": "/api/support/tickets/<int:pk>/notes/",
+    "name": "support-ticket-notes",
+    "handler": "apps.support.views.SupportNoteCreateView",
+    "permissions": [
+      "ActiveAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/support/views.py:192"
+  },
+  {
+    "path": "/api/admin/payout-recipients/",
+    "name": "admin-payout-recipients",
+    "handler": "apps.payouts.views.PayoutRecipientListView",
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:244"
+  },
+  {
+    "path": "/api/payouts/mine/",
+    "name": "my-payouts",
+    "handler": "apps.payouts.views.MyPayoutListView",
+    "permissions": [
+      "IsAuthenticated"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:253"
+  },
+  {
+    "path": "/api/admin/payouts/",
+    "name": "admin-payouts",
+    "handler": "apps.payouts.views.PayoutListCreateView",
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:34"
+  },
+  {
+    "path": "/api/admin/payouts/<int:pk>/",
+    "name": "admin-payout-detail",
+    "handler": "apps.payouts.views.PayoutDetailView",
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:67"
+  },
+  {
+    "path": "/api/admin/payouts/<int:pk>/actions/",
+    "name": "admin-payout-action",
+    "handler": "apps.payouts.views.PayoutActionView",
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:75"
+  },
+  {
+    "path": "/api/admin/payouts-summary/",
+    "name": "admin-payout-summary",
+    "handler": "apps.payouts.views.PayoutSummaryView",
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:212"
+  },
+  {
+    "path": "/api/admin/payout-rules/",
+    "name": "admin-payout-rules",
+    "handler": "apps.payouts.views.PayoutRuleListView",
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:232"
+  },
+  {
+    "path": "/api/admin/payout-rules/<int:pk>/",
+    "name": "admin-payout-rule-detail",
+    "handler": "apps.payouts.views.PayoutRuleDetailView",
+    "permissions": [
+      "ActiveFinanceAdmin"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PUT",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/payouts/views.py:238"
+  },
+  {
+    "path": "/api/notifications/deliveries/<int:pk>/retry/",
+    "name": "notification-delivery-retry",
+    "handler": "apps.notifications.views.NotificationDeliveryRetryView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:86"
+  },
+  {
+    "path": "/api/notifications/",
+    "name": "notifications",
+    "handler": "apps.notifications.views.NotificationListView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:16"
+  },
+  {
+    "path": "/api/notifications/preferences/",
+    "name": "notification-preferences",
+    "handler": "apps.notifications.views.NotificationPreferenceView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "PATCH",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:61"
+  },
+  {
+    "path": "/api/notifications/deliveries/",
+    "name": "notification-deliveries",
+    "handler": "apps.notifications.views.NotificationDeliveryListView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:76"
+  },
+  {
+    "path": "/api/notifications/unread/",
+    "name": "notifications-unread",
+    "handler": "apps.notifications.views.NotificationUnreadCountView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:53"
+  },
+  {
+    "path": "/api/notifications/mark-all-read/",
+    "name": "notifications-mark-all-read",
+    "handler": "apps.notifications.views.NotificationMarkAllReadView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:45"
+  },
+  {
+    "path": "/api/notifications/<int:pk>/",
+    "name": "notification-detail",
+    "handler": "apps.notifications.views.NotificationDetailView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "GET",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:27"
+  },
+  {
+    "path": "/api/notifications/<int:pk>/read/",
+    "name": "notification-read",
+    "handler": "apps.notifications.views.NotificationMarkReadView",
+    "permissions": [
+      "ActiveNotificationAccount"
+    ],
+    "authentication": [
+      "JWTAuthentication"
+    ],
+    "methods": [
+      "POST",
+      "OPTIONS"
+    ],
+    "dynamic_permissions": false,
+    "source": "avapharmacy/apps/notifications/views.py:35"
+  }
+]
