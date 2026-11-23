@@ -1,3 +1,4 @@
+from apps.products.medication_locations import location_options, validate_inventory_selection
 from apps.accounts.permissions import IsPrescriptionQueuePharmacist
 from .compliance import EVIDENCE_FIELDS, working_day_due
 import json
@@ -109,6 +110,12 @@ def _replace_prescription_items(prescription, items_data):
             name=item_data['name'],
             product_id=product_id,
             variant_id=variant_id,
+            selected_inventory_id=item_data.get('selected_inventory_id'),
+            administration_route=item_data.get('administration_route', ''),
+            instructions=item_data.get('instructions', ''),
+            is_refill=item_data.get('is_refill', False),
+            refill_interval=item_data.get('refill_interval'),
+            refill_unit=item_data.get('refill_unit', 'days'),
             dose=item_data.get('dose', ''),
             frequency=item_data.get('frequency', ''),
             duration=item_data.get('duration', ''),
@@ -223,6 +230,11 @@ class PrescriptionUploadView(APIView):
             item_serializer = PrescriptionUploadItemSerializer(data=raw_items, many=True)
             item_serializer.is_valid(raise_exception=True)
             items_data = item_serializer.validated_data
+
+        if not items_data or any(not item.get('product_id') or not item.get('variant_id') for item in items_data):
+            raise ValidationError({'items': 'Select a prescription product before uploading your prescription.'})
+        if any(not Variant.objects.filter(pk=item['variant_id'], requires_prescription=True).exists() for item in items_data):
+            raise ValidationError({'items': 'Choose a product that requires a prescription.'})
 
         prescription = Prescription.objects.create(
             patient=request.user,
@@ -370,7 +382,7 @@ class PharmacistVariantSearchView(APIView):
         variants = Variant.objects.select_related(
             'product',
             'product__brand',
-        ).prefetch_related('inventories').filter(
+        ).prefetch_related('inventories__store_listing__store').filter(
             is_active=True,
             product__is_active=True,
         )
@@ -391,6 +403,8 @@ class PharmacistVariantSearchView(APIView):
                     'product_name': variant.product.name,
                     'variant_name': variant.name,
                     'display_name': f'{variant.product.name} {variant.name}'.strip(),
+                    'branch_names': variant.branch_names,
+                    'locations': location_options(variant),
                     'brand_name': variant.product.brand.name if variant.product.brand else '',
                     'sku': variant.sku,
                     'price': str(variant.price),
@@ -474,6 +488,11 @@ class PrescriptionItemAddToCartView(APIView):
             prescription_item=item,
         ).first()
         requested_total = quantity + (existing_item.quantity if existing_item else 0)
+        try:
+            validate_inventory_selection(variant, item.selected_inventory_id, requested_total)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         if requested_total > item.quantity:
             return Response(
                 {
@@ -501,6 +520,7 @@ class PrescriptionItemAddToCartView(APIView):
                 prescription_reference=prescription.reference,
                 prescription=prescription,
                 prescription_item=item,
+                selected_inventory_id=item.selected_inventory_id,
             )
 
         PrescriptionAuditLog.objects.create(
@@ -610,6 +630,9 @@ class PharmacistPrescriptionReviewView(APIView):
         prescription.save(update_fields=[
             'pharmacist', 'pharmacist_notes', 'status', 'clarification_message', 'updated_at', *EVIDENCE_FIELDS, 'verified_by', 'verified_at', 'original_due_on',
         ])
+        if prescription.status == Prescription.STATUS_APPROVED:
+            from .reminders import schedule_refills
+            schedule_refills(prescription)
         PrescriptionReviewDecision.objects.create(
             prescription=prescription,
             pharmacist=request.user,

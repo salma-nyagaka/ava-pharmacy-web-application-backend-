@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('orders/<int:pk>/invoice/', views.OrderInvoicePDFView.as_view(), name='order-invoice-pdf'),
     # Delivery options (spec: GET /checkout/delivery-options)
     path('shipping-methods/', views.ShippingMethodListView.as_view(), name='shipping-methods'),
     path('checkout/delivery-options/', views.ShippingMethodListView.as_view(), name='delivery-options'),

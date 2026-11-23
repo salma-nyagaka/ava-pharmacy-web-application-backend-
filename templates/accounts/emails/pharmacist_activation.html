@@ -1,24 +1,12 @@
 {% extends "emails/base.html" %}
-
-{% block title %}Activate Your {{ account_role_label|default:"Professional" }} Account{% endblock %}
-{% block heading %}{{ account_role_label|default:"Professional" }} account activation{% endblock %}
-{% block intro %}Hi {{ first_name }}, your {{ account_role_lower|default:"professional" }} account has been created by {{ invited_by }}.{% endblock %}
-
+{% block title %}Activate your AVA Pharmacy account{% endblock %}
+{% block heading %}Activate your account{% endblock %}
+{% block intro %}Hi {{ first_name }}, your {{ account_role_lower|default:"professional" }} account is ready to activate.{% endblock %}
 {% block content %}
-{% if consultation_fee %}<p>Your application has been approved. The standard consultation fee is <strong>KSh {{ consultation_fee }}</strong>. AVA Pharmacy receives KSh {{ platform_fee }}; your payout per paid consultation is <strong>KSh {{ clinician_payout }}</strong>.</p>{% endif %}
-
-  <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#4a5568;">
-    Activate your account by setting a password using the button below. This activation link expires in <strong>{{ expires_hours }} hours</strong>.
-  </p>
-  <p style="margin:18px 0 20px;">
-    <a href="{{ activation_url }}" style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px;">
-      Set Password &amp; Activate
-    </a>
-  </p>
-  <p style="margin:0 0 10px;font-size:14px;line-height:1.6;">After activation, access your dashboard at <a href="{{ dashboard_url }}" style="color:#e81750;">{{ dashboard_url }}</a>.</p>
-  <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#4a5568;">If the button does not work, copy and paste this link:</p>
-  <p style="margin:0 0 14px;word-break:break-word;font-size:13px;color:#8a91ac;">{{ activation_url }}</p>
-  <p style="margin:0;font-size:14px;line-height:1.6;color:#4a5568;">If you were not expecting this invitation, ignore this email or contact <a href="mailto:{{ support_email }}" style="color:#e81750;">{{ support_email }}</a>.</p>
+{% if consultation_fee %}<p style="font-size:14px;line-height:1.6;">Consultation fee: KSh {{ consultation_fee }}. AVA Pharmacy share: KSh {{ platform_fee }}. Your payout: KSh {{ clinician_payout }}.</p>{% endif %}
+<p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#475569;">Set your password to get started. This link expires in {{ expires_hours }} hours.</p>
+<p style="margin:0 0 20px;"><a href="{{ activation_url }}" style="display:inline-block;background:#e81750;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:12px 20px;border-radius:6px;">Set password &amp; activate</a></p>
+<p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#64748b;">Button not working? <a href="{{ activation_url }}" style="color:#e81750;">Open the activation link</a>.</p>
+<p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Not expecting this invitation? Ignore this email. For help, <a href="mailto:{{ support_email }}" style="color:#e81750;">contact support</a>.</p>
 {% endblock %}
-
-{% block footnote %}AVA Pharmacy sent this activation link because a staff account was provisioned for this address.{% endblock %}
+{% block footnote %}AVA Pharmacy{% endblock %}

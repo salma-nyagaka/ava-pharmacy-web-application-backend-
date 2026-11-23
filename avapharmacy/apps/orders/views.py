@@ -16,6 +16,7 @@ import secrets
 import re
 from urllib.parse import urlencode
 from rest_framework import generics, permissions, serializers, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
@@ -165,7 +166,7 @@ def _remove_paid_order_items_from_cart(order):
         if not item.variant_id:
             continue
 
-        item_filter = Q(variant_id=item.variant_id)
+        item_filter = Q(variant_id=item.variant_id, selected_inventory_id=item.selected_inventory_id)
         if item.prescription_item_id:
             item_filter &= Q(prescription_item_id=item.prescription_item_id)
         elif item.prescription_id:
@@ -497,7 +498,7 @@ def load_checkout_items(cart, prescription_reference='', *, lock_variants=False)
     return items
 
 
-def build_order_totals(cart, shipping_method=None, items=None):
+def build_order_totals(cart, shipping_method=None, items=None, delivery_method=None):
     if items is None:
         subtotal = cart.total
         discount_total = cart.discount_total
@@ -511,7 +512,9 @@ def build_order_totals(cart, shipping_method=None, items=None):
         if cart.coupon and cart.coupon.is_available(cart.user):
             discount_total = cart.coupon.calculate_discount(sum((row.subtotal for row in items if not prescription_required(row.variant)), Decimal('0.00')))
     discounted_subtotal = subtotal - discount_total
-    if shipping_method:
+    if delivery_method == 'store_pickup':
+        shipping_fee = Decimal('0.00')
+    elif shipping_method:
         shipping_fee = shipping_method.calculate_fee(discounted_subtotal)
     else:
         shipping_fee = (Decimal('0.00') if not subtotal or discounted_subtotal >= Decimal(str(settings.FREE_SHIPPING_THRESHOLD))
@@ -540,6 +543,7 @@ def snapshot_cart_to_order(order, cart_items):
         assessment = matching_assessment(item) if item.variant.prescription_classification == 'otc' else None
         OrderItem.objects.create(
             order=order, variant=item.variant, product_name=item.product.name,
+            selected_inventory_id=item.selected_inventory_id,
             product_sku=item.product.get_display_sku(), quantity=item.quantity,
             variant_name=item.variant.name, variant_sku=item.variant.sku,
             unit_price=item.unit_price, prescription_reference=item.prescription_reference,
@@ -1276,9 +1280,17 @@ class CartItemCreateView(generics.CreateAPIView):
                     product=product,
                 ).first()
 
+        selected_inventory_id = (prescription_item.selected_inventory_id if prescription_item else request.data.get('selected_inventory_id'))
+        from apps.products.medication_locations import validate_inventory_selection
+        try:
+            validate_inventory_selection(variant, selected_inventory_id, quantity)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         existing_item_filters = {
             'cart': cart,
             'variant': variant,
+            'selected_inventory_id': selected_inventory_id,
         }
         if prescription or prescription_item:
             existing_item_filters.update({
@@ -1290,6 +1302,11 @@ class CartItemCreateView(generics.CreateAPIView):
 
         existing_item = CartItem.objects.filter(**existing_item_filters).first()
         requested_total = quantity + (existing_item.quantity if existing_item else 0)
+        try:
+            validate_inventory_selection(variant, selected_inventory_id, requested_total)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         if variant and (prescription_required(variant) or prescription or prescription_item):
             prescription_error = _prescription_cart_error(
                 request.user,
@@ -1327,6 +1344,7 @@ class CartItemCreateView(generics.CreateAPIView):
                 prescription=prescription,
                 prescription_item=prescription_item,
                 otc_screening=otc_screening,
+                selected_inventory_id=selected_inventory_id,
             )
 
         return Response(CartSerializer(cart).data, status=status.HTTP_201_CREATED)
@@ -1371,6 +1389,11 @@ class CartItemUpdateView(APIView):
                 return Response({'detail': otc_error}, status=status.HTTP_400_BAD_REQUEST)
             item.otc_screening = next_screening
 
+        from apps.products.medication_locations import validate_inventory_selection
+        try:
+            validate_inventory_selection(item.variant, item.selected_inventory_id, quantity)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         error = _product_availability_error(_cart_inventory_object(item), quantity, allow_pos_refresh=True)
         if error:
             return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
@@ -1491,7 +1514,7 @@ class CheckoutDraftView(APIView):
             else:
                 shipping_method = ShippingMethod.objects.filter(code=data.get('delivery_method', 'standard'), is_active=True).first()
 
-            subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method, items=items)
+            subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method, items=items, delivery_method=data.get('delivery_method'))
             order = Order.objects.create(
                 customer=request.user,
                 coupon=cart.coupon if cart.coupon and cart.coupon.is_available(request.user) else None,
@@ -1696,7 +1719,8 @@ class PaymentIntentCreateView(APIView):
             intent.phone_number = normalized_phone
             intent.external_reference = order.order_number
             intent.client_secret = response_payload.get('CustomerMessage', '')
-            intent.provider_reference = response_payload.get('ResponseCode', '')
+            # ResponseCode acknowledges the request; it is not a payment receipt.
+            intent.provider_reference = ''
             intent.merchant_request_id = response_payload.get('MerchantRequestID', '')
             intent.checkout_request_id = response_payload.get('CheckoutRequestID', '')
             intent.payload = response_payload
@@ -1710,7 +1734,7 @@ class PaymentIntentCreateView(APIView):
             create_order_event(
                 order,
                 'payment_intent_created',
-                'M-Pesa STK push initiated.',
+                'M-Pesa prompt initiated.',
                 actor=request.user,
                 metadata={'intent_reference': intent.reference, 'phone_number': normalized_phone},
             )
@@ -2729,6 +2753,8 @@ class AdminOrderDetailView(generics.RetrieveUpdateAPIView):
         instance = Order.objects.select_for_update().get(pk=instance.pk)
         prev_status = instance.status
         prev_payment_status = instance.payment_status
+        if request.user.role != User.PHARMACIST and request.data.get('status') in (Order.STATUS_PROCESSING, Order.STATUS_SHIPPED, Order.STATUS_DELIVERED) and request.data.get('status') != instance.status:
+            raise PermissionDenied('Pharmacists process and fulfil orders. Administrators can oversee the order and add notes.')
         if request.user.role == User.PHARMACIST:
             allowed_fields = {'status', 'delivery_method', 'delivery_notes'}
             provided_fields = set(request.data.keys())
@@ -3576,7 +3602,7 @@ class OrderCreateView(APIView):
                     code=data.get('delivery_method', 'standard'), is_active=True
                 ).first()
 
-            subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method)
+            subtotal, discount_total, shipping_fee, total = build_order_totals(cart, shipping_method=shipping_method, delivery_method=data.get('delivery_method'))
             payment_method = data['payment_method']
 
             order = Order.objects.create(
@@ -3680,7 +3706,7 @@ class PublicOrderTrackingLookupView(APIView):
 # ─── M-Pesa Initiate (spec-named alias) ───────────────────────────────────────
 
 class MpesaInitiateView(APIView):
-    """Initiate an M-Pesa STK push for an existing order."""
+    """Initiate an M-Pesa prompt for an existing order."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -3755,7 +3781,7 @@ class MpesaInitiateView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        create_order_event(order, 'payment_intent_created', 'M-Pesa STK push initiated.', actor=request.user)
+        create_order_event(order, 'payment_intent_created', 'M-Pesa prompt initiated.', actor=request.user)
         return Response({
             'checkout_request_id': intent.checkout_request_id,
             'merchant_request_id': intent.merchant_request_id,
@@ -3822,6 +3848,8 @@ class AdminOrderStatusView(APIView):
 
         new_status = request.data.get('status')
         note = request.data.get('note', '')
+        if new_status in (Order.STATUS_PROCESSING, Order.STATUS_SHIPPED, Order.STATUS_DELIVERED) and new_status != order.status:
+            raise PermissionDenied('Pharmacists process and fulfil orders. Administrators can oversee the order and add notes.')
 
         if new_status and new_status != order.status:
             allowed = self.VALID_TRANSITIONS.get(order.status, [])
@@ -3846,3 +3874,22 @@ class AdminOrderStatusView(APIView):
             )
 
         return Response(AdminOrderSerializer(order).data)
+
+
+class OrderInvoicePDFView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        from django.shortcuts import get_object_or_404
+        from django.http import HttpResponse
+        from django.utils.text import get_valid_filename
+        from .invoice_pdf import render_order_invoice
+        queryset = Order.objects.prefetch_related('items')
+        if request.user.role != User.ADMIN:
+            queryset = queryset.filter(customer=request.user)
+        order = get_object_or_404(queryset, pk=pk)
+        response = HttpResponse(render_order_invoice(order), content_type='application/pdf')
+        filename = get_valid_filename(f'invoice-{order.order_number}.pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Cache-Control'] = 'private, no-store'
+        return response

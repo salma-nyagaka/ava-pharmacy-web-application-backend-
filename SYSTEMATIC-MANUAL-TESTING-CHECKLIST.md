@@ -101,104 +101,91 @@ Use test accounts/files only. Do not share passwords or payment PINs. Avoid repe
 
 ### Main flow
 
-- [x] **S01-01** — Log in as admin and open the dashboard.
-- [x] **S01-02** — Refresh and confirm you are still logged in as the correct admin.
-- [x] **S01-03** — Open the main admin menu pages; check that none shows an error.
-- are there only 20 categories in our database?  seperate the kpi active an inacitve categories and subcategories. why dont we have subcategories?
-- are there only 20 helath concerns in our database  - http://localhost:3000/admin/health-concerns seperate the kpi active an inacitve, actually place the numbers in cm-toolbar
-- are there only 20 brands in our database  - http://localhost:3000/admin/brands seperate the kpi active an inacitve, actually place the numbers in cm-toolbar, remove with logo kpi
-- this page is taking so looong to load http://localhost:3000/admin/products, can we use celeery cache or somethignt to fasten the caching staretgy and when a new prodcut is created it should be picked. Failed to load resource: the server responded with a status of 404 (Not Found)
-- also use celery cache for http://localhost:3000/admin/inventory, when a new inventory is created or deleted, also update the cache. why am i seeing Matching Variants 23411 but 2342 on the table .. the kpis should show for all the data and not only data on that page
-- http://localhost:3000/admin/deals is not loading anything
-- http://localhost:3000/admin/users?role=pharmacist only show kpis matching phrmacists
-- http://localhost:3000/admin/doctors?type=Doctor, http://localhost:3000/admin/users?role=pharmacist, http://localhost:3000/admin/doctors?type=Pediatrician, http://localhost:3000/admin/prescriptions, make these pages have a consistence design please
-- http://localhost:3000/admin/users?role=customer the kpis should only display info tied to customers
-- http://localhost:3000/admin/dashboard and http://localhost:3000/admin/reports should be combined to one thing
-- improve on the css and alignemnt in  http://localhost:3000/admin/compliance and http://localhost:3000/admin/settings
-
-
-- [x] **S01-04** — Check that empty lists show a useful message when there are no records.
-- [x] **S01-05** — Set the pharmacy name, contact details, address and opening hours.
-- [x] **S01-06** — Set delivery areas, delivery fees and pickup options through the available settings.
-- [x] **S01-07** — Open the public website and confirm the saved information appears correctly.
+- [ ] **S01-01** — Log in as admin and open the dashboard.
+- [ ] **S01-02** — Refresh and confirm you are still logged in as the correct admin.
+- [ ] **S01-03** — Open the main admin menu pages; check that none shows an error.
+- [ ] **S01-04** — Check that empty lists show a useful message when there are no records.
+- [ ] **S01-05** — Set the pharmacy name, contact details, address and opening hours.
+- [ ] **S01-06** — Set delivery areas, delivery fees and pickup options through the available settings.
+- [ ] **S01-07** — Open the public website and confirm the saved information appears correctly.
 
 ### Missing values and errors
 
-- [x] **S01-08** — Try logging in with both fields empty, then leave only email empty, then only password empty — the missing field should be identified.
-- [x] **S01-09** — Try an invalid email such as `admin@`, then a wrong password — login should fail with a clear message.
-- [x] **S01-10** — Try opening an admin page while logged out and while logged in as a customer — access should be denied.
-- [x] **S01-11** — Clear each required settings field separately, including the support email/phone where required — saving should fail without erasing the previous valid settings.
-- [x] **S01-12** — Enter an invalid support email and a phone containing letters or too few digits — the form should explain the problem.
-- [x] **S01-13** — Try a negative or non-numeric delivery fee, an invalid policy link and an incomplete delivery option — reject invalid values with a useful message.
-- [x] **S01-14** — Where opening/closing times or dates are validated, try an invalid combination — explain the restriction rather than silently changing it.
-- [x] **S01-15** — Correct the failed fields and save again — the error should clear and the valid settings should persist.
+- [ ] **S01-08** — Try logging in with both fields empty, then leave only email empty, then only password empty — the missing field should be identified.
+- [ ] **S01-09** — Try an invalid email such as `admin@`, then a wrong password — login should fail with a clear message.
+- [ ] **S01-10** — Try opening an admin page while logged out and while logged in as a customer — access should be denied.
+- [ ] **S01-11** — Clear each required settings field separately, including the support email/phone where required — saving should fail without erasing the previous valid settings.
+- [ ] **S01-12** — Enter an invalid support email and a phone containing letters or too few digits — the form should explain the problem.
+- [ ] **S01-13** — Try a negative or non-numeric delivery fee, an invalid policy link and an incomplete delivery option — reject invalid values with a useful message.
+- [ ] **S01-14** — Where opening/closing times or dates are validated, try an invalid combination — explain the restriction rather than silently changing it.
+- [ ] **S01-15** — Correct the failed fields and save again — the error should clear and the valid settings should persist.
 
 ## 2. Staff accounts
 
 ### Main flow
 
-- [x] **S02-01** — Create or invite the pharmacist and inventory staff through the available admin controls.
-- [x] **S02-02** — Have each person log in and confirm they reach the correct dashboard.
-- [x] **S02-03** — Confirm each staff member can only use the functions allowed for their role.
-- [x] **S02-04** — Suspend a disposable staff account and confirm it loses access; reactivate it and check again.
+- [ ] **S02-01** — Create or invite the pharmacist and inventory staff through the available admin controls.
+- [ ] **S02-02** — Have each person log in and confirm they reach the correct dashboard.
+- [ ] **S02-03** — Confirm each staff member can only use the functions allowed for their role.
+- [ ] **S02-04** — Suspend a disposable staff account and confirm it loses access; reactivate it and check again.
 
 Doctors, pediatricians and lab partners will apply and be approved in their own sections below.
 
 ### Missing values and errors
 
-- [x] **S02-05** — Submit the staff form empty, then leave each required name, email, role or other marked field empty separately — show the relevant error.
-- [x] **S02-06** — Try an invalid email, an invalid phone and an email already belonging to another account — do not create a duplicate or corrupt the existing account.
-- [x] **S02-07** — If an invitation/password setup is used, try missing confirmation and mismatched passwords — activation should not complete.
-- [x] **S02-08** — Cancel account creation/editing before saving — no account or change should be created.
-- [x] **S02-09** — Submit a valid staff form twice quickly — one account/invitation record should result, with any repeat handled clearly.
-- [x] **S02-10** — Try a copied private staff/admin link as an unauthorized role — do not expose records or allow role promotion.
-- [x] **S02-11** — Refresh an already open dashboard after that disposable account is suspended — protected actions should stop working.
+- [ ] **S02-05** — Submit the staff form empty, then leave each required name, email, role or other marked field empty separately — show the relevant error.
+- [ ] **S02-06** — Try an invalid email, an invalid phone and an email already belonging to another account — do not create a duplicate or corrupt the existing account.
+- [ ] **S02-07** — If an invitation/password setup is used, try missing confirmation and mismatched passwords — activation should not complete.
+- [ ] **S02-08** — Cancel account creation/editing before saving — no account or change should be created.
+- [ ] **S02-09** — Submit a valid staff form twice quickly — one account/invitation record should result, with any repeat handled clearly.
+- [ ] **S02-10** — Try a copied private staff/admin link as an unauthorized role — do not expose records or allow role promotion.
+- [ ] **S02-11** — Refresh an already open dashboard after that disposable account is suspended — protected actions should stop working.
 
 ## 3. Products and catalog
 
 ### Main flow
 
-- [x] **S03-01** — As admin, create `MANUAL-20261105 Brand`; save and refresh. It should appear once in the brand list and product brand selector.
-- [x] **S03-02** — Edit the test brand details, save and reopen it; confirm the changes persist.
-- [x] **S03-03** — Create a category and subcategory; refresh and confirm the subcategory belongs to the correct parent.
-- [x] **S03-04** — Create a product linked to your test brand/category/subcategory, with its name, description, image and pricing fields; save and reopen it to confirm every relationship and value.
-- [x] **S03-05** — Add two clearly different variants, such as different strengths or pack sizes.
-- [x] **S03-06** — Confirm each variant has its own SKU, price, pack details and image where needed.
-- [x] **S03-07** — Add a prescription-only item, an out-of-stock item and a low-stock item for later tests.
-- [x] **S03-08** — Search for these products on the public website and try the category/brand filters.
-- [x] **S03-09** — Open a product, switch variants and confirm the displayed price, pack and availability match your selection.
+- [ ] **S03-01** — As admin, create `MANUAL-20261105 Brand`; save and refresh. It should appear once in the brand list and product brand selector.
+- [ ] **S03-02** — Edit the test brand details, save and reopen it; confirm the changes persist.
+- [ ] **S03-03** — Create a category and subcategory; refresh and confirm the subcategory belongs to the correct parent.
+- [ ] **S03-04** — Create a product linked to your test brand/category/subcategory, with its name, description, image and pricing fields; save and reopen it to confirm every relationship and value.
+- [ ] **S03-05** — Add two clearly different variants, such as different strengths or pack sizes.
+- [ ] **S03-06** — Confirm each variant has its own SKU, price, pack details and image where needed.
+- [ ] **S03-07** — Add a prescription-only item, an out-of-stock item and a low-stock item for later tests.
+- [ ] **S03-08** — Search for these products on the public website and try the category/brand filters.
+- [ ] **S03-09** — Open a product, switch variants and confirm the displayed price, pack and availability match your selection.
 
 ### Missing values and errors
 
-- [x] **S03-10** — Try saving an empty brand, category, subcategory, product and variant form separately — each required field should be identified.
-- [x] **S03-11** — Enter spaces only in required names or SKU fields — whitespace should not count as a valid required value.
-- [x] **S03-12** — Try an existing brand/category name or SKU again, including leading/trailing spaces or changed letter case — handle duplicates according to the uniqueness rule without ambiguous duplicate records.
-- [x] **S03-13** — Leave optional fields empty, such as an optional brand/image/description — accept them if optional; show an honest placeholder where needed.
-- [x] **S03-14** — Try saving a product/variant without the required category, parent or exact SKU — reject incomplete relationships rather than saving a broken item.
-- [x] **S03-15** — Try a negative price, letters in a price field and more decimal places than allowed — reject invalid amounts. Check that zero follows the stated free-item policy.
-- [x] **S03-16** — Try an unsupported image file, a damaged image and a file above the displayed limit — show an upload error and keep the previous image.
-- [x] **S03-17** — Type a very long name/description and ordinary punctuation — enforce displayed limits without breaking the page or silently cutting essential information.
-- [x] **S03-18** — Switch variants after an invalid edit and after a successful edit — values must remain attached to the correct variant.
-- [x] **S03-19** — Deactivate a disposable product/variant and try an old cart/detail link — it must not be sold as an active item.
-- [x] **S03-20** — Search for a product that does not exist, and combine filters with no matches — show a useful empty state and let you clear the filters.
+- [ ] **S03-10** — Try saving an empty brand, category, subcategory, product and variant form separately — each required field should be identified.
+- [ ] **S03-11** — Enter spaces only in required names or SKU fields — whitespace should not count as a valid required value.
+- [ ] **S03-12** — Try an existing brand/category name or SKU again, including leading/trailing spaces or changed letter case — handle duplicates according to the uniqueness rule without ambiguous duplicate records.
+- [ ] **S03-13** — Leave optional fields empty, such as an optional brand/image/description — accept them if optional; show an honest placeholder where needed.
+- [ ] **S03-14** — Try saving a product/variant without the required category, parent or exact SKU — reject incomplete relationships rather than saving a broken item.
+- [ ] **S03-15** — Try a negative price, letters in a price field and more decimal places than allowed — reject invalid amounts. Check that zero follows the stated free-item policy.
+- [ ] **S03-16** — Try an unsupported image file, a damaged image and a file above the displayed limit — show an upload error and keep the previous image.
+- [ ] **S03-17** — Type a very long name/description and ordinary punctuation — enforce displayed limits without breaking the page or silently cutting essential information.
+- [ ] **S03-18** — Switch variants after an invalid edit and after a successful edit — values must remain attached to the correct variant.
+- [ ] **S03-19** — Deactivate a disposable product/variant and try an old cart/detail link — it must not be sold as an active item.
+- [ ] **S03-20** — Search for a product that does not exist, and combine filters with no matches — show a useful empty state and let you clear the filters.
 
 ## 4. Stores and inventory
 
 ### Main flow
 
-- [x] **S04-01** — Create the test stores/locations using the available controls; record a missing setup screen if necessary.
-- [x] **S04-02** — Add stock for each exact variant and store: variant A = 50 packs in store 1 and 30 in store 2; variant B = 10 and 20 respectively. If you choose other quantities, record them before purchasing.
-- [x] **S04-03** — Adjust one stock quantity with a reason and check its movement history.
-- [x] **S04-04** — Confirm changing one variant/store does not change the others.
+- [ ] **S04-01** — Create the test stores/locations using the available controls; record a missing setup screen if necessary.
+- [ ] **S04-02** — Add stock for each exact variant and store: variant A = 50 packs in store 1 and 30 in store 2; variant B = 10 and 20 respectively. If you choose other quantities, record them before purchasing.
+- [ ] **S04-03** — Adjust one stock quantity with a reason and check its movement history.
+- [ ] **S04-04** — Confirm changing one variant/store does not change the others.
 - [ ] **S04-05** — Check the low-stock indicator and confirm an unavailable item cannot be bought as in stock.
 
 ### Missing values and errors
 
-- [x] **S04-06** — Try creating a store/location without its required name/details — do not create an incomplete store.
-- [x] **S04-07** — Try saving stock without selecting the variant or required store/location — reject it instead of updating a different row.
-- [x] **S04-08** — Try negative, non-numeric and fractional quantities where whole packs are required — prevent invalid balances.
-- [x] **S04-09** — Try a negative or non-numeric low-stock threshold — show a useful validation message.
-- [x] **S04-10** — Try an adjustment without the required reason — ask for the reason and do not silently change stock.
+- [ ] **S04-06** — Try creating a store/location without its required name/details — do not create an incomplete store.
+- [ ] **S04-07** — Try saving stock without selecting the variant or required store/location — reject it instead of updating a different row.
+- [ ] **S04-08** — Try negative, non-numeric and fractional quantities where whole packs are required — prevent invalid balances.
+- [ ] **S04-09** — Try a negative or non-numeric low-stock threshold — show a useful validation message.
+- [ ] **S04-10** — Try an adjustment without the required reason — ask for the reason and do not silently change stock.
 - [ ] **S04-11** — Submit the same adjustment twice quickly and inspect movement history — no unintended duplicate change.
 - [ ] **S04-12** — Edit a stock row, cancel without saving and refresh — the original balance should remain.
 - [ ] **S04-13** — Try changing stock as a customer or a staff member without inventory permission — deny the change.
@@ -208,29 +195,29 @@ Doctors, pediatricians and lab partners will apply and be approved in their own 
 
 ### Main flow
 
-- [x] **S05-01** — Add a banner and FAQ, then confirm they appear correctly on the public website.
-- [x] **S05-02** — Create a test offer and coupon; confirm the displayed terms and dates are correct.
-- [x] **S05-03** — Edit or hide the test content and check the public page updates.
+- [ ] **S05-01** — Add a banner and FAQ, then confirm they appear correctly on the public website.
+- [ ] **S05-02** — Create a test offer and coupon; confirm the displayed terms and dates are correct.
+- [ ] **S05-03** — Edit or hide the test content and check the public page updates.
 
 ### Missing values and errors
 
-- [x] **S05-04** — Try saving a banner, FAQ, offer or coupon with the required title, question, answer or code missing — show the missing fields.
-- [x] **S05-05** — Try an invalid destination link and an unsupported/oversized banner image — reject invalid input without losing saved content.
-- [x] **S05-06** — Try an end date before the start date and missing required dates — explain the error.
-- [x] **S05-07** — Try an existing coupon code again, a negative discount and a percentage above 100 — reject invalid/duplicate values.
-- [x] **S05-08** — Try a coupon below its minimum spend, outside its dates or on an excluded item — do not reduce the total incorrectly.
-- [x] **S05-09** — Test an expired, future and inactive offer — public visibility and eligibility should follow its saved settings.
-- [x] **S05-10** — Cancel an unsaved edit and refresh; then unpublish a disposable item — cancelled changes should be discarded and unpublished content should disappear.
+- [ ] **S05-04** — Try saving a banner, FAQ, offer or coupon with the required title, question, answer or code missing — show the missing fields.
+- [ ] **S05-05** — Try an invalid destination link and an unsupported/oversized banner image — reject invalid input without losing saved content.
+- [ ] **S05-06** — Try an end date before the start date and missing required dates — explain the error.
+- [ ] **S05-07** — Try an existing coupon code again, a negative discount and a percentage above 100 — reject invalid/duplicate values.
+- [ ] **S05-08** — Try a coupon below its minimum spend, outside its dates or on an excluded item — do not reduce the total incorrectly.
+- [ ] **S05-09** — Test an expired, future and inactive offer — public visibility and eligibility should follow its saved settings.
+- [ ] **S05-10** — Cancel an unsaved edit and refresh; then unpublish a disposable item — cancelled changes should be discarded and unpublished content should disappear.
 
 ## 6. Customer account
 
 ### Main flow
 
-- [x] **S06-01** — Register a new customer, verify their email and log in.
-- [x] **S06-02** — Try an already registered email and an incorrect password; check the error messages.
-- [x] **S06-03** — Edit the customer profile and confirm the changes stay saved.
-- [x] **S06-04** — Add, edit and remove an address; choose a default address.
-- [x] **S06-05** — Check saved M-Pesa details if offered; confirm invalid details are rejected.
+- [ ] **S06-01** — Register a new customer, verify their email and log in.
+- [ ] **S06-02** — Try an already registered email and an incorrect password; check the error messages.
+- [ ] **S06-03** — Edit the customer profile and confirm the changes stay saved.
+- [ ] **S06-04** — Add, edit and remove an address; choose a default address.
+- [ ] **S06-05** — Check saved M-Pesa details if offered; confirm invalid details are rejected.
 - [ ] **S06-06** — Add and remove a favourite, then check that it stays saved after refresh.
 - [ ] **S06-07** — Change the password; confirm the old one fails and the new one works.
 - [ ] **S06-08** — Request a password reset; confirm the new password works and the used reset link cannot be reused.
@@ -238,16 +225,16 @@ Doctors, pediatricians and lab partners will apply and be approved in their own 
 
 ### Missing values and errors
 
-- [x] **S06-10** — Submit registration empty; then leave each marked required field empty one at a time — identify the correct missing field.
-- [x] **S06-11** — Try an invalid email, a phone containing letters, an incomplete phone and a future birth date where collected — reject invalid details.
-- [x] **S06-12** — Try a weak password, missing password confirmation and mismatched passwords — explain the restriction without creating an account.
-- [x] **S06-13** — Try registering an existing email with spaces or changed case — do not create an unintended second account.
-- [x] **S06-14** — Try signing in before required email verification, and reuse a verification link — enforce the configured verification policy safely.
-- [x] **S06-15** — Try editing your profile to an email/phone already assigned to someone else — reject a conflicting value where uniqueness is required.
-- [x] **S06-16** — Try saving an address without required street, county or area; enter only spaces — prevent an incomplete saved address.
-- [x] **S06-17** — On the password-change form, try an incorrect current password, blank new password and mismatched confirmation — do not change the password.
-- [x] **S06-18** — Try a used or expired reset link — reject it and explain how to request a new one.
-- [x] **S06-19** — Request a reset for an unknown test email — use a safe response that does not reveal private account details.
+- [ ] **S06-10** — Submit registration empty; then leave each marked required field empty one at a time — identify the correct missing field.
+- [ ] **S06-11** — Try an invalid email, a phone containing letters, an incomplete phone and a future birth date where collected — reject invalid details.
+- [ ] **S06-12** — Try a weak password, missing password confirmation and mismatched passwords — explain the restriction without creating an account.
+- [ ] **S06-13** — Try registering an existing email with spaces or changed case — do not create an unintended second account.
+- [ ] **S06-14** — Try signing in before required email verification, and reuse a verification link — enforce the configured verification policy safely.
+- [ ] **S06-15** — Try editing your profile to an email/phone already assigned to someone else — reject a conflicting value where uniqueness is required.
+- [ ] **S06-16** — Try saving an address without required street, county or area; enter only spaces — prevent an incomplete saved address.
+- [ ] **S06-17** — On the password-change form, try an incorrect current password, blank new password and mismatched confirmation — do not change the password.
+- [ ] **S06-18** — Try a used or expired reset link — reject it and explain how to request a new one.
+- [ ] **S06-19** — Request a reset for an unknown test email — use a safe response that does not reveal private account details.
 - [ ] **S06-20** — Open a favourite/address/payment record from a second unrelated account — do not show or change the first customer data.
 - [ ] **S06-21** — Cancel a disposable account-deactivation confirmation, then confirm it separately — cancellation keeps access; confirmed deactivation removes it.
 
@@ -257,18 +244,18 @@ Use agreed test items and a sandbox phone. For a KSh 1 test, the final displayed
 
 ### Main flow
 
-- [x] **S07-01** — Add the exact variant you selected and confirm the cart shows the correct pack and price.
-- [x] **S07-02** — Add another item, change quantities, remove a line and check the totals.
+- [ ] **S07-01** — Add the exact variant you selected and confirm the cart shows the correct pack and price.
+- [ ] **S07-02** — Add another item, change quantities, remove a line and check the totals.
 - [] **S07-03** — Apply and remove a valid coupon; try an expired or ineligible coupon.
-- [x] **S07-04** — Choose a delivery address and switch between delivery and pickup; check the fees and final total.
-- [x] **S07-05** — Refresh checkout and confirm the address, delivery option and total are still correct.
-- [x] **S07-06** — Leave Save address unchecked and confirm a new checkout address is not saved automatically.
-- [x] **S07-07** — Send one M-Pesa prompt, approve it yourself and record the receipt and order reference.
-- [x] **S07-08** — Confirm the website shows payment confirmed before allowing final checkout completion.
-- [x] **S07-09** — Open customer order history and confirm the items, amount, receipt and payment status are correct.
-- [x] **S07-10** — On a separate test order, decline a prompt; confirm it stays unpaid, then retry after failure and pay successfully.
-- [x] **S07-11** — Refresh/reopen the successful order and confirm there is only one successful payment and one stock deduction.
-- [x] **S07-12** — Try buying above available stock; confirm checkout blocks it or follows the stated backorder rule.
+- [ ] **S07-04** — Choose a delivery address and switch between delivery and pickup; check the fees and final total.
+- [ ] **S07-05** — Refresh checkout and confirm the address, delivery option and total are still correct.
+- [ ] **S07-06** — Leave Save address unchecked and confirm a new checkout address is not saved automatically.
+- [ ] **S07-07** — Send one M-Pesa prompt, approve it yourself and record the receipt and order reference.
+- [ ] **S07-08** — Confirm the website shows payment confirmed before allowing final checkout completion.
+- [ ] **S07-09** — Open customer order history and confirm the items, amount, receipt and payment status are correct.
+- [ ] **S07-10** — On a separate test order, decline a prompt; confirm it stays unpaid, then retry after failure and pay successfully.
+- [ ] **S07-11** — Refresh/reopen the successful order and confirm there is only one successful payment and one stock deduction.
+- [ ] **S07-12** — Try buying above available stock; confirm checkout blocks it or follows the stated backorder rule.
 
 ### Missing values and errors
 
@@ -293,11 +280,11 @@ Use synthetic fulfillment for test orders; do not ship real medicine for these t
 
 ### Main flow
 
-- [x] **S08-01** — As staff, find the paid order and confirm the customer, items, address and amount match.
-- [x] **S08-02** — Move it through Processing → Shipped → Delivered.
-- [x] **S08-03** — As customer, check tracking and notifications after each change.
+- [ ] **S08-01** — As staff, find the paid order and confirm the customer, items, address and amount match.
+- [ ] **S08-02** — Move it through Processing → Shipped → Delivered.
+- [ ] **S08-03** — As customer, check tracking and notifications after each change.
 - [ ] **S08-04** — Buy two packs of variant A from store 1: at the configured deduction stage, confirm 50 → 48 once, store 2 remains 30 and variant B remains 10/20. Adapt the arithmetic to your recorded baseline. Check reserved and available stock separately.
-- [x] **S08-05** — Check the customer receipt and admin invoice/report for the same order and amount.
+- [ ] **S08-05** — Check the customer receipt and admin invoice/report for the same order and amount.
 - [ ] **S08-06** — Submit a product review where allowed; confirm it appears on the correct product.
 - [ ] **S08-07** — Cancel a separate eligible order; check its status and any stock release happen only once.
 - [ ] **S08-08** — Request a return on a delivered test order and confirm a return reference is actually saved.
@@ -327,15 +314,15 @@ Use a synthetic prescription file.
 
 ### Main flow
 
-- [x] **S09-01** — As customer, upload a valid PDF/JPG/PNG and confirm it appears in prescription history.
-- [x] **S09-02** — Try an unsupported file, a file over 5 MB and more than five files; check the errors.
-- [x] **S09-03** — As pharmacist, open the same prescription and review its files and patient details.
-- [x] **S09-04** — Request clarification; reply as the customer and confirm the pharmacist sees the reply.
-- [x] **S09-05** — Reject a separate prescription with a reason; confirm the customer sees it and cannot buy from it.
-- [x] **S09-06** — Approve the main prescription with exact medicine variants and allowed quantities.
-- [x] **S09-07** — As customer, add the approved items, pay and complete the medicine order.
-- [x] **S09-08** — Confirm extra quantities, another variant and unauthorized reuse of the prescription are blocked.
-- [x] **S09-09** — Complete dispensing/delivery and check the prescription and order statuses agree.
+- [ ] **S09-01** — As customer, upload a valid PDF/JPG/PNG and confirm it appears in prescription history.
+- [ ] **S09-02** — Try an unsupported file, a file over 5 MB and more than five files; check the errors.
+- [ ] **S09-03** — As pharmacist, open the same prescription and review its files and patient details.
+- [ ] **S09-04** — Request clarification; reply as the customer and confirm the pharmacist sees the reply.
+- [ ] **S09-05** — Reject a separate prescription with a reason; confirm the customer sees it and cannot buy from it.
+- [ ] **S09-06** — Approve the main prescription with exact medicine variants and allowed quantities.
+- [ ] **S09-07** — As customer, add the approved items, pay and complete the medicine order.
+- [ ] **S09-08** — Confirm extra quantities, another variant and unauthorized reuse of the prescription are blocked.
+- [ ] **S09-09** — Complete dispensing/delivery and check the prescription and order statuses agree.
 
 ### Missing values and errors
 
@@ -355,15 +342,15 @@ Use a synthetic prescription file.
 
 ### Main flow
 
-- [x] **S10-01** — Submit a synthetic doctor application with the required documents and details.
-- [x] **S10-02** — As admin, review, approve and activate the doctor account.
-- [x] **S10-03** — As doctor, log in and check the profile, availability and consultation fee.
-- [x] **S10-04** — As customer, select the doctor, enter a synthetic complaint, pay and finalize one booking.
-- [x] **S10-05** — Confirm the same consultation appears for the customer and doctor, with the correct fee and payment.
-- [x] **S10-06** — Exchange messages and a synthetic attachment; refresh and confirm the conversation stays saved.
-- [x] **S10-07** — As doctor, draft and send an exact-item prescription; open its PDF and check all details are readable.
-- [x] **S10-08** — Follow it through pharmacist approval and a separate medicine checkout/payment.
-- [x] **S10-09** — Complete the consultation and confirm one correct earning appears for the doctor.
+- [ ] **S10-01** — Submit a synthetic doctor application with the required documents and details.
+- [ ] **S10-02** — As admin, review, approve and activate the doctor account.
+- [ ] **S10-03** — As doctor, log in and check the profile, availability and consultation fee.
+- [ ] **S10-04** — As customer, select the doctor, enter a synthetic complaint, pay and finalize one booking.
+- [ ] **S10-05** — Confirm the same consultation appears for the customer and doctor, with the correct fee and payment.
+- [ ] **S10-06** — Exchange messages and a synthetic attachment; refresh and confirm the conversation stays saved.
+- [ ] **S10-07** — As doctor, draft and send an exact-item prescription; open its PDF and check all details are readable.
+- [ ] **S10-08** — Follow it through pharmacist approval and a separate medicine checkout/payment.
+- [ ] **S10-09** — Complete the consultation and confirm one correct earning appears for the doctor.
 
 ### Missing values and errors
 

@@ -73,6 +73,29 @@ class ProductImageWithBrandFallbackField(serializers.ImageField):
             return False
 
 
+def catalog_thumbnail_url(instance, context):
+    url = getattr(instance, 'catalog_thumbnail_url', '')
+    request = context.get('request')
+    return request.build_absolute_uri(url) if url and request else url
+
+
+class CatalogThumbnailField(ProductImageWithBrandFallbackField):
+    def to_representation(self, value):
+        thumbnail = catalog_thumbnail_url(getattr(value, 'instance', None), self.context)
+        if thumbnail:
+            return thumbnail
+        if self._has_usable_file(value):
+            return serializers.ImageField.to_representation(self, value)
+
+        variant_image = self._representative_variant_image(getattr(value, 'instance', None))
+        thumbnail = catalog_thumbnail_url(getattr(variant_image, 'instance', None), self.context)
+        if thumbnail:
+            return thumbnail
+        if self._has_usable_file(variant_image):
+            return serializers.ImageField.to_representation(self, variant_image)
+        return None
+
+
 class ExistingImageField(serializers.ImageField):
     """Serialize image fields only when the referenced media file exists."""
 
@@ -1002,7 +1025,7 @@ class VariantReviewSerializer(serializers.ModelSerializer):
 
 class ProductListSerializer(serializers.ModelSerializer):
     sku = serializers.SerializerMethodField()
-    image = ProductImageWithBrandFallbackField(read_only=True)
+    image = CatalogThumbnailField(read_only=True)
     price = serializers.SerializerMethodField()
     requires_prescription = serializers.SerializerMethodField()
     brand_name = serializers.ReadOnlyField(source='brand.name')
@@ -1125,9 +1148,17 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
         return (obj.name or '').strip() or obj.product.name
 
     def get_image(self, obj):
+        thumbnail = catalog_thumbnail_url(obj, self.context)
+        if thumbnail:
+            return thumbnail
+
         variant_image = getattr(obj, 'image', None)
         if ProductImageWithBrandFallbackField._has_usable_file(variant_image):
             return self.fields['brand_image'].to_representation(variant_image)
+
+        thumbnail = catalog_thumbnail_url(obj.product, self.context)
+        if thumbnail:
+            return thumbnail
 
         product_image = getattr(obj.product, 'image', None)
         if ProductImageWithBrandFallbackField._has_usable_file(product_image):
@@ -1178,6 +1209,9 @@ class PublicInventoryItemSerializer(serializers.ModelSerializer):
         return obj.is_active and obj.available_quantity > 0 and not supply_error(obj)
 
     def get_has_variants(self, obj):
+        if hasattr(obj, 'has_other_active_variants'):
+            return obj.has_other_active_variants
+
         active_variants = getattr(obj.product, '_active_variant_count', None)
         if active_variants is None:
             active_variants = obj.product.variants.filter(is_active=True).count()
@@ -1219,6 +1253,13 @@ class AdminInventoryItemSerializer(AdminVariantSerializer):
         )
 
 
+class PublicDetailVariantSerializer(VariantSerializer):
+    image = serializers.SerializerMethodField()
+
+    def get_image(self, obj):
+        return PublicInventoryItemSerializer(context=self.context).get_image(obj)
+
+
 class ProductDetailSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -1228,7 +1269,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return data
 
     sku = serializers.SerializerMethodField()
-    image = ProductImageWithBrandFallbackField(required=False, allow_null=True)
+    image = CatalogThumbnailField(required=False, allow_null=True)
     price = serializers.SerializerMethodField()
     requires_prescription = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
@@ -1250,7 +1291,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     )
     health_concerns = HealthConcernSerializer(many=True, read_only=True)
     gallery = ProductImageSerializer(many=True, read_only=True)
-    variants = VariantSerializer(many=True, read_only=True)
+    variants = PublicDetailVariantSerializer(many=True, read_only=True)
     stock_source = serializers.ChoiceField(choices=Product.STOCK_CHOICES, required=False)
     stock_quantity = serializers.IntegerField(required=False, min_value=0)
     low_stock_threshold = serializers.IntegerField(required=False, min_value=0)

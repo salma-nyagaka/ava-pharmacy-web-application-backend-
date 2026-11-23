@@ -287,16 +287,30 @@ def notify_prescription_status(prescription):
 
 
 def notify_lab_result_ready(lab_request):
-    if not lab_request.patient:
-        return
-    create_notification(
-        recipient=lab_request.patient,
-        notification_type='lab_result',
-        title="Lab Result Ready",
-        message=f"Your result for {lab_request.reference} is ready.",
-        data={'url': f'/account/lab-tests?request={lab_request.id}', 'reference': lab_request.reference},
-        send_email=True,
-    )
+    if lab_request.patient:
+        create_notification(
+            recipient=lab_request.patient,
+            notification_type='lab_result',
+            title="Lab Result Ready",
+            message=f"Your result for {lab_request.reference} is ready.",
+            data={'url': f'/account/lab-tests?request={lab_request.id}', 'reference': lab_request.reference},
+            send_email=True,
+        )
+    partner = lab_request.laboratory.partner if lab_request.laboratory_id else lab_request.assigned_partner
+    if partner and partner.user_id:
+        create_notification(
+            recipient=partner.user,
+            notification_type='lab_result',
+            title="Laboratory result uploaded",
+            message=f"Results for {lab_request.reference} are ready to view.",
+            data={'url': f'/lab/dashboard?view=requests&request={lab_request.id}', 'reference': lab_request.reference},
+        )
+    if lab_request.consultation_id and lab_request.consultation.clinician_id:
+        create_notification(
+            lab_request.consultation.clinician.user, 'lab_result', 'Consultation lab result ready',
+            f'Results for {lab_request.reference} are ready to review with your patient.',
+            data={'url': '/pediatrician/dashboard' if lab_request.consultation.is_pediatric else '/doctor/dashboard', 'consultation_id': lab_request.consultation_id},
+        )
 
 
 def notify_new_consultation(doctor_user, consultation):

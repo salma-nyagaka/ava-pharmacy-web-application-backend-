@@ -131,6 +131,10 @@ class Cart(models.Model):
 
 
 class CartItem(models.Model):
+    selected_inventory = models.ForeignKey(
+        'products.VariantInventory', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='+',
+    )
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
     variant = models.ForeignKey(
         Variant, on_delete=models.CASCADE, related_name='cart_items'
@@ -162,7 +166,7 @@ class CartItem(models.Model):
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['cart', 'variant', 'prescription', 'prescription_item'],
+                fields=['cart', 'variant', 'prescription', 'prescription_item', 'selected_inventory'],
                 name='unique_cart_item_variant_prescription',
             ),
         ]
@@ -259,7 +263,7 @@ class Order(models.Model):
     PAYMENT_COD = 'cash_on_delivery'
 
     PAYMENT_CHOICES = [
-        (PAYMENT_MPESA_STK, 'M-Pesa STK Push'),
+        (PAYMENT_MPESA_STK, 'M-Pesa prompt'),
         (PAYMENT_MPESA_PAYBILL, 'M-Pesa Paybill'),
         (PAYMENT_CARD, 'Card'),
         (PAYMENT_COD, 'Cash on Delivery'),
@@ -334,6 +338,11 @@ class Order(models.Model):
         return self.order_number
 
     def save(self, *args, **kwargs):
+        if self.delivery_method == 'store_pickup' and self.shipping_fee and self.payment_status not in (self.PAYMENT_STATUS_PAID, self.PAYMENT_STATUS_REFUNDED):
+            self.shipping_fee = 0
+            self.total = self.subtotal - self.discount_total
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = set(kwargs['update_fields']) | {'shipping_fee', 'total'}
         if not self.order_number:
             self.order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
@@ -344,6 +353,10 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    selected_inventory = models.ForeignKey(
+        'products.VariantInventory', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='+',
+    )
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     variant = models.ForeignKey(
         Variant, on_delete=models.SET_NULL, null=True, related_name='order_items'

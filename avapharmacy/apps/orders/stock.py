@@ -96,13 +96,18 @@ def _allocation_row(inventory, *, stock_quantity=0, backorder_quantity=0):
     }
 
 
-def _consume_variant_inventory(variant, quantity, *, reference=''):
+def _consume_variant_inventory(variant, quantity, *, reference='', selected_inventory_id=None):
     error = supply_error(variant)
     if error:
         raise ValueError(error)
     remaining = quantity
     allocation = InventoryAllocation()
     inventories = medicine_inventory_rows(variant, _lock_variant_inventories(variant))
+    if selected_inventory_id is not None:
+        inventories = [row for row in inventories if row.pk == selected_inventory_id]
+        if sum(row.stock_quantity for row in _sale_inventory_rows(inventories)) < quantity:
+            raise ValueError('Insufficient stock at the selected medication location.')
+
 
     for inventory in _sale_inventory_rows(inventories):
         if remaining <= 0:
@@ -310,6 +315,8 @@ def commit_order_inventory(order):
             raise ValueError(error)
         if item.prescription_item_id:
             authorization = PrescriptionItem.objects.select_for_update(of=('self',)).select_related('prescription', 'product').get(pk=item.prescription_item_id)
+            if authorization.selected_inventory_id and authorization.selected_inventory_id != item.selected_inventory_id:
+                raise ValueError('Order location must match the approved prescription location.')
             error = dispensing_error(authorization, item.variant, item.quantity, exclude_order=order)
             if error:
                 raise ValueError(error)
@@ -322,6 +329,7 @@ def commit_order_inventory(order):
             variant,
             item.quantity,
             reference=order.order_number,
+            selected_inventory_id=item.selected_inventory_id,
         )
         item.allocated_branch_quantity = allocation.branch_quantity
         item.allocated_warehouse_quantity = allocation.warehouse_quantity

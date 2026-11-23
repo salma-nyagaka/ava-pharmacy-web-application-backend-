@@ -7,4 +7,7 @@ class ProductsConfig(AppConfig):
 
     def ready(self):
         from .admin_cache import connect_catalog_signals
+        from .thumbnails import connect_thumbnail_signals
+
         connect_catalog_signals()
+        connect_thumbnail_signals()

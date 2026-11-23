@@ -61,7 +61,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         model = CartItem
         fields = (
             'id', 'product', 'variant', 'variant_id', 'quantity', 'unit_price', 'prescription_id',
-            'prescription', 'prescription_item',
+            'prescription', 'prescription_item', 'selected_inventory',
             'otc_screening', 'subtotal', 'added_at'
         )
         read_only_fields = ('id', 'added_at')
@@ -98,7 +98,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'product_id', 'product_slug', 'product_name', 'product_sku', 'variant', 'variant_name', 'variant_sku',
             'quantity', 'unit_price', 'discount_total', 'prescription_id', 'prescription',
-            'prescription_item', 'otc_screening', 'subtotal'
+            'prescription_item', 'selected_inventory', 'otc_screening', 'subtotal'
         )
 
 
@@ -280,7 +280,7 @@ class CheckoutSerializer(serializers.Serializer):
     save_address = serializers.BooleanField(required=False, default=False)
     address_label = serializers.CharField(max_length=50, required=False, allow_blank=True, default='')
     set_default_address = serializers.BooleanField(required=False, default=False)
-    payment_method = serializers.ChoiceField(choices=[(Order.PAYMENT_MPESA_STK, 'M-Pesa STK Push'), (Order.PAYMENT_MPESA_PAYBILL, 'M-Pesa Paybill')])
+    payment_method = serializers.ChoiceField(choices=[(Order.PAYMENT_MPESA_STK, 'M-Pesa prompt'), (Order.PAYMENT_MPESA_PAYBILL, 'M-Pesa Paybill')])
     delivery_method = serializers.CharField(max_length=30, default='standard')
     shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
     delivery_notes = serializers.CharField(required=False, allow_blank=True)

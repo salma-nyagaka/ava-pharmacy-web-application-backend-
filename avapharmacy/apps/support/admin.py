@@ -19,7 +19,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         ('Support', {
             'fields': (
                 'support_email', 'support_phone', 'whatsapp_phone',
-                'support_address', 'support_hours', 'postal_address',
+                'support_address', 'store_locations', 'support_hours', 'postal_address',
             ),
         }),
         ('Pharmacy Compliance', {

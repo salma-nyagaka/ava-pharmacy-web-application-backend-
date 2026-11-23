@@ -10,8 +10,8 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminUser
 
-from .models import Payout, PayoutAuditLog, PayoutRule
-from .serializers import PayoutActionSerializer, PayoutCreateSerializer, PayoutRuleSerializer, PayoutSerializer
+from .models import LabRevenueAgreement, Payout, PayoutAuditLog, PayoutRule
+from .serializers import LabRevenueAgreementSerializer, PayoutActionSerializer, PayoutCreateSerializer, PayoutRuleSerializer, PayoutSerializer
 
 
 def _audit(payout, actor, action, previous_status='', reason='', metadata=None):
@@ -109,6 +109,10 @@ class PayoutActionView(APIView):
         recon_targets = {'reconcile': Payout.RECON_MATCHED, 'unmatch': Payout.RECON_UNMATCHED, 'flag_exception': Payout.RECON_EXCEPTION}
         if action in recon_targets and payout.reconciliation_status == recon_targets[action]:
             return Response({'detail': 'This reconciliation state is already recorded.'}, status=409)
+
+        if action in {'release', 'approve', 'process', 'mark_paid'}:
+            from .services import validate_automatic_payout
+            validate_automatic_payout(payout)
 
         if action == 'submit':
             payout.status = Payout.STATUS_PENDING
@@ -258,3 +262,29 @@ class MyPayoutListView(generics.ListAPIView):
         if not self.request.user.is_active or self.request.user.status != 'active':
             return Payout.objects.none()
         return Payout.objects.filter(recipient=self.request.user).prefetch_related('audit_logs__actor')
+
+
+class LabRevenueAgreementListView(generics.ListCreateAPIView):
+    permission_classes = [ActiveFinanceAdmin]
+    queryset = LabRevenueAgreement.objects.select_related('partner').order_by('partner__name')
+    serializer_class = LabRevenueAgreementSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
+class LabRevenueAgreementDetailView(generics.RetrieveUpdateAPIView):
+    permission_classes = [ActiveFinanceAdmin]
+    queryset = LabRevenueAgreement.objects.select_related('partner')
+    serializer_class = LabRevenueAgreementSerializer
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
+class SyncConsultationPayoutsView(APIView):
+    permission_classes = [ActiveFinanceAdmin]
+
+    def post(self, request):
+        from .services import sync_completed_consultation_payouts
+        return Response({'created': sync_completed_consultation_payouts()})

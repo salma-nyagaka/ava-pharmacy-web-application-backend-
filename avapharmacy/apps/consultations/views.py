@@ -1,3 +1,4 @@
+from apps.products.medication_locations import location_options
 import hashlib
 import json
 from io import BytesIO
@@ -1607,7 +1608,7 @@ class ConsultationEndView(APIView):
 
         paid_intent = ConsultationPaymentIntent.objects.filter(consultation=consultation, status=ConsultationPaymentIntent.STATUS_SUCCEEDED).first()
         paid_amount = paid_intent.amount if paid_intent else provider.consult_fee
-        ClinicianEarning.objects.get_or_create(
+        earning, _ = ClinicianEarning.objects.get_or_create(
             clinician=provider,
             consultation=consultation,
             defaults={
@@ -1618,6 +1619,8 @@ class ConsultationEndView(APIView):
                 ),
             },
         )
+        from apps.payouts.services import create_consultation_payout
+        create_consultation_payout(earning, paid_amount, paid_intent is not None)
         if consultation.patient:
             create_notification(
                 recipient=consultation.patient,
@@ -1717,7 +1720,7 @@ class ClinicianVariantSearchView(APIView):
         variants = Variant.objects.select_related(
             'product',
             'product__brand',
-        ).prefetch_related('inventories').filter(
+        ).prefetch_related('inventories__store_listing__store').filter(
             is_active=True,
             product__is_active=True,
         )
@@ -1738,6 +1741,8 @@ class ClinicianVariantSearchView(APIView):
                 'product_name': variant.product.name,
                 'variant_name': variant.name,
                 'display_name': f'{variant.product.name} {variant.name}'.strip(),
+                'branch_names': variant.branch_names,
+                'locations': location_options(variant),
                 'brand_name': variant.product.brand.name if variant.product.brand else '',
                 'sku': variant.sku,
                 'price': str(variant.price),
@@ -1850,6 +1855,7 @@ class ClinicianPrescriptionSendView(APIView):
                 name=item.get('drug_name') or item.get('name') or 'Medication',
                 product_id=product_id or None,
                 variant_id=variant_id or None,
+                selected_inventory_id=item.get('selected_inventory_id'),
                 dose=item.get('dose', ''),
                 frequency=item.get('frequency', ''),
                 duration=item.get('duration', ''),

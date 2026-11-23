@@ -182,3 +182,30 @@ class PayoutRule(models.Model):
 
     def __str__(self):
         return f"{self.role} - {self.currency} {self.amount}"
+
+
+class LabRevenueAgreement(models.Model):
+    partner = models.OneToOneField('lab.LabPartner', on_delete=models.PROTECT, related_name='revenue_agreement')
+    partner_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    technician_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    ava_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+    updated_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(check=models.Q(partner_percent__gte=0, technician_percent__gte=0, ava_percent__gte=0), name='lab_revenue_shares_nonnegative'),
+            models.CheckConstraint(check=models.Q(partner_percent=100 - models.F('technician_percent') - models.F('ava_percent')), name='lab_revenue_shares_total_100'),
+        ]
+
+
+class LabRevenueAllocation(models.Model):
+    """Immutable completion-time agreement and amounts for one lab request."""
+    request = models.OneToOneField('lab.LabRequest', on_delete=models.PROTECT, related_name='revenue_allocation')
+    agreement = models.ForeignKey(LabRevenueAgreement, on_delete=models.PROTECT)
+    booked_fee = models.DecimalField(max_digits=12, decimal_places=2)
+    partner_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    technician_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    terms = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)

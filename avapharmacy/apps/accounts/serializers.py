@@ -175,6 +175,8 @@ class LoginSerializer(serializers.Serializer):
     device_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
     website = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
+    email_fallback_challenge_id = serializers.UUIDField(required=False, write_only=True)
+
     def validate_email(self, value):
         return value.strip().lower()
 
@@ -413,7 +415,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         if document and validated_data.get('role') == User.PHARMACIST:
             from apps.support.models import ComplianceEvidence
             evidence = ComplianceEvidence.objects.create(
-                evidence_type='professional_credential', title=f'Pharmacist licence — {license_number}'[:200],
+                evidence_type='professional_credential', title=f'Pharmacist licence, {license_number}'[:200],
                 reference_number=license_number, issuing_authority=credential_fields.get('license_board', ''),
                 expires_at=credential_fields.get('license_expiry'), file=document,
                 created_by=actor if getattr(actor, 'is_authenticated', False) else None,

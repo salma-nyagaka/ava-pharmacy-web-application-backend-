@@ -206,3 +206,44 @@ class StoreCatalogTests(TestCase):
         self.assertEqual(response.status_code, 201)
         listing = StoreVariantListing.objects.get(store=new_store, variant=self.variant)
         self.assertEqual(listing.external_product_id, 'NY-123')
+
+
+class CheckoutVariantAvailabilityTests(TestCase):
+    def setUp(self):
+        from unittest.mock import patch
+        self.refresh = patch('apps.products.views.refresh_pos_inventory_for_variants', return_value={})
+        self.refresh.start()
+        self.addCleanup(self.refresh.stop)
+        self.client = APIClient()
+        self.product = Product.objects.create(name='Storage cups', sku='CHECK-CUPS')
+        self.variant = Variant.objects.create(pk=909090, product=self.product, sku="CHECK-CUPS-V", name="Storage cups", price=100)
+        VariantInventory.objects.filter(variant=self.variant).delete()
+        VariantInventory.objects.create(variant=self.variant, location='branch', stock_quantity=6)
+        self.url = reverse('product-availability')
+
+    def test_checkout_checks_variant_not_an_unrelated_product_with_same_id(self):
+        Product.objects.create(pk=self.variant.pk, name='Unrelated sold-out bottle', sku='UNRELATED-BOTTLE')
+        response = self.client.get(self.url, {'variant_ids': self.variant.pk})
+        self.assertEqual(response.status_code, 200, response.data)
+        row = response.data['availability'][0]
+        self.assertEqual(row['product_id'], self.product.pk)
+        self.assertEqual(row['variant_id'], self.variant.pk)
+        self.assertEqual(row['available_quantity'], 6)
+        self.assertTrue(row['is_available'])
+
+    def test_inactive_listing_stock_does_not_count(self):
+        store = Store.objects.create(name='Hidden branch', code='checkout-hidden', is_active=False)
+        listing = StoreVariantListing.objects.create(store=store, variant=self.variant, price=100)
+        VariantInventory.objects.filter(variant=self.variant).delete()
+        VariantInventory.objects.create(variant=self.variant, store_listing=listing, stock_quantity=8)
+        row = self.client.get(self.url, {'variant_ids': self.variant.pk}).data['availability'][0]
+        self.assertEqual(row['available_quantity'], 0)
+        self.assertFalse(row['is_available'])
+
+    def test_invalid_variant_ids_are_rejected(self):
+        self.assertEqual(self.client.get(self.url, {'variant_ids': 'invalid'}).status_code, 400)
+
+    def test_inactive_variant_is_not_returned(self):
+        self.variant.is_active = False
+        self.variant.save()
+        self.assertEqual(self.client.get(self.url, {'variant_ids': self.variant.pk}).data['availability'], [])

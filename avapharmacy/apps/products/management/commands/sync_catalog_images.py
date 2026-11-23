@@ -2,8 +2,8 @@
 
 The legacy POS exports contain barcodes but no image URLs.  This command first
 gives every product and variant an honest category placeholder, then optionally
-replaces those placeholders with front-of-pack images found by exact barcode in
-the Open Facts product databases.
+replaces those placeholders with front-of-pack images whose Open Facts barcode
+and product name match the catalogue.
 """
 
 from __future__ import annotations
@@ -106,6 +106,20 @@ def image_result_match_score(product_name: str, result_title: str) -> float:
     return (recall * 0.65) + (sequence * 0.25) + (number_score * 0.10)
 
 
+def open_facts_name_matches(product_name: str, variant_name: str, source_name: str) -> bool:
+    product_tokens = set(normalized_match_tokens(product_name))
+    variant_tokens = set(normalized_match_tokens(variant_name))
+    expected_name = variant_name if product_tokens <= variant_tokens else f'{product_name} {variant_name}'
+    expected_numbers = {
+        token for token in product_tokens | variant_tokens
+        if re.fullmatch(r'\d+(?:g|kg|ml|l|oz|mm|cm|mg|mcg|s)?', token)
+    }
+    return (
+        expected_numbers <= set(normalized_match_tokens(source_name))
+        and image_result_match_score(expected_name, source_name) >= 0.78
+    )
+
+
 def _font(size: int, *, bold: bool = False):
     filenames = ('Arial Bold.ttf', 'DejaVuSans-Bold.ttf') if bold else ('Arial.ttf', 'DejaVuSans.ttf')
     roots = (
@@ -155,7 +169,7 @@ def create_placeholder(path: Path, category_name: str) -> None:
 class Command(BaseCommand):
     help = (
         'Populate every product and variant with labelled placeholders, then optionally '
-        'replace them with exact-barcode images from Open Facts.'
+        'replace them with front photos matched by barcode and product name from Open Facts.'
     )
 
     def add_arguments(self, parser):
@@ -334,14 +348,21 @@ class Command(BaseCommand):
         for barcode, variants in eligible_by_barcode.items():
             checked += 1
             try:
-                image_url = self._lookup_open_facts(session, barcode)
-                if not image_url:
+                source_name, image_url = self._lookup_open_facts(session, barcode)
+                matching_variants = [
+                    variant for variant in variants
+                    if image_url and open_facts_name_matches(variant.product.name, variant.name, source_name)
+                ]
+                if not matching_variants:
                     unavailable += 1
                     for variant in variants:
                         self._mark_checked(variant)
                 else:
                     rel_path = self._download_packshot(session, barcode, image_url)
                     for variant in variants:
+                        if variant not in matching_variants:
+                            self._mark_checked(variant)
+                            continue
                         self._assign_exact_image(variant, rel_path, image_url)
                         product_promotions.setdefault(variant.product_id, variant)
                         matched += 1
@@ -371,23 +392,29 @@ class Command(BaseCommand):
         ))
 
     @staticmethod
-    def _lookup_open_facts(session: requests.Session, barcode: str) -> str:
+    def _lookup_open_facts(session: requests.Session, barcode: str) -> tuple[str, str]:
         response = session.get(
             OPEN_FACTS_ENDPOINT.format(barcode=barcode),
             params={
-                'fields': 'code,product_name,image_front_url,image_url',
+                'fields': 'code,product_name,image_front_url',
                 'product_type': 'all',
             },
             timeout=20,
         )
         if response.status_code == 404:
-            return ''
+            return '', ''
         response.raise_for_status()
         payload = response.json()
         if payload.get('status') != 1:
-            return ''
+            return '', ''
         product = payload.get('product') or {}
-        return str(product.get('image_front_url') or product.get('image_url') or '').strip()
+        returned_barcode = normalized_barcode(product.get('code') or payload.get('code'))
+        if returned_barcode.lstrip('0') != barcode.lstrip('0'):
+            return '', ''
+        return (
+            str(product.get('product_name') or '').strip(),
+            str(product.get('image_front_url') or '').strip(),
+        )
 
     @staticmethod
     def _download_packshot(session: requests.Session, barcode: str, image_url: str) -> str:
@@ -405,10 +432,12 @@ class Command(BaseCommand):
         canvas = Image.new('RGB', (1000, 1000), 'white')
         canvas.paste(source, ((1000 - source.width) // 2, (1000 - source.height) // 2))
 
-        rel_path = f'products/catalog/{barcode}.webp'
+        image_digest = hashlib.sha256(response.content).hexdigest()[:16]
+        rel_path = f'products/catalog/{barcode}-{image_digest}.webp'
         path = Path(settings.MEDIA_ROOT) / rel_path
         path.parent.mkdir(parents=True, exist_ok=True)
-        canvas.save(path, 'WEBP', quality=88, method=6)
+        if not path.exists():
+            canvas.save(path, 'WEBP', quality=88, method=6)
         return rel_path
 
     @staticmethod

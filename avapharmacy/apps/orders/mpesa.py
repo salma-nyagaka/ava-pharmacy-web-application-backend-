@@ -201,7 +201,7 @@ class MpesaClient:
         response = self._post('/mpesa/stkpush/v1/processrequest', payload)
         response_code = str(response.get('ResponseCode', ''))
         if response_code and response_code != '0':
-            raise MpesaAPIError(response.get('ResponseDescription') or 'M-Pesa STK push rejected.')
+            raise MpesaAPIError(response.get('ResponseDescription') or 'M-Pesa prompt rejected.')
         return normalized_phone, response
 
     def query_stk_status(self, payment_intent):

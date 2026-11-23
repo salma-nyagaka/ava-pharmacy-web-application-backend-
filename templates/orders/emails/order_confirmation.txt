@@ -20,7 +20,7 @@ Delivery details:
 {% endif %}
 
 Products:
-{% for item in items %}- {{ item.name }} x {{ item.quantity }} — KSh {{ item.subtotal }}
+{% for item in items %}- {{ item.name }} x {{ item.quantity }}, KSh {{ item.subtotal }}
 {% endfor %}
 
 Subtotal: KSh {{ order.subtotal }}

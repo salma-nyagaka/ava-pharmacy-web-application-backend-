@@ -66,8 +66,8 @@ class PharmacistCredentialVerifyView(generics.GenericAPIView):
     def post(self, request, pk):
         serializer = self.get_serializer(data=request.data); serializer.is_valid(raise_exception=True)
         profile = generics.get_object_or_404(Pharmacist.objects.select_for_update(of=('self',)).select_related('user', 'credential_evidence'), pk=pk)
-        if request.user.pk in {profile.user_id, profile.created_by_id, profile.updated_by_id}:
-            raise serializers.ValidationError('A different administrator must independently verify these credentials; self-verification is forbidden.')
+        if request.user.pk == profile.user_id:
+            raise serializers.ValidationError('A pharmacist cannot approve their own credentials.')
         profile.credential_status = 'verified'
         profile.credential_verified_at = timezone.now()
         profile.credential_verified_by = request.user
@@ -133,18 +133,34 @@ class PharmacistDocumentsView(generics.GenericAPIView):
     def post(self, request, pk):
         from apps.support.serializers import ComplianceEvidenceSerializer
         profile = self.profile(pk)
+        profile = Pharmacist.objects.select_for_update().get(pk=profile.pk)
         data = request.data.copy()
         data['evidence_type'] = 'professional_credential'
         data['reference_number'] = profile.license_number or ''
         data['issuing_authority'] = profile.license_board
+        data['status'] = 'active'
+        data.pop('verified_at', None)
+        data.pop('verified_by', None)
+        data.pop('verification_reference', None)
         if not data.get('title'):
             data['title'] = 'Pharmacist document'
         if 'upload' not in request.FILES:
             raise serializers.ValidationError({'upload': 'Select a document to upload.'})
         serializer = ComplianceEvidenceSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
+        renewal = request.data.get('renewal') == 'true'
+        if renewal:
+            issued = serializer.validated_data.get('issued_at')
+            expires = serializer.validated_data.get('expires_at')
+            if not issued or issued > timezone.localdate() or not expires or expires < timezone.localdate():
+                raise serializers.ValidationError('Provide a valid issue date and an unexpired licence expiry date.')
         document = serializer.save(created_by=request.user, updated_by=request.user)
         profile.documents.add(document)
+        if renewal:
+            profile.license_expiry = expires
+            profile.credential_evidence = document
+            profile.updated_by = request.user
+            profile.save()
         record_change(profile, request.user, 'document_added')
         return Response(ComplianceEvidenceSerializer(document, context={'request': request}).data, status=201)
 
@@ -166,3 +182,75 @@ class PharmacistDocumentDeleteView(PharmacistDocumentsView):
         # association without erasing evidence underlying past decisions.
         record_change(profile, request.user, 'document_removed')
         return Response(status=204)
+
+
+class MyPharmacistDocumentsView(PharmacistDocumentsView):
+    permission_classes = [ActiveAccount]
+
+    def profile(self, pk=None):
+        if self.request.user.role != User.PHARMACIST:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Pharmacist access required.')
+        return generics.get_object_or_404(Pharmacist, user=self.request.user)
+
+    def get(self, request):
+        return super().get(request, request.user.pk)
+
+    def post(self, request):
+        return super().post(request, request.user.pk)
+
+
+class MyPharmacistDocumentDownloadView(MyPharmacistDocumentsView):
+    def get(self, request, document_pk):
+        from django.http import FileResponse
+        from apps.support.models import ComplianceEvidence
+        from django.db.models import Q
+        profile = self.profile()
+        document = generics.get_object_or_404(ComplianceEvidence.objects.filter(
+            Q(pharmacist_document_subjects=profile) | Q(pk=profile.credential_evidence_id)
+        ).distinct(), pk=document_pk)
+        if not document.file:
+            from rest_framework.exceptions import NotFound
+            raise NotFound('Document file unavailable.')
+        return FileResponse(document.file.open('rb'), as_attachment=True)
+
+    http_method_names = ['get', 'head', 'options']
+
+
+class PharmacistLicenceApproveView(generics.GenericAPIView):
+    """Approve matching evidence and credentials together, or change neither."""
+    from .permissions import IsAdminUser
+    permission_classes = [ActiveAccount, IsAdminUser]
+    serializer_class = CredentialVerificationSerializer
+
+    @transaction.atomic
+    def post(self, request, pk):
+        from apps.support.models import ComplianceEvidence
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = generics.get_object_or_404(Pharmacist.objects.select_for_update(), pk=pk)
+        if not profile.credential_evidence_id:
+            raise serializers.ValidationError('Upload a current licence before approving this pharmacist.')
+        if str(request.data.get('evidence_id', '')) != str(profile.credential_evidence_id):
+            raise serializers.ValidationError('The primary licence changed. Refresh and review the latest document.')
+        evidence = ComplianceEvidence.objects.select_for_update().get(pk=profile.credential_evidence_id)
+        if request.user.pk == profile.user_id:
+            raise serializers.ValidationError('A pharmacist cannot approve their own credentials.')
+        reference = serializer.validated_data['verification_reference']
+        if not (evidence.file or evidence.external_url):
+            raise serializers.ValidationError('A licence document is required.')
+        evidence.verified_by = request.user
+        evidence.verified_at = timezone.now()
+        evidence.verification_reference = reference
+        profile.credential_evidence = evidence
+        profile.credential_status = 'verified'
+        profile.credential_verified_by = request.user
+        profile.credential_verified_at = timezone.now()
+        profile.credential_verification_reference = reference
+        if not profile.credential_is_current:
+            raise serializers.ValidationError('Check the licence number, country, registration board, issue date and expiry. The uploaded licence must match the pharmacist and be current; the account must be active.')
+        evidence.save(update_fields=['verified_by', 'verified_at', 'verification_reference'])
+        profile.save(update_fields=['credential_status', 'credential_verified_by', 'credential_verified_at', 'credential_verification_reference'])
+        record_change(evidence, request.user, 'evidence_verified')
+        record_change(profile, request.user, 'credential_verified')
+        return Response(PharmacistCredentialSerializer(profile).data)

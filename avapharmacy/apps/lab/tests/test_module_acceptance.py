@@ -15,11 +15,12 @@ class LabModuleAcceptanceTests(APITestCase):
     list_items = staticmethod(fixtures.LabWorkflowSecurityTests.list_items)
 
     def collection(self):
-        return LabRequest.objects.create(test=self.test, patient=self.patient, patient_name='Synthetic QA patient', patient_phone='0700000000', channel='collection', collection_address='Synthetic QA address', assigned_partner=self.partner, laboratory=self.facility, assigned_technician=self.technician)
+        return LabRequest.objects.create(test=self.test, patient=self.patient, patient_name='Synthetic QA patient', patient_phone='0700000000', channel='collection', rider_dispatched_at=timezone.now(), collection_address='Synthetic QA address', assigned_partner=self.partner, laboratory=self.facility, assigned_technician=self.technician)
 
     def test_price_snapshot_and_hidden_test_booking(self):
-        self.authenticate(self.patient)
-        payload={'test':self.test.pk,'patient_name':'Synthetic QA','patient_phone':'0700000000','channel':'walk_in'}
+        doctor, consultation = fixtures.ordering_consultation(self)
+        self.authenticate(doctor)
+        payload={'test':self.test.pk,'consultation':consultation.pk,'assigned_partner':self.partner.pk,'patient_name':'Synthetic QA','patient_phone':'0700000000','channel':'walk_in'}
         r=self.client.post(reverse('lab-requests'),payload,format='json')
         self.assertEqual(r.status_code,201,r.content)
         self.test.price=2500;self.test.save()
@@ -59,7 +60,7 @@ class LabModuleAcceptanceTests(APITestCase):
         r=self.client.patch(reverse('lab-request-update',args=[req.pk]),{'status':'cancelled'},format='json')
         self.assertEqual(r.status_code,200,r.content)
         req.refresh_from_db();self.assertEqual(req.payment_status,'pending');self.assertEqual(req.collection_verification_code_hash,'')
-        self.authenticate(self.technician)
+        self.authenticate(self.admin)
         self.assertEqual(self.client.post(reverse('lab-verify-collection',args=[req.pk]),{'code':code},format='json').status_code,400)
         self.authenticate(self.patient)
         self.assertEqual(self.client.patch(reverse('lab-request-update',args=[self.request.pk]),{'status':'cancelled'},format='json').status_code,400)
@@ -68,13 +69,13 @@ class LabModuleAcceptanceTests(APITestCase):
         req=self.collection();other=self.collection();self.authenticate(self.patient)
         issued=self.client.post(reverse('lab-collection-code',args=[req.pk]),{},format='json')
         self.assertEqual(issued.status_code,200)
-        code=issued.data['code'];self.authenticate(self.technician)
+        code=issued.data['code'];self.authenticate(self.admin)
         self.assertEqual(self.client.post(reverse('lab-verify-collection',args=[other.pk]),{'code':code},format='json').status_code,400)
         req.collection_code_expires_at=timezone.now()-timedelta(seconds=1);req.save()
         self.assertEqual(self.client.post(reverse('lab-verify-collection',args=[req.pk]),{'code':code},format='json').status_code,400)
         self.authenticate(self.patient)
         code=self.client.post(reverse('lab-collection-code',args=[req.pk]),{},format='json').data['code']
-        self.authenticate(self.technician)
+        self.authenticate(self.admin)
         wrong='999999' if code!='999999' else '888888'
         for _ in range(5):
             self.assertEqual(self.client.post(reverse('lab-verify-collection',args=[req.pk]),{'code':wrong},format='json').status_code,400)
@@ -82,7 +83,7 @@ class LabModuleAcceptanceTests(APITestCase):
         req.refresh_from_db();self.assertEqual(req.collection_verification_attempts,5)
         self.authenticate(self.patient)
         code=self.client.post(reverse('lab-collection-code',args=[req.pk]),{},format='json').data['code']
-        self.authenticate(self.technician)
+        self.authenticate(self.admin)
         self.assertEqual(self.client.post(reverse('lab-verify-collection',args=[req.pk]),{'code':code},format='json').status_code,200)
         self.assertEqual(self.client.post(reverse('lab-verify-collection',args=[req.pk]),{'code':code},format='json').status_code,400)
 

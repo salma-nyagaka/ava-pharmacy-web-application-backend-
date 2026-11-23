@@ -1,7 +1,10 @@
 from django.urls import path
-from . import views
+from . import views, payments
 
 urlpatterns = [
+    path('lab/requests/<int:pk>/payments/', payments.LabPaymentCreateView.as_view(), name='lab-payment-create'),
+    path('lab/payments/<int:pk>/sync/', payments.LabPaymentSyncView.as_view(), name='lab-payment-sync'),
+    path('lab/payments/mpesa/callback/', payments.LabPaymentCallbackView.as_view(), name='lab-payment-callback'),
     path('lab/technician-documents/<int:pk>/download/', views.LabTechDocumentDownloadView.as_view(), name='lab-tech-document-download'),
     # Public
     path('lab/tests/', views.LabTestListView.as_view(), name='lab-tests'),
@@ -18,6 +21,8 @@ urlpatterns = [
 
     # Lab tech dashboard (serves /labaratory frontend route)
     path('lab/dashboard/', views.LabTechDashboardView.as_view(), name='lab-dashboard'),
+    path('lab/partner/facilities/<int:pk>/tests/', views.LabPartnerLaboratoryTestCreateView.as_view(), name='lab-partner-facility-tests'),
+    path('lab/partner/test-catalogue/', views.LabPartnerTestCatalogueView.as_view(), name='lab-partner-test-catalogue'),
     path('lab/partner/dashboard/', views.LabPartnerDashboardView.as_view(), name='lab-partner-dashboard'),
     path('lab/partner/facilities/', views.LabPartnerFacilityListCreateView.as_view(), name='lab-partner-facilities'),
     path('lab/partner/facilities/<int:pk>/', views.LabPartnerFacilityDetailView.as_view(), name='lab-partner-facility-detail'),
@@ -32,6 +37,10 @@ urlpatterns = [
     path('professionals/register/lab-partner/', views.LabPartnerRegistrationView.as_view(), name='lab-partner-register'),
 
     # Admin
+    path('admin/lab/requests/<int:pk>/rider-dispatched/', views.LabRiderDispatchView.as_view(), name='admin-lab-rider-dispatched'),
+    path('lab/partner/requests/<int:pk>/received/', views.LabSamplesReceivedView.as_view(), name='lab-samples-received'),
+    path('admin/lab/requests/<int:pk>/samples-sent/', views.LabSamplesSentView.as_view(), name='admin-lab-samples-sent'),
+    path('admin/lab/facilities/<int:pk>/tests/', views.AdminLaboratoryTestCreateView.as_view(), name='admin-lab-facility-tests'),
     path('admin/lab/tests/', views.AdminLabTestListCreateView.as_view(), name='admin-lab-tests'),
     path('admin/lab/tests/<int:pk>/', views.AdminLabTestDetailView.as_view(), name='admin-lab-test-detail'),
     path('admin/lab/approval-queue/', views.AdminLabApprovalQueueView.as_view(), name='admin-lab-approval-queue'),

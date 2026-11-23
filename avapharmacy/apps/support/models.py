@@ -7,6 +7,7 @@ class SiteSettings(models.Model):
     support_phone = models.CharField(max_length=50, default='+254 700 000 000')
     whatsapp_phone = models.CharField(max_length=50, default='+254 700 000 000')
     support_address = models.CharField(max_length=255, default='Karen / The Hub, Karen, Nairobi, Kenya')
+    store_locations = models.JSONField(default=list, blank=True, help_text='Store addresses displayed in the website footer, in order.')
     support_hours = models.CharField(max_length=120, default='Mon - Sun: 09am - 5pm')
     postal_address = models.CharField(max_length=255, blank=True)
     health_safety_code = models.CharField(max_length=80, blank=True)

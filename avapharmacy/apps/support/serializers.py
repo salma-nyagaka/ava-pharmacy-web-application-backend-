@@ -7,6 +7,11 @@ from .models import ComplianceEvidence, NewsletterSubscriber, SiteSettings, Supp
 
 
 class SiteSettingsSerializer(serializers.ModelSerializer):
+    store_locations = serializers.ListField(
+        child=serializers.CharField(max_length=255, allow_blank=False),
+        required=False,
+        allow_empty=True,
+    )
     active_delivery_zones_list = serializers.ListField(
         child=serializers.CharField(),
         read_only=True,
@@ -19,6 +24,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
             'support_phone',
             'whatsapp_phone',
             'support_address',
+            'store_locations',
             'support_hours',
             'postal_address',
             'health_safety_code',

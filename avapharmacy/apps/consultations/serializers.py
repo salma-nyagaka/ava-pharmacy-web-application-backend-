@@ -804,6 +804,14 @@ def validate_clinician_prescription_items(items):
             if variant.available_quantity < quantity:
                 raise serializers.ValidationError({index: {'quantity': f'Only {variant.available_quantity} unit(s) are available.'}})
 
+            from apps.products.medication_locations import resolve_staff_inventory_selection
+            try:
+                item['selected_inventory_id'] = resolve_staff_inventory_selection(variant, item.get('selected_inventory_id'), quantity)
+            except ValueError as exc:
+                raise serializers.ValidationError({index: {'selected_inventory_id': str(exc)}})
+            from apps.products.medication_locations import location_options
+            item['selected_branch'] = next((row['branch_name'] for row in location_options(variant)
+                if row['inventory_id'] == item.get('selected_inventory_id')), '')
             item['variant_id'] = variant.id
             item['product_variant_id'] = variant.id
             item['product_id'] = variant.product_id

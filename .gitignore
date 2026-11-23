@@ -59,3 +59,7 @@ celerybeat-schedule
 
 # Private local database recovery copies
 /.local-backups/
+product-images-a
+output
+tmp
+scripts

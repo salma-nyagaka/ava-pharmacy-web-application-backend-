@@ -50,7 +50,7 @@ class Notification(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.recipient.email} — {self.type}: {self.title}"
+        return f"{self.recipient.email}, {self.type}: {self.title}"
 
 
 class NotificationPreference(models.Model):

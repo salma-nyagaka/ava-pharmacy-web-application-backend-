@@ -140,6 +140,26 @@ class ExternalOrderWorkflowTests(TestCase):
         refund_response = self.client.post(reverse('admin-order-refund', args=[self.order.id]))
         self.assertEqual(refund_response.status_code, 403)
 
+    @patch('apps.orders.views._save_order_push_result')
+    @patch('apps.orders.views.notify_order_update')
+    def test_admin_refund_remains_visible_to_pharmacist(self, notify, push):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from avapharmacy.test_compliance_fixtures import grant_clinical_credentials
+        grant_clinical_credentials(self.pharmacist)
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(reverse('admin-order-refund', args=[self.order.pk]), {'reason': 'External refund, REF-TEST'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.client.force_authenticate(user=None)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {RefreshToken.for_user(self.pharmacist).access_token}')
+        detail = self.client.get(reverse('admin-order-detail', args=[self.order.pk]))
+        self.assertEqual(detail.status_code, 200, detail.data)
+        self.assertEqual(detail.data['status'], Order.STATUS_REFUNDED)
+        listing = self.client.get(reverse('admin-orders'), {'status': 'refunded'})
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, self.order.order_number)
+        self.assertEqual(self.client.post(reverse('admin-order-refund', args=[self.order.pk]), {'reason': 'Attempt'}, format='json').status_code, 403)
+        self.assertEqual(self.client.patch(reverse('admin-order-detail', args=[self.order.pk]), {'status': 'refunded'}, format='json').status_code, 403)
+
     def test_admin_failed_order_push_list_and_retry(self):
         push = OutboundOrderPush.objects.create(
             order=self.order,

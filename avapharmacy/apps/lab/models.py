@@ -273,7 +273,7 @@ class LaboratoryFacility(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.partner.name} — {self.name}'
+        return f'{self.partner.name}, {self.name}'
 
     def save(self, *args, **kwargs):
         if not self.reference:
@@ -308,7 +308,7 @@ class FacilityLabTest(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.facility.name} — {self.test.name}'
+        return f'{self.facility.name}, {self.test.name}'
 
 
 class LaboratoryFacilityDocument(models.Model):
@@ -335,12 +335,14 @@ class LaboratoryFacilityDocument(models.Model):
         ordering = ['-uploaded_at']
 
     def __str__(self):
-        return f'{self.facility.name} — {self.name}'
+        return f'{self.facility.name}, {self.name}'
 
 
 class LabRequest(models.Model):
     STATUS_AWAITING = 'awaiting_sample'
     STATUS_COLLECTED = 'sample_collected'
+    STATUS_SENT = 'samples_sent'
+    STATUS_RECEIVED = 'sample_received'
     STATUS_PROCESSING = 'processing'
     STATUS_READY = 'result_ready'
     STATUS_COMPLETED = 'completed'
@@ -348,6 +350,8 @@ class LabRequest(models.Model):
     STATUS_CHOICES = [
         (STATUS_AWAITING, 'Awaiting Sample'),
         (STATUS_COLLECTED, 'Sample Collected'),
+        (STATUS_SENT, 'Samples Sent'),
+        (STATUS_RECEIVED, 'Received at Laboratory'),
         (STATUS_PROCESSING, 'Processing'),
         (STATUS_READY, 'Result Ready'),
         (STATUS_COMPLETED, 'Completed'),
@@ -387,6 +391,10 @@ class LabRequest(models.Model):
     patient = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='lab_requests'
     )
+    collection_fee_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    rider_dispatched_at = models.DateTimeField(null=True, blank=True)
+    samples_received_at = models.DateTimeField(null=True, blank=True)
+    samples_sent_at = models.DateTimeField(null=True, blank=True)
     quoted_test_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     patient_name = models.CharField(max_length=200)
     patient_phone = models.CharField(max_length=20)
@@ -415,6 +423,7 @@ class LabRequest(models.Model):
         related_name='verified_lab_collections',
     )
     result_pickup_location = models.CharField(max_length=255, blank=True)
+    consultation = models.ForeignKey('consultations.Consultation', on_delete=models.PROTECT, null=True, blank=True, related_name='lab_requests')
     ordering_doctor = models.CharField(max_length=200, blank=True)
     notes = models.TextField(blank=True)
     assigned_partner = models.ForeignKey(
@@ -505,3 +514,19 @@ class LabResult(models.Model):
         if not self.reference:
             self.reference = f"RES-{uuid.uuid4().hex[:6].upper()}"
         super().save(*args, **kwargs)
+
+
+class LabPayment(models.Model):
+    request = models.ForeignKey(LabRequest, on_delete=models.PROTECT, related_name='payments')
+    stage = models.CharField(max_length=20, choices=[('collection', 'Collection fee'), ('test', 'Test fee')])
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, default='pending')
+    reference = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
+    checkout_request_id = models.CharField(max_length=120, blank=True)
+    merchant_request_id = models.CharField(max_length=120, blank=True)
+    receipt = models.CharField(max_length=120, blank=True)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['request', 'stage'], condition=models.Q(status='succeeded'), name='one_successful_lab_payment_per_stage')]

@@ -65,6 +65,8 @@ def _lab_request_queryset_for_user(user):
         return queryset.none()
     if user.role == 'admin':
         return queryset
+    if user.role in ('doctor', 'pediatrician'):
+        return queryset.filter(consultation__clinician__user=user)
     if user.role == 'pharmacist':
         return queryset.filter(
             Q(assigned_pharmacist=user) | Q(assigned_pharmacist__isnull=True)
@@ -98,6 +100,8 @@ def _result_queryset_for_user(user):
         return queryset.none()
     if user.role == 'admin':
         return queryset
+    if user.role in ('doctor', 'pediatrician'):
+        return queryset.filter(request__consultation__clinician__user=user)
     if user.role == 'pharmacist':
         return queryset.none()
     if user.role == 'lab_partner':
@@ -216,9 +220,10 @@ class AdminLabTechnicianDetailView(generics.RetrieveUpdateDestroyAPIView):
 class AdminLabPartnerActionView(APIView):
     permission_classes = [IsAdminUser]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
-            partner = LabPartner.objects.get(pk=pk)
+            partner = LabPartner.objects.select_for_update().get(pk=pk)
         except LabPartner.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -237,6 +242,10 @@ class AdminLabPartnerActionView(APIView):
             partner.rejection_note = ''
             partner.updated_by = request.user
             partner.save(update_fields=['status', 'verified_at', 'status_note', 'rejection_note', 'updated_by', 'updated_at'])
+            if request.data.get('provision_account') is True and not partner.user_id:
+                account = ProvisionLabPartnerAccountSerializer(data={}, context={'partner': partner, 'request': request})
+                account.is_valid(raise_exception=True)
+                account.save()
             log_admin_action(request.user, 'lab_partner_verified', 'lab_partner', partner.id,
                              f'Verified {partner.name}')
 
@@ -410,6 +419,8 @@ class LabPartnerDashboardView(APIView):
         pending_statuses = [
             LabRequest.STATUS_AWAITING,
             LabRequest.STATUS_COLLECTED,
+            LabRequest.STATUS_SENT,
+            LabRequest.STATUS_RECEIVED,
             LabRequest.STATUS_PROCESSING,
             LabRequest.STATUS_READY,
         ]
@@ -428,14 +439,14 @@ class LabPartnerDashboardView(APIView):
                     is_active=True,
                 ).count(),
                 'technicians_total': partner.technicians.count(),
-                'technicians_active': partner.technicians.filter(status=LabTechnicianProfile.STATUS_ACTIVE).count(),
-                'technicians_pending': partner.technicians.filter(status=LabTechnicianProfile.STATUS_PENDING).count(),
+                'technicians_active': partner.technicians.filter(status=LabTechnicianProfile.STATUS_ACTIVE, user__is_active=True, user__status='active').exclude(user__password__startswith='!').count(),
+                'technicians_pending': partner.technicians.exclude(status=LabTechnicianProfile.STATUS_SUSPENDED).exclude(status=LabTechnicianProfile.STATUS_ACTIVE, user__is_active=True, user__status='active').count(),
                 'requests_total': request_qs.count(),
                 'requests_pending': request_qs.filter(status__in=pending_statuses).count(),
                 'requests_completed': request_qs.filter(status=LabRequest.STATUS_COMPLETED).count(),
             },
             'recent_requests': LabRequestSerializer(
-                request_qs.order_by('-requested_at')[:10],
+                request_qs.order_by('-requested_at'),
                 many=True, context={'request': request},
             ).data,
         })
@@ -483,23 +494,22 @@ class LabPartnerFacilityDetailView(generics.RetrieveUpdateAPIView):
         return context
 
     def perform_update(self, serializer):
-        facility = serializer.save()
         verification_fields = {
             'name', 'county', 'address', 'accreditation', 'license_number',
             'license_expiry', 'supported_counties', 'home_collection_enabled',
-            'physical_result_pickup_enabled', 'test_ids', 'technician_ids',
-            'test_offerings',
+            'physical_result_pickup_enabled', 'registration_document',
         }
-        if facility.status == LaboratoryFacility.STATUS_VERIFIED and (
-            verification_fields & set(self.request.data.keys())
-        ):
+        identity_changed = any(
+            key in serializer.validated_data and serializer.validated_data[key] != getattr(serializer.instance, key, None)
+            for key in verification_fields
+        )
+        facility = serializer.save()
+        if facility.status == LaboratoryFacility.STATUS_VERIFIED and identity_changed:
             facility.status = LaboratoryFacility.STATUS_PENDING
             facility.status_note = 'Facility details changed; Ava re-verification is required.'
             facility.verified_at = None
             facility.verified_by = None
-            facility.save(update_fields=[
-                'status', 'status_note', 'verified_at', 'verified_by', 'updated_at',
-            ])
+            facility.save(update_fields=['status', 'status_note', 'verified_at', 'verified_by', 'updated_at'])
 
 
 class LabPartnerFacilityDocumentListCreateView(generics.ListCreateAPIView):
@@ -671,6 +681,7 @@ class LabPartnerTechnicianListCreateView(generics.ListCreateAPIView):
             .prefetch_related('documents')
         )
 
+    @transaction.atomic
     def perform_create(self, serializer):
         partner = self.get_partner()
         if partner.status != LabPartner.STATUS_VERIFIED:
@@ -682,12 +693,18 @@ class LabPartnerTechnicianListCreateView(generics.ListCreateAPIView):
         ).exists():
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'detail': 'Verify at least one laboratory before adding technicians.'})
-        serializer.save(
+        technician = serializer.save(
             partner=partner,
             status=LabTechnicianProfile.STATUS_ACTIVE,
             created_by=self.request.user,
             updated_by=self.request.user,
         )
+
+        account = ProvisionLabTechnicianAccountSerializer(
+            data={}, context={'tech': technician, 'request': self.request},
+        )
+        account.is_valid(raise_exception=True)
+        account.save()
 
 
 class LabPartnerTechnicianActionView(APIView):
@@ -780,7 +797,7 @@ class LabTechDashboardView(APIView):
         month_start = today.replace(day=1)
 
         pending_statuses = [
-            LabRequest.STATUS_AWAITING, LabRequest.STATUS_COLLECTED, LabRequest.STATUS_PROCESSING
+            LabRequest.STATUS_AWAITING, LabRequest.STATUS_COLLECTED, LabRequest.STATUS_SENT, LabRequest.STATUS_RECEIVED, LabRequest.STATUS_PROCESSING
         ]
 
         all_qs = _lab_request_queryset_for_user(request.user)
@@ -864,16 +881,25 @@ class LabRequestListCreateView(generics.ListCreateAPIView):
         return LabRequestSerializer
 
     def get_queryset(self):
-        return _lab_request_queryset_for_user(self.request.user)
+        queryset = _lab_request_queryset_for_user(self.request.user)
+        consultation = self.request.query_params.get('consultation')
+        return queryset.filter(consultation_id=consultation) if consultation and consultation.isdigit() else queryset
 
     def create(self, request, *args, **kwargs):
-        if request.user.role not in ('customer', 'admin'):
-            raise PermissionDenied('Only patients or administrators can create lab requests.')
+        if request.user.role not in ('doctor', 'pediatrician'):
+            raise PermissionDenied('Lab tests must be ordered by the treating doctor or paediatrician.')
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        patient = request.user if request.user.is_authenticated else None
+        patient = serializer.validated_data['consultation'].patient
         req = serializer.save(patient=patient)
+        from apps.notifications.utils import create_notification
+        create_notification(req.assigned_partner.user, 'lab_status', 'New consultation lab request',
+                            f'{req.reference}: select a laboratory and technician for {req.test.name}.',
+                            data={'url': f'/lab/dashboard?view=requests&request={req.pk}', 'request_id': req.pk})
+        create_notification(patient, 'lab_status', 'Your clinician ordered lab tests',
+                            f'{req.test.name} has been ordered. View your request for payment and progress.',
+                            data={'url': f'/account/lab-tests?request={req.pk}'})
 
         LabAuditLog.objects.create(
             request=req,
@@ -913,14 +939,18 @@ class LabRequestUpdateView(generics.UpdateAPIView):
                 'result_pickup_location', 'notes',
             },
             'pharmacist': {
-                'priority', 'assigned_partner', 'laboratory', 'assigned_pharmacist',
+                'priority', 'assigned_pharmacist',
                 'assigned_technician', 'scheduled_at',
                 'collection_address', 'collection_instructions',
                 'result_pickup_location', 'notes',
             },
-            'lab_partner': {'assigned_technician', 'scheduled_at', 'notes'},
+            'lab_partner': {'laboratory', 'assigned_technician', 'scheduled_at', 'notes'},
             'lab_technician': {'status', 'assigned_technician', 'notes'},
         }.get(role, set())
+        if 'assigned_technician' in request.data and role not in ('admin', 'lab_partner'):
+            raise PermissionDenied('Technicians are assigned by an administrator or the assigned lab partner.')
+        if 'assigned_technician' in request.data and not (instance.status == LabRequest.STATUS_AWAITING or (role == 'lab_partner' and instance.status in (LabRequest.STATUS_COLLECTED, LabRequest.STATUS_SENT, LabRequest.STATUS_RECEIVED))):
+            raise ValidationError({'assigned_technician': 'Assign the technician before processing starts. After collection, only the lab partner may change the technician.'})
         requested_fields = set(request.data.keys())
         disallowed = requested_fields - editable_fields
         if disallowed:
@@ -952,12 +982,22 @@ class LabRequestUpdateView(generics.UpdateAPIView):
         if next_status and next_status != instance.status:
             allowed_transitions = {
                 LabRequest.STATUS_AWAITING: {LabRequest.STATUS_COLLECTED, LabRequest.STATUS_CANCELLED},
-                LabRequest.STATUS_COLLECTED: {LabRequest.STATUS_PROCESSING, LabRequest.STATUS_CANCELLED},
+                LabRequest.STATUS_COLLECTED: {LabRequest.STATUS_CANCELLED},
+                LabRequest.STATUS_SENT: {LabRequest.STATUS_CANCELLED},
+                LabRequest.STATUS_RECEIVED: {LabRequest.STATUS_PROCESSING, LabRequest.STATUS_CANCELLED},
                 LabRequest.STATUS_PROCESSING: {LabRequest.STATUS_CANCELLED},
                 LabRequest.STATUS_READY: {LabRequest.STATUS_COMPLETED},
                 LabRequest.STATUS_COMPLETED: set(),
                 LabRequest.STATUS_CANCELLED: set(),
             }
+            if next_status == LabRequest.STATUS_PROCESSING and (role != 'lab_technician' or instance.assigned_technician_id != request.user.pk):
+                raise PermissionDenied('Only the assigned laboratory technician can start processing.')
+            if next_status == LabRequest.STATUS_PROCESSING and not instance.samples_received_at:
+                raise ValidationError({'status': 'The lab partner must confirm sample receipt before processing starts.'})
+            if next_status == LabRequest.STATUS_PROCESSING and (instance.collection_fee_amount > 0 or instance.consultation_id) and instance.payment_status != 'paid':
+                raise ValidationError({'status': 'The customer must pay the test fee before processing starts.'})
+            if next_status == LabRequest.STATUS_PROCESSING and instance.channel == LabRequest.CHANNEL_COLLECTION and not instance.samples_sent_at:
+                raise ValidationError({'status': 'The administrator must record sample dispatch before processing starts.'})
             if next_status == LabRequest.STATUS_COMPLETED and not hasattr(instance, 'result'):
                 raise ValidationError({'status': 'A result must be released before completing this request.'})
             if next_status not in allowed_transitions.get(instance.status, set()):
@@ -984,16 +1024,23 @@ class LabRequestUpdateView(generics.UpdateAPIView):
         }
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        if instance.status != LabRequest.STATUS_AWAITING and any(
+        if instance.rider_dispatched_at and any(field in serializer.validated_data and getattr(serializer.validated_data[field], 'pk', None) != getattr(instance, f'{field}_id') for field in ('assigned_partner', 'laboratory')):
+            raise ValidationError({'assignment': 'The collection destination cannot change after rider dispatch.'})
+        partner_choosing_lab = role == 'lab_partner' and not instance.samples_sent_at and instance.status in (LabRequest.STATUS_AWAITING, LabRequest.STATUS_COLLECTED)
+        if (instance.samples_sent_at or (instance.status != LabRequest.STATUS_AWAITING and not partner_choosing_lab)) and any(
             field in serializer.validated_data and getattr(serializer.validated_data[field], 'pk', None) != getattr(instance, f'{field}_id')
             for field in ('assigned_partner', 'laboratory', 'assigned_technician')
+            if not (field == 'assigned_technician' and role == 'lab_partner' and instance.status in (LabRequest.STATUS_COLLECTED, LabRequest.STATUS_SENT, LabRequest.STATUS_RECEIVED))
         ):
-            raise ValidationError({'assignment': 'Assignments cannot change after sample collection.'})
+            raise ValidationError({'assignment': 'Assignments are locked at this stage. The partner may assign a technician after collection, before processing.'})
         assignment_changed = any(
             field in serializer.validated_data and getattr(serializer.validated_data[field], 'pk', None) != getattr(instance, f'{field}_id')
             for field in ('assigned_partner', 'laboratory', 'assigned_technician')
         )
         req = serializer.save()
+        if req.status == LabRequest.STATUS_COMPLETED:
+            from apps.payouts.services import create_lab_payouts
+            create_lab_payouts(req)
         if assignment_changed or req.status == LabRequest.STATUS_CANCELLED:
             req.collection_verification_code_hash = ''
             req.collection_code_expires_at = None
@@ -1022,6 +1069,19 @@ class LabRequestUpdateView(generics.UpdateAPIView):
                 action=action,
                 performed_by=request.user,
             )
+
+        from apps.notifications.utils import create_notification
+        if req.assigned_partner_id and previous['assigned_partner_id'] != req.assigned_partner_id:
+            create_notification(
+                recipient=req.assigned_partner.user, notification_type='lab_status',
+                title='New test request assigned to your partner account',
+                message=f'Select a conducting laboratory for request {req.reference}.',
+                data={'url': '/lab/dashboard?view=requests', 'request_id': req.pk, 'reference': req.reference},
+            )
+        elif role == 'lab_partner' and req.laboratory_id and previous['laboratory_id'] != req.laboratory_id:
+            from apps.accounts.models import User
+            for admin in User.objects.filter(role='admin', is_active=True, status='active'):
+                create_notification(recipient=admin, notification_type='lab_status', title='Lab partner selected the conducting laboratory', message=f'{req.reference}: {req.laboratory.name} is ready for sample dispatch coordination.', data={'url': f'/admin/lab-partners?view=requests&request={req.pk}', 'request_id': req.pk, 'laboratory_id': req.laboratory_id, 'laboratory_name': req.laboratory.name})
 
         # Notify patient of status change
         if req.patient and previous['status'] != req.status:
@@ -1054,8 +1114,8 @@ class LabCollectionCodeIssueView(APIView):
             raise ValidationError({'detail': 'A collection code is only used for home sample collection.'})
         if lab_request.status != LabRequest.STATUS_AWAITING:
             raise ValidationError({'detail': 'A collection code can only be generated while awaiting the sample.'})
-        if not lab_request.assigned_technician_id:
-            raise ValidationError({'detail': 'A collector must be assigned before generating the code.'})
+        if not lab_request.rider_dispatched_at:
+            raise ValidationError({'detail': 'AVA must dispatch the rider before a collection code can be generated.'})
 
         code = f'{secrets.randbelow(1_000_000):06d}'
         now = timezone.now()
@@ -1079,12 +1139,12 @@ class LabCollectionCodeIssueView(APIView):
             'code': code,
             'expires_at': lab_request.collection_code_expires_at,
             'laboratory_name': lab_request.laboratory.name if lab_request.laboratory else '',
-            'technician_name': lab_request.assigned_technician.full_name,
+            'technician_name': lab_request.assigned_technician.full_name if lab_request.assigned_technician else '',
         })
 
 
 class LabCollectionCodeVerifyView(APIView):
-    permission_classes = [IsLabTechOrAdmin]
+    permission_classes = [IsAdminUser]
 
     @transaction.atomic
     def post(self, request, pk):
@@ -1098,6 +1158,8 @@ class LabCollectionCodeVerifyView(APIView):
             raise PermissionDenied('Only the assigned collector can verify this collection.')
         if lab_request.channel != LabRequest.CHANNEL_COLLECTION or lab_request.status != LabRequest.STATUS_AWAITING:
             raise ValidationError({'detail': 'This request is not awaiting home sample collection.'})
+        if not lab_request.rider_dispatched_at:
+            raise ValidationError({'detail': 'Record rider dispatch before verifying collection.'})
         if lab_request.collection_verification_attempts >= 5:
             return Response(
                 {'detail': 'Too many attempts. Ask the patient to generate a new code.'},
@@ -1280,3 +1342,123 @@ class LabTechDocumentDownloadView(APIView):
         response = FileResponse(document.file.open('rb'), as_attachment=True, filename=document.file.name.rsplit('/', 1)[-1])
         response['Cache-Control'] = 'private, no-store'
         return response
+
+
+class AdminLaboratoryTestCreateView(APIView):
+    """Create the test definition and the chosen laboratory's offering together."""
+    permission_classes = [IsAdminUser]
+
+    def get_facility(self, request, pk):
+        return LaboratoryFacility.objects.select_for_update(of=('self',)).select_related('partner').get(pk=pk)
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            facility = self.get_facility(request, pk)
+        except LaboratoryFacility.DoesNotExist:
+            return Response({'detail': 'Laboratory not found.'}, status=404)
+        if facility.status != 'verified' or not facility.is_active or facility.partner.status != 'verified':
+            raise ValidationError({'detail': 'Approve the lab partner and laboratory before adding tests.'})
+        serializer = LabTestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if serializer.validated_data['price'] <= 0:
+            raise ValidationError({'price': 'Enter a price greater than zero.'})
+        test = serializer.save(is_active=True)
+        FacilityLabTest.objects.create(
+            facility=facility, test=test, price=test.price, turnaround=test.turnaround,
+            home_collection_available=facility.home_collection_enabled,
+        )
+        log_admin_action(request.user, 'laboratory_test_created', 'laboratory', facility.pk,
+                         f'Created {test.name} for {facility.name}', metadata={'test_id': test.pk})
+        return Response(LaboratoryFacilitySerializer(facility, context={'request': request}).data, status=201)
+
+
+class LabPartnerTestCatalogueView(generics.ListAPIView):
+    """Definitions available for a verified partner to add to its own facilities."""
+    permission_classes = [IsLabPartner]
+    serializer_class = LabTestSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        partner = _get_lab_partner_or_404(self.request.user)
+        if partner.status != LabPartner.STATUS_VERIFIED:
+            raise PermissionDenied('Your lab partner account must be verified before configuring tests.')
+        return LabTest.objects.filter(is_active=True).order_by('name')
+
+
+class LabPartnerLaboratoryTestCreateView(AdminLaboratoryTestCreateView):
+    permission_classes = [IsLabPartner]
+
+    def get_facility(self, request, pk):
+        return LaboratoryFacility.objects.select_for_update(of=('self',)).select_related('partner').get(pk=pk, partner__user=request.user)
+
+
+class LabSamplesSentView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            lab_request = LabRequest.objects.select_for_update().get(pk=pk)
+        except LabRequest.DoesNotExist:
+            return Response({'detail': 'Request not found.'}, status=404)
+        if not lab_request.laboratory_id or not lab_request.assigned_partner_id:
+            raise ValidationError({'detail': 'The assigned lab partner must select a laboratory before samples are sent.'})
+        if lab_request.laboratory.status != 'verified' or not lab_request.laboratory.is_active or lab_request.assigned_partner.status != 'verified':
+            raise ValidationError({'detail': 'The selected partner and laboratory must still be approved and active.'})
+        if lab_request.samples_sent_at:
+            return Response({'detail': 'Samples are already recorded as sent.'}, status=409)
+        if lab_request.status != LabRequest.STATUS_COLLECTED:
+            raise ValidationError({'detail': 'Collect and verify the samples before recording dispatch.'})
+        lab_request.samples_sent_at = timezone.now()
+        lab_request.status = LabRequest.STATUS_SENT
+        lab_request.save(update_fields=['samples_sent_at', 'status', 'updated_at'])
+        LabAuditLog.objects.create(request=lab_request, performed_by=request.user, action=f'Samples sent to {lab_request.laboratory.name}')
+        from apps.notifications.utils import create_notification
+        create_notification(recipient=lab_request.assigned_partner.user, notification_type='lab_status', title='Samples sent to your laboratory', message=f'Samples for {lab_request.reference} have been sent.', data={'url': '/lab/dashboard?view=requests', 'request_id': lab_request.pk})
+        return Response(LabRequestSerializer(lab_request, context={'request': request}).data)
+
+
+class LabRiderDispatchView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            lab_request = LabRequest.objects.select_for_update().get(pk=pk)
+        except LabRequest.DoesNotExist:
+            return Response({'detail': 'Lab request not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if lab_request.channel != LabRequest.CHANNEL_COLLECTION or lab_request.status != LabRequest.STATUS_AWAITING:
+            raise ValidationError({'detail': 'Only requests awaiting home sample collection can have a rider dispatched.'})
+        if not lab_request.laboratory_id or lab_request.laboratory.status != LaboratoryFacility.STATUS_VERIFIED or not lab_request.laboratory.is_active:
+            raise ValidationError({'detail': 'The partner must select an approved laboratory before rider dispatch.'})
+        if not lab_request.assigned_partner_id or lab_request.assigned_partner.status != LabPartner.STATUS_VERIFIED:
+            raise ValidationError({'detail': 'An approved lab partner is required before rider dispatch.'})
+        if not lab_request.rider_dispatched_at:
+            lab_request.rider_dispatched_at = timezone.now()
+            lab_request.save(update_fields=['rider_dispatched_at', 'updated_at'])
+            LabAuditLog.objects.create(request=lab_request, action='Rider dispatched for home sample collection', performed_by=request.user)
+        return Response(LabRequestSerializer(lab_request, context={'request': request}).data)
+
+
+class LabSamplesReceivedView(APIView):
+    permission_classes = [IsLabPartner]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        try:
+            lab_request = LabRequest.objects.select_for_update().get(pk=pk, assigned_partner__user=request.user)
+        except LabRequest.DoesNotExist:
+            return Response({'detail': 'Request not found.'}, status=404)
+        if lab_request.samples_received_at:
+            return Response(LabRequestSerializer(lab_request, context={'request': request}).data)
+        walk_in = lab_request.channel == LabRequest.CHANNEL_WALKIN and lab_request.status in (LabRequest.STATUS_AWAITING, LabRequest.STATUS_COLLECTED)
+        if not walk_in and (not lab_request.samples_sent_at or lab_request.status != LabRequest.STATUS_SENT):
+            raise ValidationError({'detail': 'AVA must record sample dispatch before receipt can be confirmed.'})
+        if not lab_request.laboratory_id or lab_request.laboratory.status != LaboratoryFacility.STATUS_VERIFIED or not lab_request.laboratory.is_active:
+            raise ValidationError({'detail': 'An active, approved laboratory is required.'})
+        lab_request.samples_received_at = timezone.now()
+        lab_request.status = LabRequest.STATUS_RECEIVED
+        lab_request.save(update_fields=['samples_received_at', 'status', 'updated_at'])
+        LabAuditLog.objects.create(request=lab_request, performed_by=request.user, action=f'Samples received at {lab_request.laboratory.name}')
+        return Response(LabRequestSerializer(lab_request, context={'request': request}).data)

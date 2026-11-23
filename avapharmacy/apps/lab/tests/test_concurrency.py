@@ -21,7 +21,7 @@ class LabConcurrencyTests(TransactionTestCase):
         barrier=Barrier(2)
         def call(_):
             try:
-                client=APIClient();client.force_authenticate(self.technician)
+                client=APIClient();client.force_authenticate(self.admin)
                 barrier.wait(timeout=5)
                 return client.post(path,payload,format='json').status_code
             finally:connections.close_all()
@@ -29,7 +29,7 @@ class LabConcurrencyTests(TransactionTestCase):
 
     @skipUnlessDBFeature('has_select_for_update')
     def test_collection_code_consumed_once_under_concurrency(self):
-        self.request.status='awaiting_sample';self.request.collection_verification_code_hash=make_password('123456');self.request.collection_code_expires_at=timezone.now()+timedelta(hours=1);self.request.save()
+        self.request.rider_dispatched_at=timezone.now();self.request.status='awaiting_sample';self.request.collection_verification_code_hash=make_password('123456');self.request.collection_code_expires_at=timezone.now()+timedelta(hours=1);self.request.save()
         self.assertEqual(sorted(self.race(reverse('lab-verify-collection',args=[self.request.pk]),{'code':'123456'})),[200,400])
         self.assertEqual(LabAuditLog.objects.filter(request=self.request,action__startswith='Home collection verified').count(),1)
 

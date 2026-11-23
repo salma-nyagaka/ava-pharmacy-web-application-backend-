@@ -4,6 +4,8 @@ Database models for the accounts app.
 Defines the custom User model (email-based auth), Customer, Pharmacist,
 Address, UserNote, and AdminAuditLog.
 """
+import uuid
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models, transaction
 from django.db.models import Q
@@ -170,6 +172,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     def total_orders(self):
         """Return the total number of orders placed by this user."""
         return self.orders.count()
+
+
+class LoginOTP(models.Model):
+    """Single-use login challenge; never stores the SMS code in plain text."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    email = models.EmailField(blank=True)
+    code_hash = models.CharField(max_length=128)
+    phone = models.CharField(max_length=20)
+    credential_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    sent_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    consumed = models.BooleanField(default=False)
 
 
 class BotRiskEvent(models.Model):

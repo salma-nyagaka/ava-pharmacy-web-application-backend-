@@ -12,6 +12,7 @@ from urllib import error, request
 from urllib.parse import urlsplit
 
 POST_ROUTES = {
+    '/callbacks/lab/stk/': '/api/lab/payments/mpesa/callback/',
     '/callbacks/consultation/stk/': '/api/consultations/payments/mpesa/callback/',
     '/callbacks/mobile/stk/': '/api/payments/mpesa/callback/',
     '/callbacks/mobile/validate/': '/api/payments/mpesa/paybill/validation/',

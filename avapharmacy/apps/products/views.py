@@ -301,6 +301,13 @@ class CatalogCategoryListView(generics.ListAPIView):
         )
 
 
+def other_active_variants():
+    return Exists(
+        Variant.objects.filter(product_id=OuterRef('product_id'), is_active=True)
+        .exclude(pk=OuterRef('pk'))
+    )
+
+
 class ProductListView(PromotionContextMixin, generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = PublicInventoryItemSerializer
@@ -312,7 +319,7 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        return annotate_variant_reviews(
+        queryset = annotate_variant_reviews(
             public_variant_queryset().filter(
                 Q(category__isnull=True) | Q(category__is_active=True)
             ).select_related(
@@ -320,10 +327,13 @@ class ProductListView(PromotionContextMixin, generics.ListAPIView):
                 'product__brand',
                 'category',
                 'subcategory',
-            ).prefetch_related(
-                'health_concerns',
             )
-        ).distinct()
+        ).annotate(has_other_active_variants=other_active_variants()).distinct()
+        # Search and prescription selection include prescription medicines.
+        params = self.request.query_params
+        if not (params.get('search', '').strip() or params.get('q', '').strip() or params.get('requires_prescription', '').lower() in ('true', '1')):
+            queryset = queryset.filter(requires_prescription=False)
+        return queryset
 
 
 class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
@@ -339,10 +349,8 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
                 'product__brand',
                 'category',
                 'subcategory',
-            ).prefetch_related(
-                'health_concerns',
             )
-        )
+        ).annotate(has_other_active_variants=other_active_variants())
 
         params = self.request.query_params
         category = (params.get('category') or '').strip()
@@ -352,6 +360,8 @@ class InventoryItemListView(PromotionContextMixin, generics.ListAPIView):
         store = (params.get('store') or '').strip()
         query = (params.get('search') or params.get('q') or '').strip()
         requires_prescription = params.get('requires_prescription')
+        if not query and str(requires_prescription).lower() not in ('true', '1'):
+            queryset = queryset.filter(requires_prescription=False)
         min_price = params.get('min_price')
         max_price = params.get('max_price')
         ordering = (params.get('ordering') or '-created_at').strip()
@@ -1530,6 +1540,28 @@ class ProductAvailabilityView(APIView):
         except (ValueError, TypeError):
             return Response({'error': {'code': 'validation_error', 'message': 'product_ids must be comma-separated integers.'}}, status=400)
 
+        try:
+            variant_ids = [int(value) for value in request.query_params.get('variant_ids', '').split(',') if value.strip()]
+        except (ValueError, TypeError):
+            return Response({'error': {'code': 'validation_error', 'message': 'variant_ids must be comma-separated integers.'}}, status=400)
+        if variant_ids:
+            variants = list(public_variant_queryset().filter(pk__in=variant_ids))
+            refreshed = refresh_pos_inventory_for_variants(variants)
+            availability = []
+            for variant in variants:
+                pos_info = refreshed.get(variant.pk) or {}
+                if pos_info.get('error'):
+                    pos_info = {}
+                available = variant.available_quantity
+                inventory = variant._get_inventory_values()
+                availability.append({
+                    'product_id': variant.product_id, 'variant_id': variant.pk,
+                    'is_available': available > 0, 'available_quantity': available,
+                    'stock_source': inventory['stock_source'], 'quantity': inventory['stock_quantity'],
+                    'is_low_stock': 0 < inventory['stock_quantity'] <= inventory['low_stock_threshold'],
+                    'pos_checked': bool(pos_info), 'pos_quantity': pos_info.get('quantity'),
+                })
+            return Response({'availability': availability})
         products = list(public_product_queryset().filter(pk__in=ids).prefetch_related(Prefetch(
             'variants',
             queryset=Variant.objects.prefetch_related(_inventory_prefetch(public=True)).order_by('sort_order', 'name', 'pk'),

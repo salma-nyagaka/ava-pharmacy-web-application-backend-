@@ -51,7 +51,7 @@ def dashboard_url_for_role(role):
         User.DOCTOR: getattr(settings, 'FRONTEND_DOCTOR_DASHBOARD_URL', f'{frontend_base}/doctor/dashboard'),
         User.PEDIATRICIAN: getattr(settings, 'FRONTEND_PEDIATRICIAN_DASHBOARD_URL', f'{frontend_base}/pediatrician/dashboard'),
         User.LAB_PARTNER: getattr(settings, 'FRONTEND_LAB_PARTNER_DASHBOARD_URL', f'{frontend_base}/laboratory/dashboard'),
-        User.LAB_TECHNICIAN: getattr(settings, 'FRONTEND_LAB_TECHNICIAN_DASHBOARD_URL', f'{frontend_base}/labaratory/dashboard'),
+        User.LAB_TECHNICIAN: getattr(settings, 'FRONTEND_LAB_TECHNICIAN_DASHBOARD_URL', f'{frontend_base}/labtech/dashboard'),
         User.INVENTORY_STAFF: getattr(settings, 'FRONTEND_INVENTORY_DASHBOARD_URL', f'{frontend_base}/inventory/dashboard'),
     }
     return mapping.get(role, frontend_base)

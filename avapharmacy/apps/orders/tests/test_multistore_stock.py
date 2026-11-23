@@ -100,3 +100,77 @@ class MultiStoreOrderStockTests(TestCase):
         self.assertEqual(self.second_inventory.stock_quantity, 5)
         self.assertEqual(self.item.inventory_allocations, [])
 
+
+    def test_selected_location_only_is_consumed_and_restored(self):
+        self.item.selected_inventory = self.second_inventory
+        self.item.save(update_fields=['selected_inventory'])
+        commit_order_inventory(self.order)
+        self.first_inventory.refresh_from_db()
+        self.second_inventory.refresh_from_db()
+        self.item.refresh_from_db()
+        self.assertEqual(self.first_inventory.stock_quantity, 2)
+        self.assertEqual(self.second_inventory.stock_quantity, 2)
+        self.assertEqual([row['inventory_id'] for row in self.item.inventory_allocations], [self.second_inventory.pk])
+        release_order_inventory(self.order)
+        self.second_inventory.refresh_from_db()
+        self.assertEqual(self.second_inventory.stock_quantity, 5)
+
+    def test_selected_location_cannot_spill_over_to_another_store(self):
+        self.item.selected_inventory = self.first_inventory
+        self.item.save(update_fields=['selected_inventory'])
+        with self.assertRaisesMessage(ValueError, 'Insufficient stock at the selected medication location'):
+            commit_order_inventory(self.order)
+        self.first_inventory.refresh_from_db()
+        self.second_inventory.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(self.first_inventory.stock_quantity, 2)
+        self.assertEqual(self.second_inventory.stock_quantity, 5)
+        self.assertFalse(self.order.inventory_committed)
+
+    def test_location_selection_survives_cart_snapshot(self):
+        from apps.orders.models import Cart, CartItem
+        from apps.orders.views import snapshot_cart_to_order
+        cart = Cart.objects.create(user=self.customer)
+        item = CartItem.objects.create(cart=cart, variant=self.variant, quantity=1, selected_inventory=self.second_inventory)
+        snapshot_cart_to_order(self.order, [item])
+        self.assertEqual(self.order.items.get().selected_inventory_id, self.second_inventory.pk)
+
+    def test_catalog_locations_identify_each_store_and_quantity(self):
+        from apps.products.medication_locations import location_options, validate_inventory_selection
+        options = {row['inventory_id']: row for row in location_options(self.variant)}
+        self.assertEqual(options[self.first_inventory.pk]['branch_name'], 'First Store')
+        self.assertEqual(options[self.second_inventory.pk]['available_quantity'], 5)
+        with self.assertRaisesMessage(ValueError, 'Only 2 unit(s)'):
+            validate_inventory_selection(self.variant, self.first_inventory.pk, 3)
+        with self.assertRaisesMessage(ValueError, 'does not match this variant'):
+            validate_inventory_selection(self.variant, 9999999, 1)
+
+    def test_staff_selection_requires_a_location_when_multiple_are_available(self):
+        from apps.prescriptions.serializers import PharmacistPrescriptionReviewItemSerializer
+        data = {'name': 'Medication', 'variant_id': self.variant.pk, 'quantity': 1}
+        serializer = PharmacistPrescriptionReviewItemSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('selected_inventory_id', serializer.errors)
+        data['selected_inventory_id'] = self.second_inventory.pk
+        serializer = PharmacistPrescriptionReviewItemSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['selected_inventory_id'], self.second_inventory.pk)
+
+    def test_review_preserves_the_chosen_location_on_prescription_item(self):
+        from apps.prescriptions.models import Prescription
+        from apps.prescriptions.views import _replace_prescription_items
+        prescription = Prescription.objects.create(patient=self.customer, patient_name='Test patient')
+        _replace_prescription_items(prescription, [{'name': 'Medication', 'variant_id': self.variant.pk,
+            'selected_inventory_id': self.second_inventory.pk, 'quantity': 1}])
+        self.assertEqual(prescription.items.get().selected_inventory_id, self.second_inventory.pk)
+
+    def test_clinician_selection_preserves_location_and_checks_local_stock(self):
+        from apps.consultations.serializers import validate_clinician_prescription_items
+        from rest_framework.exceptions import ValidationError
+        data = {'variant_id': self.variant.pk, 'selected_inventory_id': self.second_inventory.pk, 'quantity': 3}
+        result = validate_clinician_prescription_items([data])[0]
+        self.assertEqual(result['selected_inventory_id'], self.second_inventory.pk)
+        self.assertEqual(result['selected_branch'], 'Second Store')
+        data['selected_inventory_id'] = self.first_inventory.pk
+        with self.assertRaises(ValidationError):
+            validate_clinician_prescription_items([data])

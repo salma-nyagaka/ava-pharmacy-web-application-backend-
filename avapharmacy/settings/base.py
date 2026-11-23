@@ -122,6 +122,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = config('MEDIA_URL', default='/media/')
 MEDIA_ROOT = BASE_DIR / 'media'
+# Dedicated Spaces bucket for public catalog thumbnails. An empty bucket uses local media storage.
+CATALOG_THUMBNAIL_SPACES_BUCKET = config('CATALOG_THUMBNAIL_SPACES_BUCKET', default='')
+CATALOG_THUMBNAIL_SPACES_REGION = config('CATALOG_THUMBNAIL_SPACES_REGION', default='')
+CATALOG_THUMBNAIL_SPACES_KEY = config('CATALOG_THUMBNAIL_SPACES_KEY', default='')
+CATALOG_THUMBNAIL_SPACES_SECRET = config('CATALOG_THUMBNAIL_SPACES_SECRET', default='')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -132,7 +137,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.accounts.authentication.CredentialJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -177,6 +182,8 @@ SIMPLE_JWT = {
 }
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
+CORS_EXPOSE_HEADERS = ['Retry-After']
+
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
     default='http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000'
@@ -365,6 +372,10 @@ CHANNEL_LAYERS = {
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='memory://')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='cache+memory://')
 CELERY_BEAT_SCHEDULE = {
+    'clinical-and-stock-reminders': {
+        'task': 'apps.notifications.tasks.send_clinical_and_stock_reminders',
+        'schedule': 300,
+    },
     'warm-admin-catalog-summary': {
         'task': 'apps.products.tasks.warm_admin_catalog_summary',
         'schedule': 60,
@@ -433,3 +444,25 @@ CACHES = {'default': {
 
 # Checkout coupons are paused; automatic product deals remain available.
 CHECKOUT_COUPONS_ENABLED = False
+
+LAB_MPESA_CALLBACK_URL = config('LAB_MPESA_CALLBACK_URL', default='')
+
+LAB_COLLECTION_FEE = config('LAB_COLLECTION_FEE', default='1.00')
+
+# Require OTP verification before issuing login tokens.
+LOGIN_OTP_REQUIRED = config('LOGIN_OTP_REQUIRED', default=True, cast=bool)
+
+LOGIN_OTP_DELIVERY = config('LOGIN_OTP_DELIVERY', default='both')
+
+# BongaSMS settings for SMS login codes.
+BONGASMS_SEND_URL = config('BONGASMS_SEND_URL', default='')
+BONGASMS_CLIENT_ID = config('BONGASMS_CLIENT_ID', default='')
+BONGASMS_API_KEY = config('BONGASMS_API_KEY', default='')
+BONGASMS_API_SECRET = config('BONGASMS_API_SECRET', default='')
+BONGASMS_SERVICE_ID = config('BONGASMS_SERVICE_ID', default='1')
+
+LOGIN_SMS_PROVIDER = config('LOGIN_SMS_PROVIDER', default='bongasms')
+TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
+TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
+TWILIO_FROM_NUMBER = config('TWILIO_FROM_NUMBER', default='')
+TWILIO_MESSAGING_SERVICE_SID = config('TWILIO_MESSAGING_SERVICE_SID', default='')

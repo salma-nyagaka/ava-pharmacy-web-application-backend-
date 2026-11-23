@@ -124,6 +124,10 @@ class PrescriptionFile(models.Model):
 
 
 class PrescriptionItem(models.Model):
+    selected_inventory = models.ForeignKey(
+        'products.VariantInventory', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='+',
+    )
     prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name='items')
     name = models.CharField(max_length=200)
     product = models.ForeignKey(
@@ -140,6 +144,12 @@ class PrescriptionItem(models.Model):
         blank=True,
         related_name='prescription_items',
     )
+    administration_route = models.CharField(max_length=100, blank=True)
+    instructions = models.TextField(blank=True)
+    is_refill = models.BooleanField(default=False)
+    refill_interval = models.PositiveIntegerField(null=True, blank=True)
+    refill_unit = models.CharField(max_length=10, choices=[('days', 'Days'), ('months', 'Months')], default='days')
+    next_refill_at = models.DateField(null=True, blank=True)
     dose = models.CharField(max_length=100, blank=True)
     frequency = models.CharField(max_length=100, blank=True)
     duration = models.CharField(max_length=100, blank=True)

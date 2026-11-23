@@ -1,14 +1,17 @@
 from avapharmacy.test_compliance_fixtures import catalogue_fixture
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import Mock
 
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.products.management.commands.sync_catalog_images import (
+    Command,
     gtin_check_digit_is_valid,
     image_result_match_score,
     normalized_barcode,
+    open_facts_name_matches,
 )
 from apps.products.models import (
     IMAGE_SOURCE_MANUAL,
@@ -17,6 +20,29 @@ from apps.products.models import (
     Product,
     Variant,
 )
+
+
+class OpenFactsImageTests(SimpleTestCase):
+    def test_barcode_match_still_requires_matching_product_and_pack(self):
+        name = '3M Nexcare Happy Kids Animals Plasters 20'
+        self.assertFalse(open_facts_name_matches(name, name, 'Barley'))
+        self.assertFalse(open_facts_name_matches(name, name, '3M Nexcare Happy Kids Animals Plasters 10'))
+        self.assertTrue(open_facts_name_matches(name, name, 'Nexcare Happy Kids Animals Plasters 20'))
+
+    def test_lookup_does_not_fall_back_to_an_unlabelled_image(self):
+        session = Mock()
+        session.get.return_value.status_code = 200
+        session.get.return_value.json.return_value = {
+            'status': 1,
+            'product': {
+                'code': '5902658105562',
+                'product_name': 'Nexcare Happy Kids Animals Plasters 20',
+                'image_url': 'https://images.openfoodfacts.org/generic.jpg',
+            },
+        }
+        name, url = Command._lookup_open_facts(session, '5902658105562')
+        self.assertEqual(name, 'Nexcare Happy Kids Animals Plasters 20')
+        self.assertEqual(url, '')
 
 
 class CatalogImageCommandTests(TestCase):

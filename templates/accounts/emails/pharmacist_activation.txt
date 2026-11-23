@@ -1,7 +1,7 @@
 {% extends "emails/base.txt" %}
 
 {% block title %}AVA Pharmacy {{ account_role_label|default:"Professional" }} Account Activation{% endblock %}
-{% block intro %}Hi {{ first_name }}, your {{ account_role_lower|default:"professional" }} account has been created by {{ invited_by }}.{% endblock %}
+{% block intro %}Hi {{ first_name }}, your {{ account_role_lower|default:"professional" }} account is ready to activate.{% endblock %}
 
 {% block content %}
 {% if consultation_fee %}
@@ -11,7 +11,6 @@ Your payout per paid consultation: KSh {{ clinician_payout }}.
 {% endif %}
 
 Activate account: {{ activation_url }}
-Dashboard: {{ dashboard_url }}
 Link expires in {{ expires_hours }} hours.
 Support: {{ support_email }}
 {% endblock %}

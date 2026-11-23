@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}AVA Pharmacy{% endblock %}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Inter,Segoe UI,Arial,sans-serif;color:#14213d;">
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;color:#14213d;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6fb;padding:24px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e6e8ef;border-radius:16px;overflow:hidden;">
+        <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="{% block card_style %}width:100%;max-width:560px;background:#ffffff;border:1px solid #e6e8ef;border-top:3px solid #e81750;border-radius:8px;overflow:hidden;{% endblock %}">
           <tr>
-            <td style="background:linear-gradient(135deg,#e81750,#991b1f);padding:24px;color:#ffffff;">
-              <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;">{% block eyebrow %}Ava Pharmacy{% endblock %}</p>
-              <h1 style="margin:0;font-size:26px;line-height:1.25;">{% block heading %}Ava Pharmacy{% endblock %}</h1>
+            <td style="{% block header_style %}padding:24px 24px 0;color:#14213d;{% endblock %}">
+              <p style="margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#e81750;font-weight:700;">{% block eyebrow %}Ava Pharmacy{% endblock %}</p>
+              <h1 style="margin:0;font-size:22px;line-height:1.25;">{% block heading %}Ava Pharmacy{% endblock %}</h1>
               <p style="margin:10px 0 0;font-size:15px;line-height:1.6;opacity:.92;">
                 {% block intro %}{% endblock %}
               </p>
             </td>
           </tr>
           <tr>
-            <td style="padding:28px 24px 16px;">
+            <td style="{% block content_style %}padding:18px 24px 20px;{% endblock %}">
               {% block content %}{% endblock %}
             </td>
           </tr>
           <tr>
             <td style="padding:0 24px 24px;">
-              <p style="margin:0;font-size:12px;line-height:1.7;color:#8a91a8;">
-                {% block footnote %}AVA Pharmacy transactional email{% endblock %}<br>Superintendent: {{ pharmacy.superintendent_name|default:"Awaiting verification" }} · Registration: {{ pharmacy.superintendent_registration_number|default:"Awaiting verification" }} · Health safety code: {{ pharmacy.health_safety_code|default:"Awaiting verification" }}
+              <p style="{% block footer_style %}margin:0;padding-top:14px;border-top:1px solid #e6e8ef;font-size:12px;line-height:1.6;color:#64748b;{% endblock %}">
+                {% block footnote_line %}{% block footnote %}AVA Pharmacy transactional email{% endblock %}<br>{% endblock %}{% if pharmacy.superintendent_name and pharmacy.superintendent_registration_number %}Superintendent: {{ pharmacy.superintendent_name }} · Registration: {{ pharmacy.superintendent_registration_number }}{% endif %}{% if pharmacy.health_safety_code %} · Health safety code: {{ pharmacy.health_safety_code }}{% endif %}
               </p>
             </td>
           </tr>

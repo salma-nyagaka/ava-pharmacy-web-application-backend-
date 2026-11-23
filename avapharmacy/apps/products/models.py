@@ -389,6 +389,7 @@ class Product(models.Model):
     )
     curation_notes = models.TextField(blank=True)
     image = models.ImageField(upload_to='products/', blank=True)
+    catalog_thumbnail_url = models.CharField(max_length=500, blank=True, editable=False)
     image_source = models.CharField(
         max_length=20, choices=IMAGE_SOURCE_CHOICES, default=IMAGE_SOURCE_MISSING, db_index=True
     )
@@ -1174,6 +1175,7 @@ class Variant(models.Model):
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     image = models.ImageField(upload_to='products/variants/', blank=True)
+    catalog_thumbnail_url = models.CharField(max_length=500, blank=True, editable=False)
     image_source = models.CharField(
         max_length=20, choices=IMAGE_SOURCE_CHOICES, default=IMAGE_SOURCE_MISSING, db_index=True
     )
@@ -1470,6 +1472,15 @@ class Variant(models.Model):
         return inventory['stock_quantity']
 
     @property
+    def branch_names(self):
+        """Named stock locations for staff medication catalog displays."""
+        return sorted({
+            row.store_name or row.get_location_display()
+            for row in self.inventories.all()
+            if row.stock_quantity > 0
+        })
+
+    @property
     def inventories_summary(self):
         return self._get_location_inventory_values()
 
@@ -1527,6 +1538,7 @@ class StoreVariantListing(models.Model):
 
 
 class VariantInventory(models.Model):
+    low_stock_notified = models.BooleanField(default=False)
     """Current inventory snapshot for a variant location."""
 
     STATUS_IN_STOCK = 'in_stock'

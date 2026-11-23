@@ -137,9 +137,10 @@ class LabWorkflowSecurityTests(APITestCase):
         return response.data.get('error', {}).get('details', response.data)
 
     def test_home_collection_requires_an_address_and_defaults_to_digital_results(self):
-        self.authenticate(self.patient)
+        doctor, consultation = ordering_consultation(self)
+        self.authenticate(doctor)
         payload = {
-            'test': self.test.pk,
+            'test': self.test.pk, 'consultation': consultation.pk, 'assigned_partner': self.partner.pk,
             'patient_name': 'Patient One',
             'patient_phone': '0711111111',
             'channel': LabRequest.CHANNEL_COLLECTION,
@@ -213,7 +214,6 @@ class LabWorkflowSecurityTests(APITestCase):
             reverse('lab-request-update', args=[self.request.pk]),
             {
                 'assigned_pharmacist': self.pharmacist.pk,
-                'assigned_partner': self.partner.pk,
             },
             format='json',
         )
@@ -302,6 +302,15 @@ class LabWorkflowSecurityTests(APITestCase):
         self.request.refresh_from_db()
         self.assertEqual(self.request.status, LabRequest.STATUS_READY)
 
+        from apps.notifications.models import Notification
+        self.assertTrue(Notification.objects.filter(recipient=self.partner_user, type='lab_result').exists())
+        self.assertTrue(Notification.objects.filter(recipient=self.patient, type='lab_result').exists())
+        for viewer in (self.patient, self.partner_user):
+            self.authenticate(viewer)
+            detail = self.client.get(reverse('lab-result-detail', args=[created.data['id']]))
+            self.assertEqual(detail.status_code, 200)
+            self.assertEqual(detail.data['summary'], payload['summary'])
+
     def test_partner_registers_facility_and_admin_verifies_it(self):
         self.authenticate(self.partner_user)
         created = self.client.post(
@@ -314,11 +323,15 @@ class LabWorkflowSecurityTests(APITestCase):
                 'address': 'Karen Road, Nairobi',
                 'license_number': 'FAC-003',
                 'license_expiry': '2030-12-31',
-                'supported_counties': ['Kajiado'],
+                'supported_counties': '["Kajiado"]',
+                'accreditation': 'QA accreditation',
+                'operating_hours': '{"monday_friday":"08:00-17:00","saturday":"Closed"}',
+                'pickup_instructions': 'Collect from the QA reception.',
+                'registration_document': SimpleUploadedFile('registration.pdf', b'%PDF-1.4 QA', content_type='application/pdf'),
                 'home_collection_enabled': True,
                 'physical_result_pickup_enabled': True,
             },
-            format='json',
+            format='multipart',
         )
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.data['status'], LaboratoryFacility.STATUS_PENDING)
@@ -352,7 +365,7 @@ class LabWorkflowSecurityTests(APITestCase):
         )
         self.assertEqual(verified.status_code, 200)
         self.assertEqual(verified.data['status'], LaboratoryFacility.STATUS_VERIFIED)
-        document = LaboratoryFacilityDocument.objects.get(facility_id=created.data['id'])
+        document = LaboratoryFacilityDocument.objects.get(facility_id=created.data['id'], name='Facility licence')
         document.refresh_from_db()
         self.assertEqual(document.status, LaboratoryFacilityDocument.STATUS_VERIFIED)
         downloaded = self.client.get(reverse('lab-facility-document-download', args=[document.pk]))
@@ -457,7 +470,9 @@ class LabWorkflowSecurityTests(APITestCase):
         self.assertIn('laboratory', self.error_details(response))
 
     def test_patient_collection_code_verifies_assigned_collector_and_collects_sample(self):
+        from django.utils import timezone
         collection = LabRequest.objects.create(
+            rider_dispatched_at=timezone.now(),
             test=self.test,
             patient=self.patient,
             patient_name='Patient One',
@@ -474,7 +489,7 @@ class LabWorkflowSecurityTests(APITestCase):
         self.assertEqual(issued.status_code, 200)
         self.assertRegex(issued.data['code'], r'^\d{6}$')
 
-        self.authenticate(self.technician)
+        self.authenticate(self.admin)
         wrong = self.client.post(
             reverse('lab-verify-collection', args=[collection.pk]),
             {'code': '000000'},
@@ -491,5 +506,14 @@ class LabWorkflowSecurityTests(APITestCase):
         self.assertEqual(verified.data['status'], LabRequest.STATUS_COLLECTED)
         self.assertIsNotNone(verified.data['collection_verified_at'])
         collection.refresh_from_db()
-        self.assertEqual(collection.collection_verified_by, self.technician)
+        self.assertEqual(collection.collection_verified_by, self.admin)
         self.assertEqual(collection.collection_verification_code_hash, '')
+
+
+def ordering_consultation(case):
+    """A verified treating clinician for lab-order integration fixtures."""
+    from apps.consultations.models import ClinicianProfile, Consultation
+    from avapharmacy.test_compliance_fixtures import clinician_fixture
+    doctor = case.make_user('ordering-clinician@example.test', 'doctor')
+    profile = ClinicianProfile.objects.create(user=doctor, provider_type='doctor', status='active', name='Synthetic Clinician', email=doctor.email, **clinician_fixture())
+    return doctor, Consultation.objects.create(clinician=profile, patient=case.patient, patient_name='Patient One', patient_phone='0711111111', status='in_progress')

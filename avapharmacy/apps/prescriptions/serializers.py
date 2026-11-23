@@ -56,11 +56,14 @@ class PrescriptionFileSerializer(serializers.ModelSerializer):
 
 
 class PrescriptionItemSerializer(serializers.ModelSerializer):
+    refill_interval = serializers.IntegerField(min_value=1, max_value=3650, required=False, allow_null=True)
     product_id = serializers.IntegerField(required=False, allow_null=True)
+    selected_inventory_id = serializers.IntegerField(required=False, allow_null=True)
     variant_id = serializers.IntegerField(required=False, allow_null=True)
     product_name = serializers.ReadOnlyField(source='product.name')
     product_slug = serializers.ReadOnlyField(source='product.slug')
     product_image = serializers.ImageField(source='product.image', read_only=True)
+    selected_branch = serializers.ReadOnlyField(source='selected_inventory.store_name')
     variant_name = serializers.ReadOnlyField(source='variant.name')
     variant_sku = serializers.ReadOnlyField(source='variant.sku')
     is_paid_for = serializers.SerializerMethodField()
@@ -69,11 +72,26 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
         model = PrescriptionItem
         fields = (
             'id', 'name', 'product_id', 'product_name', 'product_slug', 'product_image',
-            'variant_id', 'variant_name', 'variant_sku',
+            'variant_id', 'selected_inventory_id', 'selected_branch', 'variant_name', 'variant_sku',
+            'administration_route', 'instructions', 'is_refill', 'refill_interval', 'refill_unit', 'next_refill_at',
             'dose', 'frequency', 'duration', 'quantity', 'quantity_measurement',
             'is_controlled_substance', 'is_paid_for',
         )
-        read_only_fields = ('id',)
+        read_only_fields = ('id', 'next_refill_at')
+
+    def validate(self, attrs):
+        if attrs.get('is_refill') and not attrs.get('refill_interval'):
+            raise serializers.ValidationError({'refill_interval': 'Enter a positive refill interval.'})
+        if attrs.get('selected_inventory_id'):
+            from apps.products.medication_locations import resolve_staff_inventory_selection, validate_inventory_selection
+            variant = Variant.objects.filter(pk=attrs.get('variant_id')).first()
+            if not variant:
+                raise serializers.ValidationError({'variant_id': 'Select a variant for this location.'})
+            try:
+                validate_inventory_selection(variant, attrs['selected_inventory_id'], attrs.get('quantity', 1))
+            except ValueError as exc:
+                raise serializers.ValidationError({'selected_inventory_id': str(exc)})
+        return attrs
 
     def get_is_paid_for(self, obj):
         return obj.order_items.filter(
@@ -169,6 +187,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 class PrescriptionUploadItemSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     product_id = serializers.IntegerField(required=False, allow_null=True)
+    selected_inventory_id = serializers.IntegerField(required=False, allow_null=True)
     variant_id = serializers.IntegerField(required=False, allow_null=True)
     dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
     frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
@@ -183,6 +202,11 @@ class PrescriptionUploadItemSerializer(serializers.Serializer):
                 raise serializers.ValidationError({'variant_id': 'Selected variant was not found or is inactive.'})
             if product_id and product_id != variant.product_id:
                 raise serializers.ValidationError({'product_id': 'Product does not match the selected variant.'})
+            from apps.products.medication_locations import resolve_staff_inventory_selection, validate_inventory_selection
+            try:
+                attrs['selected_inventory_id'] = resolve_staff_inventory_selection(variant, attrs.get('selected_inventory_id'), attrs.get('quantity', 1))
+            except ValueError as exc:
+                raise serializers.ValidationError({'selected_inventory_id': str(exc)})
             attrs['product_id'] = variant.product_id
         elif product_id:
             product = Product.objects.filter(pk=product_id, is_active=True).prefetch_related('variants').first()
@@ -284,6 +308,9 @@ class PrescriptionUpdateSerializer(serializers.ModelSerializer):
         if 'status' in validated_data:
             instance.clarification_message = instance.pharmacist_notes if instance.status in [Prescription.STATUS_REJECTED, Prescription.STATUS_CLARIFICATION] else ''
         instance.save()
+        if instance.status == Prescription.STATUS_APPROVED:
+            from .reminders import schedule_refills
+            schedule_refills(instance)
         return instance
 
 
@@ -293,8 +320,14 @@ class PrescriptionAuditCreateSerializer(serializers.Serializer):
 
 
 class PharmacistPrescriptionReviewItemSerializer(serializers.Serializer):
+    administration_route = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    instructions = serializers.CharField(required=False, allow_blank=True)
+    is_refill = serializers.BooleanField(required=False, default=False)
+    refill_interval = serializers.IntegerField(min_value=1, max_value=3650, required=False, allow_null=True)
+    refill_unit = serializers.ChoiceField(choices=['days', 'months'], required=False, default='days')
     name = serializers.CharField(max_length=200)
     product_id = serializers.IntegerField(required=False, allow_null=True)
+    selected_inventory_id = serializers.IntegerField(required=False, allow_null=True)
     variant_id = serializers.IntegerField(required=False, allow_null=True)
     dose = serializers.CharField(max_length=100, required=False, allow_blank=True)
     frequency = serializers.CharField(max_length=100, required=False, allow_blank=True)
@@ -303,6 +336,8 @@ class PharmacistPrescriptionReviewItemSerializer(serializers.Serializer):
     quantity_measurement = serializers.CharField(max_length=60, required=False, allow_blank=True)
 
     def validate(self, attrs):
+        if attrs.get('is_refill') and not attrs.get('refill_interval'):
+            raise serializers.ValidationError({'refill_interval': 'Enter the refill interval in days or months.'})
         product_id = attrs.get('product_id')
         variant_id = attrs.get('variant_id')
         if variant_id:
@@ -311,6 +346,11 @@ class PharmacistPrescriptionReviewItemSerializer(serializers.Serializer):
                 raise serializers.ValidationError({'variant_id': 'Selected variant was not found or is inactive.'})
             if product_id and product_id != variant.product_id:
                 raise serializers.ValidationError({'product_id': 'Product does not match the selected variant.'})
+            from apps.products.medication_locations import resolve_staff_inventory_selection, validate_inventory_selection
+            try:
+                attrs['selected_inventory_id'] = resolve_staff_inventory_selection(variant, attrs.get('selected_inventory_id'), attrs.get('quantity', 1))
+            except ValueError as exc:
+                raise serializers.ValidationError({'selected_inventory_id': str(exc)})
             attrs['product_id'] = variant.product_id
         elif product_id and not Product.objects.filter(pk=product_id, is_active=True).exists():
             raise serializers.ValidationError({'product_id': 'Selected product was not found or is inactive.'})

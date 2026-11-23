@@ -29,12 +29,12 @@ from django.views import View
 
 
 class LoginRateThrottle(AnonRateThrottle):
-    """Throttle for the login endpoint — uses the 'login' scope (5/min)."""
+    """Throttle for the login endpoint, uses the 'login' scope (5/min)."""
     scope = 'login'
 
 
 class RegisterRateThrottle(AnonRateThrottle):
-    """Throttle for the register endpoint — uses the 'register' scope (10/hr)."""
+    """Throttle for the register endpoint, uses the 'register' scope (10/hr)."""
     scope = 'register'
 
 
@@ -198,13 +198,13 @@ class PublicLabPartnerListView(generics.ListAPIView):
 
 
 class LoginView(APIView):
-    """Public endpoint to authenticate with email/password and receive JWT tokens."""
+    """Public endpoint to validate credentials and start email login verification."""
 
     permission_classes = [permissions.AllowAny]
     throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
-        """Validate credentials and return JWT tokens on success.
+        """Validate credentials and request an email challenge before issuing tokens.
 
         Returns HTTP 401 for invalid credentials and HTTP 403 for suspended accounts.
         """
@@ -268,6 +268,11 @@ class LoginView(APIView):
                 reasons=['pending_customer_verification'],
             )
             return Response({'detail': 'Please activate your account via the email we sent you before logging in.'}, status=status.HTTP_403_FORBIDDEN)
+        if settings.LOGIN_OTP_REQUIRED:
+            from .login_otp import issue_login_otp
+            return Response(issue_login_otp(
+                user, email_fallback_challenge_id=serializer.validated_data.get('email_fallback_challenge_id'),
+            ))
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
@@ -275,6 +280,31 @@ class LoginView(APIView):
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             }
+        })
+
+
+class LoginOTPVerifyView(APIView):
+    """Exchange a single-use email code for the normal login response."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        from rest_framework import serializers
+        from .login_otp import verify_login_otp
+
+        class VerifySerializer(serializers.Serializer):
+            challenge_id = serializers.UUIDField()
+            code = serializers.RegexField(r'^[0-9]{6}$', max_length=6, min_length=6)
+
+        serializer = VerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = verify_login_otp(**serializer.validated_data)
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'user': UserSerializer(user).data,
+            'tokens': {'refresh': str(refresh), 'access': str(refresh.access_token)},
         })
 
 
@@ -929,7 +959,7 @@ class VerifyEmailView(APIView):
 
 
 class ResendVerificationView(APIView):
-    """Resend the email verification link (stub — rate limited)."""
+    """Resend the email verification link (stub, rate limited)."""
 
     permission_classes = [permissions.AllowAny]
     throttle_classes = [RegisterRateThrottle]

@@ -1,7 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import Payout, PayoutAuditLog, PayoutRule
+from .models import LabRevenueAgreement, Payout, PayoutAuditLog, PayoutRule
 
 
 class PayoutAuditLogSerializer(serializers.ModelSerializer):
@@ -133,3 +133,19 @@ class PayoutRuleSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError('The task rate cannot be negative.')
         return value
+
+
+class LabRevenueAgreementSerializer(serializers.ModelSerializer):
+    partner_name = serializers.ReadOnlyField(source='partner.name')
+
+    class Meta:
+        model = LabRevenueAgreement
+        fields = ('id', 'partner', 'partner_name', 'partner_percent', 'technician_percent', 'ava_percent', 'is_active', 'updated_at', 'updated_by')
+        read_only_fields = ('updated_at', 'updated_by')
+
+    def validate(self, attrs):
+        from decimal import Decimal
+        values = [attrs.get(field, getattr(self.instance, field, None)) for field in ('partner_percent', 'technician_percent', 'ava_percent')]
+        if any(value is None or value < 0 or value > 100 for value in values) or sum(values) != Decimal('100'):
+            raise serializers.ValidationError('Lab partner, technician and AVA percentages must be nonnegative and total 100%.')
+        return attrs
